@@ -1,31 +1,26 @@
 {
-  // 1. Core Formatting on Save
-  "editor.formatOnSave": true,
-  "editor.defaultFormatter": "esbenp.prettier-vscode", // Ensure Prettier is the default formatter
+    // 1. Core Formatting on Save
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode", // Ensure Prettier is the default formatter
 
-  // 2. Auto-Fix ESLint Errors on Save (The MVVM Architecture Enforcer)
-  // This tells VS Code to run the 'source.fixAll.eslint' action when saving.
-  "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": "explicit"
-  },
+    // 2. Auto-Fix ESLint Errors on Save (The MVVM Architecture Enforcer)
+    // This tells VS Code to run the 'source.fixAll.eslint' action when saving.
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "explicit"
+    },
 
-  // 3. Configure ESLint to use the Flat Config (eslint.config.js)
-  // These settings ensure ESLint works correctly with your project's file types.
-  "eslint.useFlatConfig": true,
-  "eslint.validate": [
-    "javascript",
-    "javascriptreact",
-    "typescript",
-    "typescriptreact"
-  ],
+    // 3. Configure ESLint to use the Flat Config (eslint.config.js)
+    // These settings ensure ESLint works correctly with your project's file types.
+    "eslint.useFlatConfig": true,
+    "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
 
-  // 4. Exclude large directories from VS Code's search/indexing
-  // This improves VS Code performance, especially for large node_modules/ directories.
-  "files.exclude": {
-    "**/.git": true,
-    "**/node_modules": true,
-    "**/.expo": true,
-    "**/web-build": true,
-    "**/dist": true
-  }
+    // 4. Exclude large directories from VS Code's search/indexing
+    // This improves VS Code performance, especially for large node_modules/ directories.
+    "files.exclude": {
+        "**/.git": true,
+        "**/node_modules": true,
+        "**/.expo": true,
+        "**/web-build": true,
+        "**/dist": true
+    }
 }

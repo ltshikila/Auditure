@@ -1,0 +1,17 @@
+{
+  "name": "bookcast-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "services/*"
+  ],
+  "scripts": {
+    "start:mobile": "npm run start --workspace=apps/mobile-app",
+    "start:core-api": "npm run start:dev --workspace=services/core-api",
+    "test": "npm run test --workspaces"
+  },
+  "devDependencies": {
+    "concurrently": "^8.0.0" 
+  }
+}
