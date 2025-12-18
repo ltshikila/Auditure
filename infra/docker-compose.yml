@@ -1,0 +1,55 @@
+version: "3.8"
+
+services:
+  # -------------------------------------------------------------------------
+  # POSTGRESQL (Relational Database)
+  # Meets SRS FR-Data Layer: Stores Users, Podcasters, Metadata
+  # -------------------------------------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: bookcast_db
+    ports:
+      - "5432:5432" # Expose default port to host
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: bookcast_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - bookcast_net
+
+  # -------------------------------------------------------------------------
+  # RABBITMQ (Message Broker)
+  # Meets SRS NFR-5: Decouples heavy AI tasks from the API
+  # -------------------------------------------------------------------------
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: bookcast_mq
+    ports:
+      - "5672:5672" # Message port (AMQP)
+      - "15672:15672" # Management Dashboard (HTTP)
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+    networks:
+      - bookcast_net
+
+  # -------------------------------------------------------------------------
+  # REDIS (Optional Caching)
+  # Meets SRS NFR-Latency: Caches feed/search results
+  # -------------------------------------------------------------------------
+  redis:
+    image: redis:alpine
+    container_name: bookcast_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - bookcast_net
+
+volumes:
+  postgres_data:
+
+networks:
+  bookcast_net:
+    driver: bridge
