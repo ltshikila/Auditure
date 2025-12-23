@@ -154,6 +154,11 @@ Please read our contributing guidelines before submitting pull requests. Ensure 
 * Maintains modular structure
 * Follows TypeScript/Python best practices
 
+## Helpful Commands
+```bash
+npx tree-node-cli -I "node_modules|.git|dist|.expo|.vscode" --dirs-first
+```
+
 ## License
 
 [Your License Here]

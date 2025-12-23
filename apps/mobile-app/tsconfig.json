@@ -3,7 +3,10 @@
     "allowJs": true,
     "strict": true,
     "jsx": "react-native",
-    "lib": ["dom", "esnext"],
+    "lib": [
+      "dom",
+      "esnext"
+    ],
     "module": "esnext",
     "moduleResolution": "bundler",
     "skipLibCheck": true,
@@ -12,9 +15,15 @@
     "rootDir": ".",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": [
+        "src/*"
+      ]
     },
-    "types": ["expo", "node", "jest"], 
+    "types": [
+      "expo",
+      "node",
+      "jest"
+    ],
     "noEmit": true,
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
@@ -31,7 +40,9 @@
     "**/*.tsx",
     "**/*.js",
     "src/**/*",
-    "nativewind-env.d.ts"
+    "nativewind-env.d.ts",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
   ],
   "extends": "expo/tsconfig.base"
 }
