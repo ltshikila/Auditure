@@ -1,3 +1,4 @@
+// apps/mobile-app/src/app/(tabs)/_layout.tsx
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -12,16 +13,33 @@ export default function TabLayout() {
         headerShown: false,
         tabBarStyle: Platform.select({
           ios: {
-            position: 'absolute', // Transparent background on iOS
+            position: 'absolute',
           },
           default: {},
         }),
       }}>
       <Tabs.Screen
-        name="index"
+        name="home" 
         options={{
           title: 'Home',
-          // You can add tabBarIcon here later
+        }}
+      />
+      <Tabs.Screen
+        name="episode"
+        options={{
+          title: 'Episode',
+        }}
+      />
+      <Tabs.Screen
+        name="studio"
+        options={{
+          title: 'Studio',
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
         }}
       />
     </Tabs>

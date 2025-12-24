@@ -1,10 +1,9 @@
-// apps/mobile-app/src/app/(auth)/Auth.tsx
+// src/app/(auth)/Auth.tsx
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router'; // FIXED: Using Expo Router
+import { router } from 'expo-router'; // Ensure this import is correct
 
-// FIXED: Correct relative paths (up two levels)
 import AuthInput from '../../components/AuthInput'; 
 import SocialButton from '../../components/SocialButtons'; 
 
@@ -23,8 +22,8 @@ export default function AuthScreen() {
       });
     } else {
       console.log("Logging in", formData);
-      // FIXED: Use "/" to target the index inside (tabs)
-      router.replace("/"); 
+      // FIXED: Include the group name '(tabs)' in the path
+      router.replace("/(tabs)/home"); 
     }
   };
 
