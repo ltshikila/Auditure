@@ -9,6 +9,14 @@ module.exports = {
   presets: [require("nativewind/preset")],
   theme: {
     extend: {
+      colors: {
+        brand: {
+          red: '#920002',      // Deep Red Button
+          gold: '#BF9A54',     // Gold/Tan Toggle & Accents
+          beige: '#FBF8F2',    // Beige Background
+          input: '#F1EEE3',    // Input Background
+        }
+      },
       fontFamily: {
         // Inter (Body)
         inter: ["Inter_400Regular"],        // Default: className="font-inter"

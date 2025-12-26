@@ -1,8 +1,7 @@
-// src/app/(auth)/Auth.tsx
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router'; // Ensure this import is correct
+import { router } from 'expo-router';
 
 import AuthInput from '../../components/AuthInput'; 
 import SocialButton from '../../components/SocialButtons'; 
@@ -10,8 +9,6 @@ import SocialButton from '../../components/SocialButtons';
 export default function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({ email: '', password: '', firstName: '', lastName: '' });
-
-  const toggle = () => setIsLogin(!isLogin);
 
   const handleSubmit = async () => {
     if (!isLogin) {
@@ -22,38 +19,37 @@ export default function AuthScreen() {
       });
     } else {
       console.log("Logging in", formData);
-      // FIXED: Include the group name '(tabs)' in the path
       router.replace("/(tabs)/home"); 
     }
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#FDFBF7]">
+    <SafeAreaView className="flex-1 bg-brand-beige">
       <ScrollView contentContainerStyle={{ padding: 24 }}>
         
         {/* Header Icon */}
         <View className="items-center mt-8 mb-6">
-          <View className="w-12 h-12 bg-[#8B0000] rounded-lg rotate-45" /> 
+          <View className="w-12 h-12 bg-brand-red rounded-lg rotate-45" /> 
         </View>
 
-        <Text className="text-3xl font-bold text-center text-gray-900 mb-2">
+        <Text className="font-inter-medium text-4xl text-center text-gray-900 mb-2">
           {isLogin ? 'Welcome Back' : 'Get Started now'}
         </Text>
-        <Text className="text-center text-gray-500 mb-8">
+        <Text className="font-jakarta text-center text-[#6C7278] my-5 px-8">
           Create an account or log in to explore about our app
         </Text>
 
         {/* Toggle Switch */}
-        <View className="bg-[#E6E2D6] rounded-full p-1 flex-row mb-8">
+        <View className="bg-[#E7E0CB] rounded-lg p-1 flex-row mb-8">
           <TouchableOpacity 
             onPress={() => setIsLogin(true)}
-            className={`flex-1 p-3 rounded-full items-center ${isLogin ? 'bg-[#C5A065]' : 'bg-transparent'}`}>
-            <Text className={`font-bold ${isLogin ? 'text-white' : 'text-gray-500'}`}>Log In</Text>
+            className={`flex-1 p-3 rounded-lg items-center ${isLogin ? 'bg-brand-gold' : 'bg-transparent'}`}>
+            <Text className={`font-jakarta-medium ${isLogin ? 'text-white' : 'text-gray-500'}`}>Log In</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             onPress={() => setIsLogin(false)}
-            className={`flex-1 p-3 rounded-full items-center ${!isLogin ? 'bg-[#C5A065]' : 'bg-transparent'}`}>
-            <Text className={`font-bold ${!isLogin ? 'text-white' : 'text-gray-500'}`}>Sign Up</Text>
+            className={`flex-1 p-3 rounded-lg items-center ${!isLogin ? 'bg-brand-gold' : 'bg-transparent'}`}>
+            <Text className={`font-jakarta-medium ${!isLogin ? 'text-white' : 'text-gray-500'}`}>Sign Up</Text>
           </TouchableOpacity>
         </View>
 
@@ -69,7 +65,6 @@ export default function AuthScreen() {
             label="Email" 
             placeholder="email@example.com" 
             value={formData.email}
-            // FIXED: Typed 'text' argument explicitly
             onChangeText={(text: string) => setFormData({...formData, email: text})} 
         />
         
@@ -82,23 +77,23 @@ export default function AuthScreen() {
         {/* Forgot Password Link */}
         {isLogin && (
           <TouchableOpacity className="items-end mb-6">
-            <Text className="text-[#C5A065] font-bold">Forgot Password ?</Text>
+            <Text className="text-brand-gold font-jakarta-medium text-sm">Forgot Password ?</Text>
           </TouchableOpacity>
         )}
 
         {/* Main Action Button */}
         <TouchableOpacity 
-          className="bg-[#8B0000] p-4 rounded-xl items-center mb-8"
+          className="bg-brand-red p-4 rounded-xl items-center mb-8"
           onPress={handleSubmit}>
-          <Text className="text-white font-bold text-lg">{isLogin ? 'Log In' : 'Register'}</Text>
+          <Text className="text-white font-inter-medium text-base">{isLogin ? 'Log In' : 'Register'}</Text>
         </TouchableOpacity>
 
         {/* Divider */}
         {isLogin && (
           <View className="flex-row items-center mb-8">
-            <View className="flex-1 h-[1px] bg-gray-300" />
+            <View className="flex-1 h-[1px] bg-brand-gold" />
             <Text className="mx-4 text-gray-400">Or login with</Text>
-            <View className="flex-1 h-[1px] bg-gray-300" />
+            <View className="flex-1 h-[1px] bg-brand-gold" />
           </View>
         )}
 

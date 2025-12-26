@@ -20,14 +20,14 @@ export default function AuthInput({
 }: AuthInputProps) {
   return (
     <View className="mb-4">
-      <Text className="text-gray-600 mb-1 ml-1">{label}</Text>
+      <Text className="text-[#1A1C1E] font-jakarta mb-1 ml-1">{label}</Text>
       <TextInput
-        className="bg-[#EBEBE6] p-4 rounded-xl text-gray-800"
+        className="bg-[#F1EEE3] font-inter py-5 px-4 rounded-xl text-[#1A1C1E]"
         value={value}
         onChangeText={onChangeText}
         secureTextEntry={secureTextEntry}
         placeholder={placeholder}
-        placeholderTextColor="#A0A0A0"
+        placeholderTextColor="#858585"
       />
     </View>
   );
