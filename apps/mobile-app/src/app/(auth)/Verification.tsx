@@ -1,12 +1,84 @@
 // apps/mobile-app/src/app/(auth)/Verification.tsx
-import React from 'react';
-import { View, Text, TouchableOpacity, TextInput,} from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, TouchableOpacity, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router'; // FIXED: Import router hook
+import { router, useLocalSearchParams } from 'expo-router';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function VerificationScreen() {
-  // FIXED: Using useLocalSearchParams with generic type to fix 'email' error
   const { email } = useLocalSearchParams<{ email: string }>();
+  const { verify, resendOTP } = useAuth();
+  const [code, setCode] = useState(['', '', '', '', '', '']);
+  const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const inputRefs = useRef<(TextInput | null)[]>([]);
+
+  const handleCodeChange = (text: string, index: number) => {
+    if (text.length > 1) {
+      text = text[0];
+    }
+
+    const newCode = [...code];
+    newCode[index] = text;
+    setCode(newCode);
+
+    if (text && index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleKeyPress = (key: string, index: number) => {
+    if (key === 'Backspace' && !code[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleVerify = async () => {
+    const otpCode = code.join('');
+
+    if (otpCode.length !== 6) {
+      Alert.alert('Error', 'Please enter the complete 6-digit code');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await verify({
+        email: email || '',
+        code: otpCode,
+      });
+
+      Alert.alert('Success', 'Email verified successfully!');
+      router.replace('/(tabs)/home');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Invalid verification code. Please try again.');
+      setCode(['', '', '', '', '', '']);
+      inputRefs.current[0]?.focus();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    if (!email) {
+      Alert.alert('Error', 'Email address not found');
+      return;
+    }
+
+    setResending(true);
+
+    try {
+      await resendOTP(email);
+      Alert.alert('Success', 'A new verification code has been sent to your email');
+      setCode(['', '', '', '', '', '']);
+      inputRefs.current[0]?.focus();
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to resend code. Please try again.');
+    } finally {
+      setResending(false);
+    }
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-[#FDFBF7] px-6">
@@ -23,21 +95,39 @@ export default function VerificationScreen() {
 
       {/* Code Input Boxes */}
       <View className="flex-row justify-between mb-12">
-        {[1, 2, 3, 4, 5, 6].map((i) => (
-          <TextInput 
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <TextInput
             key={i}
+            ref={(ref) => {
+              inputRefs.current[i] = ref;
+            }}
             className="w-12 h-14 border-2 border-[#E6E2D6] rounded-xl text-center text-xl font-bold bg-[#F5F5F0] focus:border-[#C5A065]"
             keyboardType="numeric"
             maxLength={1}
+            value={code[i]}
+            onChangeText={(text) => handleCodeChange(text, i)}
+            onKeyPress={({ nativeEvent: { key } }) => handleKeyPress(key, i)}
           />
         ))}
       </View>
 
+      {/* Resend Code */}
+      <TouchableOpacity onPress={handleResendOTP} disabled={resending} className="mb-6">
+        <Text className="text-brand-gold font-jakarta-medium text-center">
+          {resending ? 'Sending...' : "Didn't receive code? Resend"}
+        </Text>
+      </TouchableOpacity>
+
       {/* Verify Button */}
-      <TouchableOpacity 
+      <TouchableOpacity
         className="bg-[#8B0000] p-4 rounded-xl items-center mt-auto mb-8"
-        onPress={() => console.log('Verified!')}>
-        <Text className="text-white font-bold text-lg">Verify</Text>
+        onPress={handleVerify}
+        disabled={loading}>
+        {loading ? (
+          <ActivityIndicator color="white" />
+        ) : (
+          <Text className="text-white font-bold text-lg">Verify</Text>
+        )}
       </TouchableOpacity>
     </SafeAreaView>
   );

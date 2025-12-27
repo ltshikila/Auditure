@@ -1,34 +1,92 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Request,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BooksService } from './books.service';
 import { CreateBookDto } from './dto/create-book.dto';
-import { UpdateBookDto } from './dto/update-book.dto';
+import { GetTextDto } from './dto/get-text.dto';
+
+const bookFileFilter = (req, file, callback) => {
+  const allowedMimes = ['application/pdf', 'application/epub+zip'];
+  if (!allowedMimes.includes(file.mimetype)) {
+    return callback(
+      new BadRequestException('Only PDF and EPUB files are allowed'),
+      false
+    );
+  }
+  callback(null, true);
+};
 
 @Controller('books')
+@UseGuards(JwtAuthGuard)
 export class BooksController {
   constructor(private readonly booksService: BooksService) {}
 
-  @Post()
-  create(@Body() createBookDto: CreateBookDto) {
-    return this.booksService.create(createBookDto);
+  @Post('upload')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+      fileFilter: bookFileFilter,
+    })
+  )
+  async uploadBook(
+    @Request() req,
+    @UploadedFile() file: any,
+    @Body() createBookDto: CreateBookDto,
+  ) {
+    return this.booksService.uploadBook(req.user.userId, file, createBookDto);
   }
 
   @Get()
-  findAll() {
-    return this.booksService.findAll();
+  async findAll(@Request() req) {
+    return this.booksService.findAll(req.user.userId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.booksService.findOne(+id);
+  async findOne(@Request() req, @Param('id') id: string) {
+    return this.booksService.findOne(req.user.userId, id);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateBookDto: UpdateBookDto) {
-    return this.booksService.update(+id, updateBookDto);
+  @Get(':id/text')
+  async getExtractedText(
+    @Request() req,
+    @Param('id') id: string,
+    @Query() options: GetTextDto,
+  ) {
+    const text = await this.booksService.getExtractedText(
+      req.user.userId,
+      id,
+      options
+    );
+    return { text };
+  }
+
+  @Get(':id/chapters')
+  async getChapters(@Request() req, @Param('id') id: string) {
+    const book = await this.booksService.findOne(req.user.userId, id);
+    return book.chapters;
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.booksService.remove(+id);
+  async remove(@Request() req, @Param('id') id: string) {
+    await this.booksService.delete(req.user.userId, id);
+    return { message: 'Book deleted successfully' };
+  }
+
+  @Post(':id/retry-extraction')
+  async retryExtraction(@Request() req, @Param('id') id: string) {
+    return this.booksService.retryExtraction(req.user.userId, id);
   }
 }

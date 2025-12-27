@@ -1,0 +1,116 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id               String    @id @default(uuid())
+  email            String    @unique
+  password         String
+  firstName        String
+  lastName         String
+  dateOfBirth      DateTime?
+  isEmailVerified  Boolean   @default(false)
+  otpCode          String?
+  otpExpiry        DateTime?
+  refreshToken     String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  books            Book[]
+
+  @@map("users")
+}
+
+model Book {
+  id                String       @id @default(uuid())
+  userId            String
+
+  // Metadata
+  title             String
+  author            String?
+  isbn              String?
+  language          String       @default("en")
+  pageCount         Int?
+
+  // Source Information
+  sourceType        SourceType
+  originalFileName  String?
+
+  // Storage
+  fileStorageKey    String
+  fileSize          Int?
+  fileMimeType      String?
+
+  // Extraction Status
+  extractionStatus  ExtractionStatus @default(PENDING)
+  extractionError   String?
+  extractedAt       DateTime?
+
+  // Content
+  fullTextKey       String?
+
+  // Timestamps
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  // Relations
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chapters          Chapter[]
+
+  @@index([userId])
+  @@index([extractionStatus])
+  @@map("books")
+}
+
+model Chapter {
+  id              String    @id @default(uuid())
+  bookId          String
+
+  // Chapter Info
+  chapterNumber   Int
+  title           String?
+
+  // Content Location
+  startPage       Int?
+  endPage         Int?
+  textLength      Int?
+
+  // Extracted Text
+  extractedText   String?   @db.Text
+
+  // Timestamps
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  book            Book      @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@unique([bookId, chapterNumber])
+  @@index([bookId])
+  @@map("chapters")
+}
+
+enum SourceType {
+  PDF
+  EPUB
+  URL
+}
+
+enum ExtractionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  PARTIALLY_COMPLETED
+}

@@ -1,4 +1,9 @@
-import { Module } from '@nestjs/common';
+import { Module, Global } from '@nestjs/common';
+import { RabbitMQService } from './rabbitmq.service';
 
-@Module({})
+@Global()
+@Module({
+  providers: [RabbitMQService],
+  exports: [RabbitMQService],
+})
 export class RabbitmqModule {}
