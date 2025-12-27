@@ -3,6 +3,8 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { VerifyDto } from './dto/verify.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { ResendOtpDto } from './dto/resend-otp.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Controller('auth')
@@ -25,13 +27,13 @@ export class AuthController {
   }
 
   @Post('refresh')
-  refreshToken(@Body('refreshToken') refreshToken: string) {
-    return this.authService.refreshToken(refreshToken);
+  refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
+    return this.authService.refreshToken(refreshTokenDto.refreshToken);
   }
 
   @Post('resend-otp')
-  resendOTP(@Body('email') email: string) {
-    return this.authService.resendOTP(email);
+  resendOTP(@Body() resendOtpDto: ResendOtpDto) {
+    return this.authService.resendOTP(resendOtpDto.email);
   }
 
   @UseGuards(JwtAuthGuard)

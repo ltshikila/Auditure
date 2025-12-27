@@ -46,6 +46,9 @@ export class BooksController {
     @UploadedFile() file: any,
     @Body() createBookDto: CreateBookDto,
   ) {
+    if (!file) {
+      throw new BadRequestException('File is required');
+    }
     return this.booksService.uploadBook(req.user.userId, file, createBookDto);
   }
 
