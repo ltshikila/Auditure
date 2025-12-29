@@ -1,28 +1,28 @@
 import { IsString, IsOptional, IsEnum, MaxLength } from 'class-validator';
 
 export enum SourceType {
-  PDF = 'PDF',
-  EPUB = 'EPUB',
+    PDF = 'PDF',
+    EPUB = 'EPUB',
 }
 
 export class CreateBookDto {
-  @IsString()
-  @MaxLength(500)
-  title: string;
+    @IsString()
+    @MaxLength(500)
+    title: string;
 
-  @IsString()
-  @IsOptional()
-  @MaxLength(200)
-  author?: string;
+    @IsString()
+    @IsOptional()
+    @MaxLength(200)
+    author?: string;
 
-  @IsString()
-  @IsOptional()
-  isbn?: string;
+    @IsString()
+    @IsOptional()
+    isbn?: string;
 
-  @IsEnum(SourceType)
-  sourceType: SourceType;
+    @IsEnum(SourceType)
+    sourceType: SourceType;
 
-  @IsString()
-  @IsOptional()
-  language?: string;
+    @IsString()
+    @IsOptional()
+    language?: string;
 }

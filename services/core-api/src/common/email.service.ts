@@ -3,26 +3,26 @@ import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class EmailService {
-  private transporter: nodemailer.Transporter;
+    private transporter: nodemailer.Transporter;
 
-  constructor() {
-    this.transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST,
-      port: parseInt(process.env.EMAIL_PORT || '587'),
-      secure: false,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
-      },
-    });
-  }
+    constructor() {
+        this.transporter = nodemailer.createTransport({
+            host: process.env.EMAIL_HOST,
+            port: parseInt(process.env.EMAIL_PORT || '587'),
+            secure: false,
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASSWORD,
+            },
+        });
+    }
 
-  async sendOTP(email: string, otp: string): Promise<void> {
-    const mailOptions = {
-      from: process.env.EMAIL_FROM || 'BookCast <noreply@bookcast.com>',
-      to: email,
-      subject: 'Your BookCast Verification Code',
-      html: `
+    async sendOTP(email: string, otp: string): Promise<void> {
+        const mailOptions = {
+            from: process.env.EMAIL_FROM || 'BookCast <noreply@bookcast.com>',
+            to: email,
+            subject: 'Your BookCast Verification Code',
+            html: `
         <!DOCTYPE html>
         <html>
         <head>
@@ -55,13 +55,13 @@ export class EmailService {
         </body>
         </html>
       `,
-    };
+        };
 
-    try {
-      await this.transporter.sendMail(mailOptions);
-    } catch (error) {
-      console.error('Error sending OTP email:', error);
-      throw new Error('Failed to send verification email');
+        try {
+            await this.transporter.sendMail(mailOptions);
+        } catch (error) {
+            console.error('Error sending OTP email:', error);
+            throw new Error('Failed to send verification email');
+        }
     }
-  }
 }

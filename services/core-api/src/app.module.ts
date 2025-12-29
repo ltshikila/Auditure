@@ -14,7 +14,19 @@ import { RabbitmqModule } from './rabbitmq/rabbitmq.module';
 import { CommonModule } from './common/common.module';
 
 @Module({
-    imports: [AuthModule, UsersModule, PodcastersModule, BooksModule, EpisodesModule, FeedModule, SocialModule, SubscriptionsModule, DatabaseModule, RabbitmqModule, CommonModule],
+    imports: [
+        AuthModule,
+        UsersModule,
+        PodcastersModule,
+        BooksModule,
+        EpisodesModule,
+        FeedModule,
+        SocialModule,
+        SubscriptionsModule,
+        DatabaseModule,
+        RabbitmqModule,
+        CommonModule,
+    ],
     controllers: [AppController],
     providers: [AppService],
 })

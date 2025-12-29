@@ -4,7 +4,7 @@ import { StorageService } from './storage.service';
 
 @Global()
 @Module({
-  providers: [EmailService, StorageService],
-  exports: [EmailService, StorageService],
+    providers: [EmailService, StorageService],
+    exports: [EmailService, StorageService],
 })
 export class CommonModule {}
