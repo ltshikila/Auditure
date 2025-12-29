@@ -3,26 +3,24 @@ import React from 'react';
 
 export default function EpisodesLayout() {
   return (
-    <Stack screenOptions={{ headerBackTitle: "", }}>
-      {/* Main List */}
-      <Stack.Screen 
-        name="index" 
-        options={{ title: 'Episodes' }} 
-      />
-      
-      {/* Create Modal */}
-      <Stack.Screen 
-        name="create" 
-        options={{ 
-          title: 'New Episode',
-          presentation: 'modal' 
-        }} 
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen
+        name="index"
+        options={{ headerShown: false }}
       />
 
-      {/* Dynamic Episode Details (Handles [episode]/index and [episode]/play) */}
-      <Stack.Screen 
-        name="[episode]" 
-        options={{ headerShown: false }} 
+      <Stack.Screen
+        name="create"
+        options={{
+          presentation: 'modal',
+          headerShown: false
+        }}
+      />
+
+      {/* Dynamic Episode Details - has its own _layout.tsx */}
+      <Stack.Screen
+        name="[episode]"
+        options={{ headerShown: false }}
       />
     </Stack>
   );

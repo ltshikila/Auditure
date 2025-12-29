@@ -2,26 +2,18 @@ import { Stack } from 'expo-router';
 import React from 'react';
 
 export default function PodcastsLayout() {
-  return (
-    <Stack screenOptions={{ headerBackTitle: "", }}>
-      <Stack.Screen 
-        name="podcasts" 
-        options={{ title: 'Podcasts' }} 
-      />
-      
-      <Stack.Screen 
-        name="create" 
-        options={{ 
-          title: 'Create Podcast',
-          presentation: 'modal' 
-        }} 
-      />
+    return (
+        <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen
+                name="create"
+                options={{
+                    presentation: 'modal',
+                    headerShown: false,
+                }}
+            />
 
-      {/* Dynamic Podcast Folder */}
-      <Stack.Screen 
-        name="[podcast]" 
-        options={{ headerShown: false }} 
-      />
-    </Stack>
-  );
+            {/* Dynamic Podcast Folder - has its own _layout.tsx */}
+            <Stack.Screen name="[podcast]" options={{ headerShown: false }} />
+        </Stack>
+    );
 }
