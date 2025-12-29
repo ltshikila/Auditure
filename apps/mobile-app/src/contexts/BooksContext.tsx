@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { bookService, Book } from '../services/book.service';
 import { useAuth } from './AuthContext';
-import { StorageService } from '../services/storage.service';
+import { storageService } from '../services/storage.service';
 
 interface BooksContextType {
   books: Book[];
@@ -25,7 +25,7 @@ export const BooksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       setLoading(true);
       setError(null);
-      const token = await StorageService.getAccessToken();
+      const token = await storageService.getAccessToken();
       if (token) {
         const fetchedBooks = await bookService.getBooks(token);
         setBooks(fetchedBooks);
@@ -41,7 +41,7 @@ export const BooksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       setLoading(true);
       setError(null);
-      const token = await StorageService.getAccessToken();
+      const token = await storageService.getAccessToken();
       if (!token) throw new Error('Not authenticated');
 
       await bookService.uploadBook(file, metadata, token);
@@ -57,7 +57,7 @@ export const BooksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const deleteBook = async (id: string) => {
     try {
       setLoading(true);
-      const token = await StorageService.getAccessToken();
+      const token = await storageService.getAccessToken();
       if (!token) throw new Error('Not authenticated');
 
       await bookService.deleteBook(id, token);
@@ -73,7 +73,7 @@ export const BooksProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const retryExtraction = async (id: string) => {
     try {
       setLoading(true);
-      const token = await StorageService.getAccessToken();
+      const token = await storageService.getAccessToken();
       if (!token) throw new Error('Not authenticated');
 
       await bookService.retryExtraction(id, token);

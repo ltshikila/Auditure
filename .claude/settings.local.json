@@ -9,7 +9,22 @@
       "Bash(cat:*)",
       "Bash(npx prisma dev:*)",
       "Bash(npm run build:*)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "Bash(npx prisma db seed --help:*)",
+      "Bash(npx prisma db push:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(npx prisma studio:*)",
+      "Bash(curl:*)",
+      "Bash(taskkill /F /FI \"WINDOWTITLE eq Prisma Studio*\")",
+      "Bash(npx prisma db execute:*)",
+      "Bash(timeout 5 npx prisma studio:*)",
+      "Bash($env:PGPASSWORD=\"postgres\")",
+      "Bash($env:PGSSLMODE=\"disable\")",
+      "Bash(psql:*)",
+      "Bash(PGPASSWORD=postgres PGSSLMODE=disable psql:*)",
+      "Bash(DATABASE_URL=\"postgres://postgres:postgres@127.0.0.1:51214/template1?sslmode=disable\" npx prisma studio:*)",
+      "Bash(node view-db.js:*)"
     ]
   }
 }

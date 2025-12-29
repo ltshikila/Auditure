@@ -81,9 +81,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return { requiresVerification: true, email: response.email };
     }
 
-    await storageService.saveTokens(response.accessToken, response.refreshToken);
-    await storageService.saveUser(response.user);
-    setUser(response.user);
+    // TypeScript now knows response is AuthResponse
+    if ('accessToken' in response) {
+      await storageService.saveTokens(response.accessToken, response.refreshToken);
+      await storageService.saveUser(response.user);
+      setUser(response.user);
+    }
     return {};
   };
 

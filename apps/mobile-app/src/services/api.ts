@@ -19,25 +19,41 @@ class ApiClient {
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
 
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    });
+    try {
+      console.log(`[API] ${options.method || 'GET'} ${url}`);
 
-    const data = await response.json();
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+      });
 
-    if (!response.ok) {
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error(`[API Error] ${response.status}:`, data);
+        throw {
+          message: data.message || 'An error occurred',
+          statusCode: response.status,
+          error: data.error,
+        } as ApiError;
+      }
+
+      console.log(`[API Success] ${options.method || 'GET'} ${url}`);
+      return data;
+    } catch (error: any) {
+      console.error(`[API Request Failed] ${options.method || 'GET'} ${url}:`, error);
+      if (error.message && error.statusCode) {
+        throw error;
+      }
       throw {
-        message: data.message || 'An error occurred',
-        statusCode: response.status,
-        error: data.error,
+        message: error.message || 'Network request failed',
+        statusCode: 0,
+        error: 'NETWORK_ERROR',
       } as ApiError;
     }
-
-    return data;
   }
 
   async get<T>(endpoint: string, token?: string): Promise<T> {

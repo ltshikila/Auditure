@@ -5,7 +5,7 @@ export default function PodcastsLayout() {
   return (
     <Stack screenOptions={{ headerBackTitle: "", }}>
       <Stack.Screen 
-        name="index" 
+        name="podcasts" 
         options={{ title: 'Podcasts' }} 
       />
       
