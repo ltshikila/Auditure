@@ -81,17 +81,17 @@ export default function VerificationScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#FDFBF7] px-6">
+    <SafeAreaView className="flex-1 bg-brand-beige p-6">
       {/* Back Button */}
       <TouchableOpacity onPress={() => router.back()} className="mt-8 mb-6">
         <Text className="text-2xl">←</Text>
       </TouchableOpacity>
 
-      <Text className="text-3xl font-bold text-gray-900 mb-4">Verification</Text>
-      <Text className="text-gray-600 text-lg mb-2">We just sent a 6-digit code to:</Text>
-      <Text className="text-gray-900 font-bold text-lg mb-8">{email}</Text>
+      <Text className="font-inter-medium text-4xl text-gray-900 mb-4">Verification</Text>
+      <Text className="text-gray-600 font-inter text-lg mb-4">We just sent a 6-digit code to:</Text>
+      <Text className="text-gray-900 font-inter-bold text-xl mb-8">{email}</Text>
 
-      <Text className="text-gray-600 mb-4">Enter the code to continue:</Text>
+      <Text className="text-gray-600 font-inter mb-4">Enter the code to continue:</Text>
 
       {/* Code Input Boxes */}
       <View className="flex-row justify-between mb-12">
@@ -101,7 +101,7 @@ export default function VerificationScreen() {
             ref={(ref) => {
               inputRefs.current[i] = ref;
             }}
-            className="w-12 h-14 border-2 border-[#E6E2D6] rounded-xl text-center text-xl font-bold bg-[#F5F5F0] focus:border-[#C5A065]"
+            className="w-14 h-20 border border-[#BFA054] rounded-xl text-center text-xl font-jakarta-medium bg-[#F1EEE3] focus:border-[#C5A065]"
             keyboardType="numeric"
             maxLength={1}
             value={code[i]}
@@ -113,14 +113,14 @@ export default function VerificationScreen() {
 
       {/* Resend Code */}
       <TouchableOpacity onPress={handleResendOTP} disabled={resending} className="mb-6">
-        <Text className="text-brand-gold font-jakarta-medium text-center">
+        <Text className="text-brand-gold font-jakarta text-center">
           {resending ? 'Sending...' : "Didn't receive code? Resend"}
         </Text>
       </TouchableOpacity>
 
       {/* Verify Button */}
       <TouchableOpacity
-        className="bg-[#8B0000] p-4 rounded-xl items-center mt-auto mb-8"
+        className="bg-brand-red p-4 rounded-xl items-center mb-8 mt-auto"
         onPress={handleVerify}
         disabled={loading}>
         {loading ? (

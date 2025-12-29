@@ -24,7 +24,9 @@
       "Bash(psql:*)",
       "Bash(PGPASSWORD=postgres PGSSLMODE=disable psql:*)",
       "Bash(DATABASE_URL=\"postgres://postgres:postgres@127.0.0.1:51214/template1?sslmode=disable\" npx prisma studio:*)",
-      "Bash(node view-db.js:*)"
+      "Bash(node view-db.js:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(timeout 10 npm start:*)"
     ]
   }
 }

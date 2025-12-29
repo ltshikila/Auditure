@@ -1,20 +1,32 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class EmailService {
     private transporter: nodemailer.Transporter;
+    private readonly logger = new Logger(EmailService.name);
+    private readonly isDevelopment = process.env.NODE_ENV !== 'production';
 
     constructor() {
-        this.transporter = nodemailer.createTransport({
-            host: process.env.EMAIL_HOST,
-            port: parseInt(process.env.EMAIL_PORT || '587'),
-            secure: false,
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASSWORD,
-            },
-        });
+        // In development, use a test account or log emails
+        if (this.isDevelopment) {
+            this.logger.warn('Running in development mode - emails will be logged instead of sent');
+            // Create a fake transporter for development
+            this.transporter = nodemailer.createTransport({
+                streamTransport: true,
+                newline: 'unix',
+            } as any);
+        } else {
+            this.transporter = nodemailer.createTransport({
+                host: process.env.EMAIL_HOST,
+                port: parseInt(process.env.EMAIL_PORT || '587'),
+                secure: false,
+                auth: {
+                    user: process.env.EMAIL_USER,
+                    pass: process.env.EMAIL_PASSWORD,
+                },
+            });
+        }
     }
 
     async sendOTP(email: string, otp: string): Promise<void> {
@@ -58,10 +70,21 @@ export class EmailService {
         };
 
         try {
-            await this.transporter.sendMail(mailOptions);
+            if (this.isDevelopment) {
+                // In development, just log the OTP
+                this.logger.log(`📧 [DEV] Email would be sent to: ${email}`);
+                this.logger.log(`🔑 [DEV] Verification Code: ${otp}`);
+                this.logger.log(`⏰ [DEV] Expires in: ${process.env.OTP_EXPIRY_MINUTES || '10'} minutes`);
+            } else {
+                await this.transporter.sendMail(mailOptions);
+                this.logger.log(`✅ Verification email sent to: ${email}`);
+            }
         } catch (error) {
-            console.error('Error sending OTP email:', error);
-            throw new Error('Failed to send verification email');
+            this.logger.error('Error sending OTP email:', error);
+            // Don't throw error in development, just log it
+            if (!this.isDevelopment) {
+                throw new Error('Unable to send verification email. Please try again later.');
+            }
         }
     }
 }

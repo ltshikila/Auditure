@@ -76,7 +76,16 @@ export class AuthService {
             },
         });
 
-        await this.emailService.sendOTP(user.email, otp);
+        try {
+            await this.emailService.sendOTP(user.email, otp);
+        } catch (error) {
+            // User is created but email failed - that's okay in development
+            // The OTP is stored in the database and will be logged in development mode
+            throw new BadRequestException(
+                'Account created successfully, but we encountered an issue sending the verification email. ' +
+                    'Please contact support or check your server logs for the verification code.',
+            );
+        }
 
         return {
             message: 'Registration successful. Please check your email for the verification code.',
