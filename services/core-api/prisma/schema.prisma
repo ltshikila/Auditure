@@ -13,21 +13,22 @@ datasource db {
 }
 
 model User {
-  id               String    @id @default(uuid())
-  email            String    @unique
+  id               String       @id @default(uuid())
+  email            String       @unique
   password         String
   firstName        String
   lastName         String
   dateOfBirth      DateTime?
-  isEmailVerified  Boolean   @default(false)
+  isEmailVerified  Boolean      @default(false)
   otpCode          String?
   otpExpiry        DateTime?
   refreshToken     String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   // Relations
   books            Book[]
+  podcasters       Podcaster[]
 
   @@map("users")
 }
@@ -99,6 +100,67 @@ model Chapter {
   @@unique([bookId, chapterNumber])
   @@index([bookId])
   @@map("chapters")
+}
+
+model Podcaster {
+  id                      String    @id @default(uuid())
+  userId                  String
+
+  // Core Identity
+  name                    String
+  description             String?
+
+  // Voice Configuration
+  voiceModel              VoiceModel
+  gender                  Gender
+  accent                  String
+  speakingSpeed           Int       @default(5)    // 1-10
+  vocalPitch              Int       @default(5)    // 1-10
+  vocabularyComplexity    Int       @default(5)    // 1-10
+  ageTone                 Int       @default(5)    // 1-10
+
+  // Core Personality Model
+  tone                    Int       @default(5)    // 1-10, Calm to Energetic
+  communicationStyle      Int       @default(5)    // 1-10, Storytelling to Analytical
+  humorLevel              Int       @default(5)    // 1-10, Dry to Comedic
+  conversationalDepth     Int       @default(5)    // 1-10, Surface-Level to Deep Thinking
+
+  // Knowledge & Worldview
+  expertiseTags           String[]                 // Philosophy, Psychology, Finance, etc.
+  intellectualAngle       String                   // Skeptical, Open-minded, Critical, etc.
+  viewpointBehavior       Int       @default(5)    // 1-10, Agreeable to Challenging
+
+  // Metadata
+  isPublic                Boolean   @default(false)
+  playCount               Int       @default(0)
+  likeCount               Int       @default(0)
+  shareCount              Int       @default(0)
+
+  // Timestamps
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  // Relations
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isPublic])
+  @@index([playCount])
+  @@map("podcasters")
+}
+
+enum VoiceModel {
+  CUSTOM
+  REALISTIC
+  ENERGETIC
+  CALM
+  SARCASTIC
+  ACADEMIC
+}
+
+enum Gender {
+  MALE
+  FEMALE
 }
 
 enum SourceType {

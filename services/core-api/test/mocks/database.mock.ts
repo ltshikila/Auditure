@@ -21,6 +21,14 @@ export const mockPrismaClient = {
         update: jest.fn(),
         delete: jest.fn(),
     },
+    podcaster: {
+        create: jest.fn(),
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+        count: jest.fn(),
+    },
     $connect: jest.fn(),
     $disconnect: jest.fn(),
 };
