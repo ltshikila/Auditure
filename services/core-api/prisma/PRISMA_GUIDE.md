@@ -31,66 +31,115 @@ This project uses **Prisma v7** with the following stack:
 
 ### Starting the Development Database
 
-For local development, we use Prisma Dev which provides a local PostgreSQL instance:
+For local development, we use Docker Compose with PostgreSQL:
 
 ```bash
-# Start the Prisma Dev database
-npx prisma dev
+# Start the database (recommended - uses npm script)
+npm run db:start
+
+# Or use docker-compose directly
+docker-compose up -d
 
 # The database will be available at:
-# - HTTP: prisma+postgres://localhost:51213/
-# - TCP: postgres://postgres:postgres@localhost:51214/template1
+# postgres://postgres:postgres@localhost:5432/bookcast
 ```
-
-The `npx prisma dev` command:
-- Starts a local PostgreSQL server
-- Automatically applies migrations
-- Runs in the background
-- Persists data between restarts
 
 ### Managing the Development Database
 
+#### Using NPM Scripts (Recommended)
+
 ```bash
-# Start the database
-npx prisma dev
+# Start PostgreSQL container
+npm run db:start
 
-# Stop the database (keeps data intact)
-npx prisma dev stop default
+# Stop PostgreSQL container (keeps data intact)
+npm run db:stop
 
-# List all running Prisma Dev servers
-npx prisma dev ls
+# Restart PostgreSQL container (keeps data intact)
+npm run db:restart
 
-# Remove/delete a server (WARNING: deletes all data!)
-npx prisma dev rm default
+# View database logs
+npm run db:logs
+
+# Seed database with test data
+npm run db:seed
+
+# Push schema changes to database
+npm run db:push
+
+# Open Prisma Studio GUI
+npm run db:studio
+
+# ⚠️ DESTRUCTIVE - Wipe database and reseed
+npm run db:reset
 ```
 
-**Important Notes**:
-- Stopping the database shuts down PostgreSQL but preserves all data
-- Removing a database server permanently deletes all data
-- The server name is `default` unless you specified a different name with `-n` flag
+#### Using Docker Compose Directly
+
+```bash
+# Start the database
+docker-compose up -d
+
+# Stop the database (keeps data intact)
+docker-compose stop
+
+# Restart the database (keeps data intact)
+docker-compose restart
+
+# View logs
+docker-compose logs -f postgres
+
+# ⚠️ WARNING: Removes volumes (deletes all data!)
+docker-compose down -v
+```
+
+### Data Persistence
+
+Your PostgreSQL data is stored in a Docker volume named `core-api_postgres_data`. This means:
+
+#### ✅ Data PERSISTS When:
+- Restarting the container: `npm run db:restart` or `docker-compose restart`
+- Stopping/starting: `npm run db:stop` → `npm run db:start`
+- Taking down the container: `docker-compose down` → `docker-compose up -d` (without `-v` flag)
+- Restarting your computer
+
+#### ❌ Data is DELETED When:
+- Running: `npm run db:reset` (intentional reset with reseed)
+- Running: `docker-compose down -v` (the `-v` flag removes volumes)
+- Manually deleting: `docker volume rm core-api_postgres_data`
+- Running: `docker volume prune` or `docker system prune --volumes`
+
+**Best Practice**: Use `npm run db:stop` and `npm run db:start` to safely manage the database without losing data.
 
 ### Environment Configuration
 
 Your `.env` file should contain:
 
 ```env
-DATABASE_URL="prisma+postgres://localhost:51213/?api_key=..."
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/bookcast?schema=public"
 ```
 
-The `DATABASE_URL` is automatically generated when you run `npx prisma dev`.
+This connects to the PostgreSQL container running via Docker Compose.
 
-### Applying Migrations
+### Applying Schema Changes
 
 ```bash
-# Apply all pending migrations to the database
-npx prisma migrate deploy
+# Push schema changes to database (no migration files)
+npm run db:push
+# or
+npx prisma db push
 
-# Create a new migration after schema changes
+# Create a migration after schema changes (production approach)
 npx prisma migrate dev --name description_of_change
 
-# Reset database (WARNING: deletes all data)
+# Apply all pending migrations (production deployment)
+npx prisma migrate deploy
+
+# Reset database and apply all migrations (WARNING: deletes all data)
 npx prisma migrate reset
 ```
+
+**Note**: This project currently uses `db push` for development. Use migrations for production deployments.
 
 ### Generating Prisma Client
 
@@ -104,33 +153,53 @@ This is automatically done when you run migrations, but you can run it manually 
 
 ### Using Prisma Studio
 
-Prisma Studio provides a visual interface to view and edit your database. However, it doesn't support the `prisma+postgres://` protocol yet, so you need to use the TCP connection string:
+Prisma Studio provides a visual interface to view and edit your database:
 
 ```bash
-# Start Prisma Studio with TCP connection
-npx prisma studio --url "postgres://postgres:postgres@localhost:51214/template1?sslmode=disable"
+# Start Prisma Studio (recommended - uses npm script)
+npm run db:studio
+
+# Or run directly
+npx prisma studio
 ```
 
-Prisma Studio will open in your browser at `http://localhost:51212` where you can:
+Prisma Studio will open in your browser at `http://localhost:5555` where you can:
 - Browse all tables and records
 - View relationships between models
 - Add, edit, or delete data manually
 - **View OTP codes** during development (found in the User table's `otpCode` field)
 - Create test data quickly
 
-**Note**: The TCP connection string uses port `51214` which is the database port, not the HTTP port `51213`.
-
 ## Development Workflow
 
 ### Making Schema Changes
 
 1. **Edit the schema** in `prisma/schema.prisma`
-2. **Create a migration**:
+2. **Push changes to database**:
    ```bash
-   npx prisma migrate dev --name add_new_field
+   npm run db:push
    ```
-3. **Prisma Client is auto-generated** during migration
+3. **Generate Prisma Client** (if not auto-generated):
+   ```bash
+   npx prisma generate
+   ```
 4. **Restart your NestJS app** to pick up the changes
+
+### Database Seeding
+
+The project includes a seed script that populates the database with test data:
+
+```bash
+# Run seed script
+npm run db:seed
+```
+
+**Seed Data Includes**:
+- 2 test users (`test@bookcast.com` and `demo@bookcast.com`, password: `password123`)
+- 3 sample podcasters with different personalities
+- 2 sample books with chapters
+
+**Important**: The seed data is static. New data you create during testing won't be automatically added to the seed script. If you lose data after a database restart, run `npm run db:seed` to restore the baseline test data.
 
 ### Example: Adding a New Field
 
@@ -149,7 +218,7 @@ model User {
 
 Then run:
 ```bash
-npx prisma migrate dev --name add_phone_number
+npm run db:push
 ```
 
 ### Example: Adding a New Model
@@ -178,6 +247,8 @@ model Podcast {
 ### Current Schema Structure
 
 The project has the following models:
+
+**Note**: For the complete, up-to-date schema including the Podcaster model, see `prisma/schema.prisma`.
 
 #### User Model
 ```prisma
@@ -385,9 +456,20 @@ import { Pool } from 'pg';
 @Injectable()
 export class DatabaseService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor() {
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    // Prisma v7 requires an adapter for PostgreSQL
+    const pool = new Pool({
+      host: 'localhost',
+      port: 5432,
+      database: 'bookcast',
+      user: 'postgres',
+      password: 'postgres',
+    });
     const adapter = new PrismaPg(pool);
-    super({ adapter });
+
+    super({
+      adapter,
+      log: ['error', 'warn'],
+    });
   }
 
   async onModuleInit() {
@@ -433,9 +515,22 @@ export class BooksService {
 **Error**: `Can't reach database server`
 
 **Solution**:
-1. Make sure Prisma Dev is running: `npx prisma dev`
-2. Check that the `DATABASE_URL` in `.env` matches the output from `npx prisma dev`
-3. Restart your NestJS application after starting the database
+1. Make sure Docker PostgreSQL is running: `npm run db:start`
+2. Check if the container is running: `docker ps | grep bookcast-postgres`
+3. Verify the `DATABASE_URL` in `.env` is correct
+4. Check database logs: `npm run db:logs`
+5. Restart your NestJS application after starting the database
+
+### Lost Data After Restart
+
+**Problem**: Data disappeared after restarting the database
+
+**Cause**: You likely ran `docker-compose down -v` or `npm run db:reset` which deletes the volume
+
+**Solution**:
+1. Run the seed script to restore baseline test data: `npm run db:seed`
+2. Going forward, use `npm run db:stop`/`npm run db:start` or `npm run db:restart` to preserve data
+3. Only use `npm run db:reset` when you intentionally want a fresh start
 
 ### Migration Conflicts
 
@@ -475,39 +570,101 @@ npx prisma generate
 2. Restart your NestJS application
 3. Make sure the database is running before starting the app
 
-### Prisma Studio Protocol Error
+### Prisma Client Initialization Error
 
-**Error**: `The "prisma+postgres" protocol with localhost is not supported in Prisma Studio yet.`
+**Error**: `PrismaClient needs to be constructed with a non-empty, valid PrismaClientOptions`
+
+**Cause**: Prisma v7 requires a PostgreSQL adapter
 
 **Solution**:
-Use the TCP connection string instead:
-```bash
-npx prisma studio --url "postgres://postgres:postgres@localhost:51214/template1?sslmode=disable"
-```
+Make sure your database service or scripts use the adapter pattern:
+```typescript
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 
-This uses port `51214` (the TCP/PostgreSQL port) instead of `51213` (the HTTP port).
+const pool = new Pool({
+  host: 'localhost',
+  port: 5432,
+  database: 'bookcast',
+  user: 'postgres',
+  password: 'postgres',
+});
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
+```
 
 ## Useful Commands Reference
 
-### Database Management
+### Database Management (NPM Scripts)
 ```bash
-# Start local database
-npx prisma dev
+# Start PostgreSQL container
+npm run db:start
 
-# Stop database (keeps data)
-npx prisma dev stop default
+# Stop PostgreSQL (keeps data)
+npm run db:stop
 
-# List running databases
-npx prisma dev ls
+# Restart PostgreSQL (keeps data)
+npm run db:restart
 
-# Remove database (deletes all data!)
-npx prisma dev rm default
+# View database logs
+npm run db:logs
 
-# View database in browser (use TCP connection for Prisma Studio)
-npx prisma studio --url "postgres://postgres:postgres@localhost:51214/template1?sslmode=disable"
+# Seed database with test data
+npm run db:seed
+
+# Push schema changes
+npm run db:push
+
+# Open Prisma Studio GUI
+npm run db:studio
+
+# ⚠️ Reset database (deletes all data and reseeds)
+npm run db:reset
 ```
 
-### Migrations
+### Docker Compose Commands
+```bash
+# Start database
+docker-compose up -d
+
+# Stop database (keeps data)
+docker-compose stop
+
+# Restart database
+docker-compose restart
+
+# View logs
+docker-compose logs -f postgres
+
+# Check running containers
+docker ps | grep bookcast-postgres
+
+# ⚠️ Remove volumes (deletes all data!)
+docker-compose down -v
+```
+
+### Prisma Commands
+```bash
+# Push schema changes to database
+npx prisma db push
+
+# Generate Prisma Client
+npx prisma generate
+
+# Open Prisma Studio
+npx prisma studio
+
+# Seed database
+npx ts-node prisma/seed.ts
+
+# Format schema file
+npx prisma format
+
+# Validate schema
+npx prisma validate
+```
+
+### Migrations (Production)
 ```bash
 # Create migration
 npx prisma migrate dev --name migration_name
@@ -517,27 +674,18 @@ npx prisma migrate deploy
 
 # Reset database (dev only)
 npx prisma migrate reset
-
-# Push schema without migration (dev only)
-npx prisma db push
 ```
 
-### Prisma Client
+### Database Backup & Restore
 ```bash
-# Generate Prisma Client
-npx prisma generate
+# Backup database
+docker exec bookcast-postgres pg_dump -U postgres bookcast > backup.sql
 
-# Format schema file
-npx prisma format
+# Restore database
+docker exec -i bookcast-postgres psql -U postgres bookcast < backup.sql
 
-# Validate schema
-npx prisma validate
-```
-
-### Other
-```bash
-# Seed database (if seed script exists)
-npx prisma db seed
+# Access PostgreSQL CLI
+docker exec -it bookcast-postgres psql -U postgres -d bookcast
 ```
 
 ## Best Practices

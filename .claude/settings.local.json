@@ -26,7 +26,12 @@
       "Bash(DATABASE_URL=\"postgres://postgres:postgres@127.0.0.1:51214/template1?sslmode=disable\" npx prisma studio:*)",
       "Bash(node view-db.js:*)",
       "Bash(docker-compose up:*)",
-      "Bash(timeout 10 npm start:*)"
+      "Bash(timeout 10 npm start:*)",
+      "Bash(npx prisma db seed:*)",
+      "Bash(npx ts-node:*)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:postgres@localhost:5432/bookcast?schema=public\" npx ts-node:*)",
+      "Bash(docker volume:*)",
+      "Bash(docker inspect:*)"
     ]
   }
 }
