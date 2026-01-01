@@ -31,7 +31,8 @@
       "Bash(npx ts-node:*)",
       "Bash(DATABASE_URL=\"postgresql://postgres:postgres@localhost:5432/bookcast?schema=public\" npx ts-node:*)",
       "Bash(docker volume:*)",
-      "Bash(docker inspect:*)"
+      "Bash(docker inspect:*)",
+      "Bash(npx tsc --noEmit)"
     ]
   }
 }

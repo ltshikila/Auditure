@@ -195,7 +195,7 @@ npm run db:seed
 ```
 
 **Seed Data Includes**:
-- 2 test users (`test@bookcast.com` and `demo@bookcast.com`, password: `password123`)
+- 2 test users (`test@bookcast.com` and `demo@bookcast.com`, password: `Password123`)
 - 3 sample podcasters with different personalities
 - 2 sample books with chapters
 

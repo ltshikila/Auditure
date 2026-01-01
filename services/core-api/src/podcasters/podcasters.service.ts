@@ -89,7 +89,11 @@ export class PodcastersService {
     async findPublic(
         query: QueryPodcastersDto,
     ): Promise<{ podcasters: PodcasterResponseDto[]; total: number; page: number; totalPages: number }> {
-        const { sortBy, page, limit, search, expertiseTags, gender, voiceModel } = query;
+        const { sortBy, search, expertiseTags, gender, voiceModel } = query;
+
+        // Apply defaults for pagination
+        const page = query.page ?? 1;
+        const limit = query.limit ?? 20;
 
         // Build where clause
         const where: any = {

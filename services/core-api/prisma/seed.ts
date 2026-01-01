@@ -23,11 +23,13 @@ async function main() {
   console.log('Starting database seed...');
 
   // Create test users
-  const hashedPassword = await bcrypt.hash('password123', 10);
+  const hashedPassword = await bcrypt.hash('Password123', 10);
 
   const user1 = await prisma.user.upsert({
     where: { email: 'test@bookcast.com' },
-    update: {},
+    update: {
+      password: hashedPassword,
+    },
     create: {
       email: 'test@bookcast.com',
       password: hashedPassword,
@@ -39,7 +41,9 @@ async function main() {
 
   const user2 = await prisma.user.upsert({
     where: { email: 'demo@bookcast.com' },
-    update: {},
+    update: {
+      password: hashedPassword,
+    },
     create: {
       email: 'demo@bookcast.com',
       password: hashedPassword,
