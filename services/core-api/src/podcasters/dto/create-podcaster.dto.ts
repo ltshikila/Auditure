@@ -13,7 +13,7 @@ import {
 
 export enum VoiceModel {
     CUSTOM = 'CUSTOM',
-    REALISTIC = 'REALISTIC',
+    CONVERSATIONAL = 'CONVERSATIONAL',
     ENERGETIC = 'ENERGETIC',
     CALM = 'CALM',
     SARCASTIC = 'SARCASTIC',
@@ -33,6 +33,10 @@ export class CreatePodcasterDto {
     @IsOptional()
     @IsString()
     description?: string;
+
+    @IsOptional()
+    @IsString()
+    profilePictureUrl?: string;
 
     // Voice Configuration
     @IsEnum(VoiceModel)
@@ -57,12 +61,17 @@ export class CreatePodcasterDto {
     @IsInt()
     @Min(1)
     @Max(10)
-    vocabularyComplexity: number;
+    ageTone: number;
 
     @IsInt()
     @Min(1)
     @Max(10)
-    ageTone: number;
+    sentenceStructure: number;
+
+    @IsInt()
+    @Min(1)
+    @Max(10)
+    emotionalExpression: number;
 
     // Core Personality Model
     @IsInt()
@@ -84,6 +93,11 @@ export class CreatePodcasterDto {
     @Min(1)
     @Max(10)
     conversationalDepth: number;
+
+    @IsInt()
+    @Min(1)
+    @Max(10)
+    chaosFactor: number;
 
     // Knowledge & Worldview
     @IsArray()

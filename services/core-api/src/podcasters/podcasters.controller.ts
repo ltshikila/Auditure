@@ -17,6 +17,7 @@ import { CreatePodcasterDto } from './dto/create-podcaster.dto';
 import { UpdatePodcasterDto } from './dto/update-podcaster.dto';
 import { QueryPodcastersDto } from './dto/query-podcasters.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 
 @Controller('podcasters')
 export class PodcastersController {
@@ -79,6 +80,7 @@ export class PodcastersController {
      * Private podcasters only accessible to owner
      */
     @Get(':id')
+    @UseGuards(OptionalJwtAuthGuard)
     findOne(@Param('id') id: string, @Request() req) {
         const userId = req.user?.userId;
         return this.podcastersService.findOne(id, userId);

@@ -7,6 +7,7 @@ export class PodcasterResponseDto {
     // Core Identity
     name: string;
     description?: string;
+    profilePictureUrl?: string;
 
     // Voice Configuration
     voiceModel: VoiceModel;
@@ -14,14 +15,16 @@ export class PodcasterResponseDto {
     accent: string;
     speakingSpeed: number;
     vocalPitch: number;
-    vocabularyComplexity: number;
     ageTone: number;
+    sentenceStructure: number;
+    emotionalExpression: number;
 
     // Core Personality Model
     tone: number;
     communicationStyle: number;
     humorLevel: number;
     conversationalDepth: number;
+    chaosFactor: number;
 
     // Knowledge & Worldview
     expertiseTags: string[];

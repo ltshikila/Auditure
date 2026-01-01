@@ -32,7 +32,10 @@
       "Bash(DATABASE_URL=\"postgresql://postgres:postgres@localhost:5432/bookcast?schema=public\" npx ts-node:*)",
       "Bash(docker volume:*)",
       "Bash(docker inspect:*)",
-      "Bash(npx tsc --noEmit)"
+      "Bash(npx tsc --noEmit)",
+      "Bash(dir /s /b \"c:\\\\Users\\\\ltshi\\\\OneDrive\\\\Documents\\\\GitHub\\\\BookCast\\\\apps\\\\mobile-app\")",
+      "Bash(dir /s /b \"c:\\\\Users\\\\ltshi\\\\OneDrive\\\\Documents\\\\GitHub\\\\BookCast\\\\apps\\\\mobile-app\\\\src\\\\components\")",
+      "Bash(ls:*)"
     ]
   }
 }

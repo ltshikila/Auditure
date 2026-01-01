@@ -16,6 +16,7 @@ model Podcaster {
   // Core Identity
   name                    String
   description             String?
+  profilePictureUrl       String?
 
   // Voice Configuration (values 1-10)
   voiceModel              VoiceModel
@@ -23,14 +24,16 @@ model Podcaster {
   accent                  String
   speakingSpeed           Int       @default(5)
   vocalPitch              Int       @default(5)
-  vocabularyComplexity    Int       @default(5)
   ageTone                 Int       @default(5)
+  sentenceStructure       Int       @default(5)    // Concise to Elaborate
+  emotionalExpression     Int       @default(5)    // Monotone to Expressive
 
   // Core Personality Model (values 1-10)
   tone                    Int       @default(5)    // Calm to Energetic
   communicationStyle      Int       @default(5)    // Storytelling to Analytical
   humorLevel              Int       @default(5)    // Dry to Comedic
   conversationalDepth     Int       @default(5)    // Surface-Level to Deep Thinking
+  chaosFactor             Int       @default(5)    // Steady to Volatile
 
   // Knowledge & Worldview
   expertiseTags           String[]               // 1-3 tags
@@ -53,14 +56,17 @@ model Podcaster {
 ```
 
 ### Enums
-- **VoiceModel**: CUSTOM, REALISTIC, ENERGETIC, CALM, SARCASTIC, ACADEMIC
+- **VoiceModel**: CUSTOM, CONVERSATIONAL, ENERGETIC, CALM, SARCASTIC, ACADEMIC
 - **Gender**: MALE, FEMALE
 
 ### Valid Expertise Tags
 Philosophy, Psychology, Finance, History, Literature, Politics, Self-help, Science, Business, Art & Culture
 
 ### Valid Intellectual Angles
-Skeptical, Open-minded, Critical, Accepting, Questioning, Trusting
+Skeptical, Accepting, Critical, Pragmatic, Idealistic, Empirical
+
+### Supported Accents (9 options)
+United States, United Kingdom, Australia, Canada, Ireland, Scotland, India, New Zealand, South Africa
 
 ## API Endpoints
 
@@ -75,19 +81,22 @@ Body:
 {
   "name": "string",
   "description": "string (optional)",
-  "voiceModel": "CUSTOM" | "REALISTIC" | "ENERGETIC" | "CALM" | "SARCASTIC" | "ACADEMIC",
+  "profilePictureUrl": "string (optional)",
+  "voiceModel": "CUSTOM" | "CONVERSATIONAL" | "ENERGETIC" | "CALM" | "SARCASTIC" | "ACADEMIC",
   "gender": "MALE" | "FEMALE",
-  "accent": "string",
+  "accent": "string (one of 9 supported accents)",
   "speakingSpeed": 1-10,
   "vocalPitch": 1-10,
-  "vocabularyComplexity": 1-10,
   "ageTone": 1-10,
+  "sentenceStructure": 1-10,      // Concise to Elaborate
+  "emotionalExpression": 1-10,    // Monotone to Expressive
   "tone": 1-10,
   "communicationStyle": 1-10,
   "humorLevel": 1-10,
   "conversationalDepth": 1-10,
+  "chaosFactor": 1-10,            // Steady to Volatile
   "expertiseTags": ["Philosophy", "Psychology"],  // 1-3 tags
-  "intellectualAngle": "Skeptical",
+  "intellectualAngle": "Skeptical",  // One of 6 valid angles
   "viewpointBehavior": 1-10,
   "isPublic": boolean (optional, default: false)
 }
@@ -146,7 +155,7 @@ Query Parameters:
 - search: string (searches name and description)
 - expertiseTags: comma-separated tags
 - gender: MALE | FEMALE
-- voiceModel: CUSTOM | REALISTIC | etc.
+- voiceModel: CUSTOM | CONVERSATIONAL | ENERGETIC | CALM | SARCASTIC | ACADEMIC
 
 Returns:
 {
@@ -262,7 +271,7 @@ const results = await podcastersService.findPublic({
 - Validated using class-validator decorators
 
 ### Intellectual Angle
-- Must be one of: Skeptical, Open-minded, Critical, Accepting, Questioning, Trusting
+- Must be one of: Skeptical, Accepting, Critical, Pragmatic, Idealistic, Empirical
 - Validated in both create and update operations
 
 ### Voice Model & Gender
@@ -283,14 +292,30 @@ src/podcasters/
 └── podcasters.module.ts               # Module configuration
 ```
 
-## Migration
+## Migrations
 
-The migration file is ready at:
+### Initial Podcasters Table
 ```
 prisma/migrations/20251230000000_add_podcasters_table/migration.sql
 ```
 
-Apply it when the database is running:
+### Profile Picture Support
+```
+prisma/migrations/20260101174801_add_profile_picture_to_podcasters/migration.sql
+```
+- Added `profilePictureUrl` field
+
+### Field Optimization for LLM/TTS
+```
+prisma/migrations/20260101193039_update_podcaster_fields_and_chaos_factor/migration.sql
+```
+- Updated VoiceModel enum: REALISTIC → CONVERSATIONAL
+- Removed `vocabularyComplexity` (redundant with other fields)
+- Added `sentenceStructure` (1-10, Concise to Elaborate)
+- Added `emotionalExpression` (1-10, Monotone to Expressive)
+- Added `chaosFactor` (1-10, Steady to Volatile)
+
+Apply migrations when the database is running:
 ```bash
 npx prisma migrate deploy
 ```
@@ -314,17 +339,21 @@ const podcaster = await fetch('/podcasters', {
   },
   body: JSON.stringify({
     name: "Philosophy Enthusiast",
+    description: "A thoughtful podcaster exploring deep philosophical questions",
+    profilePictureUrl: "https://example.com/profile.jpg",
     voiceModel: "CALM",
     gender: "MALE",
     accent: "United States",
     speakingSpeed: 5,
     vocalPitch: 5,
-    vocabularyComplexity: 7,
     ageTone: 6,
+    sentenceStructure: 7,        // More elaborate sentences
+    emotionalExpression: 3,      // More monotone/calm
     tone: 4,
     communicationStyle: 6,
     humorLevel: 3,
     conversationalDepth: 8,
+    chaosFactor: 2,              // Very steady, controlled
     expertiseTags: ["Philosophy", "History"],
     intellectualAngle: "Skeptical",
     viewpointBehavior: 7,
@@ -333,11 +362,73 @@ const podcaster = await fetch('/podcasters', {
 });
 ```
 
+## Voice Model Templates
+
+The mobile app includes smart autofill templates for each voice model. When a user selects a voice model, related fields are automatically populated with appropriate values:
+
+### CONVERSATIONAL
+- speakingSpeed: 5, emotionalExpression: 7, tone: 6, humorLevel: 6
+- sentenceStructure: 4, communicationStyle: 3, chaosFactor: 6
+- **Best for:** Casual, friendly podcast tone with storytelling focus
+
+### ENERGETIC
+- speakingSpeed: 8, tone: 9, humorLevel: 7, emotionalExpression: 9
+- sentenceStructure: 3, chaosFactor: 8
+- **Best for:** High-energy, enthusiastic content with punchy delivery
+
+### CALM
+- speakingSpeed: 3, tone: 2, humorLevel: 4, emotionalExpression: 3
+- sentenceStructure: 7, chaosFactor: 2
+- **Best for:** Measured, thoughtful analysis with elaborate explanations
+
+### SARCASTIC
+- speakingSpeed: 6, tone: 6, humorLevel: 9, emotionalExpression: 7
+- sentenceStructure: 4, chaosFactor: 7
+- **Best for:** Witty commentary with sharp emotional swings
+
+### ACADEMIC
+- speakingSpeed: 4, tone: 3, humorLevel: 2, emotionalExpression: 2
+- sentenceStructure: 8, communicationStyle: 7, chaosFactor: 1
+- **Best for:** Scholarly, analytical content with formal delivery
+
+### CUSTOM
+- No autofill - all fields default to 5
+- **Best for:** Complete manual control over all personality traits
+
+## Field Reference
+
+### Core Identity (Step 1: 9 fields)
+1. **Virtual Podcaster Name** - Display name for the podcaster
+2. **Profile Picture** - Optional image URL
+3. **Voice Model** - Template that autofills personality traits
+4. **Gender** - MALE or FEMALE (affects TTS voice selection)
+5. **Accent** - One of 9 supported regional accents
+6. **Speaking Speed** (1-10) - Slow ↔ Fast
+7. **Vocal Pitch** (1-10) - Low ↔ High
+8. **Age Tone** (1-10) - Youthful ↔ Senior
+9. **Sentence Structure** (1-10) - Concise ↔ Elaborate (LLM script generation)
+10. **Emotional Expression** (1-10) - Monotone ↔ Expressive (TTS prosody)
+
+### Core Personality Model (Step 2: 5 fields)
+1. **Tone** (1-10) - Calm ↔ Energetic
+2. **Communication Style** (1-10) - Storytelling ↔ Analytical
+3. **Humor Level** (1-10) - Dry ↔ Comedic
+4. **Conversational Depth** (1-10) - Surface-Level ↔ Deep Thinking
+5. **Chaos Factor** (1-10) - Steady ↔ Volatile (emotional intensity/volatility)
+
+### Knowledge & Worldview (Step 3: 3 fields)
+1. **Expertise Tags** - Select 1-3 from 10 available tags
+2. **Intellectual Angle** - One of 6 approaches (Skeptical, Accepting, Critical, Pragmatic, Idealistic, Empirical)
+3. **Viewpoint Behavior** (1-10) - Agreeable ↔ Challenging
+
+**Total: 17 configurable fields**
+
 ## Future Enhancements
 
 1. **AI Voice Generation**: Integrate with TTS services using voice configuration
-2. **Podcaster Templates**: Pre-configured podcasters for quick start
+2. **Cloud Storage Integration**: Upload profile pictures to S3/Cloudinary
 3. **Collaboration**: Allow sharing and remixing public podcasters
 4. **Analytics Dashboard**: Track performance metrics per podcaster
 5. **Recommendations**: Suggest podcasters based on user preferences
 6. **Voice Samples**: Generate sample clips to preview voice settings
+7. **Advanced Templates**: More specialized voice model templates for specific genres

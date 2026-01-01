@@ -1,5 +1,6 @@
 // Test fixtures for book data
 import { randomUUID } from 'crypto';
+import { SourceType } from '../../src/books/dto/create-book.dto';
 
 export const createMockBook = (overrides = {}) => ({
     id: randomUUID(),
@@ -9,7 +10,7 @@ export const createMockBook = (overrides = {}) => ({
     isbn: '978-0-123456-78-9',
     language: 'en',
     pageCount: 200,
-    sourceType: 'PDF',
+    sourceType: SourceType.PDF,
     originalFileName: 'test-book.pdf',
     fileStorageKey: 'user-id/book-id/original.pdf',
     fileSize: 1024000, // 1MB
@@ -51,7 +52,7 @@ export const mockCreateBookDto = {
     title: 'Test Book',
     author: 'Test Author',
     isbn: '978-0-123456-78-9',
-    sourceType: 'PDF' as const,
+    sourceType: SourceType.PDF,
     language: 'en',
 };
 

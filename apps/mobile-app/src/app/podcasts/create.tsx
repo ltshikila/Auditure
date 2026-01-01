@@ -5,6 +5,8 @@ import {
     ScrollView,
     TextInput,
     TouchableOpacity,
+    ActivityIndicator,
+    Alert,
 } from 'react-native';
 import React, { useState } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,17 +15,22 @@ import { useRouter } from 'expo-router';
 import { CustomSlider } from '@/components/CustomSlider';
 import { CustomDropdown } from '@/components/CustomDropdown';
 import { VoiceModelButton } from '@/components/VoiceModelButton';
+import { ProfilePictureInput } from '@/components/ProfilePictureInput';
+import { podcasterService } from '@/services/podcaster.service';
+import { storageService } from '@/services/storage.service';
 
-type VoiceModel = 'custom' | 'realistic' | 'energetic' | 'calm' | 'sarcastic' | 'academic';
+type VoiceModel = 'custom' | 'conversational' | 'energetic' | 'calm' | 'sarcastic' | 'academic';
 type Gender = 'male' | 'female';
 
 const Create = () => {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const [currentStep, setCurrentStep] = useState(1);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Form state - Step 1
     const [podcastName, setPodcastName] = useState('');
+    const [profilePicture, setProfilePicture] = useState<string | null>(null);
     const [selectedVoiceModel, setSelectedVoiceModel] = useState<VoiceModel>('custom');
     const [selectedGender, setSelectedGender] = useState<Gender>('male');
     const [accent, setAccent] = useState('United States');
@@ -31,14 +38,16 @@ const Create = () => {
     // Slider values (1-10) - Step 1
     const [speakingSpeed, setSpeakingSpeed] = useState(5);
     const [vocalPitch, setVocalPitch] = useState(5);
-    const [vocabularyComplexity, setVocabularyComplexity] = useState(5);
     const [ageTone, setAgeTone] = useState(5);
+    const [sentenceStructure, setSentenceStructure] = useState(5);
+    const [emotionalExpression, setEmotionalExpression] = useState(5);
 
     // Slider values (1-10) - Step 2
     const [tone, setTone] = useState(5);
     const [communicationStyle, setCommunicationStyle] = useState(5);
     const [humorLevel, setHumorLevel] = useState(5);
     const [conversationalDepth, setConversationalDepth] = useState(5);
+    const [chaosFactor, setChaosFactor] = useState(5);
 
     // Form state - Step 3
     const [selectedExpertiseTags, setSelectedExpertiseTags] = useState<string[]>([]);
@@ -51,21 +60,24 @@ const Create = () => {
         { label: 'Australia', value: 'Australia' },
         { label: 'Canada', value: 'Canada' },
         { label: 'Ireland', value: 'Ireland' },
+        { label: 'Scotland', value: 'Scotland' },
+        { label: 'India', value: 'India' },
+        { label: 'New Zealand', value: 'New Zealand' },
         { label: 'South Africa', value: 'South Africa' },
     ];
 
     const intellectualAngleOptions = [
         { label: 'Skeptical', value: 'Skeptical' },
-        { label: 'Open-minded', value: 'Open-minded' },
-        { label: 'Critical', value: 'Critical' },
         { label: 'Accepting', value: 'Accepting' },
-        { label: 'Questioning', value: 'Questioning' },
-        { label: 'Trusting', value: 'Trusting' },
+        { label: 'Critical', value: 'Critical' },
+        { label: 'Pragmatic', value: 'Pragmatic' },
+        { label: 'Idealistic', value: 'Idealistic' },
+        { label: 'Empirical', value: 'Empirical' },
     ];
 
     const voiceModels: { type: VoiceModel; label: string }[] = [
         { type: 'custom', label: 'Custom' },
-        { type: 'realistic', label: 'Realistic' },
+        { type: 'conversational', label: 'Conversational' },
         { type: 'energetic', label: 'Energetic' },
         { type: 'calm', label: 'Calm' },
         { type: 'sarcastic', label: 'Sarcastic' },
@@ -84,6 +96,87 @@ const Create = () => {
         'Business',
         'Art & Culture',
     ];
+
+    const voiceModelTemplates: Record<VoiceModel, Partial<{
+        speakingSpeed: number;
+        vocalPitch: number;
+        ageTone: number;
+        sentenceStructure: number;
+        emotionalExpression: number;
+        tone: number;
+        communicationStyle: number;
+        humorLevel: number;
+        chaosFactor: number;
+    }>> = {
+        custom: {}, // No autofill
+        conversational: {
+            speakingSpeed: 5,
+            emotionalExpression: 7, // Natural, expressive
+            tone: 6,
+            humorLevel: 6,
+            sentenceStructure: 4, // Casual, moderately concise
+            communicationStyle: 3, // More storytelling
+            chaosFactor: 6, // Naturally engaging with some passion
+        },
+        energetic: {
+            speakingSpeed: 8,
+            tone: 9,
+            humorLevel: 7,
+            emotionalExpression: 9,
+            sentenceStructure: 3, // More concise/punchy
+            chaosFactor: 8, // Highly passionate, intense reactions
+        },
+        calm: {
+            speakingSpeed: 3,
+            tone: 2,
+            humorLevel: 4,
+            emotionalExpression: 3,
+            sentenceStructure: 7, // More elaborate
+            chaosFactor: 2, // Very measured, rarely intense
+        },
+        sarcastic: {
+            speakingSpeed: 6,
+            tone: 6,
+            humorLevel: 9,
+            emotionalExpression: 7,
+            sentenceStructure: 4, // Punchy delivery
+            chaosFactor: 7, // Sharp emotional swings, biting reactions
+        },
+        academic: {
+            speakingSpeed: 4,
+            tone: 3,
+            humorLevel: 2,
+            emotionalExpression: 2,
+            sentenceStructure: 8, // Very elaborate
+            communicationStyle: 7, // More analytical
+            chaosFactor: 1, // Extremely controlled, analytical
+        },
+    };
+
+    const handleVoiceModelSelect = (modelType: VoiceModel) => {
+        setSelectedVoiceModel(modelType);
+
+        // Apply template values if not 'custom'
+        const template = voiceModelTemplates[modelType];
+        if (Object.keys(template).length > 0) {
+            if (template.speakingSpeed !== undefined) setSpeakingSpeed(template.speakingSpeed);
+            if (template.vocalPitch !== undefined) setVocalPitch(template.vocalPitch);
+            if (template.ageTone !== undefined) setAgeTone(template.ageTone);
+            if (template.sentenceStructure !== undefined) setSentenceStructure(template.sentenceStructure);
+            if (template.emotionalExpression !== undefined) setEmotionalExpression(template.emotionalExpression);
+            if (template.tone !== undefined) setTone(template.tone);
+            if (template.communicationStyle !== undefined) setCommunicationStyle(template.communicationStyle);
+            if (template.humorLevel !== undefined) setHumorLevel(template.humorLevel);
+            if (template.chaosFactor !== undefined) setChaosFactor(template.chaosFactor);
+        }
+    };
+
+    // Helper to switch to 'custom' when user manually adjusts template fields
+    const switchToCustomIfNeeded = () => {
+        if (selectedVoiceModel !== 'custom') {
+            setSelectedVoiceModel('custom');
+        }
+    };
 
     const toggleExpertiseTag = (tag: string) => {
         if (selectedExpertiseTags.includes(tag)) {
@@ -177,6 +270,12 @@ const Create = () => {
                             </View>
                         </View>
 
+                        {/* Profile Picture */}
+                        <ProfilePictureInput
+                            imageUri={profilePicture}
+                            onImageSelected={setProfilePicture}
+                        />
+
                         {/* Voice Model */}
                         <View className="mb-6">
                             <View className="flex-row items-center justify-between mb-3">
@@ -194,7 +293,7 @@ const Create = () => {
                                         key={model.type}
                                         label={model.label}
                                         isSelected={selectedVoiceModel === model.type}
-                                        onPress={() => setSelectedVoiceModel(model.type)}
+                                        onPress={() => handleVoiceModelSelect(model.type)}
                                     />
                                 ))}
                             </View>
@@ -248,7 +347,10 @@ const Create = () => {
                         <CustomSlider
                             label="Speaking Speed"
                             value={speakingSpeed}
-                            onValueChange={setSpeakingSpeed}
+                            onValueChange={(value) => {
+                                switchToCustomIfNeeded();
+                                setSpeakingSpeed(value);
+                            }}
                             leftLabel="Slow"
                             rightLabel="Fast"
                         />
@@ -256,25 +358,45 @@ const Create = () => {
                         <CustomSlider
                             label="Vocal Pitch"
                             value={vocalPitch}
-                            onValueChange={setVocalPitch}
+                            onValueChange={(value) => {
+                                switchToCustomIfNeeded();
+                                setVocalPitch(value);
+                            }}
                             leftLabel="Low"
                             rightLabel="High"
                         />
 
                         <CustomSlider
-                            label="Vocabulary Complexity"
-                            value={vocabularyComplexity}
-                            onValueChange={setVocabularyComplexity}
-                            leftLabel="Simple"
-                            rightLabel="Advanced"
+                            label="Age Tone"
+                            value={ageTone}
+                            onValueChange={(value) => {
+                                switchToCustomIfNeeded();
+                                setAgeTone(value);
+                            }}
+                            leftLabel="Youthful"
+                            rightLabel="Senior"
                         />
 
                         <CustomSlider
-                            label="Age Tone"
-                            value={ageTone}
-                            onValueChange={setAgeTone}
-                            leftLabel="Youthful"
-                            rightLabel="Senior"
+                            label="Sentence Structure"
+                            value={sentenceStructure}
+                            onValueChange={(value) => {
+                                switchToCustomIfNeeded();
+                                setSentenceStructure(value);
+                            }}
+                            leftLabel="Concise"
+                            rightLabel="Elaborate"
+                        />
+
+                        <CustomSlider
+                            label="Emotional Expression"
+                            value={emotionalExpression}
+                            onValueChange={(value) => {
+                                switchToCustomIfNeeded();
+                                setEmotionalExpression(value);
+                            }}
+                            leftLabel="Monotone"
+                            rightLabel="Expressive"
                         />
                     </>
                 )}
@@ -294,7 +416,10 @@ const Create = () => {
                         <CustomSlider
                             label="Tone"
                             value={tone}
-                            onValueChange={setTone}
+                            onValueChange={(value) => {
+                                switchToCustomIfNeeded();
+                                setTone(value);
+                            }}
                             leftLabel="Calm"
                             rightLabel="Energetic"
                         />
@@ -302,7 +427,10 @@ const Create = () => {
                         <CustomSlider
                             label="Communication Style"
                             value={communicationStyle}
-                            onValueChange={setCommunicationStyle}
+                            onValueChange={(value) => {
+                                switchToCustomIfNeeded();
+                                setCommunicationStyle(value);
+                            }}
                             leftLabel="Storytelling"
                             rightLabel="Analytical"
                         />
@@ -310,7 +438,10 @@ const Create = () => {
                         <CustomSlider
                             label="Humor Level"
                             value={humorLevel}
-                            onValueChange={setHumorLevel}
+                            onValueChange={(value) => {
+                                switchToCustomIfNeeded();
+                                setHumorLevel(value);
+                            }}
                             leftLabel="Dry"
                             rightLabel="Comedic"
                         />
@@ -318,9 +449,23 @@ const Create = () => {
                         <CustomSlider
                             label="Conversational Depth"
                             value={conversationalDepth}
-                            onValueChange={setConversationalDepth}
+                            onValueChange={(value) => {
+                                switchToCustomIfNeeded();
+                                setConversationalDepth(value);
+                            }}
                             leftLabel="Surface-Level"
                             rightLabel="Deep Thinking"
+                        />
+
+                        <CustomSlider
+                            label="Chaos Factor"
+                            value={chaosFactor}
+                            onValueChange={(value) => {
+                                switchToCustomIfNeeded();
+                                setChaosFactor(value);
+                            }}
+                            leftLabel="Steady"
+                            rightLabel="Volatile"
                         />
                     </>
                 )}
@@ -440,15 +585,69 @@ const Create = () => {
                     </TouchableOpacity>
                 ) : (
                     <TouchableOpacity
-                        onPress={() => {
-                            // Handle form submission
-                            console.log('Submitting podcast creation form...');
-                            router.back();
+                        onPress={async () => {
+                            // Validation
+                            if (!podcastName.trim()) {
+                                Alert.alert('Validation Error', 'Please enter a podcaster name');
+                                return;
+                            }
+
+                            if (selectedExpertiseTags.length === 0) {
+                                Alert.alert('Validation Error', 'Please select at least one expertise tag');
+                                return;
+                            }
+
+                            try {
+                                setIsSubmitting(true);
+
+                                const token = await storageService.getAccessToken();
+                                if (!token) {
+                                    router.replace('/(auth)/Auth');
+                                    return;
+                                }
+
+                                const podcasterData = {
+                                    name: podcastName.trim(),
+                                    profilePictureUrl: profilePicture || undefined,
+                                    voiceModel: selectedVoiceModel.toUpperCase() as any,
+                                    gender: selectedGender.toUpperCase() as any,
+                                    accent,
+                                    speakingSpeed,
+                                    vocalPitch,
+                                    ageTone,
+                                    sentenceStructure,
+                                    emotionalExpression,
+                                    tone,
+                                    communicationStyle,
+                                    humorLevel,
+                                    conversationalDepth,
+                                    chaosFactor,
+                                    expertiseTags: selectedExpertiseTags,
+                                    intellectualAngle,
+                                    viewpointBehavior,
+                                    isPublic: false,
+                                };
+
+                                await podcasterService.create(podcasterData, token);
+
+                                Alert.alert('Success', 'Podcaster created successfully!');
+                                router.replace('/(tabs)/studio');
+                            } catch (err: any) {
+                                console.error('Error creating podcaster:', err);
+                                Alert.alert('Error', err.message || 'Failed to create podcaster');
+                            } finally {
+                                setIsSubmitting(false);
+                            }
                         }}
-                        className="bg-brand-gold rounded-full px-7 py-3">
-                        <Text className="text-white font-inter-medium text-base">
-                            Create
-                        </Text>
+                        disabled={isSubmitting}
+                        className={`bg-brand-gold rounded-full px-7 py-3 ${isSubmitting ? 'opacity-50' : ''}`}>
+                        {isSubmitting ? (
+                            <ActivityIndicator color="#FFFFFF" size="small" />
+                        ) : (
+                            <Text className="text-white font-inter-medium text-base">
+                                Create
+                            </Text>
+                        )}
                     </TouchableOpacity>
                 )}
             </View>

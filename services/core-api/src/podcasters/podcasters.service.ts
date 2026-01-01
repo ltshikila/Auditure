@@ -48,11 +48,11 @@ export class PodcastersService {
         // Validate intellectual angle
         const validAngles = [
             'Skeptical',
-            'Open-minded',
-            'Critical',
             'Accepting',
-            'Questioning',
-            'Trusting',
+            'Critical',
+            'Pragmatic',
+            'Idealistic',
+            'Empirical',
         ];
 
         if (!validAngles.includes(createPodcasterDto.intellectualAngle)) {
@@ -318,11 +318,11 @@ export class PodcastersService {
         if (updatePodcasterDto.intellectualAngle) {
             const validAngles = [
                 'Skeptical',
-                'Open-minded',
-                'Critical',
                 'Accepting',
-                'Questioning',
-                'Trusting',
+                'Critical',
+                'Pragmatic',
+                'Idealistic',
+                'Empirical',
             ];
 
             if (!validAngles.includes(updatePodcasterDto.intellectualAngle)) {

@@ -1,6 +1,7 @@
 // Test fixtures for podcaster data
 import { randomUUID } from 'crypto';
 import { VoiceModel, Gender } from '../../src/podcasters/dto/create-podcaster.dto';
+import { PodcasterSortBy } from '../../src/podcasters/dto/query-podcasters.dto';
 
 export const createMockPodcaster = (overrides = {}) => ({
     id: randomUUID(),
@@ -12,12 +13,14 @@ export const createMockPodcaster = (overrides = {}) => ({
     accent: 'United States',
     speakingSpeed: 5,
     vocalPitch: 5,
-    vocabularyComplexity: 7,
     ageTone: 6,
+    sentenceStructure: 7,
+    emotionalExpression: 3,
     tone: 4,
     communicationStyle: 6,
     humorLevel: 3,
     conversationalDepth: 8,
+    chaosFactor: 2,
     expertiseTags: ['Philosophy', 'History'],
     intellectualAngle: 'Skeptical',
     viewpointBehavior: 7,
@@ -57,12 +60,14 @@ export const mockCreatePodcasterDto = {
     accent: 'United States',
     speakingSpeed: 5,
     vocalPitch: 5,
-    vocabularyComplexity: 7,
     ageTone: 6,
+    sentenceStructure: 7,
+    emotionalExpression: 3,
     tone: 4,
     communicationStyle: 6,
     humorLevel: 3,
     conversationalDepth: 8,
+    chaosFactor: 2,
     expertiseTags: ['Philosophy', 'History'],
     intellectualAngle: 'Skeptical',
     viewpointBehavior: 7,
@@ -86,7 +91,7 @@ export const mockInvalidIntellectualAngleDto = {
 };
 
 export const mockQueryPodcastersDto = {
-    sortBy: 'RECENT',
+    sortBy: PodcasterSortBy.RECENT,
     page: 1,
     limit: 20,
 };

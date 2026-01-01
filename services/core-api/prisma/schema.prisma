@@ -109,6 +109,7 @@ model Podcaster {
   // Core Identity
   name                    String
   description             String?
+  profilePictureUrl       String?
 
   // Voice Configuration
   voiceModel              VoiceModel
@@ -116,14 +117,16 @@ model Podcaster {
   accent                  String
   speakingSpeed           Int       @default(5)    // 1-10
   vocalPitch              Int       @default(5)    // 1-10
-  vocabularyComplexity    Int       @default(5)    // 1-10
   ageTone                 Int       @default(5)    // 1-10
+  sentenceStructure       Int       @default(5)    // 1-10, Concise to Elaborate
+  emotionalExpression     Int       @default(5)    // 1-10, Monotone to Expressive
 
   // Core Personality Model
   tone                    Int       @default(5)    // 1-10, Calm to Energetic
   communicationStyle      Int       @default(5)    // 1-10, Storytelling to Analytical
   humorLevel              Int       @default(5)    // 1-10, Dry to Comedic
   conversationalDepth     Int       @default(5)    // 1-10, Surface-Level to Deep Thinking
+  chaosFactor             Int       @default(5)    // 1-10, Steady to Volatile
 
   // Knowledge & Worldview
   expertiseTags           String[]                 // Philosophy, Psychology, Finance, etc.
@@ -151,7 +154,7 @@ model Podcaster {
 
 enum VoiceModel {
   CUSTOM
-  REALISTIC
+  CONVERSATIONAL
   ENERGETIC
   CALM
   SARCASTIC
