@@ -12,6 +12,7 @@ ai-worker/
 │   ├── database/         # SQLAlchemy models & repository
 │   ├── generators/       # Script generation (LLM + templates)
 │   │   └── templates/    # Fallback template generator
+│   ├── redis/            # Redis client for progress tracking
 │   ├── storage/          # Local file storage
 │   ├── tts/              # Text-to-speech engine
 │   └── utils/            # Logging utilities
@@ -29,6 +30,7 @@ ai-worker/
 - **Voice Customization**: Gender, accent, speaking speed, vocal pitch
 - **Retry Logic**: 3 automatic retries with exponential backoff
 - **Dead Letter Queue**: Failed jobs routed to DLQ after max retries
+- **Real-time Progress**: Redis-based progress tracking for UI updates
 
 ## Voice Parameters
 
@@ -49,6 +51,10 @@ EPISODE_GENERATION_DLQ=episode_generation_dlq
 
 # Database
 DATABASE_URL=postgresql://user:pass@localhost:5432/bookcast
+
+# Redis (for progress tracking)
+REDIS_HOST=localhost
+REDIS_PORT=6379
 
 # LLM (optional)
 HUGGINGFACE_API_KEY=your_key_here
@@ -98,21 +104,40 @@ docker run -e RABBITMQ_URL=amqp://host:5672 \
 - ffmpeg (for audio concatenation)
 - PostgreSQL 14+
 - RabbitMQ 3.11+
+- Redis 6+ (for progress tracking)
 
 ## Processing Pipeline
 
 ```
 1. Job received from RabbitMQ (episode_generation queue)
-2. Status: PENDING → SCRIPT_GENERATING
-3. Fetch book content + podcaster from database
-4. Generate script (HuggingFace API or templates)
-5. Status: SCRIPT_GENERATED
-6. Status: AUDIO_GENERATING
+2. Status: PENDING → SCRIPT_GENERATING (progress: 10%)
+3. Fetch book content + podcaster from database (progress: 20%)
+4. Generate script (HuggingFace API or templates) (progress: 40%)
+5. Status: SCRIPT_GENERATED (progress: 60%)
+6. Status: AUDIO_GENERATING (progress: 80%)
 7. Generate audio (Edge TTS)
 8. Concatenate segments (if multi-voice)
 9. Save to storage: {userId}/{episodeId}/audio.mp3
-10. Status: COMPLETED
+10. Status: COMPLETED (progress: 100%)
 ```
+
+### Progress Tracking
+
+Progress is stored in Redis at key `job:{episodeId}` as a hash:
+- `progress`: Integer percentage (0-100)
+- `status`: Current status string
+- `updatedAt`: ISO timestamp
+
+Progress updates:
+| Stage | Progress | Status |
+|-------|----------|--------|
+| Started | 10% | SCRIPT_GENERATING |
+| Fetching data | 20% | FETCHING_DATA |
+| Generating script | 40% | SCRIPT_GENERATING |
+| Script complete | 60% | SCRIPT_GENERATED |
+| Generating audio | 80% | AUDIO_GENERATING |
+| Complete | 100% | COMPLETED |
+| Failed | 0% | FAILED |
 
 ## Error Handling
 

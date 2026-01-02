@@ -28,3 +28,20 @@ export const mockTextExtractionService = {
         metadata: { title: 'Test Book', author: 'Test Author' },
     }),
 };
+
+export const mockRedisService = {
+    setJobProgress: jest.fn().mockResolvedValue(undefined),
+    getJobProgress: jest.fn().mockResolvedValue(null),
+    deleteJobProgress: jest.fn().mockResolvedValue(undefined),
+    setPlaybackProgress: jest.fn().mockResolvedValue(undefined),
+    getPlaybackProgress: jest.fn().mockResolvedValue(null),
+    getAllPlaybackProgress: jest.fn().mockResolvedValue({}),
+    deletePlaybackProgress: jest.fn().mockResolvedValue(undefined),
+    checkRateLimit: jest.fn().mockResolvedValue(true),
+    getRateLimitRemaining: jest.fn().mockResolvedValue({ remaining: 10, resetIn: 3600 }),
+};
+
+export const mockRabbitMQServiceWithEpisodes = {
+    ...mockRabbitMQService,
+    publishEpisodeGenerationJob: jest.fn().mockResolvedValue(undefined),
+};

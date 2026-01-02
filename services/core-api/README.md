@@ -11,10 +11,12 @@ The Core API is built with NestJS and provides authentication, book management, 
 - 🔐 **JWT Authentication** - Secure user authentication with refresh tokens
 - 📧 **Email Verification** - OTP-based email verification system
 - 📚 **Book Management** - Upload and manage PDF/EPUB books
+- 🎧 **Audio Streaming** - Range-request audio streaming for episode playback
 - 🤖 **Async Text Extraction** - Background processing with RabbitMQ
 - 📖 **Chapter Detection** - Automatic chapter extraction from books
 - 💾 **Flexible Storage** - Local storage with S3-ready abstraction
 - 🔍 **Search & Discovery** - Full-text search for books
+- 🔴 **Redis Caching** - Job progress tracking, playback progress, rate limiting
 - ✅ **Comprehensive Testing** - 83 tests with 90%+ coverage
 
 ## Project Structure
@@ -34,8 +36,12 @@ services/core-api/
 │   │   └── README.md            # Books documentation
 │   ├── common/                  # Shared services
 │   │   ├── email.service.ts     # Email/OTP service
-│   │   └── storage.service.ts   # File storage abstraction
+│   │   ├── storage.service.ts   # File storage abstraction
+│   │   └── guards/              # Rate limiting guards
 │   ├── database/                # Prisma integration
+│   ├── redis/                   # Redis caching module
+│   │   ├── redis.module.ts      # Global Redis module
+│   │   └── redis.service.ts     # Progress, playback, rate limiting
 │   └── rabbitmq/                # Message queue service
 ├── prisma/
 │   ├── schema.prisma            # Database schema
@@ -119,6 +125,10 @@ LOCAL_STORAGE_PATH="./storage"
 
 # RabbitMQ (optional)
 RABBITMQ_URL="amqp://localhost:5672"
+
+# Redis (for caching)
+REDIS_HOST="localhost"
+REDIS_PORT="6379"
 
 # Server
 PORT="3000"

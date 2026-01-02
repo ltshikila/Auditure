@@ -48,6 +48,15 @@ The client-facing mobile application built with **React Native** and **Expo**. I
 - Trending and recommended episodes
 - Episode bookmarking for later
 
+### Audio Playback
+
+- **Background Audio**: Continue playback when app is in background
+- **Persistent Mini-Player**: Always-visible player at bottom of screen
+- **Full Player Screen**: Full-screen controls with seek, skip, playback rate
+- **Resume Playback**: Position saved to server, resume where you left off
+- **Notification Controls**: Control playback from phone notification/lock screen
+- **Streaming**: HTTP range request support for efficient seeking
+
 ### Social Features (FR-22, FR-23)
 
 - Like episodes
@@ -175,24 +184,25 @@ eas build --profile production --platform all
 ```text
 mobile-app/
 ├── src/
+│   ├── app/                 # Expo Router screens (file-based routing)
+│   │   ├── (tabs)/         # Tab navigation screens
+│   │   ├── episodes/       # Episode screens (info, play, transcript)
+│   │   │   └── [episode]/  # Dynamic episode routes
+│   │   └── _layout.tsx     # Root layout with providers
 │   ├── components/          # Reusable UI components
 │   │   ├── auth/           # Login, signup forms
 │   │   ├── podcasters/     # Podcaster cards, config forms
 │   │   ├── episodes/       # Episode cards, player
+│   │   ├── MiniPlayer.tsx  # Persistent mini-player
 │   │   └── common/         # Buttons, inputs, modals
-│   ├── screens/             # Screen components
-│   │   ├── AuthScreen.tsx
-│   │   ├── HomeScreen.tsx
-│   │   ├── LibraryScreen.tsx
-│   │   ├── PodcasterScreen.tsx
-│   │   ├── DiscoverScreen.tsx
-│   │   └── ProfileScreen.tsx
-│   ├── navigation/          # Navigation configuration
-│   │   └── AppNavigator.tsx
+│   ├── contexts/            # React Context providers
+│   │   ├── AuthContext.tsx
+│   │   └── PlaybackContext.tsx  # Audio playback state
 │   ├── services/            # API calls and business logic
 │   │   ├── auth.service.ts
 │   │   ├── books.service.ts
 │   │   ├── episodes.service.ts
+│   │   ├── playback.service.ts  # Streaming & progress APIs
 │   │   └── podcasters.service.ts
 │   ├── hooks/               # Custom React hooks
 │   │   ├── useAuth.ts
@@ -203,7 +213,7 @@ mobile-app/
 │   ├── types/               # TypeScript type definitions
 │   └── constants/           # App constants and configuration
 ├── assets/                  # Images, fonts, icons
-├── app.json                 # Expo configuration
+├── app.json                 # Expo configuration (with audio background mode)
 ├── eas.json                 # EAS Build configuration
 ├── tsconfig.json            # TypeScript configuration
 └── package.json
@@ -245,8 +255,9 @@ The app communicates with the Core API for all backend operations:
 
 - **Authentication:** JWT-based with refresh tokens
 - **File Upload:** Multipart form data for PDF/EPUB
-- **Episode Generation:** WebSocket for real-time status updates
-- **Audio Streaming:** Direct URLs from cloud storage (S3/GCP)
+- **Episode Generation:** Polling-based status with Redis progress tracking
+- **Audio Streaming:** HTTP range requests for efficient seeking
+- **Playback Progress:** Saved to Redis, synced every 10 seconds
 
 ### API Service Example
 

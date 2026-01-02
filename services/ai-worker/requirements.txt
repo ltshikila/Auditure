@@ -5,6 +5,7 @@ SQLAlchemy==2.0.23             # ORM
 edge-tts==6.1.9                # Microsoft Edge TTS (free, unlimited)
 pydub==0.25.1                  # Audio processing
 ffmpeg-python==0.2.0           # Audio concatenation
+redis==5.0.1                   # Redis client for progress tracking
 
 # LLM
 requests==2.31.0               # HuggingFace API calls

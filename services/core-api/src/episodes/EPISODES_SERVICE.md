@@ -15,11 +15,6 @@ episodes/
 │   └── query-episodes.dto.ts      # Query filtering/pagination
 ├── entities/
 │   └── episode.entity.ts          # Entity type definitions
-├── services/
-│   ├── script-generation.service.ts  # AI script generation
-│   └── tts.service.ts                # Text-to-speech conversion
-├── workers/
-│   └── episode-generation.worker.ts  # Async job processor
 ├── episodes.controller.ts         # REST API endpoints
 ├── episodes.service.ts            # Business logic
 └── episodes.module.ts             # Module configuration
@@ -104,6 +99,15 @@ model Episode {
 |--------|----------|------|-------------|
 | POST | `/episodes/:id/publish` | Required | Make episode public |
 | POST | `/episodes/:id/retry` | Required | Retry failed generation |
+
+### Audio Streaming & Playback
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/episodes/:id/stream` | Optional | Stream audio with range request support |
+| POST | `/episodes/:id/progress` | Required | Save playback position to Redis |
+| GET | `/episodes/:id/progress` | Required | Get saved playback position |
+| GET | `/episodes/:id/generation-progress` | Optional | Get real-time generation progress from Redis |
 
 ## Generation Pipeline
 
@@ -199,6 +203,10 @@ LOCAL_STORAGE_PATH=./storage     # Where audio files are saved
 
 # RabbitMQ
 RABBITMQ_URL=amqp://localhost:5672
+
+# Redis (for caching & progress tracking)
+REDIS_HOST=localhost
+REDIS_PORT=6379
 ```
 
 ## Dependencies
@@ -207,10 +215,16 @@ RABBITMQ_URL=amqp://localhost:5672
 - **edge-tts**: `pip install edge-tts` (for TTS)
 - **ffmpeg**: Required for audio concatenation (DUO/GROUP episodes)
 - **ffprobe**: Required for audio duration detection
+- **Redis**: Required for progress tracking and playback state
 
 ### RabbitMQ Queues
 - `episode_generation`: Main job queue
 - `episode_generation_dlq`: Dead letter queue (after 3 retries)
+
+### Redis Keys
+- `job:{episodeId}`: Generation progress tracking (hash: progress, status, updatedAt)
+- `playback:{userId}:{episodeId}`: Playback position in milliseconds
+- `ratelimit:{key}`: Rate limiting counters
 
 ## Usage Examples
 
@@ -233,6 +247,39 @@ POST /episodes
 ### Query Public Episodes
 ```typescript
 GET /episodes/public?sortBy=popular&episodeType=MONOLOGUE&page=1&limit=20
+```
+
+### Stream Audio with Range Request
+```typescript
+// Full file
+GET /episodes/:id/stream
+
+// Partial content (seeking)
+GET /episodes/:id/stream
+Headers: { Range: "bytes=1000000-2000000" }
+Response: 206 Partial Content
+```
+
+### Save/Resume Playback
+```typescript
+// Save progress
+POST /episodes/:id/progress
+Body: { "position": 125000 }  // milliseconds
+
+// Get progress
+GET /episodes/:id/progress
+Response: { "position": 125000 }
+```
+
+### Track Generation Progress
+```typescript
+// Poll while generating
+GET /episodes/:id/generation-progress
+Response: {
+  "progress": 60,
+  "status": "SCRIPT_GENERATED",
+  "updatedAt": "2024-01-15T10:30:00Z"
+}
 ```
 
 ### Response Shape

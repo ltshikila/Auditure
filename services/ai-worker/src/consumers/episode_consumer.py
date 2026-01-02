@@ -8,9 +8,18 @@ from src.database import get_database_client, EpisodeRepository, EpisodeStatus
 from src.generators import ScriptGenerator
 from src.tts import TTSEngine, PodcasterVoice
 from src.storage import LocalStorage
+from src.redis import get_redis_client
 from .base_consumer import BaseConsumer
 
 logger = logging.getLogger(__name__)
+
+# Progress percentages for each stage
+PROGRESS_STARTED = 10
+PROGRESS_FETCHING_DATA = 20
+PROGRESS_SCRIPT_GENERATING = 40
+PROGRESS_SCRIPT_COMPLETE = 60
+PROGRESS_AUDIO_GENERATING = 80
+PROGRESS_COMPLETE = 100
 
 
 class EpisodeConsumer(BaseConsumer):
@@ -32,6 +41,7 @@ class EpisodeConsumer(BaseConsumer):
         self.script_generator = ScriptGenerator()
         self.tts_engine = TTSEngine()
         self.storage = LocalStorage()
+        self.redis_client = get_redis_client()
 
         self.max_content_chars = settings.max_book_content_chars
 
@@ -60,8 +70,10 @@ class EpisodeConsumer(BaseConsumer):
         try:
             # Step 1: Update status to SCRIPT_GENERATING
             self._update_status(episode_id, EpisodeStatus.SCRIPT_GENERATING)
+            self._update_progress(episode_id, PROGRESS_STARTED, "SCRIPT_GENERATING")
 
             # Step 2: Fetch required data
+            self._update_progress(episode_id, PROGRESS_FETCHING_DATA, "FETCHING_DATA")
             podcaster = self.repository.get_podcaster(message["podcasterId"])
             book = self.repository.get_book(message["bookId"])
 
@@ -84,6 +96,7 @@ class EpisodeConsumer(BaseConsumer):
             logger.info(f"Retrieved {len(book_content)} chars of book content")
 
             # Step 4: Generate script
+            self._update_progress(episode_id, PROGRESS_SCRIPT_GENERATING, "SCRIPT_GENERATING")
             logger.info("Generating script...")
             script_result = self.script_generator.generate(
                 book_content=book_content,
@@ -117,9 +130,11 @@ class EpisodeConsumer(BaseConsumer):
                 EpisodeStatus.SCRIPT_GENERATED,
                 script_content=script_result.script,
             )
+            self._update_progress(episode_id, PROGRESS_SCRIPT_COMPLETE, "SCRIPT_GENERATED")
 
             # Step 6: Update status to AUDIO_GENERATING
             self._update_status(episode_id, EpisodeStatus.AUDIO_GENERATING)
+            self._update_progress(episode_id, PROGRESS_AUDIO_GENERATING, "AUDIO_GENERATING")
 
             # Step 7: Generate audio
             logger.info("Generating audio...")
@@ -155,6 +170,7 @@ class EpisodeConsumer(BaseConsumer):
                 duration=tts_result.duration,
                 audio_format=tts_result.format,
             )
+            self._update_progress(episode_id, PROGRESS_COMPLETE, "COMPLETED")
 
             logger.info(f"Episode generation completed: {episode_id}")
 
@@ -167,6 +183,7 @@ class EpisodeConsumer(BaseConsumer):
                 EpisodeStatus.FAILED,
                 generation_error=str(e),
             )
+            self._update_progress(episode_id, 0, "FAILED")
 
             # Re-raise for retry logic
             raise
@@ -183,3 +200,16 @@ class EpisodeConsumer(BaseConsumer):
         except Exception as e:
             logger.error(f"Failed to update status: {e}")
             # Don't raise - status update failure shouldn't stop processing
+
+    def _update_progress(
+        self,
+        episode_id: str,
+        progress: int,
+        status: str,
+    ) -> None:
+        """Update job progress in Redis for real-time UI updates."""
+        try:
+            self.redis_client.set_job_progress(episode_id, progress, status)
+        except Exception as e:
+            logger.error(f"Failed to update progress in Redis: {e}")
+            # Don't raise - progress update failure shouldn't stop processing

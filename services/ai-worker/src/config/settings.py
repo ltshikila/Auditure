@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "postgresql://postgres:password@localhost:5432/bookcast"
 
+    # Redis
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+
     # LLM (optional)
     huggingface_api_key: Optional[str] = None
     huggingface_model: str = "mistralai/Mistral-7B-Instruct-v0.2"

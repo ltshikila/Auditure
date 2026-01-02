@@ -10,6 +10,13 @@ export default function EpisodeDetailLayout() {
       />
       <Stack.Screen
         name="play"
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+        }}
+      />
+      <Stack.Screen
+        name="transcript"
         options={{ headerShown: false }}
       />
     </Stack>

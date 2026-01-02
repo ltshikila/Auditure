@@ -37,7 +37,8 @@
       "Bash(dir /s /b \"c:\\\\Users\\\\ltshi\\\\OneDrive\\\\Documents\\\\GitHub\\\\BookCast\\\\apps\\\\mobile-app\\\\src\\\\components\")",
       "Bash(ls:*)",
       "Bash(dir:*)",
-      "Bash(npx expo install:*)"
+      "Bash(npx expo install:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }
