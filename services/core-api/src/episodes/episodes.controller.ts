@@ -11,7 +11,11 @@ import {
     Query,
     HttpCode,
     HttpStatus,
+    Res,
+    Headers,
+    StreamableFile,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { EpisodesService } from './episodes.service';
 import { CreateEpisodeDto } from './dto/create-episode.dto';
 import { UpdateEpisodeDto } from './dto/update-episode.dto';
@@ -183,5 +187,64 @@ export class EpisodesController {
     @UseGuards(JwtAuthGuard)
     async retry(@Param('id') id: string, @Request() req) {
         return this.episodesService.retryGeneration(id, req.user.userId);
+    }
+
+    /**
+     * Stream episode audio with range request support
+     * GET /episodes/:id/stream
+     */
+    @Get(':id/stream')
+    @UseGuards(OptionalJwtAuthGuard)
+    async streamAudio(
+        @Param('id') id: string,
+        @Request() req,
+        @Res({ passthrough: true }) res: Response,
+        @Headers('range') range?: string,
+    ): Promise<StreamableFile> {
+        return this.episodesService.streamAudio(
+            id,
+            req.user?.userId,
+            range,
+            res,
+        );
+    }
+
+    /**
+     * Save playback progress (requires authentication)
+     * POST /episodes/:id/progress
+     */
+    @Post(':id/progress')
+    @UseGuards(JwtAuthGuard)
+    @HttpCode(HttpStatus.NO_CONTENT)
+    async saveProgress(
+        @Param('id') id: string,
+        @Request() req,
+        @Body() body: { position: number },
+    ) {
+        await this.episodesService.savePlaybackProgress(
+            req.user.userId,
+            id,
+            body.position,
+        );
+    }
+
+    /**
+     * Get playback progress (requires authentication)
+     * GET /episodes/:id/progress
+     */
+    @Get(':id/progress')
+    @UseGuards(JwtAuthGuard)
+    async getProgress(@Param('id') id: string, @Request() req) {
+        return this.episodesService.getPlaybackProgress(req.user.userId, id);
+    }
+
+    /**
+     * Get episode generation progress from Redis
+     * GET /episodes/:id/generation-progress
+     */
+    @Get(':id/generation-progress')
+    @UseGuards(OptionalJwtAuthGuard)
+    async getGenerationProgress(@Param('id') id: string) {
+        return this.episodesService.getGenerationProgress(id);
     }
 }

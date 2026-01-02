@@ -4,9 +4,13 @@ import {
     ForbiddenException,
     BadRequestException,
     Logger,
+    StreamableFile,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { DatabaseService } from '../database/database.service';
 import { RabbitMQService } from '../rabbitmq/rabbitmq.service';
+import { RedisService } from '../redis/redis.service';
+import { StorageService } from '../common/storage.service';
 import { CreateEpisodeDto, ContentCoverage } from './dto/create-episode.dto';
 import { UpdateEpisodeDto } from './dto/update-episode.dto';
 import { QueryEpisodesDto, EpisodeSortBy } from './dto/query-episodes.dto';
@@ -19,6 +23,8 @@ export class EpisodesService {
     constructor(
         private databaseService: DatabaseService,
         private rabbitMQService: RabbitMQService,
+        private redisService: RedisService,
+        private storageService: StorageService,
     ) {}
 
     /**
@@ -638,5 +644,100 @@ export class EpisodesService {
         this.logger.log(`Retrying episode generation for ${episode.id}`);
 
         return episode as EpisodeResponseDto;
+    }
+
+    /**
+     * Stream audio file with range request support
+     */
+    async streamAudio(
+        id: string,
+        userId: string | undefined,
+        range: string | undefined,
+        res: Response,
+    ): Promise<StreamableFile> {
+        const episode = await this.findOne(id, userId);
+
+        if (!episode.audioFileKey) {
+            throw new NotFoundException('Audio file not found for this episode');
+        }
+
+        // Check if file exists
+        const exists = await this.storageService.fileExists(episode.audioFileKey);
+        if (!exists) {
+            throw new NotFoundException('Audio file not found in storage');
+        }
+
+        // Download the audio file
+        const audioBuffer = await this.storageService.downloadFile(
+            episode.audioFileKey,
+        );
+        const fileSize = audioBuffer.length;
+
+        // Determine content type based on format
+        const contentType =
+            episode.audioFormat === 'wav' ? 'audio/wav' : 'audio/mpeg';
+
+        // Handle range requests for seeking
+        if (range) {
+            const parts = range.replace(/bytes=/, '').split('-');
+            const start = parseInt(parts[0], 10);
+            const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+            const chunkSize = end - start + 1;
+
+            res.status(206);
+            res.set({
+                'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+                'Accept-Ranges': 'bytes',
+                'Content-Length': chunkSize,
+                'Content-Type': contentType,
+            });
+
+            return new StreamableFile(audioBuffer.subarray(start, end + 1));
+        }
+
+        // Full file response
+        res.set({
+            'Accept-Ranges': 'bytes',
+            'Content-Length': fileSize,
+            'Content-Type': contentType,
+        });
+
+        return new StreamableFile(audioBuffer);
+    }
+
+    /**
+     * Save playback progress to Redis
+     */
+    async savePlaybackProgress(
+        userId: string,
+        episodeId: string,
+        positionMs: number,
+    ): Promise<void> {
+        // Verify episode exists and user has access
+        await this.findOne(episodeId, userId);
+        await this.redisService.setPlaybackProgress(userId, episodeId, positionMs);
+    }
+
+    /**
+     * Get playback progress from Redis
+     */
+    async getPlaybackProgress(
+        userId: string,
+        episodeId: string,
+    ): Promise<{ position: number } | null> {
+        const position = await this.redisService.getPlaybackProgress(
+            userId,
+            episodeId,
+        );
+        return position !== null ? { position } : null;
+    }
+
+    /**
+     * Get episode generation progress from Redis
+     */
+    async getGenerationProgress(
+        episodeId: string,
+    ): Promise<{ progress: number; status: string; updatedAt: string } | null> {
+        return this.redisService.getJobProgress(episodeId);
     }
 }

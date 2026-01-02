@@ -9,7 +9,10 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": ["audio"]
+      }
     },
     "android": {
       "package": "com.bookcast.app",
@@ -20,7 +23,8 @@
         "monochromeImage": "./src/assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["android.permission.FOREGROUND_SERVICE"]
     },
     "web": {
       "output": "static",
@@ -41,7 +45,8 @@
           }
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-av"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -12,9 +12,11 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { DatabaseModule } from './database/database.module';
 import { RabbitmqModule } from './rabbitmq/rabbitmq.module';
 import { CommonModule } from './common/common.module';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
     imports: [
+        RedisModule, // Global module - must be imported early
         AuthModule,
         UsersModule,
         PodcastersModule,
