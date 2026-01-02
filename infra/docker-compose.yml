@@ -47,8 +47,35 @@ services:
     networks:
       - bookcast_net
 
+  # -------------------------------------------------------------------------
+  # AI WORKER (Script Generation + TTS)
+  # Meets SRS FR-Episode Generation: Generates scripts and audio
+  # -------------------------------------------------------------------------
+  ai-worker:
+    build:
+      context: ../services/ai-worker
+      dockerfile: Dockerfile
+    container_name: bookcast_ai_worker
+    environment:
+      RABBITMQ_URL: amqp://user:password@rabbitmq:5672
+      DATABASE_URL: postgresql://admin:password@postgres:5432/bookcast_db
+      LOCAL_STORAGE_PATH: /storage
+      TTS_TEMP_DIR: /app/temp/tts
+      HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-}
+      HUGGINGFACE_MODEL: mistralai/Mistral-7B-Instruct-v0.2
+      LOG_LEVEL: INFO
+    volumes:
+      - audio_storage:/storage
+    depends_on:
+      - rabbitmq
+      - postgres
+    networks:
+      - bookcast_net
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+  audio_storage:
 
 networks:
   bookcast_net:

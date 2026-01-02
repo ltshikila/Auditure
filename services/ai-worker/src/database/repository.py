@@ -1,0 +1,174 @@
+"""Database repository for episode operations."""
+
+import logging
+from datetime import datetime
+from typing import Optional, List, Dict, Any
+
+from sqlalchemy.orm import Session
+
+from .models import Episode, Podcaster, Book, Chapter, EpisodeStatus
+from .client import DatabaseClient
+
+logger = logging.getLogger(__name__)
+
+
+class EpisodeRepository:
+    """Repository for episode-related database operations."""
+
+    def __init__(self, db_client: DatabaseClient):
+        """Initialize repository with database client."""
+        self.db_client = db_client
+
+    def get_episode(self, episode_id: str) -> Optional[Episode]:
+        """Get episode by ID."""
+        session = self.db_client.create_session()
+        try:
+            return session.query(Episode).filter(Episode.id == episode_id).first()
+        finally:
+            session.close()
+
+    def get_podcaster(self, podcaster_id: str) -> Optional[Podcaster]:
+        """Get podcaster by ID."""
+        session = self.db_client.create_session()
+        try:
+            return session.query(Podcaster).filter(Podcaster.id == podcaster_id).first()
+        finally:
+            session.close()
+
+    def get_book(self, book_id: str) -> Optional[Book]:
+        """Get book by ID."""
+        session = self.db_client.create_session()
+        try:
+            return session.query(Book).filter(Book.id == book_id).first()
+        finally:
+            session.close()
+
+    def get_book_content(
+        self,
+        book_id: str,
+        content_coverage: str,
+        chapter_numbers: List[int],
+        max_chars: int = 8000,
+    ) -> str:
+        """
+        Get book content based on coverage type.
+
+        Args:
+            book_id: Book UUID
+            content_coverage: ENTIRE_BOOK, MULTIPLE_CHAPTERS, or SINGLE_CHAPTER
+            chapter_numbers: List of chapter numbers to include
+            max_chars: Maximum characters to return
+
+        Returns:
+            Concatenated book content
+        """
+        session = self.db_client.create_session()
+        try:
+            query = session.query(Chapter).filter(Chapter.book_id == book_id)
+
+            if content_coverage == "SINGLE_CHAPTER" and chapter_numbers:
+                query = query.filter(Chapter.chapter_number == chapter_numbers[0])
+            elif content_coverage == "MULTIPLE_CHAPTERS" and chapter_numbers:
+                query = query.filter(Chapter.chapter_number.in_(chapter_numbers))
+            # ENTIRE_BOOK: get all chapters
+
+            chapters = query.order_by(Chapter.chapter_number).all()
+
+            content_parts = []
+            total_chars = 0
+
+            for chapter in chapters:
+                if chapter.extracted_text:
+                    if total_chars + len(chapter.extracted_text) > max_chars:
+                        # Truncate to fit within limit
+                        remaining = max_chars - total_chars
+                        if remaining > 100:  # Only add if meaningful
+                            content_parts.append(chapter.extracted_text[:remaining])
+                        break
+                    content_parts.append(chapter.extracted_text)
+                    total_chars += len(chapter.extracted_text)
+
+            return "\n\n".join(content_parts)
+        finally:
+            session.close()
+
+    def update_status(
+        self,
+        episode_id: str,
+        status: EpisodeStatus,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Update episode generation status.
+
+        Args:
+            episode_id: Episode UUID
+            status: New status
+            **kwargs: Additional fields to update (script_content, audio_file_key, etc.)
+        """
+        session = self.db_client.create_session()
+        try:
+            episode = session.query(Episode).filter(Episode.id == episode_id).first()
+            if not episode:
+                logger.error(f"Episode not found: {episode_id}")
+                return
+
+            episode.generation_status = status.value
+            episode.updated_at = datetime.utcnow()
+
+            # Handle status-specific updates
+            if status == EpisodeStatus.SCRIPT_GENERATED:
+                if "script_content" in kwargs:
+                    episode.script_content = kwargs["script_content"]
+                episode.script_generated_at = datetime.utcnow()
+
+            elif status == EpisodeStatus.COMPLETED:
+                if "audio_file_key" in kwargs:
+                    episode.audio_file_key = kwargs["audio_file_key"]
+                if "duration" in kwargs:
+                    episode.duration = kwargs["duration"]
+                if "audio_format" in kwargs:
+                    episode.audio_format = kwargs["audio_format"]
+                episode.audio_generated_at = datetime.utcnow()
+
+            elif status == EpisodeStatus.FAILED:
+                if "generation_error" in kwargs:
+                    episode.generation_error = kwargs["generation_error"]
+
+            session.commit()
+            logger.info(f"Updated episode {episode_id} to status {status.value}")
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Failed to update episode status: {e}")
+            raise
+        finally:
+            session.close()
+
+    def get_episode_with_relations(
+        self,
+        episode_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get episode with podcaster and book data.
+
+        Returns dict with episode, podcaster, and book objects.
+        """
+        session = self.db_client.create_session()
+        try:
+            episode = session.query(Episode).filter(Episode.id == episode_id).first()
+            if not episode:
+                return None
+
+            podcaster = session.query(Podcaster).filter(
+                Podcaster.id == episode.podcaster_id
+            ).first()
+
+            book = session.query(Book).filter(Book.id == episode.book_id).first()
+
+            return {
+                "episode": episode,
+                "podcaster": podcaster,
+                "book": book,
+            }
+        finally:
+            session.close()

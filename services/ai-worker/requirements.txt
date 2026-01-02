@@ -1,0 +1,30 @@
+# Core
+pika==1.3.2                    # RabbitMQ client
+psycopg2-binary==2.9.9         # PostgreSQL driver
+SQLAlchemy==2.0.23             # ORM
+edge-tts==6.1.9                # Microsoft Edge TTS (free, unlimited)
+pydub==0.25.1                  # Audio processing
+ffmpeg-python==0.2.0           # Audio concatenation
+
+# LLM
+requests==2.31.0               # HuggingFace API calls
+
+# Config
+pydantic==2.5.2                # Settings validation
+pydantic-settings==2.1.0       # Environment settings
+python-dotenv==1.0.0           # .env file loading
+
+# Retry logic
+tenacity==8.2.3                # Retry with backoff
+
+# Async
+asyncio-compat==0.1.1          # Async utilities
+aiofiles==23.2.1               # Async file operations
+
+# Logging
+structlog==23.2.0              # Structured logging
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-mock==3.12.0
