@@ -29,6 +29,7 @@ model User {
   // Relations
   books            Book[]
   podcasters       Podcaster[]
+  episodes         Episode[]
 
   @@map("users")
 }
@@ -68,6 +69,7 @@ model Book {
   // Relations
   user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   chapters          Chapter[]
+  episodes          Episode[]
 
   @@index([userId])
   @@index([extractionStatus])
@@ -145,6 +147,7 @@ model Podcaster {
 
   // Relations
   user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  episodes                Episode[]
 
   @@index([userId])
   @@index([isPublic])
@@ -178,4 +181,90 @@ enum ExtractionStatus {
   COMPLETED
   FAILED
   PARTIALLY_COMPLETED
+}
+
+// Episode Generation Status
+enum EpisodeStatus {
+  PENDING
+  SCRIPT_GENERATING
+  SCRIPT_GENERATED
+  AUDIO_GENERATING
+  COMPLETED
+  FAILED
+}
+
+// Episode Type (number of speakers)
+enum EpisodeType {
+  MONOLOGUE
+  DUO
+  GROUP
+}
+
+// Episode Theme (content approach)
+enum EpisodeTheme {
+  LECTURE
+  DISCUSSION
+  DEBATE
+}
+
+// Content Coverage (how much of the book)
+enum ContentCoverage {
+  ENTIRE_BOOK
+  MULTIPLE_CHAPTERS
+  SINGLE_CHAPTER
+}
+
+model Episode {
+  id                    String         @id @default(uuid())
+  userId                String
+  podcasterId           String
+  bookId                String
+
+  // Core Content
+  title                 String
+  description           String?
+
+  // Content Configuration
+  contentCoverage       ContentCoverage
+  chapters              Int[]          // Chapter numbers to cover
+  episodeType           EpisodeType
+  episodeTheme          EpisodeTheme
+  targetLengthMin       Int            // Minimum target length in minutes
+  targetLengthMax       Int            // Maximum target length in minutes
+
+  // Generated Content
+  scriptContent         String?        @db.Text
+  audioFileKey          String?        // Storage key for audio file
+
+  // Generation Status
+  generationStatus      EpisodeStatus  @default(PENDING)
+  scriptGeneratedAt     DateTime?
+  audioGeneratedAt      DateTime?
+  generationError       String?
+
+  // Audio Properties
+  duration              Int?           // Actual duration in seconds
+  audioFormat           String?        // mp3, wav, etc
+
+  // Metadata
+  isPublic              Boolean        @default(false)
+  playCount             Int            @default(0)
+  likeCount             Int            @default(0)
+  shareCount            Int            @default(0)
+
+  // Timestamps
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  // Relations
+  user                  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  podcaster             Podcaster      @relation(fields: [podcasterId], references: [id], onDelete: Cascade)
+  book                  Book           @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([podcasterId])
+  @@index([bookId])
+  @@index([isPublic])
+  @@index([generationStatus])
+  @@map("episodes")
 }

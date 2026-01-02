@@ -1,34 +1,187 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+    Controller,
+    Get,
+    Post,
+    Body,
+    Patch,
+    Param,
+    Delete,
+    UseGuards,
+    Request,
+    Query,
+    HttpCode,
+    HttpStatus,
+} from '@nestjs/common';
 import { EpisodesService } from './episodes.service';
 import { CreateEpisodeDto } from './dto/create-episode.dto';
 import { UpdateEpisodeDto } from './dto/update-episode.dto';
+import { QueryEpisodesDto } from './dto/query-episodes.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 
 @Controller('episodes')
 export class EpisodesController {
     constructor(private readonly episodesService: EpisodesService) {}
 
+    /**
+     * Create a new episode (requires authentication)
+     * POST /episodes
+     */
     @Post()
-    create(@Body() createEpisodeDto: CreateEpisodeDto) {
-        return this.episodesService.create(createEpisodeDto);
+    @UseGuards(JwtAuthGuard)
+    create(@Request() req, @Body() createEpisodeDto: CreateEpisodeDto) {
+        return this.episodesService.create(req.user.userId, createEpisodeDto);
     }
 
-    @Get()
-    findAll() {
-        return this.episodesService.findAll();
+    /**
+     * Get all public episodes with filtering and pagination
+     * GET /episodes/public?sortBy=popular&page=1&limit=20&search=philosophy
+     */
+    @Get('public')
+    findPublic(@Query() query: QueryEpisodesDto) {
+        return this.episodesService.findPublic(query);
     }
 
+    /**
+     * Get trending episodes
+     * GET /episodes/trending?limit=10
+     */
+    @Get('trending')
+    findTrending(@Query('limit') limit?: number) {
+        return this.episodesService.findTrending(limit ? Number(limit) : 10);
+    }
+
+    /**
+     * Get episodes by podcaster
+     * GET /episodes/podcaster/:podcasterId?limit=20
+     */
+    @Get('podcaster/:podcasterId')
+    findByPodcaster(
+        @Param('podcasterId') podcasterId: string,
+        @Query('limit') limit?: number,
+    ) {
+        return this.episodesService.findByPodcaster(
+            podcasterId,
+            limit ? Number(limit) : 20,
+        );
+    }
+
+    /**
+     * Get episodes by book
+     * GET /episodes/book/:bookId?limit=20
+     */
+    @Get('book/:bookId')
+    findByBook(@Param('bookId') bookId: string, @Query('limit') limit?: number) {
+        return this.episodesService.findByBook(bookId, limit ? Number(limit) : 20);
+    }
+
+    /**
+     * Get current user's episodes (requires authentication)
+     * GET /episodes/my
+     */
+    @Get('my')
+    @UseGuards(JwtAuthGuard)
+    findMy(@Request() req) {
+        return this.episodesService.findAllByUser(req.user.userId);
+    }
+
+    /**
+     * Get a specific episode by ID
+     * GET /episodes/:id
+     * Public episodes are accessible to everyone
+     * Private episodes only accessible to owner
+     */
     @Get(':id')
-    findOne(@Param('id') id: string) {
-        return this.episodesService.findOne(+id);
+    @UseGuards(OptionalJwtAuthGuard)
+    findOne(@Param('id') id: string, @Request() req) {
+        const userId = req.user?.userId;
+        return this.episodesService.findOne(id, userId);
     }
 
+    /**
+     * Update an episode (requires authentication and ownership)
+     * PATCH /episodes/:id
+     */
     @Patch(':id')
-    update(@Param('id') id: string, @Body() updateEpisodeDto: UpdateEpisodeDto) {
-        return this.episodesService.update(+id, updateEpisodeDto);
+    @UseGuards(JwtAuthGuard)
+    update(
+        @Param('id') id: string,
+        @Request() req,
+        @Body() updateEpisodeDto: UpdateEpisodeDto,
+    ) {
+        return this.episodesService.update(id, req.user.userId, updateEpisodeDto);
     }
 
+    /**
+     * Delete an episode (requires authentication and ownership)
+     * DELETE /episodes/:id
+     */
     @Delete(':id')
-    remove(@Param('id') id: string) {
-        return this.episodesService.remove(+id);
+    @UseGuards(JwtAuthGuard)
+    @HttpCode(HttpStatus.NO_CONTENT)
+    async remove(@Param('id') id: string, @Request() req) {
+        await this.episodesService.remove(id, req.user.userId);
+    }
+
+    /**
+     * Increment play count (public endpoint)
+     * POST /episodes/:id/play
+     */
+    @Post(':id/play')
+    @HttpCode(HttpStatus.NO_CONTENT)
+    async incrementPlayCount(@Param('id') id: string) {
+        await this.episodesService.incrementPlayCount(id);
+    }
+
+    /**
+     * Like an episode (requires authentication)
+     * POST /episodes/:id/like
+     */
+    @Post(':id/like')
+    @UseGuards(JwtAuthGuard)
+    @HttpCode(HttpStatus.NO_CONTENT)
+    async like(@Param('id') id: string) {
+        await this.episodesService.incrementLikeCount(id);
+    }
+
+    /**
+     * Unlike an episode (requires authentication)
+     * DELETE /episodes/:id/like
+     */
+    @Delete(':id/like')
+    @UseGuards(JwtAuthGuard)
+    @HttpCode(HttpStatus.NO_CONTENT)
+    async unlike(@Param('id') id: string) {
+        await this.episodesService.decrementLikeCount(id);
+    }
+
+    /**
+     * Share an episode (public endpoint)
+     * POST /episodes/:id/share
+     */
+    @Post(':id/share')
+    @HttpCode(HttpStatus.NO_CONTENT)
+    async share(@Param('id') id: string) {
+        await this.episodesService.incrementShareCount(id);
+    }
+
+    /**
+     * Make episode public (requires authentication and ownership)
+     * POST /episodes/:id/publish
+     */
+    @Post(':id/publish')
+    @UseGuards(JwtAuthGuard)
+    async publish(@Param('id') id: string, @Request() req) {
+        return this.episodesService.makePublic(id, req.user.userId);
+    }
+
+    /**
+     * Retry failed episode generation (requires authentication and ownership)
+     * POST /episodes/:id/retry
+     */
+    @Post(':id/retry')
+    @UseGuards(JwtAuthGuard)
+    async retry(@Param('id') id: string, @Request() req) {
+        return this.episodesService.retryGeneration(id, req.user.userId);
     }
 }
