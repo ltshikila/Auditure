@@ -14,14 +14,26 @@ import {
     Res,
     Headers,
     StreamableFile,
+    UseInterceptors,
+    UploadedFile,
+    BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { EpisodesService } from './episodes.service';
-import { CreateEpisodeDto } from './dto/create-episode.dto';
+import { CreateEpisodeDto, CreateEpisodeWithFileDto } from './dto/create-episode.dto';
 import { UpdateEpisodeDto } from './dto/update-episode.dto';
 import { QueryEpisodesDto } from './dto/query-episodes.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
+
+const bookFileFilter = (req, file, callback) => {
+    const allowedMimes = ['application/pdf', 'application/epub+zip'];
+    if (!allowedMimes.includes(file.mimetype)) {
+        return callback(new BadRequestException('Only PDF and EPUB files are allowed'), false);
+    }
+    callback(null, true);
+};
 
 @Controller('episodes')
 export class EpisodesController {
@@ -35,6 +47,30 @@ export class EpisodesController {
     @UseGuards(JwtAuthGuard)
     create(@Request() req, @Body() createEpisodeDto: CreateEpisodeDto) {
         return this.episodesService.create(req.user.userId, createEpisodeDto);
+    }
+
+    /**
+     * Create a new episode with file upload (requires authentication)
+     * Uploads a book file (PDF/EPUB), extracts text, and creates an episode
+     * POST /episodes/with-file
+     */
+    @Post('with-file')
+    @UseGuards(JwtAuthGuard)
+    @UseInterceptors(
+        FileInterceptor('file', {
+            limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+            fileFilter: bookFileFilter,
+        }),
+    )
+    async createWithFile(
+        @Request() req,
+        @UploadedFile() file: any,
+        @Body() createEpisodeDto: CreateEpisodeWithFileDto,
+    ) {
+        if (!file) {
+            throw new BadRequestException('File is required');
+        }
+        return this.episodesService.createWithFile(req.user.userId, file, createEpisodeDto);
     }
 
     /**

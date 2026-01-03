@@ -5,13 +5,16 @@ import {
     BadRequestException,
     Logger,
     StreamableFile,
+    Inject,
+    forwardRef,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { DatabaseService } from '../database/database.service';
 import { RabbitMQService } from '../rabbitmq/rabbitmq.service';
 import { RedisService } from '../redis/redis.service';
 import { StorageService } from '../common/storage.service';
-import { CreateEpisodeDto, ContentCoverage } from './dto/create-episode.dto';
+import { BooksService } from '../books/books.service';
+import { CreateEpisodeDto, CreateEpisodeWithFileDto, ContentCoverage } from './dto/create-episode.dto';
 import { UpdateEpisodeDto } from './dto/update-episode.dto';
 import { QueryEpisodesDto, EpisodeSortBy } from './dto/query-episodes.dto';
 import { EpisodeResponseDto, EpisodeStatus } from './dto/episode-response.dto';
@@ -25,6 +28,8 @@ export class EpisodesService {
         private rabbitMQService: RabbitMQService,
         private redisService: RedisService,
         private storageService: StorageService,
+        @Inject(forwardRef(() => BooksService))
+        private booksService: BooksService,
     ) {}
 
     /**
@@ -111,6 +116,111 @@ export class EpisodesService {
         this.logger.log(`Created episode ${episode.id} and queued for generation`);
 
         return episode as EpisodeResponseDto;
+    }
+
+    /**
+     * Create a new episode with file upload
+     * This uploads the book, waits for extraction, then creates the episode
+     */
+    async createWithFile(
+        userId: string,
+        file: any,
+        createEpisodeDto: CreateEpisodeWithFileDto,
+    ): Promise<{ episode: EpisodeResponseDto; book: any; message: string }> {
+        // Validate podcaster exists and belongs to user or is public
+        const podcaster = await this.databaseService.podcaster.findUnique({
+            where: { id: createEpisodeDto.podcasterId },
+        });
+
+        if (!podcaster) {
+            throw new NotFoundException('Podcaster not found');
+        }
+
+        if (!podcaster.isPublic && podcaster.userId !== userId) {
+            throw new ForbiddenException('Access denied to private podcaster');
+        }
+
+        // Validate target length range
+        if (createEpisodeDto.targetLengthMin > createEpisodeDto.targetLengthMax) {
+            throw new BadRequestException(
+                'Target length minimum cannot be greater than maximum',
+            );
+        }
+
+        // Determine source type from file mimetype
+        const sourceType = file.mimetype === 'application/pdf' ? 'PDF' : 'EPUB';
+
+        // Extract book title from filename (remove extension)
+        const bookTitle = file.originalname
+            .replace(/\.(pdf|epub)$/i, '')
+            .replace(/[-_]/g, ' ')
+            .trim() || 'Untitled Book';
+
+        // Upload the book using BooksService
+        const book = await this.booksService.uploadBook(userId, file, {
+            title: bookTitle,
+            sourceType: sourceType as any,
+        });
+
+        this.logger.log(`Uploaded book ${book.id} for episode creation`);
+
+        // Create the episode with PENDING status
+        // The episode will wait for book extraction to complete
+        const episode = await this.databaseService.episode.create({
+            data: {
+                userId,
+                bookId: book.id,
+                podcasterId: createEpisodeDto.podcasterId,
+                title: createEpisodeDto.title,
+                description: createEpisodeDto.description,
+                contentCoverage: createEpisodeDto.contentCoverage,
+                chapters: createEpisodeDto.chapters || [],
+                episodeType: createEpisodeDto.episodeType,
+                episodeTheme: createEpisodeDto.episodeTheme,
+                targetLengthMin: createEpisodeDto.targetLengthMin,
+                targetLengthMax: createEpisodeDto.targetLengthMax,
+                generationStatus: 'PENDING',
+            },
+        });
+
+        // If book extraction is already complete (unlikely but possible for small files),
+        // queue the episode immediately
+        if (book.extractionStatus === 'COMPLETED') {
+            await this.rabbitMQService.publishEpisodeGenerationJob({
+                episodeId: episode.id,
+                userId,
+                podcasterId: createEpisodeDto.podcasterId,
+                bookId: book.id,
+                title: createEpisodeDto.title,
+                contentCoverage: createEpisodeDto.contentCoverage,
+                chapters: createEpisodeDto.chapters || [],
+                episodeType: createEpisodeDto.episodeType,
+                episodeTheme: createEpisodeDto.episodeTheme,
+                targetLengthMin: createEpisodeDto.targetLengthMin,
+                targetLengthMax: createEpisodeDto.targetLengthMax,
+            });
+
+            this.logger.log(`Episode ${episode.id} queued for generation immediately`);
+
+            return {
+                episode: episode as EpisodeResponseDto,
+                book,
+                message: 'Episode created and queued for generation',
+            };
+        }
+
+        // Book extraction is still processing
+        // The episode will be queued after extraction completes
+        this.logger.log(
+            `Episode ${episode.id} created, waiting for book extraction to complete`,
+        );
+
+        return {
+            episode: episode as EpisodeResponseDto,
+            book,
+            message:
+                'Episode created. Book is being processed. Episode generation will start automatically once extraction is complete.',
+        };
     }
 
     /**

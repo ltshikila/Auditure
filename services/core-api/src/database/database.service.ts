@@ -7,12 +7,16 @@ import { Pool } from 'pg';
 export class DatabaseService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
     constructor() {
         // Prisma v7 requires an adapter for PostgreSQL
+        // Parse DATABASE_URL or use defaults
+        const dbUrl = process.env.DATABASE_URL || 'postgresql://admin:password@localhost:5432/bookcast_db';
+        const url = new URL(dbUrl);
+
         const pool = new Pool({
-            host: 'localhost',
-            port: 5432,
-            database: 'bookcast',
-            user: 'postgres',
-            password: 'postgres',
+            host: url.hostname,
+            port: parseInt(url.port) || 5432,
+            database: url.pathname.slice(1), // Remove leading '/'
+            user: url.username,
+            password: url.password,
         });
         const adapter = new PrismaPg(pool);
 

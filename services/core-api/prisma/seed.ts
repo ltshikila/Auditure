@@ -8,9 +8,9 @@ import * as bcrypt from 'bcrypt';
 const pool = new Pool({
   host: 'localhost',
   port: 5432,
-  database: 'bookcast',
-  user: 'postgres',
-  password: 'postgres',
+  database: 'bookcast_db',
+  user: 'admin',
+  password: 'password',
 });
 const adapter = new PrismaPg(pool);
 

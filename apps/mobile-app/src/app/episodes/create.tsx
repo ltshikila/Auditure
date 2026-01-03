@@ -12,12 +12,15 @@ import React, { useState, useEffect } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import * as DocumentPicker from 'expo-document-picker';
 import { PodcasterSelector } from '@/components/PodcasterSelector';
 import { InfoTooltip } from '@/components/InfoTooltip';
 import { podcasterService, Podcaster } from '@/services/podcaster.service';
-import { episodeService, EpisodeType, EpisodeTheme, ContentCoverage } from '@/services/episode.service';
+import { episodeService, EpisodeType, EpisodeTheme, ContentCoverage, FileUpload } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
 import Slider from '@react-native-community/slider';
+
+type BookSourceMode = 'search' | 'upload';
 
 type TabOption<T> = {
     value: T;
@@ -32,6 +35,10 @@ const Create = () => {
 
     // Podcasters
     const [podcasters, setPodcasters] = useState<Podcaster[]>([]);
+
+    // Book source mode
+    const [bookSourceMode, setBookSourceMode] = useState<BookSourceMode>('upload');
+    const [selectedFile, setSelectedFile] = useState<FileUpload | null>(null);
 
     // Form state
     const [bookSearch, setBookSearch] = useState('');
@@ -110,6 +117,33 @@ const Create = () => {
             .filter(n => !isNaN(n) && n > 0);
     };
 
+    // Handle file picking
+    const handlePickFile = async () => {
+        try {
+            const result = await DocumentPicker.getDocumentAsync({
+                type: ['application/pdf', 'application/epub+zip'],
+                copyToCacheDirectory: true,
+            });
+
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                const asset = result.assets[0];
+                setSelectedFile({
+                    uri: asset.uri,
+                    name: asset.name,
+                    type: asset.mimeType || 'application/pdf',
+                });
+            }
+        } catch (error) {
+            console.error('Error picking document:', error);
+            Alert.alert('Error', 'Failed to pick document');
+        }
+    };
+
+    // Clear selected file
+    const handleClearFile = () => {
+        setSelectedFile(null);
+    };
+
     // Render tab selector
     const renderTabSelector = <T extends string>(
         options: TabOption<T>[],
@@ -138,9 +172,14 @@ const Create = () => {
     );
 
     const handleCreate = async () => {
-        // Validation
-        if (!selectedBookId) {
+        // Validation based on mode
+        if (bookSourceMode === 'search' && !selectedBookId) {
             Alert.alert('Validation Error', 'Please select a book');
+            return;
+        }
+
+        if (bookSourceMode === 'upload' && !selectedFile) {
+            Alert.alert('Validation Error', 'Please upload a book file (PDF or EPUB)');
             return;
         }
 
@@ -173,20 +212,39 @@ const Create = () => {
                 return;
             }
 
-            await episodeService.create(
-                {
-                    bookId: selectedBookId,
-                    podcasterId: selectedPodcasterId,
-                    title: episodeTitle.trim(),
-                    contentCoverage,
-                    chapters: parseChapters(chapters),
-                    episodeType,
-                    episodeTheme,
-                    targetLengthMin,
-                    targetLengthMax,
-                },
-                token
-            );
+            if (bookSourceMode === 'upload' && selectedFile) {
+                // Create with file upload
+                await episodeService.createWithFile(
+                    selectedFile,
+                    {
+                        podcasterId: selectedPodcasterId,
+                        title: episodeTitle.trim(),
+                        contentCoverage,
+                        chapters: parseChapters(chapters),
+                        episodeType,
+                        episodeTheme,
+                        targetLengthMin,
+                        targetLengthMax,
+                    },
+                    token
+                );
+            } else if (selectedBookId) {
+                // Create with existing book
+                await episodeService.create(
+                    {
+                        bookId: selectedBookId,
+                        podcasterId: selectedPodcasterId,
+                        title: episodeTitle.trim(),
+                        contentCoverage,
+                        chapters: parseChapters(chapters),
+                        episodeType,
+                        episodeTheme,
+                        targetLengthMin,
+                        targetLengthMax,
+                    },
+                    token
+                );
+            }
 
             Alert.alert('Success', 'Episode creation started! You\'ll be notified when it\'s ready.');
             router.back();
@@ -219,21 +277,102 @@ const Create = () => {
                     </Text>
                 </View>
 
-                {/* Book Selection */}
+                {/* Book Source Selection */}
                 <View className="mb-6">
-                    <Text className="text-[#1A1C1E] font-inter-medium text-lg mb-2">Book</Text>
-                    <View className="flex-row items-center bg-brand-input rounded-xl px-4 py-3">
-                        <TextInput
-                            className="flex-1 font-inter text-[#1A1C1E]"
-                            value={bookSearch}
-                            onChangeText={setBookSearch}
-                            placeholder="Type or search book title"
-                            placeholderTextColor="#858585"
-                        />
-                        <TouchableOpacity>
-                            <Ionicons name="heart-outline" size={22} color="#858585" />
+                    <Text className="text-[#1A1C1E] font-inter-medium text-lg mb-3">Book Source</Text>
+
+                    {/* Mode Toggle */}
+                    <View className="flex-row border-b border-[#E8E3D6] mb-4">
+                        <TouchableOpacity
+                            onPress={() => setBookSourceMode('upload')}
+                            className={`flex-1 pb-3 items-center ${
+                                bookSourceMode === 'upload' ? 'border-b-2 border-brand-gold' : ''
+                            }`}
+                        >
+                            <Text
+                                className={`font-inter text-sm ${
+                                    bookSourceMode === 'upload' ? 'text-brand-gold font-inter-medium' : 'text-[#1A1C1E]'
+                                }`}
+                            >
+                                Upload File
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() => setBookSourceMode('search')}
+                            className={`flex-1 pb-3 items-center ${
+                                bookSourceMode === 'search' ? 'border-b-2 border-brand-gold' : ''
+                            }`}
+                        >
+                            <Text
+                                className={`font-inter text-sm ${
+                                    bookSourceMode === 'search' ? 'text-brand-gold font-inter-medium' : 'text-[#1A1C1E]'
+                                }`}
+                            >
+                                Search Library
+                            </Text>
                         </TouchableOpacity>
                     </View>
+
+                    {/* Upload File Mode */}
+                    {bookSourceMode === 'upload' && (
+                        <View>
+                            {selectedFile ? (
+                                <View className="bg-brand-input rounded-xl px-4 py-4">
+                                    <View className="flex-row items-center">
+                                        <View className="bg-brand-gold/20 rounded-lg p-2 mr-3">
+                                            <Ionicons
+                                                name={selectedFile.type.includes('pdf') ? 'document-text' : 'book'}
+                                                size={24}
+                                                color="#BF9A54"
+                                            />
+                                        </View>
+                                        <View className="flex-1">
+                                            <Text className="font-inter-medium text-[#1A1C1E] text-sm" numberOfLines={1}>
+                                                {selectedFile.name}
+                                            </Text>
+                                            <Text className="font-inter text-[#858585] text-xs mt-0.5">
+                                                {selectedFile.type.includes('pdf') ? 'PDF Document' : 'EPUB Book'}
+                                            </Text>
+                                        </View>
+                                        <TouchableOpacity onPress={handleClearFile} className="p-2">
+                                            <Ionicons name="close-circle" size={22} color="#858585" />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            ) : (
+                                <TouchableOpacity
+                                    onPress={handlePickFile}
+                                    className="bg-brand-input rounded-xl px-4 py-6 items-center border-2 border-dashed border-[#E8E3D6]"
+                                >
+                                    <View className="bg-brand-gold/20 rounded-full p-3 mb-3">
+                                        <Ionicons name="cloud-upload-outline" size={28} color="#BF9A54" />
+                                    </View>
+                                    <Text className="font-inter-medium text-[#1A1C1E] text-sm mb-1">
+                                        Tap to upload a book
+                                    </Text>
+                                    <Text className="font-inter text-[#858585] text-xs">
+                                        PDF or EPUB files up to 50MB
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    )}
+
+                    {/* Search Library Mode */}
+                    {bookSourceMode === 'search' && (
+                        <View className="flex-row items-center bg-brand-input rounded-xl px-4 py-3">
+                            <TextInput
+                                className="flex-1 font-inter text-[#1A1C1E]"
+                                value={bookSearch}
+                                onChangeText={setBookSearch}
+                                placeholder="Type or search book title"
+                                placeholderTextColor="#858585"
+                            />
+                            <TouchableOpacity>
+                                <Ionicons name="heart-outline" size={22} color="#858585" />
+                            </TouchableOpacity>
+                        </View>
+                    )}
                 </View>
 
                 {/* Virtual Podcaster Selection */}

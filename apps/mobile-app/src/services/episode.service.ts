@@ -60,6 +60,24 @@ export interface CreateEpisodeDto {
     targetLengthMax: number;
 }
 
+export interface CreateEpisodeWithFileDto {
+    podcasterId: string;
+    title: string;
+    description?: string;
+    contentCoverage: ContentCoverage;
+    chapters?: number[];
+    episodeType: EpisodeType;
+    episodeTheme: EpisodeTheme;
+    targetLengthMin: number;
+    targetLengthMax: number;
+}
+
+export interface FileUpload {
+    uri: string;
+    name: string;
+    type: string;
+}
+
 export interface QueryEpisodesDto {
     sortBy?: 'POPULAR' | 'RECENT' | 'TRENDING';
     episodeType?: EpisodeType;
@@ -75,6 +93,42 @@ class EpisodeService {
      */
     async create(episodeData: CreateEpisodeDto, token: string): Promise<Episode> {
         return apiClient.post<Episode>('/episodes', episodeData, token);
+    }
+
+    /**
+     * Create a new episode with file upload
+     * Uploads a book file (PDF/EPUB), extracts text, and creates an episode
+     */
+    async createWithFile(
+        file: FileUpload,
+        episodeData: CreateEpisodeWithFileDto,
+        token: string
+    ): Promise<Episode> {
+        const formData = new FormData();
+
+        formData.append('file', {
+            uri: file.uri,
+            name: file.name,
+            type: file.type,
+        } as any);
+
+        formData.append('podcasterId', episodeData.podcasterId);
+        formData.append('title', episodeData.title);
+        formData.append('contentCoverage', episodeData.contentCoverage);
+        formData.append('episodeType', episodeData.episodeType);
+        formData.append('episodeTheme', episodeData.episodeTheme);
+        formData.append('targetLengthMin', episodeData.targetLengthMin.toString());
+        formData.append('targetLengthMax', episodeData.targetLengthMax.toString());
+
+        if (episodeData.description) {
+            formData.append('description', episodeData.description);
+        }
+
+        if (episodeData.chapters && episodeData.chapters.length > 0) {
+            formData.append('chapters', JSON.stringify(episodeData.chapters));
+        }
+
+        return apiClient.uploadFormData<Episode>('/episodes/with-file', formData, token);
     }
 
     /**

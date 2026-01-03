@@ -83,6 +83,31 @@ export class BookExtractionWorker implements OnModuleInit {
             });
 
             this.logger.log(`Successfully extracted book ${job.bookId}`);
+
+            // 7. Queue any pending episodes for this book
+            const pendingEpisodes = await this.databaseService.episode.findMany({
+                where: {
+                    bookId: job.bookId,
+                    generationStatus: 'PENDING',
+                },
+            });
+
+            for (const episode of pendingEpisodes) {
+                await this.rabbitMQService.publishEpisodeGenerationJob({
+                    episodeId: episode.id,
+                    userId: episode.userId,
+                    podcasterId: episode.podcasterId,
+                    bookId: episode.bookId,
+                    title: episode.title,
+                    contentCoverage: episode.contentCoverage as any,
+                    chapters: episode.chapters,
+                    episodeType: episode.episodeType as any,
+                    episodeTheme: episode.episodeTheme as any,
+                    targetLengthMin: episode.targetLengthMin,
+                    targetLengthMax: episode.targetLengthMax,
+                });
+                this.logger.log(`Queued pending episode ${episode.id} for generation`);
+            }
         } catch (error) {
             this.logger.error(`Failed to extract book ${job.bookId}`, error);
 

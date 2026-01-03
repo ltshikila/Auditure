@@ -156,6 +156,53 @@ class ApiClient {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
   }
+
+  async uploadFormData<T>(endpoint: string, formData: FormData, token?: string): Promise<T> {
+    const url = `${this.baseUrl}${endpoint}`;
+
+    try {
+      console.log(`[API] POST (multipart) ${url}`);
+
+      const response = await fetch(url, {
+        method: 'POST',
+        body: formData,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error(`[API Error] ${response.status}: ${data.message}`, data);
+
+        const userFriendlyMessage = getUserFriendlyMessage(
+          response.status,
+          data.message || '',
+          data.error
+        );
+
+        throw {
+          message: userFriendlyMessage,
+          statusCode: response.status,
+          error: data.error,
+        } as ApiError;
+      }
+
+      console.log(`[API Success] POST (multipart) ${url}`);
+      return data;
+    } catch (error: any) {
+      if (error.message && error.statusCode) {
+        throw error;
+      }
+
+      console.error(`[Network Error] POST (multipart) ${url}:`, error);
+
+      throw {
+        message: 'Unable to connect. Please check your internet connection and try again.',
+        statusCode: 0,
+        error: 'NETWORK_ERROR',
+      } as ApiError;
+    }
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
