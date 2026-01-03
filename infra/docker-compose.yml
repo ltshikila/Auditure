@@ -64,11 +64,14 @@ services:
       HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-}
       HUGGINGFACE_MODEL: mistralai/Mistral-7B-Instruct-v0.2
       LOG_LEVEL: INFO
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     volumes:
       - audio_storage:/storage
     depends_on:
       - rabbitmq
       - postgres
+      - redis
     networks:
       - bookcast_net
     restart: unless-stopped

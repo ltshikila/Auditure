@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as he from 'he';
+import Tesseract from 'tesseract.js';
 
 export interface ExtractedContent {
     fullText: string;
@@ -10,6 +11,7 @@ export interface ExtractedContent {
         pageCount?: number;
         language?: string;
     };
+    extractionMethod?: 'text' | 'ocr';
 }
 
 export interface ChapterData {
@@ -20,8 +22,13 @@ export interface ChapterData {
     endPage?: number;
 }
 
+// Minimum characters per page to consider PDF as having extractable text
+const MIN_CHARS_PER_PAGE = 100;
+
 @Injectable()
 export class TextExtractionService {
+    private readonly logger = new Logger(TextExtractionService.name);
+
     async extractFromPdf(buffer: Buffer): Promise<ExtractedContent> {
         const pdfParse = require('pdf-parse');
         const data = await pdfParse(buffer);
@@ -33,13 +40,110 @@ export class TextExtractionService {
         };
 
         const fullText = this.cleanText(data.text);
+
+        // Check if PDF has minimal/no text (likely scanned)
+        const avgCharsPerPage = fullText.length / (data.numpages || 1);
+        const isLikelyScanned = avgCharsPerPage < MIN_CHARS_PER_PAGE;
+
+        if (isLikelyScanned) {
+            this.logger.log(
+                `PDF appears to be scanned (${avgCharsPerPage.toFixed(0)} chars/page). Falling back to OCR...`,
+            );
+            return this.extractFromScannedPdf(buffer, metadata);
+        }
+
         const chapters = this.detectChaptersInText(fullText);
 
         return {
             fullText,
             chapters: chapters.length > 0 ? chapters : this.createDefaultChapter(fullText),
             metadata,
+            extractionMethod: 'text',
         };
+    }
+
+    async extractFromScannedPdf(
+        buffer: Buffer,
+        existingMetadata?: ExtractedContent['metadata'],
+    ): Promise<ExtractedContent> {
+        this.logger.log('Starting OCR extraction for scanned PDF...');
+
+        try {
+            // Use pdf.js to render PDF pages to images, then OCR each page
+            const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+
+            // Load PDF document
+            const loadingTask = pdfjs.getDocument({ data: buffer });
+            const pdfDoc = await loadingTask.promise;
+            const numPages = pdfDoc.numPages;
+
+            this.logger.log(`Processing ${numPages} pages with OCR...`);
+
+            const pageTexts: string[] = [];
+
+            // Process pages in batches to manage memory
+            const batchSize = 5;
+            for (let batchStart = 1; batchStart <= numPages; batchStart += batchSize) {
+                const batchEnd = Math.min(batchStart + batchSize - 1, numPages);
+                const batchPromises: Promise<string>[] = [];
+
+                for (let pageNum = batchStart; pageNum <= batchEnd; pageNum++) {
+                    batchPromises.push(this.ocrPdfPage(pdfDoc, pageNum));
+                }
+
+                const batchResults = await Promise.all(batchPromises);
+                pageTexts.push(...batchResults);
+
+                this.logger.log(`OCR progress: ${batchEnd}/${numPages} pages processed`);
+            }
+
+            const fullText = this.cleanText(pageTexts.join('\n\n'));
+            const chapters = this.detectChaptersInText(fullText);
+
+            return {
+                fullText,
+                chapters: chapters.length > 0 ? chapters : this.createDefaultChapter(fullText),
+                metadata: {
+                    ...existingMetadata,
+                    pageCount: numPages,
+                },
+                extractionMethod: 'ocr',
+            };
+        } catch (error) {
+            this.logger.error('OCR extraction failed', error);
+            throw new Error(`OCR extraction failed: ${error.message}`);
+        }
+    }
+
+    private async ocrPdfPage(pdfDoc: any, pageNum: number): Promise<string> {
+        try {
+            const page = await pdfDoc.getPage(pageNum);
+            const viewport = page.getViewport({ scale: 2.0 }); // Higher scale = better OCR
+
+            // Create canvas for rendering
+            const { createCanvas } = await import('canvas');
+            const canvas = createCanvas(viewport.width, viewport.height);
+            const context = canvas.getContext('2d');
+
+            // Render PDF page to canvas
+            await page.render({
+                canvasContext: context,
+                viewport: viewport,
+            }).promise;
+
+            // Convert canvas to buffer for Tesseract
+            const imageBuffer = canvas.toBuffer('image/png');
+
+            // Perform OCR
+            const result = await Tesseract.recognize(imageBuffer, 'eng', {
+                logger: () => {}, // Silence progress logs
+            });
+
+            return result.data.text;
+        } catch (error) {
+            this.logger.warn(`Failed to OCR page ${pageNum}: ${error.message}`);
+            return ''; // Return empty string for failed pages
+        }
     }
 
     async extractFromEpub(buffer: Buffer): Promise<ExtractedContent> {
@@ -77,6 +181,7 @@ export class TextExtractionService {
             fullText: fullText.trim(),
             chapters: chapters.length > 0 ? chapters : this.createDefaultChapter(fullText),
             metadata,
+            extractionMethod: 'text',
         };
     }
 
