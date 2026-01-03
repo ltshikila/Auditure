@@ -38,7 +38,10 @@
       "Bash(ls:*)",
       "Bash(dir:*)",
       "Bash(npx expo install:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker rm:*)",
+      "Bash(docker-compose down:*)"
     ]
   }
 }

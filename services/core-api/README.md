@@ -58,13 +58,17 @@ services/core-api/
 ### Prerequisites
 
 - Node.js >= 18
-- PostgreSQL database
-- RabbitMQ (optional, for async processing)
+- Docker & Docker Compose (for infrastructure services)
 - SMTP server (for emails)
 
 ### Installation
 
 ```bash
+# Start infrastructure services (PostgreSQL, Redis, RabbitMQ)
+cd ../../infra
+docker-compose up -d
+cd ../services/core-api
+
 # Install dependencies
 npm install
 
@@ -78,6 +82,29 @@ npx prisma migrate dev
 # Generate Prisma client
 npx prisma generate
 ```
+
+### Infrastructure Services
+
+All infrastructure services are managed from the `infra/` directory:
+
+```bash
+# Start services
+cd infra && docker-compose up -d
+
+# Stop services
+cd infra && docker-compose down
+
+# View logs
+docker logs bookcast_db
+docker logs bookcast_redis
+docker logs bookcast_mq
+```
+
+| Service | Container | Port |
+|---------|-----------|------|
+| PostgreSQL | bookcast_db | 5432 |
+| Redis | bookcast_redis | 6379 |
+| RabbitMQ | bookcast_mq | 5672, 15672 |
 
 ### Running the Application
 

@@ -10,7 +10,7 @@ The `docker-compose.yml` spins up the following essential services:
 |:--------|:---------------|:-----|:------------|:--------------|
 | **PostgreSQL** | `bookcast_db` | `5432` | Primary relational database for Users, Books, Episodes, and Metadata | Section 6.3 |
 | **RabbitMQ** | `bookcast_mq` | `5672` (AMQP)<br>`15672` (UI) | Message broker handling the async job queue for episode generation | Section 6.3, NFR-5 |
-| **Redis** | `bookcast_redis` | `6379` | In-memory cache for high-speed read operations (Feed/Search) | Section 6.3 |
+| **Redis** | `bookcast_redis` | `6379` | In-memory cache for job progress tracking, playback progress (resume position), and rate limiting | Section 6.3 |
 
 ## Usage
 

@@ -19,7 +19,6 @@ python-dotenv==1.0.0           # .env file loading
 tenacity==8.2.3                # Retry with backoff
 
 # Async
-asyncio-compat==0.1.1          # Async utilities
 aiofiles==23.2.1               # Async file operations
 
 # Logging
