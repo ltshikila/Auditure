@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Episode, episodeService } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
 import { usePlayback } from '@/contexts/PlaybackContext';
+import { playbackService, GenerationProgress } from '@/services/playback.service';
 
 export default function EpisodeInfoScreen() {
     const { episode: episodeId } = useLocalSearchParams<{ episode: string }>();
@@ -21,7 +22,37 @@ export default function EpisodeInfoScreen() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isLiked, setIsLiked] = useState(false);
+    const [generationProgress, setGenerationProgress] = useState<GenerationProgress | null>(null);
     const { play, episode: currentEpisode, isPlaying } = usePlayback();
+
+    const isGenerating = episode && episode.generationStatus !== 'COMPLETED' && episode.generationStatus !== 'FAILED';
+
+    // Poll for generation progress when episode is generating
+    useEffect(() => {
+        if (!isGenerating || !episodeId) return;
+
+        const pollProgress = async () => {
+            try {
+                const token = await storageService.getAccessToken();
+                const progress = await playbackService.getGenerationProgress(episodeId, token || undefined);
+                if (progress) {
+                    setGenerationProgress(progress);
+                    // If completed, refresh the episode data
+                    if (progress.status === 'COMPLETED') {
+                        fetchEpisode();
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to fetch generation progress:', err);
+            }
+        };
+
+        // Poll immediately and then every 3 seconds
+        pollProgress();
+        const interval = setInterval(pollProgress, 3000);
+
+        return () => clearInterval(interval);
+    }, [isGenerating, episodeId]);
 
     useEffect(() => {
         fetchEpisode();
@@ -97,6 +128,25 @@ export default function EpisodeInfoScreen() {
         const mins = Math.floor((seconds % 3600) / 60);
         if (hrs > 0) return `${hrs}h ${mins}m`;
         return `${mins} min`;
+    };
+
+    const getStatusText = (status?: string): string => {
+        switch (status) {
+            case 'SCRIPT_GENERATING':
+                return 'Creating your podcast script...';
+            case 'FETCHING_DATA':
+                return 'Preparing book content...';
+            case 'SCRIPT_GENERATED':
+                return 'Script ready, generating audio...';
+            case 'AUDIO_GENERATING':
+                return 'Converting to audio...';
+            case 'COMPLETED':
+                return 'Episode ready!';
+            case 'FAILED':
+                return 'Generation failed';
+            default:
+                return 'Starting generation...';
+        }
     };
 
     if (loading) {
@@ -299,29 +349,63 @@ export default function EpisodeInfoScreen() {
                     </TouchableOpacity>
                 </View>
 
-                {/* Play Button */}
+                {/* Play Button / Generation Progress */}
                 <View className="px-6 mt-8 mb-32">
-                    <TouchableOpacity
-                        onPress={handlePlay}
-                        className="bg-brand-red rounded-full py-4 flex-row items-center justify-center shadow-lg"
-                        disabled={episode.generationStatus !== 'COMPLETED'}
-                        style={{
-                            opacity: episode.generationStatus !== 'COMPLETED' ? 0.5 : 1,
-                        }}
-                    >
-                        <Ionicons
-                            name={isCurrentlyPlaying ? 'pause' : 'play'}
-                            size={24}
-                            color="white"
-                        />
-                        <Text className="font-inter-bold text-white text-lg ml-2">
-                            {episode.generationStatus !== 'COMPLETED'
-                                ? 'Generating...'
-                                : isCurrentlyPlaying
-                                    ? 'Playing'
-                                    : 'Play Episode'}
-                        </Text>
-                    </TouchableOpacity>
+                    {isGenerating ? (
+                        <View className="bg-brand-input rounded-2xl p-6">
+                            {/* Progress Header */}
+                            <View className="flex-row items-center justify-between mb-3">
+                                <View className="flex-row items-center">
+                                    <ActivityIndicator size="small" color="#BF9A54" />
+                                    <Text className="font-inter-medium text-[#1A1C1E] ml-2">
+                                        Generating Episode
+                                    </Text>
+                                </View>
+                                <Text className="font-jakarta-bold text-brand-gold text-lg">
+                                    {generationProgress?.progress ?? 0}%
+                                </Text>
+                            </View>
+
+                            {/* Progress Bar */}
+                            <View className="h-3 bg-[#E8E3D6] rounded-full overflow-hidden">
+                                <View
+                                    className="h-full bg-brand-gold rounded-full"
+                                    style={{ width: `${generationProgress?.progress ?? 0}%` }}
+                                />
+                            </View>
+
+                            {/* Status Text */}
+                            <Text className="font-inter text-[#858585] text-sm mt-3 text-center">
+                                {getStatusText(generationProgress?.status)}
+                            </Text>
+                        </View>
+                    ) : episode.generationStatus === 'FAILED' ? (
+                        <View className="bg-[#920002]/10 rounded-2xl p-6">
+                            <View className="flex-row items-center justify-center mb-2">
+                                <Ionicons name="alert-circle" size={24} color="#920002" />
+                                <Text className="font-inter-medium text-[#920002] ml-2">
+                                    Generation Failed
+                                </Text>
+                            </View>
+                            <Text className="font-inter text-[#920002]/70 text-sm text-center">
+                                There was an error generating this episode. Please try again.
+                            </Text>
+                        </View>
+                    ) : (
+                        <TouchableOpacity
+                            onPress={handlePlay}
+                            className="bg-brand-red rounded-full py-4 flex-row items-center justify-center shadow-lg"
+                        >
+                            <Ionicons
+                                name={isCurrentlyPlaying ? 'pause' : 'play'}
+                                size={24}
+                                color="white"
+                            />
+                            <Text className="font-inter-bold text-white text-lg ml-2">
+                                {isCurrentlyPlaying ? 'Playing' : 'Play Episode'}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
             </ScrollView>
         </SafeAreaView>
