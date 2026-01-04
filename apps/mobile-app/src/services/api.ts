@@ -160,48 +160,83 @@ class ApiClient {
   async uploadFormData<T>(endpoint: string, formData: FormData, token?: string): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
 
-    try {
-      console.log(`[API] POST (multipart) ${url}`);
+    console.log(`[API] POST (multipart) ${url}`);
+    console.log(`[API] Using XMLHttpRequest for better large file upload handling`);
 
-      const response = await fetch(url, {
-        method: 'POST',
-        body: formData,
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
 
-      const data = await response.json();
+      // 10 minute timeout for large file uploads
+      xhr.timeout = 600000;
 
-      if (!response.ok) {
-        console.error(`[API Error] ${response.status}: ${data.message}`, data);
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percentComplete = Math.round((event.loaded / event.total) * 100);
+          console.log(`[API] Upload progress: ${percentComplete}% (${event.loaded}/${event.total} bytes)`);
+        }
+      };
 
-        const userFriendlyMessage = getUserFriendlyMessage(
-          response.status,
-          data.message || '',
-          data.error
-        );
+      xhr.onload = () => {
+        console.log(`[API] Response received: ${xhr.status}`);
 
-        throw {
-          message: userFriendlyMessage,
-          statusCode: response.status,
-          error: data.error,
-        } as ApiError;
+        try {
+          const data = JSON.parse(xhr.responseText);
+
+          if (xhr.status >= 200 && xhr.status < 300) {
+            console.log(`[API Success] POST (multipart) ${url}`);
+            resolve(data);
+          } else {
+            console.error(`[API Error] ${xhr.status}: ${data.message}`, data);
+
+            const userFriendlyMessage = getUserFriendlyMessage(
+              xhr.status,
+              data.message || '',
+              data.error
+            );
+
+            reject({
+              message: userFriendlyMessage,
+              statusCode: xhr.status,
+              error: data.error,
+            } as ApiError);
+          }
+        } catch (parseError) {
+          console.error(`[API] Failed to parse response:`, xhr.responseText);
+          reject({
+            message: 'Invalid response from server.',
+            statusCode: xhr.status,
+            error: 'PARSE_ERROR',
+          } as ApiError);
+        }
+      };
+
+      xhr.onerror = () => {
+        console.error(`[Network Error] POST (multipart) ${url}: XMLHttpRequest error`);
+        reject({
+          message: 'Unable to connect. Please check your internet connection and try again.',
+          statusCode: 0,
+          error: 'NETWORK_ERROR',
+        } as ApiError);
+      };
+
+      xhr.ontimeout = () => {
+        console.error(`[Timeout Error] POST (multipart) ${url}: Request timed out`);
+        reject({
+          message: 'The upload is taking too long. Please try again with a smaller file.',
+          statusCode: 0,
+          error: 'TIMEOUT_ERROR',
+        } as ApiError);
+      };
+
+      xhr.open('POST', url);
+
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       }
 
-      console.log(`[API Success] POST (multipart) ${url}`);
-      return data;
-    } catch (error: any) {
-      if (error.message && error.statusCode) {
-        throw error;
-      }
-
-      console.error(`[Network Error] POST (multipart) ${url}:`, error);
-
-      throw {
-        message: 'Unable to connect. Please check your internet connection and try again.',
-        statusCode: 0,
-        error: 'NETWORK_ERROR',
-      } as ApiError;
-    }
+      console.log(`[API] Starting upload...`);
+      xhr.send(formData);
+    });
   }
 }
 

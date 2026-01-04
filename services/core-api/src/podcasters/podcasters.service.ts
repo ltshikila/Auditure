@@ -3,6 +3,7 @@ import {
     NotFoundException,
     ForbiddenException,
     BadRequestException,
+    Logger,
 } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreatePodcasterDto } from './dto/create-podcaster.dto';
@@ -12,6 +13,8 @@ import { PodcasterResponseDto } from './dto/podcaster-response.dto';
 
 @Injectable()
 export class PodcastersService {
+    private readonly logger = new Logger(PodcastersService.name);
+
     constructor(private databaseService: DatabaseService) {}
 
     /**
@@ -21,275 +24,11 @@ export class PodcastersService {
         userId: string,
         createPodcasterDto: CreatePodcasterDto,
     ): Promise<PodcasterResponseDto> {
-        // Validate expertise tags
-        const validExpertiseTags = [
-            'Philosophy',
-            'Psychology',
-            'Finance',
-            'History',
-            'Literature',
-            'Politics',
-            'Self-help',
-            'Science',
-            'Business',
-            'Art & Culture',
-        ];
+        this.logger.log(`create() called for user ${userId}`);
+        this.logger.log(`DTO: ${JSON.stringify(createPodcasterDto)}`);
 
-        const invalidTags = createPodcasterDto.expertiseTags.filter(
-            (tag) => !validExpertiseTags.includes(tag),
-        );
-
-        if (invalidTags.length > 0) {
-            throw new BadRequestException(
-                `Invalid expertise tags: ${invalidTags.join(', ')}`,
-            );
-        }
-
-        // Validate intellectual angle
-        const validAngles = [
-            'Skeptical',
-            'Accepting',
-            'Critical',
-            'Pragmatic',
-            'Idealistic',
-            'Empirical',
-        ];
-
-        if (!validAngles.includes(createPodcasterDto.intellectualAngle)) {
-            throw new BadRequestException(
-                `Invalid intellectual angle. Must be one of: ${validAngles.join(', ')}`,
-            );
-        }
-
-        const podcaster = await this.databaseService.podcaster.create({
-            data: {
-                userId,
-                ...createPodcasterDto,
-            },
-        });
-
-        return podcaster as PodcasterResponseDto;
-    }
-
-    /**
-     * Find all podcasters for a user (private + public ones they created)
-     */
-    async findAllByUser(userId: string): Promise<PodcasterResponseDto[]> {
-        const podcasters = await this.databaseService.podcaster.findMany({
-            where: { userId },
-            orderBy: { createdAt: 'desc' },
-        });
-
-        return podcasters as PodcasterResponseDto[];
-    }
-
-    /**
-     * Find public podcasters (for feed/discovery)
-     */
-    async findPublic(
-        query: QueryPodcastersDto,
-    ): Promise<{ podcasters: PodcasterResponseDto[]; total: number; page: number; totalPages: number }> {
-        const { sortBy, search, expertiseTags, gender, voiceModel } = query;
-
-        // Apply defaults for pagination
-        const page = query.page ?? 1;
-        const limit = query.limit ?? 20;
-
-        // Build where clause
-        const where: any = {
-            isPublic: true,
-        };
-
-        // Search filter
-        if (search) {
-            where.OR = [
-                { name: { contains: search, mode: 'insensitive' } },
-                { description: { contains: search, mode: 'insensitive' } },
-            ];
-        }
-
-        // Expertise tags filter
-        if (expertiseTags && expertiseTags.length > 0) {
-            where.expertiseTags = {
-                hasSome: expertiseTags,
-            };
-        }
-
-        // Gender filter
-        if (gender) {
-            where.gender = gender;
-        }
-
-        // Voice model filter
-        if (voiceModel) {
-            where.voiceModel = voiceModel;
-        }
-
-        // Determine sort order
-        let orderBy: any = { createdAt: 'desc' };
-
-        if (sortBy === PodcasterSortBy.POPULAR) {
-            orderBy = { playCount: 'desc' };
-        } else if (sortBy === PodcasterSortBy.MOST_LIKED) {
-            orderBy = { likeCount: 'desc' };
-        }
-
-        // Get total count
-        const total = await this.databaseService.podcaster.count({ where });
-
-        // Get podcasters with pagination
-        const podcasters = await this.databaseService.podcaster.findMany({
-            where,
-            orderBy,
-            skip: (page - 1) * limit,
-            take: limit,
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        firstName: true,
-                        lastName: true,
-                    },
-                },
-            },
-        });
-
-        // Transform response
-        const transformedPodcasters = podcasters.map((p) => ({
-            ...p,
-            creator: p.user,
-            user: undefined,
-        })) as any as PodcasterResponseDto[];
-
-        return {
-            podcasters: transformedPodcasters,
-            total,
-            page,
-            totalPages: Math.ceil(total / limit),
-        };
-    }
-
-    /**
-     * Find trending podcasters (most plays in last 30 days)
-     */
-    async findTrending(limit: number = 10): Promise<PodcasterResponseDto[]> {
-        const podcasters = await this.databaseService.podcaster.findMany({
-            where: {
-                isPublic: true,
-                updatedAt: {
-                    gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
-                },
-            },
-            orderBy: [{ playCount: 'desc' }, { likeCount: 'desc' }],
-            take: limit,
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        firstName: true,
-                        lastName: true,
-                    },
-                },
-            },
-        });
-
-        return podcasters.map((p) => ({
-            ...p,
-            creator: p.user,
-            user: undefined,
-        })) as any as PodcasterResponseDto[];
-    }
-
-    /**
-     * Find podcasters by genre/expertise
-     */
-    async findByExpertise(
-        expertiseTag: string,
-        limit: number = 20,
-    ): Promise<PodcasterResponseDto[]> {
-        const podcasters = await this.databaseService.podcaster.findMany({
-            where: {
-                isPublic: true,
-                expertiseTags: {
-                    has: expertiseTag,
-                },
-            },
-            orderBy: { playCount: 'desc' },
-            take: limit,
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        firstName: true,
-                        lastName: true,
-                    },
-                },
-            },
-        });
-
-        return podcasters.map((p) => ({
-            ...p,
-            creator: p.user,
-            user: undefined,
-        })) as any as PodcasterResponseDto[];
-    }
-
-    /**
-     * Find one podcaster by ID
-     */
-    async findOne(id: string, userId?: string): Promise<PodcasterResponseDto> {
-        const podcaster = await this.databaseService.podcaster.findUnique({
-            where: { id },
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        firstName: true,
-                        lastName: true,
-                    },
-                },
-            },
-        });
-
-        if (!podcaster) {
-            throw new NotFoundException('Podcaster not found');
-        }
-
-        // Check access permissions
-        if (!podcaster.isPublic && podcaster.userId !== userId) {
-            throw new ForbiddenException('Access denied to private podcaster');
-        }
-
-        return {
-            ...podcaster,
-            creator: podcaster.user,
-            user: undefined,
-        } as any as PodcasterResponseDto;
-    }
-
-    /**
-     * Update a podcaster
-     */
-    async update(
-        id: string,
-        userId: string,
-        updatePodcasterDto: UpdatePodcasterDto,
-    ): Promise<PodcasterResponseDto> {
-        // Check ownership
-        const podcaster = await this.databaseService.podcaster.findUnique({
-            where: { id },
-        });
-
-        if (!podcaster) {
-            throw new NotFoundException('Podcaster not found');
-        }
-
-        if (podcaster.userId !== userId) {
-            throw new ForbiddenException('You can only update your own podcasters');
-        }
-
-        // Validate expertise tags if provided
-        if (updatePodcasterDto.expertiseTags) {
+        try {
+            // Validate expertise tags
             const validExpertiseTags = [
                 'Philosophy',
                 'Psychology',
@@ -303,19 +42,18 @@ export class PodcastersService {
                 'Art & Culture',
             ];
 
-            const invalidTags = updatePodcasterDto.expertiseTags.filter(
+            const invalidTags = createPodcasterDto.expertiseTags.filter(
                 (tag) => !validExpertiseTags.includes(tag),
             );
 
             if (invalidTags.length > 0) {
+                this.logger.error(`Invalid expertise tags: ${invalidTags.join(', ')}`);
                 throw new BadRequestException(
                     `Invalid expertise tags: ${invalidTags.join(', ')}`,
                 );
             }
-        }
 
-        // Validate intellectual angle if provided
-        if (updatePodcasterDto.intellectualAngle) {
+            // Validate intellectual angle
             const validAngles = [
                 'Skeptical',
                 'Accepting',
@@ -325,95 +63,495 @@ export class PodcastersService {
                 'Empirical',
             ];
 
-            if (!validAngles.includes(updatePodcasterDto.intellectualAngle)) {
+            if (!validAngles.includes(createPodcasterDto.intellectualAngle)) {
+                this.logger.error(`Invalid intellectual angle: ${createPodcasterDto.intellectualAngle}`);
                 throw new BadRequestException(
                     `Invalid intellectual angle. Must be one of: ${validAngles.join(', ')}`,
                 );
             }
+
+            const podcaster = await this.databaseService.podcaster.create({
+                data: {
+                    userId,
+                    ...createPodcasterDto,
+                },
+            });
+
+            this.logger.log(`Podcaster created with ID: ${podcaster.id}`);
+            return podcaster as PodcasterResponseDto;
+        } catch (error) {
+            this.logger.error(`Error in create(): ${error.message}`);
+            this.logger.error(`Stack: ${error.stack}`);
+            throw error;
         }
+    }
 
-        const updated = await this.databaseService.podcaster.update({
-            where: { id },
-            data: updatePodcasterDto,
-        });
+    /**
+     * Find all podcasters for a user (private + public ones they created)
+     */
+    async findAllByUser(userId: string): Promise<PodcasterResponseDto[]> {
+        this.logger.log(`findAllByUser() called for user ${userId}`);
 
-        return updated as PodcasterResponseDto;
+        try {
+            const podcasters = await this.databaseService.podcaster.findMany({
+                where: { userId },
+                orderBy: { createdAt: 'desc' },
+            });
+
+            this.logger.log(`Found ${podcasters.length} podcasters for user ${userId}`);
+            return podcasters as PodcasterResponseDto[];
+        } catch (error) {
+            this.logger.error(`Error in findAllByUser(): ${error.message}`);
+            this.logger.error(`Stack: ${error.stack}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Find public podcasters (for feed/discovery)
+     */
+    async findPublic(
+        query: QueryPodcastersDto,
+    ): Promise<{ podcasters: PodcasterResponseDto[]; total: number; page: number; totalPages: number }> {
+        this.logger.log(`findPublic() called with query: ${JSON.stringify(query)}`);
+
+        try {
+            const { sortBy, search, expertiseTags, gender, voiceModel } = query;
+
+            // Apply defaults for pagination
+            const page = query.page ?? 1;
+            const limit = query.limit ?? 20;
+
+            // Build where clause
+            const where: any = {
+                isPublic: true,
+            };
+
+            // Search filter
+            if (search) {
+                where.OR = [
+                    { name: { contains: search, mode: 'insensitive' } },
+                    { description: { contains: search, mode: 'insensitive' } },
+                ];
+            }
+
+            // Expertise tags filter
+            if (expertiseTags && expertiseTags.length > 0) {
+                where.expertiseTags = {
+                    hasSome: expertiseTags,
+                };
+            }
+
+            // Gender filter
+            if (gender) {
+                where.gender = gender;
+            }
+
+            // Voice model filter
+            if (voiceModel) {
+                where.voiceModel = voiceModel;
+            }
+
+            // Determine sort order
+            let orderBy: any = { createdAt: 'desc' };
+
+            if (sortBy === PodcasterSortBy.POPULAR) {
+                orderBy = { playCount: 'desc' };
+            } else if (sortBy === PodcasterSortBy.MOST_LIKED) {
+                orderBy = { likeCount: 'desc' };
+            }
+
+            // Get total count
+            const total = await this.databaseService.podcaster.count({ where });
+            this.logger.log(`Total public podcasters matching query: ${total}`);
+
+            // Get podcasters with pagination
+            const podcasters = await this.databaseService.podcaster.findMany({
+                where,
+                orderBy,
+                skip: (page - 1) * limit,
+                take: limit,
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                        },
+                    },
+                },
+            });
+
+            this.logger.log(`Returning ${podcasters.length} podcasters (page ${page})`);
+
+            // Transform response
+            const transformedPodcasters = podcasters.map((p) => ({
+                ...p,
+                creator: p.user,
+                user: undefined,
+            })) as any as PodcasterResponseDto[];
+
+            return {
+                podcasters: transformedPodcasters,
+                total,
+                page,
+                totalPages: Math.ceil(total / limit),
+            };
+        } catch (error) {
+            this.logger.error(`Error in findPublic(): ${error.message}`);
+            this.logger.error(`Stack: ${error.stack}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Find trending podcasters (most plays in last 30 days)
+     */
+    async findTrending(limit: number = 10): Promise<PodcasterResponseDto[]> {
+        this.logger.log(`findTrending() called with limit: ${limit}`);
+
+        try {
+            const podcasters = await this.databaseService.podcaster.findMany({
+                where: {
+                    isPublic: true,
+                    updatedAt: {
+                        gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
+                    },
+                },
+                orderBy: [{ playCount: 'desc' }, { likeCount: 'desc' }],
+                take: limit,
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                        },
+                    },
+                },
+            });
+
+            this.logger.log(`Found ${podcasters.length} trending podcasters`);
+
+            return podcasters.map((p) => ({
+                ...p,
+                creator: p.user,
+                user: undefined,
+            })) as any as PodcasterResponseDto[];
+        } catch (error) {
+            this.logger.error(`Error in findTrending(): ${error.message}`);
+            this.logger.error(`Stack: ${error.stack}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Find podcasters by genre/expertise
+     */
+    async findByExpertise(
+        expertiseTag: string,
+        limit: number = 20,
+    ): Promise<PodcasterResponseDto[]> {
+        this.logger.log(`findByExpertise() called with tag: ${expertiseTag}, limit: ${limit}`);
+
+        try {
+            const podcasters = await this.databaseService.podcaster.findMany({
+                where: {
+                    isPublic: true,
+                    expertiseTags: {
+                        has: expertiseTag,
+                    },
+                },
+                orderBy: { playCount: 'desc' },
+                take: limit,
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                        },
+                    },
+                },
+            });
+
+            this.logger.log(`Found ${podcasters.length} podcasters with expertise: ${expertiseTag}`);
+
+            return podcasters.map((p) => ({
+                ...p,
+                creator: p.user,
+                user: undefined,
+            })) as any as PodcasterResponseDto[];
+        } catch (error) {
+            this.logger.error(`Error in findByExpertise(): ${error.message}`);
+            this.logger.error(`Stack: ${error.stack}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Find one podcaster by ID
+     */
+    async findOne(id: string, userId?: string): Promise<PodcasterResponseDto> {
+        this.logger.log(`findOne() called for podcaster ${id}, userId: ${userId || 'none'}`);
+
+        try {
+            const podcaster = await this.databaseService.podcaster.findUnique({
+                where: { id },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                        },
+                    },
+                },
+            });
+
+            if (!podcaster) {
+                this.logger.warn(`Podcaster not found: ${id}`);
+                throw new NotFoundException('Podcaster not found');
+            }
+
+            // Check access permissions
+            if (!podcaster.isPublic && podcaster.userId !== userId) {
+                this.logger.warn(`Access denied to private podcaster ${id} for user ${userId}`);
+                throw new ForbiddenException('Access denied to private podcaster');
+            }
+
+            this.logger.log(`Found podcaster: ${podcaster.name}`);
+
+            return {
+                ...podcaster,
+                creator: podcaster.user,
+                user: undefined,
+            } as any as PodcasterResponseDto;
+        } catch (error) {
+            if (error instanceof NotFoundException || error instanceof ForbiddenException) {
+                throw error;
+            }
+            this.logger.error(`Error in findOne(): ${error.message}`);
+            this.logger.error(`Stack: ${error.stack}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Update a podcaster
+     */
+    async update(
+        id: string,
+        userId: string,
+        updatePodcasterDto: UpdatePodcasterDto,
+    ): Promise<PodcasterResponseDto> {
+        this.logger.log(`update() called for podcaster ${id} by user ${userId}`);
+        this.logger.log(`Update DTO: ${JSON.stringify(updatePodcasterDto)}`);
+
+        try {
+            // Check ownership
+            const podcaster = await this.databaseService.podcaster.findUnique({
+                where: { id },
+            });
+
+            if (!podcaster) {
+                this.logger.warn(`Podcaster not found: ${id}`);
+                throw new NotFoundException('Podcaster not found');
+            }
+
+            if (podcaster.userId !== userId) {
+                this.logger.warn(`User ${userId} attempted to update podcaster ${id} owned by ${podcaster.userId}`);
+                throw new ForbiddenException('You can only update your own podcasters');
+            }
+
+            // Validate expertise tags if provided
+            if (updatePodcasterDto.expertiseTags) {
+                const validExpertiseTags = [
+                    'Philosophy',
+                    'Psychology',
+                    'Finance',
+                    'History',
+                    'Literature',
+                    'Politics',
+                    'Self-help',
+                    'Science',
+                    'Business',
+                    'Art & Culture',
+                ];
+
+                const invalidTags = updatePodcasterDto.expertiseTags.filter(
+                    (tag) => !validExpertiseTags.includes(tag),
+                );
+
+                if (invalidTags.length > 0) {
+                    this.logger.error(`Invalid expertise tags: ${invalidTags.join(', ')}`);
+                    throw new BadRequestException(
+                        `Invalid expertise tags: ${invalidTags.join(', ')}`,
+                    );
+                }
+            }
+
+            // Validate intellectual angle if provided
+            if (updatePodcasterDto.intellectualAngle) {
+                const validAngles = [
+                    'Skeptical',
+                    'Accepting',
+                    'Critical',
+                    'Pragmatic',
+                    'Idealistic',
+                    'Empirical',
+                ];
+
+                if (!validAngles.includes(updatePodcasterDto.intellectualAngle)) {
+                    this.logger.error(`Invalid intellectual angle: ${updatePodcasterDto.intellectualAngle}`);
+                    throw new BadRequestException(
+                        `Invalid intellectual angle. Must be one of: ${validAngles.join(', ')}`,
+                    );
+                }
+            }
+
+            const updated = await this.databaseService.podcaster.update({
+                where: { id },
+                data: updatePodcasterDto,
+            });
+
+            this.logger.log(`Podcaster ${id} updated successfully`);
+            return updated as PodcasterResponseDto;
+        } catch (error) {
+            if (error instanceof NotFoundException || error instanceof ForbiddenException || error instanceof BadRequestException) {
+                throw error;
+            }
+            this.logger.error(`Error in update(): ${error.message}`);
+            this.logger.error(`Stack: ${error.stack}`);
+            throw error;
+        }
     }
 
     /**
      * Delete a podcaster
      */
     async remove(id: string, userId: string): Promise<void> {
-        const podcaster = await this.databaseService.podcaster.findUnique({
-            where: { id },
-        });
+        this.logger.log(`remove() called for podcaster ${id} by user ${userId}`);
 
-        if (!podcaster) {
-            throw new NotFoundException('Podcaster not found');
+        try {
+            const podcaster = await this.databaseService.podcaster.findUnique({
+                where: { id },
+            });
+
+            if (!podcaster) {
+                this.logger.warn(`Podcaster not found: ${id}`);
+                throw new NotFoundException('Podcaster not found');
+            }
+
+            if (podcaster.userId !== userId) {
+                this.logger.warn(`User ${userId} attempted to delete podcaster ${id} owned by ${podcaster.userId}`);
+                throw new ForbiddenException('You can only delete your own podcasters');
+            }
+
+            await this.databaseService.podcaster.delete({
+                where: { id },
+            });
+
+            this.logger.log(`Podcaster ${id} deleted successfully`);
+        } catch (error) {
+            if (error instanceof NotFoundException || error instanceof ForbiddenException) {
+                throw error;
+            }
+            this.logger.error(`Error in remove(): ${error.message}`);
+            this.logger.error(`Stack: ${error.stack}`);
+            throw error;
         }
-
-        if (podcaster.userId !== userId) {
-            throw new ForbiddenException('You can only delete your own podcasters');
-        }
-
-        await this.databaseService.podcaster.delete({
-            where: { id },
-        });
     }
 
     /**
      * Increment play count
      */
     async incrementPlayCount(id: string): Promise<void> {
-        await this.databaseService.podcaster.update({
-            where: { id },
-            data: {
-                playCount: {
-                    increment: 1,
+        this.logger.log(`incrementPlayCount() called for podcaster ${id}`);
+
+        try {
+            await this.databaseService.podcaster.update({
+                where: { id },
+                data: {
+                    playCount: {
+                        increment: 1,
+                    },
                 },
-            },
-        });
+            });
+            this.logger.log(`Play count incremented for podcaster ${id}`);
+        } catch (error) {
+            this.logger.error(`Error in incrementPlayCount(): ${error.message}`);
+            this.logger.error(`Stack: ${error.stack}`);
+            throw error;
+        }
     }
 
     /**
      * Increment like count
      */
     async incrementLikeCount(id: string): Promise<void> {
-        await this.databaseService.podcaster.update({
-            where: { id },
-            data: {
-                likeCount: {
-                    increment: 1,
+        this.logger.log(`incrementLikeCount() called for podcaster ${id}`);
+
+        try {
+            await this.databaseService.podcaster.update({
+                where: { id },
+                data: {
+                    likeCount: {
+                        increment: 1,
+                    },
                 },
-            },
-        });
+            });
+            this.logger.log(`Like count incremented for podcaster ${id}`);
+        } catch (error) {
+            this.logger.error(`Error in incrementLikeCount(): ${error.message}`);
+            this.logger.error(`Stack: ${error.stack}`);
+            throw error;
+        }
     }
 
     /**
      * Decrement like count
      */
     async decrementLikeCount(id: string): Promise<void> {
-        await this.databaseService.podcaster.update({
-            where: { id },
-            data: {
-                likeCount: {
-                    decrement: 1,
+        this.logger.log(`decrementLikeCount() called for podcaster ${id}`);
+
+        try {
+            await this.databaseService.podcaster.update({
+                where: { id },
+                data: {
+                    likeCount: {
+                        decrement: 1,
+                    },
                 },
-            },
-        });
+            });
+            this.logger.log(`Like count decremented for podcaster ${id}`);
+        } catch (error) {
+            this.logger.error(`Error in decrementLikeCount(): ${error.message}`);
+            this.logger.error(`Stack: ${error.stack}`);
+            throw error;
+        }
     }
 
     /**
      * Increment share count
      */
     async incrementShareCount(id: string): Promise<void> {
-        await this.databaseService.podcaster.update({
-            where: { id },
-            data: {
-                shareCount: {
-                    increment: 1,
+        this.logger.log(`incrementShareCount() called for podcaster ${id}`);
+
+        try {
+            await this.databaseService.podcaster.update({
+                where: { id },
+                data: {
+                    shareCount: {
+                        increment: 1,
+                    },
                 },
-            },
-        });
+            });
+            this.logger.log(`Share count incremented for podcaster ${id}`);
+        } catch (error) {
+            this.logger.error(`Error in incrementShareCount(): ${error.message}`);
+            this.logger.error(`Stack: ${error.stack}`);
+            throw error;
+        }
     }
 }

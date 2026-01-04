@@ -52,8 +52,22 @@ export class BookExtractionWorker implements OnModuleInit {
                 'text/plain',
             );
 
-            // 5. Create chapter records
+            // 5. Delete existing chapters (for retry scenarios) and create new ones
+            await this.databaseService.chapter.deleteMany({
+                where: { bookId: job.bookId },
+            });
+            this.logger.log(`Deleted existing chapters for book ${job.bookId}`);
+
+            // Deduplicate chapters by chapterNumber (extraction might produce duplicates)
+            const uniqueChapters = new Map<number, typeof extracted.chapters[0]>();
             for (const chapter of extracted.chapters) {
+                if (!uniqueChapters.has(chapter.chapterNumber)) {
+                    uniqueChapters.set(chapter.chapterNumber, chapter);
+                }
+            }
+            this.logger.log(`Creating ${uniqueChapters.size} unique chapters (from ${extracted.chapters.length} detected)`);
+
+            for (const chapter of uniqueChapters.values()) {
                 await this.databaseService.chapter.create({
                     data: {
                         bookId: job.bookId,

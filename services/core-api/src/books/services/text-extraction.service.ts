@@ -30,6 +30,8 @@ export class TextExtractionService {
     private readonly logger = new Logger(TextExtractionService.name);
 
     async extractFromPdf(buffer: Buffer): Promise<ExtractedContent> {
+        // pdf-parse 1.x - CommonJS module with simple API
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
         const pdfParse = require('pdf-parse');
         const data = await pdfParse(buffer);
 
@@ -42,7 +44,7 @@ export class TextExtractionService {
         const fullText = this.cleanText(data.text);
 
         // Check if PDF has minimal/no text (likely scanned)
-        const avgCharsPerPage = fullText.length / (data.numpages || 1);
+        const avgCharsPerPage = fullText.length / (metadata.pageCount || 1);
         const isLikelyScanned = avgCharsPerPage < MIN_CHARS_PER_PAGE;
 
         if (isLikelyScanned) {
@@ -147,8 +149,9 @@ export class TextExtractionService {
     }
 
     async extractFromEpub(buffer: Buffer): Promise<ExtractedContent> {
-        // Note: epub-parser usage - it's a CommonJS module
-        const EPub = require('epub-parser');
+        // Dynamic import for epub-parser
+        const epubModule = await import('epub-parser');
+        const EPub = epubModule.default || epubModule;
         const epub = await EPub.parse(buffer);
 
         const metadata = {

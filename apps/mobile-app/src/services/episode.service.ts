@@ -104,13 +104,22 @@ class EpisodeService {
         episodeData: CreateEpisodeWithFileDto,
         token: string
     ): Promise<Episode> {
+        console.log('[EpisodeService] createWithFile called');
+        console.log('[EpisodeService] File URI:', file.uri);
+        console.log('[EpisodeService] File name:', file.name);
+        console.log('[EpisodeService] File type:', file.type);
+
         const formData = new FormData();
 
+        // React Native FormData requires this specific format for file uploads
+        // The uri must be a valid file:// or content:// URI
         formData.append('file', {
             uri: file.uri,
             name: file.name,
             type: file.type,
         } as any);
+
+        console.log('[EpisodeService] File appended to FormData');
 
         formData.append('podcasterId', episodeData.podcasterId);
         formData.append('title', episodeData.title);
@@ -127,6 +136,8 @@ class EpisodeService {
         if (episodeData.chapters && episodeData.chapters.length > 0) {
             formData.append('chapters', JSON.stringify(episodeData.chapters));
         }
+
+        console.log('[EpisodeService] All fields appended, calling API...');
 
         return apiClient.uploadFormData<Episode>('/episodes/with-file', formData, token);
     }

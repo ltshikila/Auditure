@@ -17,8 +17,10 @@ import {
     UseInterceptors,
     UploadedFile,
     BadRequestException,
+    Logger,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import type { Response } from 'express';
 import { EpisodesService } from './episodes.service';
 import { CreateEpisodeDto, CreateEpisodeWithFileDto } from './dto/create-episode.dto';
@@ -28,15 +30,20 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 
 const bookFileFilter = (req, file, callback) => {
+    console.log('[Multer] fileFilter called:', file?.originalname, file?.mimetype);
     const allowedMimes = ['application/pdf', 'application/epub+zip'];
     if (!allowedMimes.includes(file.mimetype)) {
+        console.log('[Multer] File rejected - invalid mimetype:', file.mimetype);
         return callback(new BadRequestException('Only PDF and EPUB files are allowed'), false);
     }
+    console.log('[Multer] File accepted');
     callback(null, true);
 };
 
 @Controller('episodes')
 export class EpisodesController {
+    private readonly logger = new Logger(EpisodesController.name);
+
     constructor(private readonly episodesService: EpisodesService) {}
 
     /**
@@ -58,6 +65,7 @@ export class EpisodesController {
     @UseGuards(JwtAuthGuard)
     @UseInterceptors(
         FileInterceptor('file', {
+            storage: memoryStorage(),
             limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
             fileFilter: bookFileFilter,
         }),
@@ -67,10 +75,24 @@ export class EpisodesController {
         @UploadedFile() file: any,
         @Body() createEpisodeDto: CreateEpisodeWithFileDto,
     ) {
+        this.logger.log(`createWithFile called by user: ${req.user.userId}`);
+        this.logger.log(`File received: ${file ? `${file.originalname} (${file.mimetype}, ${file.size} bytes)` : 'NO FILE'}`);
+        this.logger.log(`DTO: ${JSON.stringify(createEpisodeDto)}`);
+
         if (!file) {
+            this.logger.error('No file provided in request');
             throw new BadRequestException('File is required');
         }
-        return this.episodesService.createWithFile(req.user.userId, file, createEpisodeDto);
+
+        try {
+            const result = await this.episodesService.createWithFile(req.user.userId, file, createEpisodeDto);
+            this.logger.log(`Episode created successfully: ${result.episode.id}`);
+            return result;
+        } catch (error) {
+            this.logger.error(`Error creating episode with file: ${error.message}`);
+            this.logger.error(`Stack: ${error.stack}`);
+            throw error;
+        }
     }
 
     /**

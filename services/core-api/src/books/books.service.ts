@@ -3,6 +3,7 @@ import {
     NotFoundException,
     ForbiddenException,
     BadRequestException,
+    Logger,
 } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { StorageService } from '../common/storage.service';
@@ -13,6 +14,8 @@ import { randomUUID } from 'crypto';
 
 @Injectable()
 export class BooksService {
+    private readonly logger = new Logger(BooksService.name);
+
     constructor(
         private databaseService: DatabaseService,
         private storageService: StorageService,
@@ -20,46 +23,98 @@ export class BooksService {
     ) {}
 
     async uploadBook(userId: string, file: any, createBookDto: CreateBookDto) {
-        // 1. Validate file exists
-        if (!file) {
-            throw new BadRequestException('File is required');
+        this.logger.log(`uploadBook() called for user ${userId}`);
+        this.logger.log(`File: ${file?.originalname} (${file?.mimetype}, ${file?.size} bytes)`);
+        this.logger.log(`DTO: ${JSON.stringify(createBookDto)}`);
+
+        try {
+            // 1. Validate file exists
+            if (!file) {
+                this.logger.error('No file provided');
+                throw new BadRequestException('File is required');
+            }
+
+            if (!file.buffer) {
+                this.logger.error('File buffer is missing');
+                this.logger.error(`File object keys: ${Object.keys(file).join(', ')}`);
+                throw new BadRequestException('File buffer is missing');
+            }
+
+            // 2. Generate storage key
+            const bookId = randomUUID();
+            const fileExtension = file.mimetype === 'application/pdf' ? 'pdf' : 'epub';
+            const storageKey = `${userId}/${bookId}/original.${fileExtension}`;
+            this.logger.log(`Generated storage key: ${storageKey}`);
+
+            // 3. Upload file to storage
+            this.logger.log(`Uploading file to storage (${file.buffer.length} bytes)...`);
+            try {
+                await this.storageService.uploadFile(file.buffer, storageKey, file.mimetype);
+                this.logger.log('File uploaded to storage successfully');
+            } catch (storageError) {
+                this.logger.error(`Storage upload failed: ${storageError.message}`);
+                this.logger.error(`Storage error stack: ${storageError.stack}`);
+                throw new BadRequestException(`Failed to upload file to storage: ${storageError.message}`);
+            }
+
+            // 4. Create book record
+            this.logger.log('Creating book record in database...');
+            let book;
+            try {
+                book = await this.databaseService.book.create({
+                    data: {
+                        id: bookId,
+                        userId,
+                        title: createBookDto.title,
+                        author: createBookDto.author,
+                        isbn: createBookDto.isbn,
+                        language: createBookDto.language || 'en',
+                        sourceType: createBookDto.sourceType,
+                        originalFileName: file.originalname,
+                        fileStorageKey: storageKey,
+                        fileSize: file.size,
+                        fileMimeType: file.mimetype,
+                        extractionStatus: 'PENDING',
+                    },
+                });
+                this.logger.log(`Book created with ID: ${book.id}`);
+            } catch (dbError) {
+                this.logger.error(`Database create failed: ${dbError.message}`);
+                this.logger.error(`Database error stack: ${dbError.stack}`);
+                // Try to clean up the uploaded file
+                try {
+                    await this.storageService.deleteFile(storageKey);
+                    this.logger.log('Cleaned up uploaded file after database error');
+                } catch (cleanupError) {
+                    this.logger.error(`Failed to cleanup file: ${cleanupError.message}`);
+                }
+                throw new BadRequestException(`Failed to create book record: ${dbError.message}`);
+            }
+
+            // 5. Queue extraction job
+            this.logger.log('Publishing book extraction job to RabbitMQ...');
+            try {
+                await this.rabbitMQService.publishBookExtractionJob({
+                    bookId: book.id,
+                    userId,
+                    fileStorageKey: storageKey,
+                    sourceType: createBookDto.sourceType as 'PDF' | 'EPUB',
+                });
+                this.logger.log('Extraction job published successfully');
+            } catch (mqError) {
+                this.logger.error(`RabbitMQ publish failed: ${mqError.message}`);
+                this.logger.error(`RabbitMQ error stack: ${mqError.stack}`);
+                // Don't throw - the book is created, extraction can be retried
+                this.logger.warn('Book created but extraction job failed to queue - can be retried later');
+            }
+
+            this.logger.log(`uploadBook() completed successfully for book ${book.id}`);
+            return book;
+        } catch (error) {
+            this.logger.error(`Error in uploadBook(): ${error.message}`);
+            this.logger.error(`Stack: ${error.stack}`);
+            throw error;
         }
-
-        // 2. Generate storage key
-        const bookId = randomUUID();
-        const fileExtension = file.mimetype === 'application/pdf' ? 'pdf' : 'epub';
-        const storageKey = `${userId}/${bookId}/original.${fileExtension}`;
-
-        // 3. Upload file to storage
-        await this.storageService.uploadFile(file.buffer, storageKey, file.mimetype);
-
-        // 4. Create book record
-        const book = await this.databaseService.book.create({
-            data: {
-                id: bookId,
-                userId,
-                title: createBookDto.title,
-                author: createBookDto.author,
-                isbn: createBookDto.isbn,
-                language: createBookDto.language || 'en',
-                sourceType: createBookDto.sourceType,
-                originalFileName: file.originalname,
-                fileStorageKey: storageKey,
-                fileSize: file.size,
-                fileMimeType: file.mimetype,
-                extractionStatus: 'PENDING',
-            },
-        });
-
-        // 5. Queue extraction job
-        await this.rabbitMQService.publishBookExtractionJob({
-            bookId: book.id,
-            userId,
-            fileStorageKey: storageKey,
-            sourceType: createBookDto.sourceType as 'PDF' | 'EPUB',
-        });
-
-        return book;
     }
 
     async findAll(userId: string) {
