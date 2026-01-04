@@ -61,33 +61,42 @@ class Podcaster(Base):
     __tablename__ = "podcasters"
 
     id = Column(String, primary_key=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    user_id = Column("userId", String, ForeignKey("users.id"), nullable=False)
     name = Column(String, nullable=False)
-    tagline = Column(String, nullable=True)
-    bio = Column(Text, nullable=True)
-    profile_picture_url = Column(String, nullable=True)
+    description = Column(String, nullable=True)
+    profile_picture_url = Column("profilePictureUrl", String, nullable=True)
 
     # Voice characteristics
+    voice_model = Column("voiceModel", String, nullable=False)
     gender = Column(String, nullable=False)  # MALE, FEMALE
     accent = Column(String, nullable=False)  # United States, United Kingdom, etc.
-    speaking_speed = Column(Integer, default=5)  # 1-10
-    vocal_pitch = Column(Integer, default=5)  # 1-10
+    speaking_speed = Column("speakingSpeed", Integer, default=5)  # 1-10
+    vocal_pitch = Column("vocalPitch", Integer, default=5)  # 1-10
+    age_tone = Column("ageTone", Integer, default=5)  # 1-10
+    sentence_structure = Column("sentenceStructure", Integer, default=5)  # 1-10
+    emotional_expression = Column("emotionalExpression", Integer, default=5)  # 1-10
 
     # Personality traits
     tone = Column(Integer, default=5)  # 1-10
-    communication_style = Column(Integer, default=5)  # 1-10
-    humor_level = Column(Integer, default=5)  # 1-10
-    conversational_depth = Column(Integer, default=5)  # 1-10
-    chaos_factor = Column(Integer, default=5)  # 1-10
-    intellectual_angle = Column(String, nullable=True)
-    expertise_tags = Column(ARRAY(String), default=[])
+    communication_style = Column("communicationStyle", Integer, default=5)  # 1-10
+    humor_level = Column("humorLevel", Integer, default=5)  # 1-10
+    conversational_depth = Column("conversationalDepth", Integer, default=5)  # 1-10
+    chaos_factor = Column("chaosFactor", Integer, default=5)  # 1-10
+
+    # Knowledge & Worldview
+    expertise_tags = Column("expertiseTags", ARRAY(String), default=[])
+    intellectual_angle = Column("intellectualAngle", String, nullable=True)
+    viewpoint_behavior = Column("viewpointBehavior", Integer, default=5)  # 1-10
 
     # Status
-    is_public = Column(Boolean, default=False)
+    is_public = Column("isPublic", Boolean, default=False)
+    play_count = Column("playCount", Integer, default=0)
+    like_count = Column("likeCount", Integer, default=0)
+    share_count = Column("shareCount", Integer, default=0)
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column("createdAt", DateTime, default=datetime.utcnow)
+    updated_at = Column("updatedAt", DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
     episodes = relationship("Episode", back_populates="podcaster")
@@ -99,19 +108,33 @@ class Book(Base):
     __tablename__ = "books"
 
     id = Column(String, primary_key=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    user_id = Column("userId", String, ForeignKey("users.id"), nullable=False)
     title = Column(String, nullable=False)
     author = Column(String, nullable=True)
-    description = Column(Text, nullable=True)
-    cover_image_url = Column(String, nullable=True)
-    file_key = Column(String, nullable=True)
-    file_type = Column(String, nullable=True)
-    total_pages = Column(Integer, nullable=True)
-    extraction_status = Column(String, default="PENDING")
+    isbn = Column(String, nullable=True)
+    language = Column(String, default="en")
+    page_count = Column("pageCount", Integer, nullable=True)
+
+    # Source Information
+    source_type = Column("sourceType", String, nullable=False)
+    original_file_name = Column("originalFileName", String, nullable=True)
+
+    # Storage
+    file_storage_key = Column("fileStorageKey", String, nullable=False)
+    file_size = Column("fileSize", Integer, nullable=True)
+    file_mime_type = Column("fileMimeType", String, nullable=True)
+
+    # Extraction Status
+    extraction_status = Column("extractionStatus", String, default="PENDING")
+    extraction_error = Column("extractionError", String, nullable=True)
+    extracted_at = Column("extractedAt", DateTime, nullable=True)
+
+    # Content
+    full_text_key = Column("fullTextKey", String, nullable=True)
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column("createdAt", DateTime, default=datetime.utcnow)
+    updated_at = Column("updatedAt", DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
     chapters = relationship("Chapter", back_populates="book")
@@ -124,15 +147,21 @@ class Chapter(Base):
     __tablename__ = "chapters"
 
     id = Column(String, primary_key=True)
-    book_id = Column(String, ForeignKey("books.id"), nullable=False)
-    chapter_number = Column(Integer, nullable=False)
+    book_id = Column("bookId", String, ForeignKey("books.id"), nullable=False)
+    chapter_number = Column("chapterNumber", Integer, nullable=False)
     title = Column(String, nullable=True)
-    extracted_text = Column(Text, nullable=True)
-    word_count = Column(Integer, nullable=True)
+
+    # Content Location
+    start_page = Column("startPage", Integer, nullable=True)
+    end_page = Column("endPage", Integer, nullable=True)
+    text_length = Column("textLength", Integer, nullable=True)
+
+    # Extracted Text
+    extracted_text = Column("extractedText", Text, nullable=True)
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column("createdAt", DateTime, default=datetime.utcnow)
+    updated_at = Column("updatedAt", DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
     book = relationship("Book", back_populates="chapters")
@@ -144,45 +173,45 @@ class Episode(Base):
     __tablename__ = "episodes"
 
     id = Column(String, primary_key=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False)
-    podcaster_id = Column(String, ForeignKey("podcasters.id"), nullable=False)
-    book_id = Column(String, ForeignKey("books.id"), nullable=False)
+    user_id = Column("userId", String, ForeignKey("users.id"), nullable=False)
+    podcaster_id = Column("podcasterId", String, ForeignKey("podcasters.id"), nullable=False)
+    book_id = Column("bookId", String, ForeignKey("books.id"), nullable=False)
 
     # Core content
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
 
     # Content configuration
-    content_coverage = Column(String, nullable=False)  # ENTIRE_BOOK, MULTIPLE_CHAPTERS, SINGLE_CHAPTER
+    content_coverage = Column("contentCoverage", String, nullable=False)  # ENTIRE_BOOK, MULTIPLE_CHAPTERS, SINGLE_CHAPTER
     chapters = Column(ARRAY(Integer), default=[])
-    episode_type = Column(String, nullable=False)  # MONOLOGUE, DUO, GROUP
-    episode_theme = Column(String, nullable=False)  # LECTURE, DISCUSSION, DEBATE
-    target_length_min = Column(Integer, nullable=False)
-    target_length_max = Column(Integer, nullable=False)
+    episode_type = Column("episodeType", String, nullable=False)  # MONOLOGUE, DUO, GROUP
+    episode_theme = Column("episodeTheme", String, nullable=False)  # LECTURE, DISCUSSION, DEBATE
+    target_length_min = Column("targetLengthMin", Integer, nullable=False)
+    target_length_max = Column("targetLengthMax", Integer, nullable=False)
 
     # Generated content
-    script_content = Column(Text, nullable=True)
-    audio_file_key = Column(String, nullable=True)
+    script_content = Column("scriptContent", Text, nullable=True)
+    audio_file_key = Column("audioFileKey", String, nullable=True)
 
     # Generation status
-    generation_status = Column(String, default="PENDING")
-    script_generated_at = Column(DateTime, nullable=True)
-    audio_generated_at = Column(DateTime, nullable=True)
-    generation_error = Column(Text, nullable=True)
+    generation_status = Column("generationStatus", String, default="PENDING")
+    script_generated_at = Column("scriptGeneratedAt", DateTime, nullable=True)
+    audio_generated_at = Column("audioGeneratedAt", DateTime, nullable=True)
+    generation_error = Column("generationError", Text, nullable=True)
 
     # Audio properties
     duration = Column(Integer, nullable=True)  # seconds
-    audio_format = Column(String, nullable=True)
+    audio_format = Column("audioFormat", String, nullable=True)
 
     # Metadata
-    is_public = Column(Boolean, default=False)
-    play_count = Column(Integer, default=0)
-    like_count = Column(Integer, default=0)
-    share_count = Column(Integer, default=0)
+    is_public = Column("isPublic", Boolean, default=False)
+    play_count = Column("playCount", Integer, default=0)
+    like_count = Column("likeCount", Integer, default=0)
+    share_count = Column("shareCount", Integer, default=0)
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column("createdAt", DateTime, default=datetime.utcnow)
+    updated_at = Column("updatedAt", DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
     podcaster = relationship("Podcaster", back_populates="episodes")
