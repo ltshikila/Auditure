@@ -29,17 +29,35 @@ class EpisodeRepository:
 
     def get_podcaster(self, podcaster_id: str) -> Optional[Podcaster]:
         """Get podcaster by ID."""
+        logger.info(f"[DB] Fetching podcaster: {podcaster_id}")
         session = self.db_client.create_session()
         try:
-            return session.query(Podcaster).filter(Podcaster.id == podcaster_id).first()
+            podcaster = session.query(Podcaster).filter(Podcaster.id == podcaster_id).first()
+            if podcaster:
+                logger.info(f"[DB] Found podcaster: {podcaster.name}")
+            else:
+                logger.warning(f"[DB] Podcaster not found: {podcaster_id}")
+            return podcaster
+        except Exception as e:
+            logger.error(f"[DB] Error fetching podcaster: {e}")
+            raise
         finally:
             session.close()
 
     def get_book(self, book_id: str) -> Optional[Book]:
         """Get book by ID."""
+        logger.info(f"[DB] Fetching book: {book_id}")
         session = self.db_client.create_session()
         try:
-            return session.query(Book).filter(Book.id == book_id).first()
+            book = session.query(Book).filter(Book.id == book_id).first()
+            if book:
+                logger.info(f"[DB] Found book: {book.title}")
+            else:
+                logger.warning(f"[DB] Book not found: {book_id}")
+            return book
+        except Exception as e:
+            logger.error(f"[DB] Error fetching book: {e}")
+            raise
         finally:
             session.close()
 
@@ -136,10 +154,11 @@ class EpisodeRepository:
                     episode.generation_error = kwargs["generation_error"]
 
             session.commit()
-            logger.info(f"Updated episode {episode_id} to status {status.value}")
+            logger.info(f"[DB] Successfully updated episode {episode_id} to status {status.value}")
         except Exception as e:
             session.rollback()
-            logger.error(f"Failed to update episode status: {e}")
+            logger.error(f"[DB] Failed to update episode status: {e}")
+            logger.error(f"[DB] Episode ID: {episode_id}, Target status: {status.value}")
             raise
         finally:
             session.close()

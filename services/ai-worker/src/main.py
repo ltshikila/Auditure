@@ -25,8 +25,15 @@ def main() -> None:
     logger.info("=" * 60)
     logger.info(f"RabbitMQ URL: {settings.rabbitmq_url}")
     logger.info(f"Database URL: {settings.database_url.split('@')[-1]}")  # Hide credentials
+    logger.info(f"Redis: {settings.redis_host}:{settings.redis_port}")
     logger.info(f"Storage path: {settings.local_storage_path}")
     logger.info(f"LLM available: {settings.has_llm_api}")
+    if settings.has_llm_api:
+        logger.info(f"  HuggingFace Model: {settings.huggingface_model}")
+        logger.info(f"  API Key: {settings.huggingface_api_key[:10]}...{settings.huggingface_api_key[-4:]}")
+    else:
+        logger.warning("  No HuggingFace API key configured - will use template fallback")
+        logger.warning("  Set HUGGINGFACE_API_KEY environment variable to enable LLM generation")
     logger.info("=" * 60)
 
     # Ensure directories exist

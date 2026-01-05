@@ -8,14 +8,12 @@ from sqlalchemy import (
     Column,
     String,
     Integer,
-    Float,
     Boolean,
     DateTime,
     Text,
-    ForeignKey,
     ARRAY,
 )
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
 
@@ -61,7 +59,7 @@ class Podcaster(Base):
     __tablename__ = "podcasters"
 
     id = Column(String, primary_key=True)
-    user_id = Column("userId", String, ForeignKey("users.id"), nullable=False)
+    user_id = Column("userId", String, nullable=False)
     name = Column(String, nullable=False)
     description = Column(String, nullable=True)
     profile_picture_url = Column("profilePictureUrl", String, nullable=True)
@@ -98,9 +96,6 @@ class Podcaster(Base):
     created_at = Column("createdAt", DateTime, default=datetime.utcnow)
     updated_at = Column("updatedAt", DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relationships
-    episodes = relationship("Episode", back_populates="podcaster")
-
 
 class Book(Base):
     """Book model - source material for episodes."""
@@ -108,7 +103,7 @@ class Book(Base):
     __tablename__ = "books"
 
     id = Column(String, primary_key=True)
-    user_id = Column("userId", String, ForeignKey("users.id"), nullable=False)
+    user_id = Column("userId", String, nullable=False)
     title = Column(String, nullable=False)
     author = Column(String, nullable=True)
     isbn = Column(String, nullable=True)
@@ -136,10 +131,6 @@ class Book(Base):
     created_at = Column("createdAt", DateTime, default=datetime.utcnow)
     updated_at = Column("updatedAt", DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relationships
-    chapters = relationship("Chapter", back_populates="book")
-    episodes = relationship("Episode", back_populates="book")
-
 
 class Chapter(Base):
     """Chapter model - extracted book content."""
@@ -147,7 +138,7 @@ class Chapter(Base):
     __tablename__ = "chapters"
 
     id = Column(String, primary_key=True)
-    book_id = Column("bookId", String, ForeignKey("books.id"), nullable=False)
+    book_id = Column("bookId", String, nullable=False)
     chapter_number = Column("chapterNumber", Integer, nullable=False)
     title = Column(String, nullable=True)
 
@@ -163,9 +154,6 @@ class Chapter(Base):
     created_at = Column("createdAt", DateTime, default=datetime.utcnow)
     updated_at = Column("updatedAt", DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relationships
-    book = relationship("Book", back_populates="chapters")
-
 
 class Episode(Base):
     """Episode model - generated podcast episode."""
@@ -173,9 +161,9 @@ class Episode(Base):
     __tablename__ = "episodes"
 
     id = Column(String, primary_key=True)
-    user_id = Column("userId", String, ForeignKey("users.id"), nullable=False)
-    podcaster_id = Column("podcasterId", String, ForeignKey("podcasters.id"), nullable=False)
-    book_id = Column("bookId", String, ForeignKey("books.id"), nullable=False)
+    user_id = Column("userId", String, nullable=False)
+    podcaster_id = Column("podcasterId", String, nullable=False)
+    book_id = Column("bookId", String, nullable=False)
 
     # Core content
     title = Column(String, nullable=False)
@@ -212,7 +200,3 @@ class Episode(Base):
     # Timestamps
     created_at = Column("createdAt", DateTime, default=datetime.utcnow)
     updated_at = Column("updatedAt", DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # Relationships
-    podcaster = relationship("Podcaster", back_populates="episodes")
-    book = relationship("Book", back_populates="episodes")

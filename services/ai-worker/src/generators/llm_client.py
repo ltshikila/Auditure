@@ -85,7 +85,11 @@ class HuggingFaceClient:
             },
         }
 
-        logger.info(f"Calling HuggingFace API: {self.model}")
+        logger.info(f"[LLM] Calling HuggingFace API...")
+        logger.info(f"[LLM] Model: {self.model}")
+        logger.info(f"[LLM] URL: {url}")
+        logger.info(f"[LLM] Prompt length: {len(prompt)} chars")
+        logger.info(f"[LLM] Max tokens: {max_tokens}, Temperature: {temperature}")
 
         try:
             response = requests.post(
@@ -94,6 +98,8 @@ class HuggingFaceClient:
                 json=payload,
                 timeout=self.timeout,
             )
+
+            logger.info(f"[LLM] Response status: {response.status_code}")
 
             if response.status_code == 503:
                 # Model is loading, retry
@@ -115,15 +121,21 @@ class HuggingFaceClient:
             # Handle different response formats
             if isinstance(result, list) and len(result) > 0:
                 if "generated_text" in result[0]:
-                    return result[0]["generated_text"]
+                    generated = result[0]["generated_text"]
+                    logger.info(f"[LLM] Generated {len(generated)} chars ({len(generated.split())} words)")
+                    return generated
+                logger.info(f"[LLM] Got list response without generated_text")
                 return str(result[0])
             elif isinstance(result, dict):
                 if "generated_text" in result:
-                    return result["generated_text"]
+                    generated = result["generated_text"]
+                    logger.info(f"[LLM] Generated {len(generated)} chars ({len(generated.split())} words)")
+                    return generated
                 if "error" in result:
+                    logger.error(f"[LLM] API returned error: {result['error']}")
                     raise HuggingFaceAPIError(result["error"])
 
-            logger.error(f"Unexpected response format: {result}")
+            logger.error(f"[LLM] Unexpected response format: {result}")
             raise HuggingFaceAPIError("Unexpected response format")
 
         except requests.RequestException as e:
