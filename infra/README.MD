@@ -4,13 +4,14 @@ This directory contains the Infrastructure-as-Code (IaC) configuration for runni
 
 ## Services
 
-The `docker-compose.yml` spins up the following essential services:
+The `docker-compose.yml` spins up the following services:
 
 | Service | Container Name | Port | Description | SRS Reference |
 |:--------|:---------------|:-----|:------------|:--------------|
 | **PostgreSQL** | `bookcast_db` | `5432` | Primary relational database for Users, Books, Episodes, and Metadata | Section 6.3 |
 | **RabbitMQ** | `bookcast_mq` | `5672` (AMQP)<br>`15672` (UI) | Message broker handling the async job queue for episode generation | Section 6.3, NFR-5 |
 | **Redis** | `bookcast_redis` | `6379` | In-memory cache for job progress tracking, playback progress (resume position), and rate limiting | Section 6.3 |
+| **AI Worker** | `bookcast_ai_worker` | N/A | Python microservice for script generation (HuggingFace API) and TTS audio synthesis (Edge TTS) | FR-Episode |
 
 ## Usage
 
@@ -26,10 +27,13 @@ docker-compose up -d
 
 ```bash
 # Only database
-docker-compose up -d bookcast_db
+docker-compose up -d postgres
 
 # Only message queue
-docker-compose up -d bookcast_mq
+docker-compose up -d rabbitmq
+
+# Only AI worker (requires postgres, rabbitmq, redis)
+docker-compose up -d ai-worker
 ```
 
 ### Stop All Services
@@ -52,10 +56,11 @@ docker-compose down -v
 docker-compose logs -f
 
 # Specific service
-docker-compose logs -f bookcast_db
+docker-compose logs -f postgres
+docker-compose logs -f ai-worker
 
 # Last 100 lines
-docker-compose logs --tail=100 bookcast_mq
+docker-compose logs --tail=100 rabbitmq
 ```
 
 ### Restart a Service
@@ -128,12 +133,41 @@ redis://localhost:6379
 redis-cli -h localhost -p 6379
 ```
 
+## AI Worker Configuration
+
+The AI Worker service requires additional configuration via environment variables. Create a `.env` file in the `infra/` directory:
+
+```bash
+# infra/.env
+HUGGINGFACE_API_KEY=your_huggingface_api_key_here
+```
+
+### AI Worker Environment Variables
+
+| Variable | Default | Description |
+|:---------|:--------|:------------|
+| `HUGGINGFACE_API_KEY` | (required) | HuggingFace API key for LLM script generation |
+| `HUGGINGFACE_MODEL` | `mistralai/Mistral-7B-Instruct-v0.2` | Model to use for script generation |
+| `LOG_LEVEL` | `INFO` | Logging verbosity (DEBUG, INFO, WARNING, ERROR) |
+| `LOCAL_STORAGE_PATH` | `/storage` | Path for generated audio files |
+| `TTS_TEMP_DIR` | `/app/temp/tts` | Temporary directory for TTS processing |
+
+**Note:** If `HUGGINGFACE_API_KEY` is not set, the worker will fall back to template-based script generation (no LLM).
+
+### Technology Stack
+
+The AI Worker uses:
+* **Script Generation:** HuggingFace Inference API (Mistral-7B-Instruct) with template fallback
+* **Text-to-Speech:** Microsoft Edge TTS (free, unlimited usage)
+* **Database:** SQLAlchemy ORM connecting to PostgreSQL
+* **Message Queue:** pika (RabbitMQ client)
+
 ## Data Persistence
 
 Docker volumes are configured to persist data even after containers are stopped:
 
 * `postgres_data` - Stores PostgreSQL database files
-* `rabbitmq_data` - Stores RabbitMQ message queue data and configuration
+* `audio_storage` - Stores generated audio files from AI Worker
 
 **Benefits:**
 * Data survives container restarts
@@ -192,14 +226,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    networks:
+      - bookcast_net
 
   rabbitmq:
-    image: rabbitmq:3-management-alpine
+    image: rabbitmq:3-management
     container_name: bookcast_mq
     environment:
       RABBITMQ_DEFAULT_USER: user
@@ -207,29 +238,49 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    networks:
+      - bookcast_net
 
   redis:
-    image: redis:7-alpine
+    image: redis:alpine
     container_name: bookcast_redis
     ports:
       - "6379:6379"
-    command: redis-server --appendonly yes
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    networks:
+      - bookcast_net
+
+  ai-worker:
+    build:
+      context: ../services/ai-worker
+      dockerfile: Dockerfile
+    container_name: bookcast_ai_worker
+    environment:
+      RABBITMQ_URL: amqp://user:password@rabbitmq:5672
+      DATABASE_URL: postgresql://admin:password@postgres:5432/bookcast_db
+      LOCAL_STORAGE_PATH: /storage
+      TTS_TEMP_DIR: /app/temp/tts
+      HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-}
+      HUGGINGFACE_MODEL: mistralai/Mistral-7B-Instruct-v0.2
+      LOG_LEVEL: INFO
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    volumes:
+      - audio_storage:/storage
+    depends_on:
+      - rabbitmq
+      - postgres
+      - redis
+    networks:
+      - bookcast_net
+    restart: unless-stopped
 
 volumes:
   postgres_data:
-  rabbitmq_data:
+  audio_storage:
+
+networks:
+  bookcast_net:
+    driver: bridge
 ```
 
 ### Customization

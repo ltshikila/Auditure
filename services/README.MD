@@ -31,12 +31,13 @@ A **NestJS** modular monolith that serves as the API Gateway for the mobile appl
 A **Python** microservice designed for heavy computational AI tasks.
 
 **Responsibilities:**
-* **LLM Script Generation:** Generate podcast scripts based on book content and podcaster personalities
-* **TTS Audio Synthesis:** Convert scripts to audio using configured voice engines
-* **Audio Processing:** Merge multiple speaker tracks, apply effects, normalize audio
-* **Storage Management:** Upload final audio files to S3/GCP Storage
+* **LLM Script Generation:** Generate podcast scripts using HuggingFace API (Mistral-7B) with template fallback
+* **TTS Audio Synthesis:** Convert scripts to audio using Microsoft Edge TTS (free, unlimited)
+* **Audio Processing:** Concatenate multiple speaker segments, apply ffmpeg processing
+* **Progress Tracking:** Update Redis with real-time progress for UI polling
+* **Storage Management:** Save final audio files to local storage (S3-ready abstraction)
 
-**Role:** Listens to RabbitMQ queue, processes generation requests, and updates job status in the database.
+**Role:** Listens to RabbitMQ queue, processes generation requests, updates job status via SQLAlchemy, and reports progress to Redis.
 
 ## Running the Services
 
@@ -66,6 +67,21 @@ npm run start:debug
 
 **Prerequisites:** Ensure `infra/docker-compose.yml` is running and environment variables are configured.
 
+**Option 1: Via Docker Compose (recommended)**
+```bash
+cd infra
+
+# Create .env file with HuggingFace API key (optional but recommended)
+echo "HUGGINGFACE_API_KEY=your_key_here" > .env
+
+# Start all services including AI worker
+docker-compose up -d
+
+# View AI worker logs
+docker-compose logs -f ai-worker
+```
+
+**Option 2: Run Standalone**
 ```bash
 cd services/ai-worker
 
@@ -81,10 +97,7 @@ source venv/bin/activate  # macOS/Linux
 pip install -r requirements.txt
 
 # Run worker
-python main.py
-
-# Run with specific concurrency
-python main.py --workers 4
+python -m src.main
 ```
 
 ## Testing
@@ -203,59 +216,72 @@ core-api/
 ### Key Technologies
 
 * **Framework:** NestJS (Node.js)
-* **ORM:** TypeORM with PostgreSQL
+* **ORM:** Prisma with PostgreSQL
 * **Validation:** class-validator, class-transformer
 * **Authentication:** Passport.js (JWT, Google OAuth, Apple OAuth)
-* **Security:** Helmet, CORS, rate limiting (express-rate-limit)
+* **Security:** Helmet, CORS, rate limiting
 * **Documentation:** Swagger/OpenAPI
 * **Message Queue:** amqplib (RabbitMQ client)
-* **Storage:** AWS SDK (S3) or Google Cloud Storage
+* **Storage:** Local storage with S3-ready abstraction
+* **Caching:** Redis (job progress, playback progress, rate limiting)
 
 ## AI Worker Architecture
 
 ### Processing Pipeline
 
-1. **Consume Message** from RabbitMQ `episode_generation_queue`
-2. **Fetch Data** from PostgreSQL (book content, podcaster configs)
-3. **Generate Script** using LLM (OpenAI GPT-4, Anthropic Claude)
-4. **Synthesize Audio** using TTS (AWS Polly, Google Cloud TTS, ElevenLabs)
-5. **Process Audio** (merge tracks, normalize volume, apply effects)
-6. **Upload to Storage** (S3/GCP Storage)
-7. **Update Job Status** in PostgreSQL (`completed` or `failed`)
-8. **Acknowledge Message** to RabbitMQ
+1. **Consume Message** from RabbitMQ `episode_generation` queue
+2. **Update Status** to `SCRIPT_GENERATING` (progress: 10%)
+3. **Fetch Data** from PostgreSQL via SQLAlchemy (book content, podcaster configs) (progress: 20%)
+4. **Generate Script** using HuggingFace API (Mistral-7B) or template fallback (progress: 40%)
+5. **Update Status** to `SCRIPT_GENERATED` (progress: 60%)
+6. **Update Status** to `AUDIO_GENERATING` (progress: 80%)
+7. **Synthesize Audio** using Microsoft Edge TTS (multi-voice support)
+8. **Concatenate Audio** segments if multi-speaker episode
+9. **Save to Storage** at `{userId}/{episodeId}/audio.mp3`
+10. **Update Status** to `COMPLETED` (progress: 100%)
+11. **Acknowledge Message** to RabbitMQ
+
+**Progress Tracking:** Real-time progress stored in Redis at key `job:{episodeId}` for UI polling.
 
 ### Project Structure
 
 ```text
 ai-worker/
 ├── src/
+│   ├── config/               # Pydantic settings configuration
 │   ├── consumers/            # RabbitMQ message consumers
+│   │   ├── base_consumer.py  # Abstract consumer with retry logic
 │   │   └── episode_consumer.py
 │   ├── generators/           # LLM script generation
-│   │   ├── llm_client.py
-│   │   └── script_builder.py
-│   ├── synthesizers/         # TTS audio generation
-│   │   ├── tts_client.py
-│   │   └── audio_processor.py
-│   ├── storage/              # Cloud storage integration
-│   │   └── s3_client.py
-│   ├── database/             # Database operations
-│   │   └── postgres_client.py
-│   └── utils/                # Helper functions
-├── tests/                    # Unit tests
+│   │   ├── llm_client.py     # HuggingFace API client
+│   │   ├── script_generator.py
+│   │   └── templates/        # Fallback template generator
+│   ├── tts/                  # Text-to-speech (Edge TTS)
+│   │   └── engine.py
+│   ├── storage/              # Local file storage
+│   │   └── local_storage.py
+│   ├── database/             # SQLAlchemy ORM
+│   │   ├── client.py         # Database connection
+│   │   ├── models.py         # SQLAlchemy models (matches Prisma schema)
+│   │   └── repository.py     # Data access layer
+│   ├── redis/                # Redis client for progress tracking
+│   └── utils/                # Logging utilities
+├── tests/                    # Unit & integration tests
+├── Dockerfile
 ├── requirements.txt
-└── main.py                   # Entry point
+└── pyproject.toml
 ```
 
 ### Key Technologies
 
 * **Python:** 3.9+
-* **LLM:** OpenAI API, Anthropic API
-* **TTS:** AWS Polly, Google Cloud TTS, ElevenLabs API
+* **LLM:** HuggingFace Inference API (Mistral-7B-Instruct) with template fallback
+* **TTS:** Microsoft Edge TTS (free, unlimited usage)
 * **Message Queue:** pika (RabbitMQ client)
-* **Database:** psycopg2 or SQLAlchemy
-* **Storage:** boto3 (AWS S3), google-cloud-storage
-* **Audio Processing:** pydub, ffmpeg-python
+* **Database:** SQLAlchemy ORM with PostgreSQL
+* **Storage:** Local file storage (S3-ready abstraction)
+* **Audio Processing:** pydub, ffmpeg
+* **Progress Tracking:** Redis for real-time UI updates
 
 ## Environment Variables
 
@@ -308,33 +334,32 @@ RATE_LIMIT_MAX=100
 ```bash
 # RabbitMQ
 RABBITMQ_URL=amqp://user:password@localhost:5672
-RABBITMQ_QUEUE=episode_generation_queue
-WORKER_CONCURRENCY=2
+EPISODE_GENERATION_QUEUE=episode_generation
+EPISODE_GENERATION_DLQ=episode_generation_dlq
 
 # Database
 DATABASE_URL=postgresql://admin:password@localhost:5432/bookcast_db
 
-# LLM APIs
-OPENAI_API_KEY=your-openai-api-key
-ANTHROPIC_API_KEY=your-anthropic-api-key
-LLM_MODEL=gpt-4-turbo-preview
-LLM_MAX_TOKENS=4096
+# LLM (HuggingFace)
+HUGGINGFACE_API_KEY=your-huggingface-api-key
+HUGGINGFACE_MODEL=mistralai/Mistral-7B-Instruct-v0.2
 
-# TTS APIs
-ELEVENLABS_API_KEY=your-elevenlabs-key
-AWS_ACCESS_KEY_ID=your-aws-key
-AWS_SECRET_ACCESS_KEY=your-aws-secret
-GCP_CREDENTIALS_PATH=/path/to/service-account.json
+# Redis (for progress tracking)
+REDIS_HOST=localhost
+REDIS_PORT=6379
 
 # Storage
-AWS_REGION=us-east-1
-S3_BUCKET=bookcast-audio-production
+LOCAL_STORAGE_PATH=./storage
+TTS_TEMP_DIR=./temp/tts
 
 # Processing
-MAX_SCRIPT_LENGTH=10000
-AUDIO_FORMAT=mp3
-AUDIO_BITRATE=128k
+LOG_LEVEL=INFO
+MAX_BOOK_CONTENT_CHARS=8000
+MAX_RETRIES=3
+RETRY_DELAY_BASE=5
 ```
+
+**Note:** The AI Worker uses Microsoft Edge TTS which requires no API key. If `HUGGINGFACE_API_KEY` is not set, the worker falls back to template-based script generation.
 
 ## Communication Flow
 

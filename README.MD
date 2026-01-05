@@ -70,17 +70,25 @@ npm run migration:run
 npm run start:gateway
 ```
 
-5. **Run the AI Worker:**
+5. **Configure HuggingFace API Key (optional but recommended):**
 
+Create `infra/.env` with your HuggingFace API key:
+```bash
+HUGGINGFACE_API_KEY=your_huggingface_api_key_here
+```
+
+6. **Run the AI Worker (via Docker Compose):**
+
+The AI Worker is included in docker-compose. Alternatively, run standalone:
 ```bash
 cd services/ai-worker
 python -m venv venv
-source venv/bin/activate
+source venv/bin/activate  # or .\venv\Scripts\activate on Windows
 pip install -r requirements.txt
-python main.py
+python -m src.main
 ```
 
-6. **Run the Mobile App:**
+7. **Run the Mobile App:**
 
 ```bash
 npm run start:mobile
@@ -95,14 +103,14 @@ npm run start:mobile
 
 ### Backend
 * Node.js with NestJS framework
-* TypeORM for database access
+* Prisma ORM for database access
 * Passport.js for OAuth (Google/Apple)
 * JWT authentication with refresh tokens
 
 ### AI Processing
 * Python 3.9+
-* LLM integration (OpenAI/Anthropic)
-* TTS engines (AWS Polly, Google Cloud TTS, or ElevenLabs)
+* LLM integration (HuggingFace Inference API - Mistral-7B) with template fallback
+* TTS engine (Microsoft Edge TTS - free, unlimited)
 
 ### Data & Infrastructure
 * PostgreSQL (relational data)
