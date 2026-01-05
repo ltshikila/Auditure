@@ -899,12 +899,13 @@ export class EpisodesService {
     async getPlaybackProgress(
         userId: string,
         episodeId: string,
-    ): Promise<{ position: number } | null> {
+    ): Promise<{ position: number }> {
         const position = await this.redisService.getPlaybackProgress(
             userId,
             episodeId,
         );
-        return position !== null ? { position } : null;
+        // Always return a valid object to prevent empty response issues
+        return { position: position ?? 0 };
     }
 
     /**

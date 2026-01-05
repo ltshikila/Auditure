@@ -67,7 +67,8 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
     volumes:
-      - audio_storage:/storage
+      # Mount core-api's storage directory so both services share the same storage
+      - ../services/core-api/storage:/storage
     depends_on:
       - rabbitmq
       - postgres
@@ -78,7 +79,6 @@ services:
 
 volumes:
   postgres_data:
-  audio_storage:
 
 networks:
   bookcast_net:

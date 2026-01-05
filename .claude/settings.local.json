@@ -51,7 +51,8 @@
       "Bash(docker-compose build:*)",
       "Bash(docker logs:*)",
       "Bash(node -e:*)",
-      "Bash(npm show:*)"
+      "Bash(npm show:*)",
+      "Bash(docker-compose logs:*)"
     ]
   }
 }

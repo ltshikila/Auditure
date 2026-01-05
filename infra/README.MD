@@ -167,7 +167,8 @@ The AI Worker uses:
 Docker volumes are configured to persist data even after containers are stopped:
 
 * `postgres_data` - Stores PostgreSQL database files
-* `audio_storage` - Stores generated audio files from AI Worker
+
+**Shared Storage:** The AI Worker mounts `../services/core-api/storage:/storage` to share generated audio files with the core-api service. This ensures both services access the same audio files.
 
 **Benefits:**
 * Data survives container restarts
@@ -265,7 +266,8 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
     volumes:
-      - audio_storage:/storage
+      # Shared storage with core-api for audio files
+      - ../services/core-api/storage:/storage
     depends_on:
       - rabbitmq
       - postgres
@@ -276,7 +278,6 @@ services:
 
 volumes:
   postgres_data:
-  audio_storage:
 
 networks:
   bookcast_net:

@@ -33,7 +33,8 @@ class HuggingFaceClient:
         self.api_key = api_key or settings.huggingface_api_key
         self.model = model or settings.huggingface_model
         self.timeout = settings.script_generation_timeout
-        self.base_url = "https://api-inference.huggingface.co/models"
+        # Use the new router endpoint (api-inference.huggingface.co is deprecated)
+        self.base_url = "https://router.huggingface.co/hf-inference/models"
 
     @property
     def is_available(self) -> bool:
