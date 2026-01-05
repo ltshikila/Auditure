@@ -88,6 +88,12 @@ class ApiClient {
         },
       });
 
+      // Handle 204 No Content responses (empty body)
+      if (response.status === 204) {
+        console.log(`[API Success] ${options.method || 'GET'} ${url} (204 No Content)`);
+        return undefined as T;
+      }
+
       const data = await response.json();
 
       if (!response.ok) {
