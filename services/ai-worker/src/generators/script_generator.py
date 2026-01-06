@@ -12,6 +12,24 @@ from .templates.fallback_generator import FallbackGenerator, FallbackRequest
 logger = logging.getLogger(__name__)
 
 
+class DurationMismatchError(Exception):
+    """Raised when generated script doesn't meet duration requirements."""
+
+    def __init__(
+        self,
+        message: str,
+        estimated_minutes: float,
+        target_min: int,
+        target_max: int,
+        word_count: int,
+    ):
+        super().__init__(message)
+        self.estimated_minutes = estimated_minutes
+        self.target_min = target_min
+        self.target_max = target_max
+        self.word_count = word_count
+
+
 @dataclass
 class ScriptResult:
     """Result of script generation."""
@@ -19,6 +37,7 @@ class ScriptResult:
     script: str
     word_count: int
     method: str  # "llm" or "template"
+    estimated_duration_seconds: int  # Estimated duration based on word count
 
 
 class ScriptGenerator:
@@ -78,6 +97,9 @@ class ScriptGenerator:
             expertise_tags=podcaster_personality.get("expertise_tags"),
         )
 
+        script = None
+        method = None
+
         # Try LLM first if available
         if self.llm_client.is_available:
             try:
@@ -94,11 +116,7 @@ class ScriptGenerator:
                     target_length_max=target_length_max,
                     target_words=target_words,
                 )
-                return ScriptResult(
-                    script=script,
-                    word_count=len(script.split()),
-                    method="llm",
-                )
+                method = "llm"
             except HuggingFaceAPIError as e:
                 logger.warning(f"LLM generation failed, falling back to templates: {e}")
             except Exception as e:
@@ -106,22 +124,70 @@ class ScriptGenerator:
         else:
             logger.info("LLM not configured, using template generation")
 
-        # Fall back to template generation
-        script = self._generate_with_templates(
-            book_content=book_content,
-            book_title=book_title,
-            book_author=book_author,
-            episode_title=episode_title,
-            podcaster_name=podcaster_name,
-            episode_type=episode_type,
-            episode_theme=episode_theme,
-            target_words=target_words,
+        # Fall back to template generation if LLM failed or unavailable
+        if script is None:
+            script = self._generate_with_templates(
+                book_content=book_content,
+                book_title=book_title,
+                book_author=book_author,
+                episode_title=episode_title,
+                podcaster_name=podcaster_name,
+                episode_type=episode_type,
+                episode_theme=episode_theme,
+                target_words=target_words,
+            )
+            method = "template"
+
+        # Calculate word count and estimated duration
+        word_count = len(script.split())
+        estimated_duration_seconds = self._estimate_duration_seconds(word_count)
+        estimated_minutes = estimated_duration_seconds / 60
+
+        logger.info(
+            f"Script generated: {word_count} words, estimated {estimated_minutes:.1f} minutes "
+            f"(target: {target_length_min}-{target_length_max} min)"
         )
+
+        # Validate duration meets minimum requirements
+        # Absolute minimum is 5 minutes - anything less is unacceptable
+        ABSOLUTE_MIN_MINUTES = 5.0
+        # Also enforce user's requested minimum with 20% tolerance
+        user_min_threshold = target_length_min * 0.8
+
+        # Use the higher of absolute minimum or user's threshold
+        effective_min = max(ABSOLUTE_MIN_MINUTES, user_min_threshold)
+
+        if estimated_minutes < effective_min:
+            if estimated_minutes < ABSOLUTE_MIN_MINUTES:
+                error_msg = (
+                    f"Generated episode is only approximately {estimated_minutes:.1f} minutes "
+                    f"({word_count} words), which is below the minimum acceptable length of 5 minutes. "
+                    f"You requested {target_length_min}-{target_length_max} minutes. "
+                    f"This may be due to insufficient source content or an issue with script generation. "
+                    f"Please try selecting more chapters or providing more content."
+                )
+            else:
+                error_msg = (
+                    f"Generated episode would be approximately {estimated_minutes:.1f} minutes, "
+                    f"but you requested {target_length_min}-{target_length_max} minutes. "
+                    f"The script only contains {word_count} words. "
+                    f"This may be due to insufficient source content. "
+                    f"Please try selecting more chapters or a shorter target duration."
+                )
+            logger.error(f"Duration validation failed: {error_msg}")
+            raise DurationMismatchError(
+                message=error_msg,
+                estimated_minutes=estimated_minutes,
+                target_min=target_length_min,
+                target_max=target_length_max,
+                word_count=word_count,
+            )
 
         return ScriptResult(
             script=script,
-            word_count=len(script.split()),
-            method="template",
+            word_count=word_count,
+            method=method,
+            estimated_duration_seconds=estimated_duration_seconds,
         )
 
     def _calculate_target_words(
@@ -132,6 +198,11 @@ class ScriptGenerator:
         """Calculate target word count from time range."""
         avg_minutes = (target_length_min + target_length_max) / 2
         return int(avg_minutes * self.words_per_minute)
+
+    def _estimate_duration_seconds(self, word_count: int) -> int:
+        """Estimate audio duration in seconds from word count."""
+        minutes = word_count / self.words_per_minute
+        return int(minutes * 60)
 
     def _generate_with_llm(
         self,

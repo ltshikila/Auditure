@@ -1,9 +1,9 @@
-"""HuggingFace Inference API client."""
+"""OpenAI GPT-4o mini client for script generation."""
 
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional
 
-import requests
+from openai import OpenAI
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -16,25 +16,29 @@ from src.config import get_settings
 logger = logging.getLogger(__name__)
 
 
-class HuggingFaceAPIError(Exception):
-    """Custom exception for HuggingFace API errors."""
+class LLMAPIError(Exception):
+    """Custom exception for LLM API errors."""
 
     def __init__(self, message: str, status_code: Optional[int] = None):
         super().__init__(message)
         self.status_code = status_code
 
 
-class HuggingFaceClient:
-    """Client for HuggingFace Inference API."""
+class OpenAIClient:
+    """Client for OpenAI GPT-4o mini API."""
 
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
-        """Initialize HuggingFace client."""
+        """Initialize OpenAI client."""
         settings = get_settings()
-        self.api_key = api_key or settings.huggingface_api_key
-        self.model = model or settings.huggingface_model
+        self.api_key = api_key or settings.openai_api_key
+        self.model = model or settings.openai_model
+        self.max_tokens = settings.openai_max_tokens
         self.timeout = settings.script_generation_timeout
-        # Use the new router endpoint (api-inference.huggingface.co is deprecated)
-        self.base_url = "https://router.huggingface.co/hf-inference/models"
+
+        if self.api_key:
+            self.client = OpenAI(api_key=self.api_key)
+        else:
+            self.client = None
 
     @property
     def is_available(self) -> bool:
@@ -43,105 +47,74 @@ class HuggingFaceClient:
 
     @retry(
         stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((requests.RequestException, HuggingFaceAPIError)),
+        wait=wait_exponential(multiplier=1, min=2, max=30),
+        retry=retry_if_exception_type((LLMAPIError,)),
         reraise=True,
     )
     def generate_text(
         self,
         prompt: str,
-        max_tokens: int = 4000,
+        max_tokens: Optional[int] = None,
         temperature: float = 0.7,
+        system_prompt: Optional[str] = None,
     ) -> str:
         """
-        Generate text using HuggingFace Inference API.
+        Generate text using OpenAI GPT-4o mini.
 
         Args:
-            prompt: The input prompt
-            max_tokens: Maximum tokens to generate
-            temperature: Sampling temperature (0.0-1.0)
+            prompt: The user prompt
+            max_tokens: Maximum tokens to generate (default from settings)
+            temperature: Sampling temperature (0.0-2.0)
+            system_prompt: Optional system prompt for context
 
         Returns:
             Generated text
 
         Raises:
-            HuggingFaceAPIError: If API call fails
+            LLMAPIError: If API call fails
         """
         if not self.is_available:
-            raise HuggingFaceAPIError("HuggingFace API key not configured")
+            raise LLMAPIError("OpenAI API key not configured")
 
-        url = f"{self.base_url}/{self.model}"
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
+        max_tokens = max_tokens or self.max_tokens
 
-        payload = {
-            "inputs": prompt,
-            "parameters": {
-                "max_new_tokens": max_tokens,
-                "temperature": temperature,
-                "do_sample": True,
-                "return_full_text": False,
-            },
-        }
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
 
-        logger.info(f"[LLM] Calling HuggingFace API...")
+        logger.info(f"[LLM] Calling OpenAI API...")
         logger.info(f"[LLM] Model: {self.model}")
-        logger.info(f"[LLM] URL: {url}")
         logger.info(f"[LLM] Prompt length: {len(prompt)} chars")
         logger.info(f"[LLM] Max tokens: {max_tokens}, Temperature: {temperature}")
 
         try:
-            response = requests.post(
-                url,
-                headers=headers,
-                json=payload,
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
                 timeout=self.timeout,
             )
 
-            logger.info(f"[LLM] Response status: {response.status_code}")
+            generated = response.choices[0].message.content
+            usage = response.usage
 
-            if response.status_code == 503:
-                # Model is loading, retry
-                logger.warning("Model is loading, will retry...")
-                raise HuggingFaceAPIError("Model is loading", status_code=503)
+            logger.info(f"[LLM] Generated {len(generated)} chars ({len(generated.split())} words)")
+            logger.info(f"[LLM] Tokens used - Prompt: {usage.prompt_tokens}, Completion: {usage.completion_tokens}, Total: {usage.total_tokens}")
 
-            if response.status_code == 429:
-                # Rate limited
-                logger.warning("Rate limited, will retry...")
-                raise HuggingFaceAPIError("Rate limited", status_code=429)
+            # Log cost estimate (GPT-4o mini pricing: $0.15/1M input, $0.60/1M output)
+            input_cost = (usage.prompt_tokens / 1_000_000) * 0.15
+            output_cost = (usage.completion_tokens / 1_000_000) * 0.60
+            total_cost = input_cost + output_cost
+            logger.info(f"[LLM] Estimated cost: ${total_cost:.6f}")
 
-            if not response.ok:
-                error_msg = f"API error: {response.status_code} - {response.text}"
-                logger.error(error_msg)
-                raise HuggingFaceAPIError(error_msg, status_code=response.status_code)
+            return generated
 
-            result = response.json()
-
-            # Handle different response formats
-            if isinstance(result, list) and len(result) > 0:
-                if "generated_text" in result[0]:
-                    generated = result[0]["generated_text"]
-                    logger.info(f"[LLM] Generated {len(generated)} chars ({len(generated.split())} words)")
-                    return generated
-                logger.info(f"[LLM] Got list response without generated_text")
-                return str(result[0])
-            elif isinstance(result, dict):
-                if "generated_text" in result:
-                    generated = result["generated_text"]
-                    logger.info(f"[LLM] Generated {len(generated)} chars ({len(generated.split())} words)")
-                    return generated
-                if "error" in result:
-                    logger.error(f"[LLM] API returned error: {result['error']}")
-                    raise HuggingFaceAPIError(result["error"])
-
-            logger.error(f"[LLM] Unexpected response format: {result}")
-            raise HuggingFaceAPIError("Unexpected response format")
-
-        except requests.RequestException as e:
-            logger.error(f"Request failed: {e}")
-            raise HuggingFaceAPIError(f"Request failed: {e}")
+        except Exception as e:
+            error_msg = f"OpenAI API error: {str(e)}"
+            logger.error(error_msg)
+            raise LLMAPIError(error_msg)
 
     def generate_script(
         self,
@@ -158,12 +131,29 @@ class HuggingFaceClient:
         Returns:
             Generated podcast script
         """
-        # Estimate tokens (roughly 1.3 tokens per word)
-        max_tokens = int(target_word_count * 1.5)
-        max_tokens = min(max_tokens, 4000)  # API limit
+        # Estimate tokens needed (roughly 1.3 tokens per word for output)
+        # Add buffer for formatting and speaker labels
+        estimated_tokens = int(target_word_count * 1.5)
+        max_tokens = min(estimated_tokens, self.max_tokens)
+
+        system_prompt = """You are an expert podcast script writer. Your task is to create engaging,
+natural-sounding podcast scripts that transform book content into compelling audio experiences.
+
+Key guidelines:
+- Write in a conversational, engaging tone
+- Include natural speech patterns and transitions
+- For multi-speaker formats, create distinct voices and natural dialogue
+- Focus on making complex ideas accessible and interesting
+- Always meet the requested word count - this is critical for episode length"""
 
         return self.generate_text(
             prompt=prompt,
             max_tokens=max_tokens,
             temperature=0.7,
+            system_prompt=system_prompt,
         )
+
+
+# Backwards compatibility alias
+HuggingFaceClient = OpenAIClient
+HuggingFaceAPIError = LLMAPIError

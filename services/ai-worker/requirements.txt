@@ -2,18 +2,23 @@
 pika==1.3.2                    # RabbitMQ client
 psycopg2-binary==2.9.9         # PostgreSQL driver
 SQLAlchemy==2.0.23             # ORM
-edge-tts==6.1.9                # Microsoft Edge TTS (free, unlimited)
 pydub==0.25.1                  # Audio processing
 ffmpeg-python==0.2.0           # Audio concatenation
 redis==5.0.1                   # Redis client for progress tracking
 
-# LLM
-requests==2.31.0               # HuggingFace API calls
+# LLM - OpenAI GPT-4o mini
+openai>=1.0.0                  # OpenAI API client
+
+# TTS - Google Cloud Text-to-Speech
+google-cloud-texttospeech>=2.14.0  # Google Cloud TTS API
 
 # Config
 pydantic==2.5.2                # Settings validation
 pydantic-settings==2.1.0       # Environment settings
 python-dotenv==1.0.0           # .env file loading
+
+# HTTP
+requests==2.31.0               # HTTP client (for fallback/other APIs)
 
 # Retry logic
 tenacity==8.2.3                # Retry with backoff

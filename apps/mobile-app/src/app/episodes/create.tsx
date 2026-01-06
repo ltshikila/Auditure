@@ -16,7 +16,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { PodcasterSelector } from '@/components/PodcasterSelector';
 import { InfoTooltip } from '@/components/InfoTooltip';
 import { podcasterService, Podcaster } from '@/services/podcaster.service';
-import { episodeService, EpisodeType, EpisodeTheme, ContentCoverage, FileUpload } from '@/services/episode.service';
+import { episodeService, EpisodeType, EpisodeTheme, ContentCoverage, FileUpload, VoiceTier } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
 import Slider from '@react-native-community/slider';
 
@@ -50,7 +50,8 @@ const Create = () => {
     const [episodeType, setEpisodeType] = useState<EpisodeType>('MONOLOGUE');
     const [episodeTheme, setEpisodeTheme] = useState<EpisodeTheme>('LECTURE');
     const [targetLengthMin, setTargetLengthMin] = useState(10);
-    const [targetLengthMax, setTargetLengthMax] = useState(66);
+    const [targetLengthMax, setTargetLengthMax] = useState(30);
+    const [voiceTier, setVoiceTier] = useState<VoiceTier>('NEURAL');
 
     // Content coverage options
     const contentCoverageOptions: TabOption<ContentCoverage>[] = [
@@ -83,6 +84,17 @@ const Create = () => {
         LECTURE: 'A podcast episode meant to approach content in a more educational approach, best for studying purposes.',
         DISCUSSION: 'An exploratory conversation about the book\'s themes, ideas, and insights with collaborative analysis.',
         DEBATE: 'A structured argument format exploring different perspectives and viewpoints on the book\'s content.',
+    };
+
+    // Voice tier options with descriptions
+    const voiceTierOptions: TabOption<VoiceTier>[] = [
+        { value: 'STANDARD', label: 'Standard' },
+        { value: 'NEURAL', label: 'Neural' },
+    ];
+
+    const voiceTierDescriptions: Record<VoiceTier, string> = {
+        STANDARD: 'Basic text-to-speech voice. Good quality at a lower cost. Ideal for drafts or budget-conscious usage.',
+        NEURAL: 'Premium AI-powered voice with natural intonation and expressiveness. Recommended for the best listening experience.',
     };
 
     // Load user's podcasters
@@ -225,6 +237,7 @@ const Create = () => {
                         episodeTheme,
                         targetLengthMin,
                         targetLengthMax,
+                        voiceTier,
                     },
                     token
                 );
@@ -241,6 +254,7 @@ const Create = () => {
                         episodeTheme,
                         targetLengthMin,
                         targetLengthMax,
+                        voiceTier,
                     },
                     token
                 );
@@ -458,7 +472,7 @@ const Create = () => {
                                 }
                             }}
                             minimumValue={5}
-                            maximumValue={75}
+                            maximumValue={30}
                             step={1}
                             minimumTrackTintColor="#BF9A54"
                             maximumTrackTintColor="#E8E3D6"
@@ -478,7 +492,7 @@ const Create = () => {
                                 }
                             }}
                             minimumValue={5}
-                            maximumValue={75}
+                            maximumValue={30}
                             step={1}
                             minimumTrackTintColor="#BF9A54"
                             maximumTrackTintColor="#E8E3D6"
@@ -489,13 +503,20 @@ const Create = () => {
 
                     {/* Tick marks */}
                     <View className="flex-row justify-between px-2 mt-1">
-                        <Text className="text-[#858585] font-inter text-xs">0</Text>
+                        <Text className="text-[#858585] font-inter text-xs">5min</Text>
+                        <Text className="text-[#858585] font-inter text-xs">10min</Text>
                         <Text className="text-[#858585] font-inter text-xs">15min</Text>
+                        <Text className="text-[#858585] font-inter text-xs">20min</Text>
+                        <Text className="text-[#858585] font-inter text-xs">25min</Text>
                         <Text className="text-[#858585] font-inter text-xs">30min</Text>
-                        <Text className="text-[#858585] font-inter text-xs">45min</Text>
-                        <Text className="text-[#858585] font-inter text-xs">60min</Text>
-                        <Text className="text-[#858585] font-inter text-xs">75min</Text>
                     </View>
+                </View>
+
+                {/* Voice Quality */}
+                <View className="mb-6">
+                    <Text className="text-[#1A1C1E] font-inter-medium text-lg mb-3">Voice Quality</Text>
+                    <InfoTooltip text={voiceTierDescriptions[voiceTier]} />
+                    {renderTabSelector(voiceTierOptions, voiceTier, setVoiceTier)}
                 </View>
 
                 {/* Create Button */}

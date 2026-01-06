@@ -1,8 +1,10 @@
-"""Voice mapper for Edge TTS voices."""
+"""Voice mapper for Google Cloud TTS voices."""
 
 import logging
 from dataclasses import dataclass
-from typing import Optional, Dict
+from typing import Optional, Dict, List
+
+from src.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -16,63 +18,108 @@ class VoiceConfig:
     accent: str
     rate: str  # e.g., "+10%", "-5%"
     pitch: str  # e.g., "+10Hz", "-5Hz"
+    tier: str = "neural"  # "standard" or "neural"
 
 
 class VoiceMapper:
-    """Map podcaster settings to Edge TTS voices."""
+    """Map podcaster settings to Google Cloud TTS voices.
 
-    # Edge TTS voice mapping by gender and accent
-    VOICE_MAP: Dict[str, Dict[str, str]] = {
+    Google Cloud TTS Voice Tiers:
+    - Standard: Basic voices, $4/1M characters
+    - Neural2: High-quality neural voices, $16/1M characters (recommended)
+
+    Voice ID format: {language}-{region}-{type}-{variant}
+    Example: en-US-Neural2-A, en-US-Standard-A
+    """
+
+    # Google Cloud TTS voice mapping by gender, accent, and tier
+    # Neural2 voices are higher quality but cost 4x more
+    VOICE_MAP: Dict[str, Dict[str, Dict[str, str]]] = {
         "MALE": {
-            "United States": "en-US-GuyNeural",
-            "United Kingdom": "en-GB-RyanNeural",
-            "Australia": "en-AU-WilliamNeural",
-            "Canada": "en-CA-LiamNeural",
-            "Ireland": "en-IE-ConnorNeural",
-            "India": "en-IN-PrabhatNeural",
-            "New Zealand": "en-NZ-MitchellNeural",
-            "South Africa": "en-ZA-LukeNeural",
-            "Singapore": "en-SG-WayneNeural",
-            "default": "en-US-GuyNeural",
+            "neural": {
+                "United States": "en-US-Neural2-A",
+                "United Kingdom": "en-GB-Neural2-B",
+                "Australia": "en-AU-Neural2-B",
+                "Canada": "en-US-Neural2-A",  # Use US for Canada
+                "Ireland": "en-GB-Neural2-B",  # Use UK for Ireland
+                "India": "en-IN-Neural2-B",
+                "default": "en-US-Neural2-A",
+            },
+            "standard": {
+                "United States": "en-US-Standard-A",
+                "United Kingdom": "en-GB-Standard-B",
+                "Australia": "en-AU-Standard-B",
+                "Canada": "en-US-Standard-A",
+                "Ireland": "en-GB-Standard-B",
+                "India": "en-IN-Standard-B",
+                "default": "en-US-Standard-A",
+            },
         },
         "FEMALE": {
-            "United States": "en-US-JennyNeural",
-            "United Kingdom": "en-GB-SoniaNeural",
-            "Australia": "en-AU-NatashaNeural",
-            "Canada": "en-CA-ClaraNeural",
-            "Ireland": "en-IE-EmilyNeural",
-            "India": "en-IN-NeerjaNeural",
-            "New Zealand": "en-NZ-MollyNeural",
-            "South Africa": "en-ZA-LeahNeural",
-            "Singapore": "en-SG-LunaNeural",
-            "default": "en-US-JennyNeural",
+            "neural": {
+                "United States": "en-US-Neural2-C",
+                "United Kingdom": "en-GB-Neural2-A",
+                "Australia": "en-AU-Neural2-A",
+                "Canada": "en-US-Neural2-C",
+                "Ireland": "en-GB-Neural2-A",
+                "India": "en-IN-Neural2-A",
+                "default": "en-US-Neural2-C",
+            },
+            "standard": {
+                "United States": "en-US-Standard-C",
+                "United Kingdom": "en-GB-Standard-A",
+                "Australia": "en-AU-Standard-A",
+                "Canada": "en-US-Standard-C",
+                "Ireland": "en-GB-Standard-A",
+                "India": "en-IN-Standard-A",
+                "default": "en-US-Standard-C",
+            },
         },
     }
 
-    def get_voice_id(self, gender: str, accent: str) -> str:
+    # Additional Neural2 voice variants for multi-speaker episodes
+    NEURAL2_VARIANTS: Dict[str, List[str]] = {
+        "MALE": ["en-US-Neural2-A", "en-US-Neural2-D", "en-US-Neural2-I", "en-US-Neural2-J"],
+        "FEMALE": ["en-US-Neural2-C", "en-US-Neural2-E", "en-US-Neural2-F", "en-US-Neural2-G"],
+    }
+
+    STANDARD_VARIANTS: Dict[str, List[str]] = {
+        "MALE": ["en-US-Standard-A", "en-US-Standard-B", "en-US-Standard-D", "en-US-Standard-I"],
+        "FEMALE": ["en-US-Standard-C", "en-US-Standard-E", "en-US-Standard-F", "en-US-Standard-G"],
+    }
+
+    def __init__(self):
+        """Initialize voice mapper with settings."""
+        settings = get_settings()
+        self.default_tier = settings.tts_voice_tier
+
+    def get_voice_id(self, gender: str, accent: str, tier: Optional[str] = None) -> str:
         """
-        Get Edge TTS voice ID for gender and accent.
+        Get Google Cloud TTS voice ID for gender and accent.
 
         Args:
             gender: MALE or FEMALE
             accent: Accent/region name
+            tier: Voice tier ("standard" or "neural"), uses default if not specified
 
         Returns:
-            Edge TTS voice identifier
+            Google Cloud TTS voice identifier
         """
+        tier = tier or self.default_tier
         gender_voices = self.VOICE_MAP.get(gender, self.VOICE_MAP["MALE"])
+        tier_voices = gender_voices.get(tier, gender_voices["neural"])
 
-        if accent in gender_voices:
-            return gender_voices[accent]
+        if accent in tier_voices:
+            return tier_voices[accent]
 
         logger.warning(f"Unknown accent '{accent}', using default voice")
-        return gender_voices["default"]
+        return tier_voices["default"]
 
     def calculate_rate(self, speaking_speed: int) -> str:
         """
-        Convert speaking speed (1-10) to Edge TTS rate.
+        Convert speaking speed (1-10) to rate string.
 
-        Edge TTS uses percentage: -50% to +50%
+        Google TTS uses speaking_rate: 0.25 to 4.0 (1.0 is normal)
         We map 1-10 to -30% to +30% for natural range.
 
         Args:
@@ -94,10 +141,10 @@ class VoiceMapper:
 
     def calculate_pitch(self, vocal_pitch: int) -> str:
         """
-        Convert vocal pitch (1-10) to Edge TTS pitch.
+        Convert vocal pitch (1-10) to pitch string.
 
-        Edge TTS uses Hz: -50Hz to +50Hz
-        We map 1-10 to -30Hz to +30Hz for natural range.
+        Google TTS uses pitch in semitones: -20.0 to 20.0 (0 is default)
+        We map 1-10 to -30Hz to +30Hz which gets converted later.
 
         Args:
             vocal_pitch: 1-10 scale
@@ -121,6 +168,7 @@ class VoiceMapper:
         accent: str,
         speaking_speed: int = 5,
         vocal_pitch: int = 5,
+        tier: Optional[str] = None,
     ) -> VoiceConfig:
         """
         Get complete voice configuration.
@@ -130,16 +178,19 @@ class VoiceMapper:
             accent: Accent/region name
             speaking_speed: 1-10 scale
             vocal_pitch: 1-10 scale
+            tier: Voice tier ("standard" or "neural")
 
         Returns:
             VoiceConfig with all TTS parameters
         """
+        tier = tier or self.default_tier
         return VoiceConfig(
-            voice_id=self.get_voice_id(gender, accent),
+            voice_id=self.get_voice_id(gender, accent, tier),
             gender=gender,
             accent=accent,
             rate=self.calculate_rate(speaking_speed),
             pitch=self.calculate_pitch(vocal_pitch),
+            tier=tier,
         )
 
     def get_contrasting_voice(
@@ -152,8 +203,8 @@ class VoiceMapper:
 
         Creates variety by:
         - Alternating gender
-        - Adjusting pitch
-        - Slightly varying speed
+        - Using different voice variants
+        - Adjusting pitch and speed
 
         Args:
             main_config: The main host's voice config
@@ -162,6 +213,8 @@ class VoiceMapper:
         Returns:
             VoiceConfig for the guest
         """
+        tier = main_config.tier
+
         # Alternate gender for odd guests
         if guest_index % 2 == 0:
             gender = "FEMALE" if main_config.gender == "MALE" else "MALE"
@@ -170,17 +223,32 @@ class VoiceMapper:
             gender = main_config.gender
             pitch_mod = -2
 
-        # Get base voice for new gender
-        voice_id = self.get_voice_id(gender, main_config.accent)
+        # Get voice variants for variety
+        variants = (
+            self.NEURAL2_VARIANTS[gender]
+            if tier == "neural"
+            else self.STANDARD_VARIANTS[gender]
+        )
+
+        # Select variant based on guest index
+        variant_index = guest_index % len(variants)
+        voice_id = variants[variant_index]
 
         # Parse current rate and pitch to modify
-        current_rate = int(main_config.rate.replace("%", "").replace("+", ""))
-        current_pitch = int(main_config.pitch.replace("Hz", "").replace("+", ""))
+        try:
+            current_rate = int(main_config.rate.replace("%", "").replace("+", ""))
+        except ValueError:
+            current_rate = 0
+
+        try:
+            current_pitch = int(main_config.pitch.replace("Hz", "").replace("+", ""))
+        except ValueError:
+            current_pitch = 0
 
         # Slight speed variation
-        speed_mod = 1 if guest_index % 2 == 0 else -1
-        new_rate = max(-30, min(30, current_rate + (speed_mod * 5)))
-        new_pitch = max(-30, min(30, current_pitch + (pitch_mod * 10)))
+        speed_mod = 3 if guest_index % 2 == 0 else -3
+        new_rate = max(-30, min(30, current_rate + speed_mod))
+        new_pitch = max(-30, min(30, current_pitch + (pitch_mod * 8)))
 
         rate_sign = "+" if new_rate >= 0 else ""
         pitch_sign = "+" if new_pitch >= 0 else ""
@@ -191,4 +259,5 @@ class VoiceMapper:
             accent=main_config.accent,
             rate=f"{rate_sign}{new_rate}%",
             pitch=f"{pitch_sign}{new_pitch}Hz",
+            tier=tier,
         )

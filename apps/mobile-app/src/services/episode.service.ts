@@ -4,6 +4,7 @@ export type EpisodeType = 'MONOLOGUE' | 'DUO' | 'GROUP';
 export type EpisodeTheme = 'LECTURE' | 'DISCUSSION' | 'DEBATE';
 export type ContentCoverage = 'ENTIRE_BOOK' | 'MULTIPLE_CHAPTERS' | 'SINGLE_CHAPTER';
 export type EpisodeStatus = 'PENDING' | 'SCRIPT_GENERATING' | 'SCRIPT_GENERATED' | 'AUDIO_GENERATING' | 'COMPLETED' | 'FAILED';
+export type VoiceTier = 'STANDARD' | 'NEURAL';
 
 export interface Episode {
     id: string;
@@ -18,6 +19,7 @@ export interface Episode {
     episodeTheme: EpisodeTheme;
     targetLengthMin: number;
     targetLengthMax: number;
+    voiceTier: VoiceTier;
     scriptContent?: string;
     audioFileKey?: string;
     generationStatus: EpisodeStatus;
@@ -58,6 +60,7 @@ export interface CreateEpisodeDto {
     episodeTheme: EpisodeTheme;
     targetLengthMin: number;
     targetLengthMax: number;
+    voiceTier?: VoiceTier;
 }
 
 export interface CreateEpisodeWithFileDto {
@@ -70,6 +73,7 @@ export interface CreateEpisodeWithFileDto {
     episodeTheme: EpisodeTheme;
     targetLengthMin: number;
     targetLengthMax: number;
+    voiceTier?: VoiceTier;
 }
 
 export interface FileUpload {
@@ -135,6 +139,10 @@ class EpisodeService {
 
         if (episodeData.chapters && episodeData.chapters.length > 0) {
             formData.append('chapters', JSON.stringify(episodeData.chapters));
+        }
+
+        if (episodeData.voiceTier) {
+            formData.append('voiceTier', episodeData.voiceTier);
         }
 
         console.log('[EpisodeService] All fields appended, calling API...');

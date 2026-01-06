@@ -1,6 +1,6 @@
 # BookCast AI Worker
 
-Python microservice for AI-powered podcast generation. Handles script generation (via HuggingFace API with template fallback) and text-to-speech conversion (via Microsoft Edge TTS).
+Python microservice for AI-powered podcast generation. Handles script generation (via OpenAI GPT-4o mini with template fallback) and text-to-speech conversion (via Google Cloud TTS).
 
 ## Architecture
 
@@ -14,7 +14,7 @@ ai-worker/
 │   │   └── templates/    # Fallback template generator
 │   ├── redis/            # Redis client for progress tracking
 │   ├── storage/          # Local file storage
-│   ├── tts/              # Text-to-speech engine
+│   ├── tts/              # Text-to-speech engine (Google Cloud)
 │   └── utils/            # Logging utilities
 ├── tests/                # Unit & integration tests
 ├── Dockerfile
@@ -24,9 +24,11 @@ ai-worker/
 
 ## Features
 
-- **Script Generation**: HuggingFace API (Mistral-7B) with template fallback
-- **Text-to-Speech**: Microsoft Edge TTS (free, unlimited)
+- **Script Generation**: OpenAI GPT-4o mini with template fallback
+- **Text-to-Speech**: Google Cloud TTS (Standard and Neural2 tiers)
+- **Voice Tiers**: Standard ($4/1M chars) or Neural2 ($16/1M chars)
 - **Episode Types**: MONOLOGUE, DUO, GROUP (multi-voice support)
+- **Episode Length**: 5-30 minutes
 - **Voice Customization**: Gender, accent, speaking speed, vocal pitch
 - **Retry Logic**: 3 automatic retries with exponential backoff
 - **Dead Letter Queue**: Failed jobs routed to DLQ after max retries
@@ -37,9 +39,28 @@ ai-worker/
 | Parameter | Range | TTS Support |
 |-----------|-------|-------------|
 | Gender | MALE/FEMALE | Voice selection |
-| Accent | 9 regions | Voice selection |
+| Accent | 6 regions | Voice selection |
 | Speaking Speed | 1-10 | Rate: -30% to +30% |
 | Vocal Pitch | 1-10 | Pitch: -30Hz to +30Hz |
+| Voice Tier | STANDARD/NEURAL | Quality & cost |
+
+### Supported Accents
+
+| Accent | Google Cloud Voice |
+|--------|-------------------|
+| United States | en-US voices |
+| United Kingdom | en-GB voices |
+| Australia | en-AU voices |
+| Canada | en-US voices |
+| Ireland | en-GB voices |
+| India | en-IN voices |
+
+### Voice Tiers
+
+| Tier | Cost | Quality | Use Case |
+|------|------|---------|----------|
+| Standard | $4/1M chars | Good | Free tier users |
+| Neural2 | $16/1M chars | Premium | Paid subscribers |
 
 ## Environment Variables
 
@@ -56,9 +77,14 @@ DATABASE_URL=postgresql://user:pass@localhost:5432/bookcast
 REDIS_HOST=localhost
 REDIS_PORT=6379
 
-# LLM (optional)
-HUGGINGFACE_API_KEY=your_key_here
-HUGGINGFACE_MODEL=mistralai/Mistral-7B-Instruct-v0.2
+# LLM - OpenAI
+OPENAI_API_KEY=your_openai_key_here
+OPENAI_MODEL=gpt-4o-mini
+
+# Google Cloud TTS
+GOOGLE_CLOUD_PROJECT_ID=your_project_id
+GOOGLE_CLOUD_CREDENTIALS_PATH=/path/to/credentials.json
+TTS_VOICE_TIER=neural  # Default tier: standard or neural
 
 # Storage
 LOCAL_STORAGE_PATH=./storage
@@ -66,6 +92,7 @@ TTS_TEMP_DIR=./temp/tts
 
 # Processing
 LOG_LEVEL=INFO
+MAX_BOOK_CONTENT_CHARS=100000
 ```
 
 ## Local Development
@@ -112,10 +139,10 @@ docker run -e RABBITMQ_URL=amqp://host:5672 \
 1. Job received from RabbitMQ (episode_generation queue)
 2. Status: PENDING → SCRIPT_GENERATING (progress: 10%)
 3. Fetch book content + podcaster from database (progress: 20%)
-4. Generate script (HuggingFace API or templates) (progress: 40%)
+4. Generate script (OpenAI GPT-4o mini or templates) (progress: 40%)
 5. Status: SCRIPT_GENERATED (progress: 60%)
 6. Status: AUDIO_GENERATING (progress: 80%)
-7. Generate audio (Edge TTS)
+7. Generate audio (Google Cloud TTS - Standard or Neural2)
 8. Concatenate segments (if multi-voice)
 9. Save to storage: {userId}/{episodeId}/audio.mp3
 10. Status: COMPLETED (progress: 100%)

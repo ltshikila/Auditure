@@ -127,6 +127,7 @@ export class EpisodesService {
                 episodeTheme: createEpisodeDto.episodeTheme,
                 targetLengthMin: createEpisodeDto.targetLengthMin,
                 targetLengthMax: createEpisodeDto.targetLengthMax,
+                voiceTier: createEpisodeDto.voiceTier || 'NEURAL',
             });
 
             this.logger.log(`Created episode ${episode.id} and queued for generation`);
@@ -227,6 +228,7 @@ export class EpisodesService {
                         episodeTheme: createEpisodeDto.episodeTheme,
                         targetLengthMin: createEpisodeDto.targetLengthMin,
                         targetLengthMax: createEpisodeDto.targetLengthMax,
+                        voiceTier: createEpisodeDto.voiceTier || 'NEURAL',
                         generationStatus: 'PENDING',
                     },
                 });
@@ -254,6 +256,7 @@ export class EpisodesService {
                         episodeTheme: createEpisodeDto.episodeTheme,
                         targetLengthMin: createEpisodeDto.targetLengthMin,
                         targetLengthMax: createEpisodeDto.targetLengthMax,
+                        voiceTier: createEpisodeDto.voiceTier || 'NEURAL',
                     });
                     this.logger.log(`Episode ${episode.id} queued for generation immediately`);
                 } catch (mqError) {
@@ -814,6 +817,7 @@ export class EpisodesService {
             episodeTheme: episode.episodeTheme as any,
             targetLengthMin: episode.targetLengthMin,
             targetLengthMax: episode.targetLengthMax,
+            voiceTier: episode.voiceTier as any || 'NEURAL',
         });
 
         this.logger.log(`Retrying episode generation for ${episode.id}`);

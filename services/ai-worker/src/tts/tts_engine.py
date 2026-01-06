@@ -1,14 +1,13 @@
-"""TTS engine orchestrator."""
+"""TTS engine orchestrator using Google Cloud TTS."""
 
 import logging
-import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Dict, Optional
 
 from src.config import get_settings
 from .voice_mapper import VoiceMapper, VoiceConfig
-from .edge_tts_client import EdgeTTSClient
+from .google_tts_client import GoogleTTSClient
 from .script_parser import ScriptParser, SpeakerSegment
 from .audio_processor import AudioProcessor
 
@@ -22,6 +21,7 @@ class TTSResult:
     audio_buffer: bytes
     duration: int  # seconds
     format: str  # "mp3"
+    estimated_cost: float  # Estimated TTS cost in USD
 
 
 @dataclass
@@ -35,13 +35,18 @@ class PodcasterVoice:
 
 
 class TTSEngine:
-    """Orchestrates text-to-speech generation."""
+    """Orchestrates text-to-speech generation using Google Cloud TTS."""
 
-    def __init__(self):
-        """Initialize TTS engine with components."""
+    def __init__(self, voice_tier: Optional[str] = None):
+        """Initialize TTS engine with components.
+
+        Args:
+            voice_tier: Override voice tier ("standard" or "neural")
+        """
         settings = get_settings()
+        self.voice_tier = voice_tier or settings.tts_voice_tier
         self.voice_mapper = VoiceMapper()
-        self.tts_client = EdgeTTSClient()
+        self.tts_client = GoogleTTSClient()
         self.script_parser = ScriptParser()
         self.audio_processor = AudioProcessor()
         self.words_per_minute = settings.words_per_minute
@@ -52,6 +57,7 @@ class TTSEngine:
         script: str,
         podcaster_voice: PodcasterVoice,
         episode_type: str,
+        voice_tier: Optional[str] = None,
     ) -> TTSResult:
         """
         Generate audio from podcast script.
@@ -60,25 +66,42 @@ class TTSEngine:
             script: The podcast script text
             podcaster_voice: Main podcaster's voice settings
             episode_type: MONOLOGUE, DUO, or GROUP
+            voice_tier: Override voice tier for this episode
 
         Returns:
-            TTSResult with audio buffer and metadata
+            TTSResult with audio buffer, duration, and cost estimate
         """
-        logger.info(f"Generating TTS for {episode_type} episode")
+        tier = voice_tier or self.voice_tier
+        logger.info(f"Generating TTS for {episode_type} episode using {tier} voices")
 
         # Parse script into segments
         segments = self.script_parser.parse(script, episode_type)
         logger.info(f"Parsed {len(segments)} segments")
 
+        # Calculate total characters for cost estimation
+        total_chars = sum(len(seg.text) for seg in segments)
+
         if episode_type == "MONOLOGUE":
-            return self._generate_monologue(segments, podcaster_voice)
+            result = self._generate_monologue(segments, podcaster_voice, tier)
         else:
-            return self._generate_multi_voice(segments, podcaster_voice)
+            result = self._generate_multi_voice(segments, podcaster_voice, tier)
+
+        # Calculate cost estimate
+        if tier == "neural":
+            cost = (total_chars / 1_000_000) * 16  # $16/1M chars
+        else:
+            cost = (total_chars / 1_000_000) * 4   # $4/1M chars
+
+        result.estimated_cost = cost
+        logger.info(f"TTS generation complete. Duration: {result.duration}s, Est. cost: ${cost:.4f}")
+
+        return result
 
     def _generate_monologue(
         self,
         segments: List[SpeakerSegment],
         podcaster_voice: PodcasterVoice,
+        voice_tier: str,
     ) -> TTSResult:
         """Generate audio for monologue (single voice)."""
         # Get voice config for main podcaster
@@ -87,13 +110,16 @@ class TTSEngine:
             accent=podcaster_voice.accent,
             speaking_speed=podcaster_voice.speaking_speed,
             vocal_pitch=podcaster_voice.vocal_pitch,
+            tier=voice_tier,
         )
 
         # Combine all text
         full_text = " ".join(seg.text for seg in segments)
 
         # Generate audio
-        audio_buffer = self.tts_client.generate_audio(full_text, voice_config)
+        audio_buffer = self.tts_client.generate_audio(
+            full_text, voice_config, voice_tier
+        )
 
         # Get duration
         duration = self.audio_processor.get_buffer_duration(audio_buffer)
@@ -107,12 +133,14 @@ class TTSEngine:
             audio_buffer=audio_buffer,
             duration=duration,
             format="mp3",
+            estimated_cost=0.0,  # Will be set by caller
         )
 
     def _generate_multi_voice(
         self,
         segments: List[SpeakerSegment],
         main_podcaster: PodcasterVoice,
+        voice_tier: str,
     ) -> TTSResult:
         """Generate audio for multi-voice episodes (DUO/GROUP)."""
         # Get unique speakers
@@ -120,7 +148,7 @@ class TTSEngine:
         logger.info(f"Speakers: {speakers}")
 
         # Create voice configs for each speaker
-        voice_configs = self._assign_voices(speakers, main_podcaster)
+        voice_configs = self._assign_voices(speakers, main_podcaster, voice_tier)
 
         # Generate audio for each segment
         audio_buffers: List[bytes] = []
@@ -132,7 +160,7 @@ class TTSEngine:
                 logger.debug(f"Generating segment {i+1}/{len(segments)}: {segment.speaker}")
 
                 audio_buffer = self.tts_client.generate_audio(
-                    segment.text, voice_config
+                    segment.text, voice_config, voice_tier
                 )
                 audio_buffers.append(audio_buffer)
 
@@ -155,6 +183,7 @@ class TTSEngine:
                 audio_buffer=combined_buffer,
                 duration=duration,
                 format="mp3",
+                estimated_cost=0.0,  # Will be set by caller
             )
 
         finally:
@@ -165,6 +194,7 @@ class TTSEngine:
         self,
         speakers: List[str],
         main_podcaster: PodcasterVoice,
+        voice_tier: str,
     ) -> Dict[str, VoiceConfig]:
         """Assign voice configs to each speaker."""
         voice_configs: Dict[str, VoiceConfig] = {}
@@ -175,6 +205,7 @@ class TTSEngine:
             accent=main_podcaster.accent,
             speaking_speed=main_podcaster.speaking_speed,
             vocal_pitch=main_podcaster.vocal_pitch,
+            tier=voice_tier,
         )
 
         guest_index = 0

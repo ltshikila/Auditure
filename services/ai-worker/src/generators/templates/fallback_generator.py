@@ -37,6 +37,23 @@ class FallbackGenerator:
         "Consider for a moment",
         "The author makes a compelling case when",
         "This connects to a broader theme of",
+        "Now here's something that really caught my attention",
+        "Let me share something fascinating from this section",
+        "This next part is crucial to understand",
+        "I want to highlight something important here",
+        "The more I think about this, the more I realize",
+    ]
+
+    # Extended commentary to add after quotes for more content
+    COMMENTARY = [
+        "This really makes you think about how we approach these situations in our own lives. When you break it down, the implications are quite significant for anyone looking to apply these principles.",
+        "I think this is one of those insights that seems simple on the surface, but the more you sit with it, the more depth you discover. It's the kind of idea that can genuinely shift your perspective.",
+        "What strikes me most about this is how universally applicable it is. Whether you're in business, education, or just navigating everyday life, this principle holds true time and time again.",
+        "Now, some might disagree with this take, and that's fair. But I think when you look at the evidence and real-world examples, it's hard to argue with the core message here.",
+        "This connects to something I've been thinking about a lot lately. In our current world, with all its complexity, these kinds of foundational ideas become even more relevant.",
+        "If there's one thing I want you to take away from this section, it's the practical application. How can you use this in your daily routine? That's where the real value lies.",
+        "The author really nails it here. This isn't just theoretical - it's backed by research and real experience. And that combination of rigor and practicality is what makes it so valuable.",
+        "I've seen this play out so many times in different contexts. The pattern is unmistakable, and once you start recognizing it, you'll see it everywhere.",
     ]
 
     GUEST_REACTIONS = [
@@ -64,25 +81,30 @@ class FallbackGenerator:
         count: int = 12,
     ) -> List[str]:
         """Extract meaningful sentences from book content."""
-        # Split into sentences
+        # Split into sentences - handle multiple sentence-ending patterns
         sentences = re.split(r'(?<=[.!?])\s+', content)
 
-        # Filter for quality sentences
+        # Filter for quality sentences - relaxed criteria for technical content
         quality_sentences = []
         for sentence in sentences:
             sentence = sentence.strip()
-            # Skip short, question-only, or fragment sentences
-            if len(sentence) > 50 and len(sentence.split()) >= 8:
-                # Skip sentences that are too long
-                if len(sentence) < 300:
+            # Accept sentences with at least 30 chars and 5 words (relaxed from 50/8)
+            if len(sentence) > 30 and len(sentence.split()) >= 5:
+                # Accept sentences up to 400 chars (relaxed from 300)
+                if len(sentence) < 400:
                     quality_sentences.append(sentence)
+
+        logger.debug(f"Found {len(quality_sentences)} quality sentences from {len(sentences)} total")
 
         # Take evenly distributed sentences
         if len(quality_sentences) <= count:
+            logger.debug(f"Returning all {len(quality_sentences)} quality sentences (requested {count})")
             return quality_sentences
 
-        step = len(quality_sentences) // count
-        return [quality_sentences[i * step] for i in range(count)]
+        step = max(1, len(quality_sentences) // count)
+        result = [quality_sentences[i * step] for i in range(min(count, len(quality_sentences)))]
+        logger.debug(f"Selected {len(result)} evenly distributed sentences")
+        return result
 
     def generate_intro(
         self,
@@ -125,29 +147,43 @@ HOST: Perfect! Our episode is called "{request.episode_title}". Let's get into i
         if request.episode_type == "MONOLOGUE":
             for i, sentence in enumerate(key_sentences):
                 transition = self.TRANSITIONS[i % len(self.TRANSITIONS)]
+                commentary = self.COMMENTARY[i % len(self.COMMENTARY)]
                 body_parts.append(f"{transition} this passage: \"{sentence}\"")
+                body_parts.append("")
+                body_parts.append(commentary)
                 body_parts.append("")  # Blank line for pacing
 
         elif request.episode_type == "DUO":
             for i, sentence in enumerate(key_sentences):
                 if i % 2 == 0:
                     transition = self.TRANSITIONS[i % len(self.TRANSITIONS)]
+                    commentary = self.COMMENTARY[i % len(self.COMMENTARY)]
                     body_parts.append(f"HOST: {transition} this part: \"{sentence}\"")
+                    body_parts.append("")
+                    body_parts.append(f"HOST: {commentary}")
                 else:
                     reaction = self.GUEST_REACTIONS[i % len(self.GUEST_REACTIONS)]
+                    guest_commentary = self.COMMENTARY[(i + 4) % len(self.COMMENTARY)]
                     body_parts.append(f"GUEST: {reaction} When I read \"{sentence}\", I couldn't help but think about how it applies to our everyday lives.")
+                    body_parts.append("")
+                    body_parts.append(f"GUEST: {guest_commentary}")
                 body_parts.append("")
 
         else:  # GROUP
             speakers = ["HOST", "GUEST1", "GUEST2"]
             for i, sentence in enumerate(key_sentences):
                 speaker = speakers[i % len(speakers)]
+                commentary = self.COMMENTARY[i % len(self.COMMENTARY)]
                 if speaker == "HOST":
                     transition = self.TRANSITIONS[i % len(self.TRANSITIONS)]
                     body_parts.append(f"{speaker}: {transition} this insight: \"{sentence}\"")
+                    body_parts.append("")
+                    body_parts.append(f"{speaker}: {commentary}")
                 else:
                     reaction = self.GUEST_REACTIONS[i % len(self.GUEST_REACTIONS)]
                     body_parts.append(f"{speaker}: {reaction} The part where it says \"{sentence}\" really made me think.")
+                    body_parts.append("")
+                    body_parts.append(f"{speaker}: {commentary}")
                 body_parts.append("")
 
         return "\n".join(body_parts)
@@ -203,25 +239,49 @@ HOST: And to our listeners, thank you for tuning in. Hit that subscribe button a
             Complete podcast script
         """
         logger.info(f"Generating fallback script for: {request.episode_title}")
+        logger.info(f"Target word count: {request.target_word_count}")
 
-        # Calculate how many quotes we need based on target length
-        # Roughly 150 words per minute, each section is about 100-150 words
-        target_quotes = max(8, min(15, request.target_word_count // 200))
+        # Calculate how many sections we need based on target length
+        # Intro + conclusion ≈ 250 words
+        # Each body section generates ~100 words (quote ~40 + transition ~10 + commentary ~50)
+        # To meet target, we need: (target_words - 250) / 100 sections
+        INTRO_CONCLUSION_WORDS = 250
+        WORDS_PER_SECTION = 100
+
+        body_words_needed = max(500, request.target_word_count - INTRO_CONCLUSION_WORDS)
+        target_sections = max(6, body_words_needed // WORDS_PER_SECTION)
+
+        # Cap at reasonable maximum but allow up to 25 sections for longer episodes
+        target_sections = min(25, target_sections)
+
+        logger.info(f"Targeting {target_sections} body sections for ~{body_words_needed + INTRO_CONCLUSION_WORDS} words")
 
         key_sentences = self.extract_key_sentences(
             request.book_content,
-            count=target_quotes,
+            count=target_sections,
         )
 
-        if len(key_sentences) < 3:
-            logger.warning("Not enough quality sentences extracted, using raw content")
-            # Fall back to using chunks of the content
+        logger.info(f"Extracted {len(key_sentences)} key sentences (target: {target_sections})")
+
+        # Always pad if we don't have enough sentences to meet target
+        if len(key_sentences) < target_sections:
+            logger.warning(f"Only extracted {len(key_sentences)} sentences, padding to reach {target_sections}")
             words = request.book_content.split()
-            chunk_size = len(words) // 5
-            key_sentences = [
-                " ".join(words[i * chunk_size:(i + 1) * chunk_size])
-                for i in range(5)
-            ]
+            needed = target_sections - len(key_sentences)
+
+            if len(words) > 50:
+                # Create chunks from the content to fill gaps
+                chunk_size = max(20, min(50, len(words) // max(1, needed + 1)))
+                for i in range(needed):
+                    start = (i * chunk_size * 2) % max(1, len(words) - chunk_size)
+                    chunk = " ".join(words[start:start + chunk_size])
+                    if len(chunk) > 30:
+                        # Trim to reasonable length and add ellipsis if needed
+                        if len(chunk) > 150:
+                            chunk = chunk[:150] + "..."
+                        key_sentences.append(chunk)
+
+            logger.info(f"After padding: {len(key_sentences)} sentences")
 
         intro = self.generate_intro(request)
         body = self.generate_body(request, key_sentences)
@@ -229,5 +289,10 @@ HOST: And to our listeners, thank you for tuning in. Hit that subscribe button a
 
         script = f"{intro}\n\n{body}\n\n{conclusion}"
 
-        logger.info(f"Generated fallback script with {len(script.split())} words")
+        word_count = len(script.split())
+        estimated_minutes = word_count / 150
+        logger.info(
+            f"Generated fallback script: {word_count} words, "
+            f"~{estimated_minutes:.1f} minutes"
+        )
         return script

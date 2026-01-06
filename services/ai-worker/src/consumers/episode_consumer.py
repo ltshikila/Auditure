@@ -5,7 +5,7 @@ from typing import Dict, Any
 
 from src.config import get_settings
 from src.database import get_database_client, EpisodeRepository, EpisodeStatus
-from src.generators import ScriptGenerator
+from src.generators import ScriptGenerator, DurationMismatchError
 from src.tts import TTSEngine, PodcasterVoice
 from src.storage import LocalStorage
 from src.redis import get_redis_client
@@ -61,15 +61,19 @@ class EpisodeConsumer(BaseConsumer):
             "episodeType": "MONOLOGUE" | "DUO" | "GROUP",
             "episodeTheme": "LECTURE" | "DISCUSSION" | "DEBATE",
             "targetLengthMin": 15,
-            "targetLengthMax": 25
+            "targetLengthMax": 25,
+            "voiceTier": "STANDARD" | "NEURAL"
         }
         """
         episode_id = message["episodeId"]
+        voice_tier = message.get("voiceTier", "NEURAL").lower()  # Default to neural
+
         logger.info("=" * 50)
         logger.info(f"[EPISODE] Starting generation for: {episode_id}")
         logger.info(f"[EPISODE] Title: {message.get('title', 'Unknown')}")
         logger.info(f"[EPISODE] Type: {message.get('episodeType')} | Theme: {message.get('episodeTheme')}")
         logger.info(f"[EPISODE] Target length: {message.get('targetLengthMin')}-{message.get('targetLengthMax')} min")
+        logger.info(f"[EPISODE] Voice tier: {voice_tier}")
         logger.info("=" * 50)
 
         try:
@@ -150,7 +154,7 @@ class EpisodeConsumer(BaseConsumer):
             self._update_progress(episode_id, PROGRESS_AUDIO_GENERATING, "AUDIO_GENERATING")
 
             # Step 7: Generate audio
-            logger.info("[STEP 7/9] Generating TTS audio...")
+            logger.info(f"[STEP 7/9] Generating TTS audio (voice tier: {voice_tier})...")
             podcaster_voice = PodcasterVoice(
                 gender=podcaster.gender,
                 accent=podcaster.accent,
@@ -162,6 +166,7 @@ class EpisodeConsumer(BaseConsumer):
                 script=script_result.script,
                 podcaster_voice=podcaster_voice,
                 episode_type=message["episodeType"],
+                voice_tier=voice_tier,
             )
 
             logger.info(f"[STEP 7/9] Audio generated: {tts_result.duration}s ({tts_result.format})")
@@ -191,6 +196,28 @@ class EpisodeConsumer(BaseConsumer):
             logger.info(f"[EPISODE] COMPLETED: {episode_id}")
             logger.info(f"[EPISODE] Duration: {tts_result.duration}s | Words: {script_result.word_count}")
             logger.info("=" * 50)
+
+        except DurationMismatchError as e:
+            # Duration mismatch is a user-recoverable error, not a system failure
+            # Don't retry - the user needs to adjust their request
+            logger.warning("=" * 50)
+            logger.warning(f"[EPISODE] DURATION MISMATCH: {episode_id}")
+            logger.warning(
+                f"[EPISODE] Generated ~{e.estimated_minutes:.1f} min, "
+                f"requested {e.target_min}-{e.target_max} min ({e.word_count} words)"
+            )
+            logger.warning("=" * 50)
+
+            # Update status to FAILED with a user-friendly error message
+            self._update_status(
+                episode_id,
+                EpisodeStatus.FAILED,
+                generation_error=str(e),
+            )
+            self._update_progress(episode_id, 0, "DURATION_MISMATCH")
+
+            # Don't re-raise - this is not a retryable error
+            # The user needs to select more content or adjust duration expectations
 
         except Exception as e:
             logger.error("=" * 50)

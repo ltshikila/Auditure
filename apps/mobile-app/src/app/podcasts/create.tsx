@@ -60,10 +60,7 @@ const Create = () => {
         { label: 'Australia', value: 'Australia' },
         { label: 'Canada', value: 'Canada' },
         { label: 'Ireland', value: 'Ireland' },
-        { label: 'Scotland', value: 'Scotland' },
         { label: 'India', value: 'India' },
-        { label: 'New Zealand', value: 'New Zealand' },
-        { label: 'South Africa', value: 'South Africa' },
     ];
 
     const intellectualAngleOptions = [

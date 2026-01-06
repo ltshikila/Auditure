@@ -191,11 +191,14 @@ Goal: Explore the book through contrasting viewpoints and critical analysis."""
 {theme_instructions}
 
 ## Requirements
-- Target length: approximately {target_words} words ({request.target_length_min}-{request.target_length_max} minutes when spoken)
-- Include an engaging introduction that hooks the listener
-- Cover the key ideas from the book content provided
-- Add your personal insights and commentary
-- End with a memorable conclusion and call to action
+- **CRITICAL: MINIMUM LENGTH**: The script MUST be at least {target_words} words. This is approximately {request.target_length_min}-{request.target_length_max} minutes when spoken at 150 words per minute.
+- DO NOT write a short script. Episodes under {request.target_length_min} minutes are unacceptable and will be rejected.
+- Include an engaging introduction that hooks the listener (at least 100 words)
+- Cover ALL the key ideas from the book content provided - discuss each point in depth with examples and commentary
+- Add extensive personal insights, analysis, and real-world applications for each concept
+- Include transitions between topics that add value, not just "next, let's talk about..."
+- End with a thorough conclusion that summarizes key points and provides a call to action (at least 100 words)
+- When in doubt, add MORE detail, MORE examples, and MORE commentary - longer is better than shorter
 
 ## Book Content to Discuss
 {request.book_content}

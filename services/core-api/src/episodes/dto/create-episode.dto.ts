@@ -29,6 +29,11 @@ export enum ContentCoverage {
     SINGLE_CHAPTER = 'SINGLE_CHAPTER',
 }
 
+export enum VoiceTier {
+    STANDARD = 'STANDARD',  // Google Cloud Standard voices - $4/1M chars
+    NEURAL = 'NEURAL',      // Google Cloud Neural2 voices - $16/1M chars
+}
+
 export class CreateEpisodeDto {
     @IsUUID()
     bookId: string;
@@ -59,13 +64,17 @@ export class CreateEpisodeDto {
 
     @IsInt()
     @Min(5)
-    @Max(120)
+    @Max(30)
     targetLengthMin: number;
 
     @IsInt()
     @Min(5)
-    @Max(120)
+    @Max(30)
     targetLengthMax: number;
+
+    @IsOptional()
+    @IsEnum(VoiceTier)
+    voiceTier?: VoiceTier;
 }
 
 /**
@@ -110,12 +119,16 @@ export class CreateEpisodeWithFileDto {
     @Transform(({ value }) => parseInt(value, 10))
     @IsInt()
     @Min(5)
-    @Max(120)
+    @Max(30)
     targetLengthMin: number;
 
     @Transform(({ value }) => parseInt(value, 10))
     @IsInt()
     @Min(5)
-    @Max(120)
+    @Max(30)
     targetLengthMax: number;
+
+    @IsOptional()
+    @IsEnum(VoiceTier)
+    voiceTier?: VoiceTier;
 }
