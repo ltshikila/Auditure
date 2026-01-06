@@ -1,4 +1,4 @@
-# BookCast Mobile App
+# Narratica Mobile App
 
 The client-facing mobile application built with **React Native** and **Expo**. It provides a seamless cross-platform experience for iOS and Android, handling user authentication, book uploads, virtual podcaster management, episode generation, and audio playback.
 

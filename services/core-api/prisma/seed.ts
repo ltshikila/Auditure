@@ -8,7 +8,7 @@ import * as bcrypt from 'bcrypt';
 const pool = new Pool({
   host: 'localhost',
   port: 5432,
-  database: 'bookcast_db',
+  database: 'narratica_db',
   user: 'admin',
   password: 'password',
 });
@@ -26,12 +26,12 @@ async function main() {
   const hashedPassword = await bcrypt.hash('Password123', 10);
 
   const user1 = await prisma.user.upsert({
-    where: { email: 'test@bookcast.com' },
+    where: { email: 'test@narratica.io' },
     update: {
       password: hashedPassword,
     },
     create: {
-      email: 'test@bookcast.com',
+      email: 'test@narratica.io',
       password: hashedPassword,
       firstName: 'Test',
       lastName: 'User',
@@ -40,12 +40,12 @@ async function main() {
   });
 
   const user2 = await prisma.user.upsert({
-    where: { email: 'demo@bookcast.com' },
+    where: { email: 'demo@narratica.io' },
     update: {
       password: hashedPassword,
     },
     create: {
-      email: 'demo@bookcast.com',
+      email: 'demo@narratica.io',
       password: hashedPassword,
       firstName: 'Demo',
       lastName: 'User',

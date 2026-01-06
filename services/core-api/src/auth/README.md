@@ -289,9 +289,9 @@ JWT_REFRESH_EXPIRES_IN=7d
 # Email Configuration
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
-EMAIL_USER=noreply@bookcast.com
+EMAIL_USER=noreply@narratica.io
 EMAIL_PASSWORD=your-email-password
-EMAIL_FROM=BookCast <noreply@bookcast.com>
+EMAIL_FROM=Narratica <noreply@narratica.io>
 
 # OTP Configuration
 OTP_EXPIRY_MINUTES=10

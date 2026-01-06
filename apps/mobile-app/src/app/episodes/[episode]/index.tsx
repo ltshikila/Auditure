@@ -91,7 +91,7 @@ export default function EpisodeInfoScreen() {
         if (episode) {
             try {
                 await Share.share({
-                    message: `Check out "${episode.title}" on BookCast!`,
+                    message: `Check out "${episode.title}" on Narratica!`,
                 });
                 await episodeService.share(episode.id);
             } catch (error) {

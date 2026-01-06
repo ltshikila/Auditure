@@ -1,10 +1,10 @@
-# BookCast
+# Narratica
 
-BookCast is a mobile-first application that converts book content into AI-generated podcast episodes featuring customizable virtual hosts. Users can upload books (PDF/EPUB), configure virtual "podcasters" with distinct personalities, and generate multi-speaker audio episodes (monologue, dual-host, or group conversations) using LLMs and Text-to-Speech engines.
+Narratica is a mobile-first application that converts book content into AI-generated podcast episodes featuring customizable virtual hosts. Users can upload books (PDF/EPUB), configure virtual "podcasters" with distinct personalities, and generate multi-speaker audio episodes (monologue, dual-host, or group conversations) using LLMs and Text-to-Speech engines.
 
 ## System Architecture
 
-BookCast follows a **Mobile-Client / Cloud-Backend** architecture:
+Narratica follows a **Mobile-Client / Cloud-Backend** architecture:
 
 * **Frontend:** React Native (Expo) for iOS and Android
 * **Backend (Core):** NestJS API Gateway handling routing, authentication, and orchestration
@@ -16,7 +16,7 @@ BookCast follows a **Mobile-Client / Cloud-Backend** architecture:
 This project is configured as an NPM Monorepo using Workspaces.
 
 ```text
-BookCast/
+Narratica/
 ├── apps/
 │   └── mobile-app/          # React Native client (Expo)
 ├── services/

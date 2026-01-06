@@ -1,4 +1,4 @@
-# BookCast AI Worker
+# Narratica AI Worker
 
 Python microservice for AI-powered podcast generation. Handles script generation (via OpenAI GPT-4o mini with template fallback) and text-to-speech conversion (via Google Cloud TTS).
 
@@ -71,7 +71,7 @@ EPISODE_GENERATION_QUEUE=episode_generation
 EPISODE_GENERATION_DLQ=episode_generation_dlq
 
 # Database
-DATABASE_URL=postgresql://user:pass@localhost:5432/bookcast
+DATABASE_URL=postgresql://user:pass@localhost:5432/narratica
 
 # Redis (for progress tracking)
 REDIS_HOST=localhost
@@ -116,13 +116,13 @@ python -m src.main
 
 ```bash
 # Build
-docker build -t bookcast-ai-worker .
+docker build -t narratica-ai-worker .
 
 # Run
 docker run -e RABBITMQ_URL=amqp://host:5672 \
            -e DATABASE_URL=postgresql://... \
            -v ./storage:/storage \
-           bookcast-ai-worker
+           narratica-ai-worker
 ```
 
 ## System Requirements

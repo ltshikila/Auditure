@@ -1,4 +1,4 @@
-# BookCast Authentication System
+# Narratica Authentication System
 
 Complete JWT-based authentication with email 2FA implementation for both frontend (React Native) and backend (NestJS).
 
@@ -71,7 +71,7 @@ EMAIL_HOST="smtp.gmail.com"
 EMAIL_PORT="587"
 EMAIL_USER="your-email@gmail.com"
 EMAIL_PASSWORD="your-app-password"  # Use App Password for Gmail
-EMAIL_FROM="BookCast <noreply@bookcast.com>"
+EMAIL_FROM="Narratica <noreply@narratica.io>"
 
 # OTP Configuration
 OTP_EXPIRY_MINUTES="10"
@@ -526,7 +526,7 @@ apps/mobile-app/
 | EMAIL_PORT | SMTP port | `587` |
 | EMAIL_USER | Email address | `your@email.com` |
 | EMAIL_PASSWORD | Email app password | `xxxx xxxx xxxx xxxx` |
-| EMAIL_FROM | From header | `BookCast <noreply@bookcast.com>` |
+| EMAIL_FROM | From header | `Narratica <noreply@narratica.io>` |
 | OTP_EXPIRY_MINUTES | OTP validity duration | `10` |
 
 ### Frontend (.env)

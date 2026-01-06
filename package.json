@@ -1,5 +1,5 @@
 {
-  "name": "bookcast-monorepo",
+  "name": "narratica-monorepo",
   "version": "1.0.0",
   "private": true,
   "workspaces": [

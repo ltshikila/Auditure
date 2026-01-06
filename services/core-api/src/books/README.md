@@ -486,7 +486,7 @@ MAX_FILE_SIZE=52428800  # 50MB in bytes
 ```env
 STORAGE_BACKEND=s3
 AWS_REGION=us-east-1
-AWS_S3_BUCKET=bookcast-files
+AWS_S3_BUCKET=narratica-files
 AWS_ACCESS_KEY_ID=your-key
 AWS_SECRET_ACCESS_KEY=your-secret
 ```

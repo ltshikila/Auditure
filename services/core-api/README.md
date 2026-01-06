@@ -1,10 +1,10 @@
-# BookCast Core API
+# Narratica Core API
 
-Backend API service for the BookCast application - Transform books into podcast-style audio content.
+Backend API service for the Narratica application - Transform books into podcast-style audio content.
 
 ## Overview
 
-The Core API is built with NestJS and provides authentication, book management, text extraction, and integration points for the BookCast ecosystem.
+The Core API is built with NestJS and provides authentication, book management, text extraction, and integration points for the Narratica ecosystem.
 
 ### Key Features
 
@@ -95,16 +95,16 @@ cd infra && docker-compose up -d
 cd infra && docker-compose down
 
 # View logs
-docker logs bookcast_db
-docker logs bookcast_redis
-docker logs bookcast_mq
+docker logs narratica_db
+docker logs narratica_redis
+docker logs narratica_mq
 ```
 
 | Service | Container | Port |
 |---------|-----------|------|
-| PostgreSQL | bookcast_db | 5432 |
-| Redis | bookcast_redis | 6379 |
-| RabbitMQ | bookcast_mq | 5672, 15672 |
+| PostgreSQL | narratica_db | 5432 |
+| Redis | narratica_redis | 6379 |
+| RabbitMQ | narratica_mq | 5672, 15672 |
 
 ### Running the Application
 
@@ -128,7 +128,7 @@ Create a `.env` file in the root directory:
 
 ```env
 # Database
-DATABASE_URL="postgresql://user:password@localhost:5432/bookcast?schema=public"
+DATABASE_URL="postgresql://user:password@localhost:5432/narratica?schema=public"
 
 # JWT Authentication
 JWT_SECRET="your-super-secret-jwt-key"
@@ -141,7 +141,7 @@ EMAIL_HOST="smtp.gmail.com"
 EMAIL_PORT="587"
 EMAIL_USER="your-email@gmail.com"
 EMAIL_PASSWORD="your-app-password"
-EMAIL_FROM="BookCast <noreply@bookcast.com>"
+EMAIL_FROM="Narratica <noreply@narratica.io>"
 
 # OTP Configuration
 OTP_EXPIRY_MINUTES="10"
@@ -377,10 +377,10 @@ CMD ["npm", "run", "start:prod"]
 
 ```bash
 # Build image
-docker build -t bookcast-api .
+docker build -t narratica-api .
 
 # Run container
-docker run -p 3000:3000 --env-file .env bookcast-api
+docker run -p 3000:3000 --env-file .env narratica-api
 ```
 
 ## Monitoring & Logging
@@ -532,10 +532,10 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Support
 
-- 📧 Email: support@bookcast.com
-- 💬 Discord: [BookCast Community](https://discord.gg/bookcast)
-- 📚 Documentation: [docs.bookcast.com](https://docs.bookcast.com)
-- 🐛 Issues: [GitHub Issues](https://github.com/bookcast/issues)
+- 📧 Email: support@narratica.io
+- 💬 Discord: [Narratica Community](https://discord.gg/narratica)
+- 📚 Documentation: [docs.narratica.io](https://docs.narratica.io)
+- 🐛 Issues: [GitHub Issues](https://github.com/narratica/issues)
 
 ## Roadmap
 
@@ -556,4 +556,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-Built with ❤️ by the BookCast Team
+Built with ❤️ by the Narratica Team

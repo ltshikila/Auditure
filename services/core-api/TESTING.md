@@ -1,6 +1,6 @@
 # Testing Guide
 
-Comprehensive testing documentation for the BookCast Core API.
+Comprehensive testing documentation for the Narratica Core API.
 
 ## Overview
 
@@ -120,7 +120,7 @@ EMAIL_HOST="smtp.gmail.com"
 EMAIL_PORT="587"
 EMAIL_USER="test@example.com"
 EMAIL_PASSWORD="test-password"
-EMAIL_FROM="BookCast <noreply@bookcast.com>"
+EMAIL_FROM="Narratica <noreply@narratica.io>"
 
 OTP_EXPIRY_MINUTES="10"
 

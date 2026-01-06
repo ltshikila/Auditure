@@ -1,1 +1,1 @@
-"""Test suite for BookCast AI Worker."""
+"""Test suite for Narratica AI Worker."""

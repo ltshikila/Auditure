@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     episode_generation_dlq: str = "episode_generation_dlq"
 
     # Database
-    database_url: str = "postgresql://postgres:password@localhost:5432/bookcast"
+    database_url: str = "postgresql://postgres:password@localhost:5432/narratica"
 
     # Redis
     redis_host: str = "localhost"

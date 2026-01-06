@@ -1,4 +1,4 @@
-# BookCast AI Worker Dockerfile
+# Narratica AI Worker Dockerfile
 FROM python:3.11-slim
 
 # Set working directory

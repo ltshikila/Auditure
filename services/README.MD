@@ -1,4 +1,4 @@
-# BookCast Backend Services
+# Narratica Backend Services
 
 The backend is composed of a **Core API** (NestJS) and **AI Workers** (Python), decoupled via RabbitMQ message broker. This architecture ensures scalability, maintainability, and separation of concerns between business logic and computationally intensive AI tasks.
 
@@ -293,7 +293,7 @@ NODE_ENV=development
 PORT=3000
 
 # Database (NFR-6)
-DATABASE_URL=postgresql://admin:password@localhost:5432/bookcast_db
+DATABASE_URL=postgresql://admin:password@localhost:5432/narratica_db
 DB_SSL=false
 
 # RabbitMQ (NFR-5)
@@ -318,7 +318,7 @@ APPLE_CLIENT_SECRET=your-apple-secret
 AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=your-aws-key
 AWS_SECRET_ACCESS_KEY=your-aws-secret
-S3_BUCKET=bookcast-audio-production
+S3_BUCKET=narratica-audio-production
 
 # Security (NFR-10, NFR-11)
 BCRYPT_ROUNDS=12
@@ -338,7 +338,7 @@ EPISODE_GENERATION_QUEUE=episode_generation
 EPISODE_GENERATION_DLQ=episode_generation_dlq
 
 # Database
-DATABASE_URL=postgresql://admin:password@localhost:5432/bookcast_db
+DATABASE_URL=postgresql://admin:password@localhost:5432/narratica_db
 
 # LLM (HuggingFace)
 HUGGINGFACE_API_KEY=your-huggingface-api-key
@@ -463,10 +463,10 @@ Both services include Dockerfiles for containerization:
 
 ```bash
 # Build Core API
-docker build -t bookcast-core-api ./services/core-api
+docker build -t narratica-core-api ./services/core-api
 
 # Build AI Worker
-docker build -t bookcast-ai-worker ./services/ai-worker
+docker build -t narratica-ai-worker ./services/ai-worker
 ```
 
 ### Kubernetes Deployment

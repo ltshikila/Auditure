@@ -1,7 +1,7 @@
 # Podcasters/Studio Service Implementation
 
 ## Overview
-The Podcasters service (also known as the Studio service) is the foundation for podcast generation in BookCast. It manages virtual podcaster configurations that define how podcast episodes are generated. Each podcaster has a unique personality, voice, and intellectual approach that influences all episodes created with it.
+The Podcasters service (also known as the Studio service) is the foundation for podcast generation in Narratica. It manages virtual podcaster configurations that define how podcast episodes are generated. Each podcaster has a unique personality, voice, and intellectual approach that influences all episodes created with it.
 
 ## Database Schema
 

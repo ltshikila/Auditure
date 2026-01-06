@@ -1,4 +1,4 @@
-"""Main entry point for BookCast AI Worker."""
+"""Main entry point for Narratica AI Worker."""
 
 import logging
 import sys
@@ -21,7 +21,7 @@ def main() -> None:
     setup_logging(settings.log_level)
 
     logger.info("=" * 60)
-    logger.info("BookCast AI Worker starting...")
+    logger.info("Narratica AI Worker starting...")
     logger.info("=" * 60)
     logger.info(f"RabbitMQ URL: {settings.rabbitmq_url}")
     logger.info(f"Database URL: {settings.database_url.split('@')[-1]}")  # Hide credentials

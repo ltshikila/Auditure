@@ -31,9 +31,9 @@ export class EmailService {
 
     async sendOTP(email: string, otp: string): Promise<void> {
         const mailOptions = {
-            from: process.env.EMAIL_FROM || 'BookCast <noreply@bookcast.com>',
+            from: process.env.EMAIL_FROM || 'Narratica <noreply@narratica.io>',
             to: email,
-            subject: 'Your BookCast Verification Code',
+            subject: 'Your Narratica Verification Code',
             html: `
         <!DOCTYPE html>
         <html>
@@ -50,15 +50,15 @@ export class EmailService {
         <body>
           <div class="container">
             <div class="header">
-              <h1>BookCast Verification</h1>
+              <h1>Narratica Verification</h1>
             </div>
             <div class="content">
               <p>Hello,</p>
-              <p>Thank you for signing up with BookCast! To complete your registration, please use the verification code below:</p>
+              <p>Thank you for signing up with Narratica! To complete your registration, please use the verification code below:</p>
               <div class="otp-code">${otp}</div>
               <p>This code will expire in ${process.env.OTP_EXPIRY_MINUTES || '10'} minutes.</p>
               <p>If you didn't request this code, please ignore this email.</p>
-              <p>Best regards,<br>The BookCast Team</p>
+              <p>Best regards,<br>The Narratica Team</p>
             </div>
             <div class="footer">
               <p>This is an automated message, please do not reply to this email.</p>
