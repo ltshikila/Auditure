@@ -1,4 +1,4 @@
-# Narratica Pricing Strategy & Financial Analysis
+# Auditure Pricing Strategy & Financial Analysis
 
 > Comprehensive documentation covering subscription tiers, cost structure, scaling projections, and business model recommendations.
 

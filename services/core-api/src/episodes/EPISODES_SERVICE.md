@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Episodes Service is the core content generation engine for Narratica. It handles the creation of podcast episodes from books using virtual podcasters. The service orchestrates script generation (via AI) and text-to-speech conversion to produce complete podcast episodes.
+The Episodes Service is the core content generation engine for Auditure. It handles the creation of podcast episodes from books using virtual podcasters. The service orchestrates script generation (via AI) and text-to-speech conversion to produce complete podcast episodes.
 
 ## Architecture
 

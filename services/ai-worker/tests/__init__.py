@@ -1,1 +1,1 @@
-"""Test suite for Narratica AI Worker."""
+"""Test suite for Auditure AI Worker."""

@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Narratica",
-    "slug": "Narratica",
+    "name": "Auditure",
+    "slug": "Auditure",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./src/assets/images/icon.png",
-    "scheme": "narratica",
+    "scheme": "auditure",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -15,7 +15,7 @@
       }
     },
     "android": {
-      "package": "com.narratica.app",
+      "package": "com.auditure.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./src/assets/images/android-icon-foreground.png",

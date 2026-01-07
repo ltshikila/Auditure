@@ -1,9 +1,9 @@
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const ACCESS_TOKEN_KEY = 'narratica_access_token';
-const REFRESH_TOKEN_KEY = 'narratica_refresh_token';
-const USER_KEY = 'narratica_user';
+const ACCESS_TOKEN_KEY = 'auditure_access_token';
+const REFRESH_TOKEN_KEY = 'auditure_refresh_token';
+const USER_KEY = 'auditure_user';
 
 class StorageService {
   async saveTokens(accessToken: string, refreshToken: string): Promise<void> {

@@ -1,6 +1,6 @@
-# Prisma Guide for Narratica Core API
+# Prisma Guide for Auditure Core API
 
-This guide covers how Prisma is used in the Narratica project, including setup, development workflow, and common operations.
+This guide covers how Prisma is used in the Auditure project, including setup, development workflow, and common operations.
 
 ## Table of Contents
 
@@ -41,7 +41,7 @@ npm run db:start
 docker-compose up -d
 
 # The database will be available at:
-# postgres://postgres:postgres@localhost:5432/narratica
+# postgres://postgres:postgres@localhost:5432/auditure
 ```
 
 ### Managing the Development Database
@@ -116,7 +116,7 @@ Your PostgreSQL data is stored in a Docker volume named `core-api_postgres_data`
 Your `.env` file should contain:
 
 ```env
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/narratica?schema=public"
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/auditure?schema=public"
 ```
 
 This connects to the PostgreSQL container running via Docker Compose.
@@ -195,7 +195,7 @@ npm run db:seed
 ```
 
 **Seed Data Includes**:
-- 2 test users (`test@narratica.io` and `demo@narratica.io`, password: `Password123`)
+- 2 test users (`test@auditure.app` and `demo@auditure.app`, password: `Password123`)
 - 3 sample podcasters with different personalities
 - 2 sample books with chapters
 
@@ -460,7 +460,7 @@ export class DatabaseService extends PrismaClient implements OnModuleInit, OnMod
     const pool = new Pool({
       host: 'localhost',
       port: 5432,
-      database: 'narratica',
+      database: 'auditure',
       user: 'postgres',
       password: 'postgres',
     });
@@ -516,7 +516,7 @@ export class BooksService {
 
 **Solution**:
 1. Make sure Docker PostgreSQL is running: `npm run db:start`
-2. Check if the container is running: `docker ps | grep narratica-postgres`
+2. Check if the container is running: `docker ps | grep auditure-postgres`
 3. Verify the `DATABASE_URL` in `.env` is correct
 4. Check database logs: `npm run db:logs`
 5. Restart your NestJS application after starting the database
@@ -585,7 +585,7 @@ import { Pool } from 'pg';
 const pool = new Pool({
   host: 'localhost',
   port: 5432,
-  database: 'narratica',
+  database: 'auditure',
   user: 'postgres',
   password: 'postgres',
 });
@@ -637,7 +637,7 @@ docker-compose restart
 docker-compose logs -f postgres
 
 # Check running containers
-docker ps | grep narratica-postgres
+docker ps | grep auditure-postgres
 
 # ⚠️ Remove volumes (deletes all data!)
 docker-compose down -v
@@ -679,13 +679,13 @@ npx prisma migrate reset
 ### Database Backup & Restore
 ```bash
 # Backup database
-docker exec narratica-postgres pg_dump -U postgres narratica > backup.sql
+docker exec auditure-postgres pg_dump -U postgres auditure > backup.sql
 
 # Restore database
-docker exec -i narratica-postgres psql -U postgres narratica < backup.sql
+docker exec -i auditure-postgres psql -U postgres auditure < backup.sql
 
 # Access PostgreSQL CLI
-docker exec -it narratica-postgres psql -U postgres -d narratica
+docker exec -it auditure-postgres psql -U postgres -d auditure
 ```
 
 ## Best Practices

@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function HomeScreen() {
   return (
     <SafeAreaView className="flex-1 bg-[#FDFBF7] items-center justify-center">
-      <Text className="text-3xl font-bold text-[#8B0000]">Narratica Home</Text>
+      <Text className="text-3xl font-bold text-[#8B0000]">Auditure Home</Text>
       <Text className="text-gray-600 mt-2">Welcome to your library.</Text>
     </SafeAreaView>
   );

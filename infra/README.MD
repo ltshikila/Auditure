@@ -1,6 +1,6 @@
-# Narratica Infrastructure
+# Auditure Infrastructure
 
-This directory contains the Infrastructure-as-Code (IaC) configuration for running the local development environment using **Docker Compose**. This setup provides all the foundational services required for Narratica development without requiring cloud resources.
+This directory contains the Infrastructure-as-Code (IaC) configuration for running the local development environment using **Docker Compose**. This setup provides all the foundational services required for Auditure development without requiring cloud resources.
 
 ## Services
 
@@ -8,10 +8,10 @@ The `docker-compose.yml` spins up the following services:
 
 | Service | Container Name | Port | Description | SRS Reference |
 |:--------|:---------------|:-----|:------------|:--------------|
-| **PostgreSQL** | `narratica_db` | `5432` | Primary relational database for Users, Books, Episodes, and Metadata | Section 6.3 |
-| **RabbitMQ** | `narratica_mq` | `5672` (AMQP)<br>`15672` (UI) | Message broker handling the async job queue for episode generation | Section 6.3, NFR-5 |
-| **Redis** | `narratica_redis` | `6379` | In-memory cache for job progress tracking, playback progress (resume position), and rate limiting | Section 6.3 |
-| **AI Worker** | `narratica_ai_worker` | N/A | Python microservice for script generation (OpenAI GPT-4o mini) and TTS audio synthesis (Google Cloud TTS) | FR-Episode |
+| **PostgreSQL** | `auditure_db` | `5432` | Primary relational database for Users, Books, Episodes, and Metadata | Section 6.3 |
+| **RabbitMQ** | `auditure_mq` | `5672` (AMQP)<br>`15672` (UI) | Message broker handling the async job queue for episode generation | Section 6.3, NFR-5 |
+| **Redis** | `auditure_redis` | `6379` | In-memory cache for job progress tracking, playback progress (resume position), and rate limiting | Section 6.3 |
+| **AI Worker** | `auditure_ai_worker` | N/A | Python microservice for script generation (OpenAI GPT-4o mini) and TTS audio synthesis (Google Cloud TTS) | FR-Episode |
 
 ## Usage
 
@@ -66,7 +66,7 @@ docker-compose logs --tail=100 rabbitmq
 ### Restart a Service
 
 ```bash
-docker-compose restart narratica_mq
+docker-compose restart auditure_mq
 ```
 
 ### Check Service Status
@@ -83,18 +83,18 @@ docker-compose ps
 
 * **Host:** `localhost`
 * **Port:** `5432`
-* **Database:** `narratica_db`
+* **Database:** `auditure_db`
 * **User:** `admin`
 * **Password:** `password`
 
 **Connection String:**
 ```
-postgresql://admin:password@localhost:5432/narratica_db
+postgresql://admin:password@localhost:5432/auditure_db
 ```
 
 **Connect via CLI:**
 ```bash
-psql postgresql://admin:password@localhost:5432/narratica_db
+psql postgresql://admin:password@localhost:5432/auditure_db
 ```
 
 ### RabbitMQ Management Dashboard
@@ -178,13 +178,13 @@ Docker volumes are configured to persist data even after containers are stopped:
 ### View Volumes
 
 ```bash
-docker volume ls | grep narratica
+docker volume ls | grep auditure
 ```
 
 ### Inspect Volume
 
 ```bash
-docker volume inspect narratica_postgres_data
+docker volume inspect auditure_postgres_data
 ```
 
 ### Reset Database Completely
@@ -202,10 +202,10 @@ The `-v` flag removes all volumes, including persisted data.
 
 ```bash
 # Create backup
-docker exec narratica_db pg_dump -U admin narratica_db > backup.sql
+docker exec auditure_db pg_dump -U admin auditure_db > backup.sql
 
 # Restore from backup
-docker exec -i narratica_db psql -U admin narratica_db < backup.sql
+docker exec -i auditure_db psql -U admin auditure_db < backup.sql
 ```
 
 ## Configuration
@@ -218,21 +218,21 @@ version: '3.8'
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: narratica_db
+    container_name: auditure_db
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: narratica_db
+      POSTGRES_DB: auditure_db
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - narratica_net
+      - auditure_net
 
   rabbitmq:
     image: rabbitmq:3-management
-    container_name: narratica_mq
+    container_name: auditure_mq
     environment:
       RABBITMQ_DEFAULT_USER: user
       RABBITMQ_DEFAULT_PASS: password
@@ -240,24 +240,24 @@ services:
       - "5672:5672"
       - "15672:15672"
     networks:
-      - narratica_net
+      - auditure_net
 
   redis:
     image: redis:alpine
-    container_name: narratica_redis
+    container_name: auditure_redis
     ports:
       - "6379:6379"
     networks:
-      - narratica_net
+      - auditure_net
 
   ai-worker:
     build:
       context: ../services/ai-worker
       dockerfile: Dockerfile
-    container_name: narratica_ai_worker
+    container_name: auditure_ai_worker
     environment:
       RABBITMQ_URL: amqp://user:password@rabbitmq:5672
-      DATABASE_URL: postgresql://admin:password@postgres:5432/narratica_db
+      DATABASE_URL: postgresql://admin:password@postgres:5432/auditure_db
       LOCAL_STORAGE_PATH: /storage
       TTS_TEMP_DIR: /app/temp/tts
       HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-}
@@ -273,14 +273,14 @@ services:
       - postgres
       - redis
     networks:
-      - narratica_net
+      - auditure_net
     restart: unless-stopped
 
 volumes:
   postgres_data:
 
 networks:
-  narratica_net:
+  auditure_net:
     driver: bridge
 ```
 
@@ -317,7 +317,7 @@ All services include health checks to ensure they're ready to accept connections
 
 ```bash
 # Using Docker
-docker exec narratica_db pg_isready -U admin
+docker exec auditure_db pg_isready -U admin
 
 # Expected output: accepting connections
 ```
@@ -326,7 +326,7 @@ docker exec narratica_db pg_isready -U admin
 
 ```bash
 # Using Docker
-docker exec narratica_mq rabbitmq-diagnostics ping
+docker exec auditure_mq rabbitmq-diagnostics ping
 
 # Expected output: Ping succeeded
 ```
@@ -335,7 +335,7 @@ docker exec narratica_mq rabbitmq-diagnostics ping
 
 ```bash
 # Using Docker
-docker exec narratica_redis redis-cli ping
+docker exec auditure_redis redis-cli ping
 
 # Expected output: PONG
 ```
@@ -372,7 +372,7 @@ If you see "port already allocated" errors:
 
 **View detailed logs:**
 ```bash
-docker-compose logs narratica_db
+docker-compose logs auditure_db
 ```
 
 **Common issues:**
@@ -390,13 +390,13 @@ docker-compose up -d
 
 **Check if container is running:**
 ```bash
-docker ps | grep narratica_db
+docker ps | grep auditure_db
 ```
 
 **If not running, check logs and restart:**
 ```bash
-docker-compose logs narratica_db
-docker-compose restart narratica_db
+docker-compose logs auditure_db
+docker-compose restart auditure_db
 ```
 
 **Wait for health check to pass:**
@@ -410,12 +410,12 @@ docker-compose ps
 
 1. **Verify container is running:**
    ```bash
-   docker ps | grep narratica_mq
+   docker ps | grep auditure_mq
    ```
 
 2. **Check logs:**
    ```bash
-   docker-compose logs narratica_mq
+   docker-compose logs auditure_mq
    ```
 
 3. **Wait for startup:**
@@ -426,19 +426,19 @@ docker-compose ps
 
 4. **Try restarting:**
    ```bash
-   docker-compose restart narratica_mq
+   docker-compose restart auditure_mq
    ```
 
 ### Redis Connection Issues
 
 **Test connection:**
 ```bash
-docker exec narratica_redis redis-cli ping
+docker exec auditure_redis redis-cli ping
 ```
 
 **If no response:**
 ```bash
-docker-compose restart narratica_redis
+docker-compose restart auditure_redis
 ```
 
 ### Permission Denied Errors
@@ -477,12 +477,12 @@ docker system prune -a --volumes
 
 **Using Docker exec:**
 ```bash
-docker exec -it narratica_db psql -U admin -d narratica_db
+docker exec -it auditure_db psql -U admin -d auditure_db
 ```
 
 **Using local psql:**
 ```bash
-psql postgresql://admin:password@localhost:5432/narratica_db
+psql postgresql://admin:password@localhost:5432/auditure_db
 ```
 
 **Common Commands:**
@@ -523,7 +523,7 @@ Navigate to [http://localhost:15672](http://localhost:15672)
 
 **Using Docker exec:**
 ```bash
-docker exec -it narratica_redis redis-cli
+docker exec -it auditure_redis redis-cli
 ```
 
 **Common Commands:**
@@ -604,7 +604,7 @@ For production, use:
 ## Notes
 
 * **Startup Order:** The infrastructure must be running before starting the Core API or AI Worker
-* **Network:** All services are connected via a Docker bridge network named `narratica_network` (auto-created)
+* **Network:** All services are connected via a Docker bridge network named `auditure_network` (auto-created)
 * **Data Persistence:** Data persists between container restarts unless volumes are explicitly removed with `-v` flag
 * **Resource Usage:** Monitor Docker resource usage in Docker Desktop settings
 * **Updates:** Periodically update service images for security patches:

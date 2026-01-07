@@ -1,4 +1,4 @@
-# Narratica AI Worker Dockerfile
+# Auditure AI Worker Dockerfile
 FROM python:3.11-slim
 
 # Set working directory

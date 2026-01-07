@@ -12,7 +12,7 @@ module.exports = defineConfig([
     // Spread ensures we inherit all base setups
     ...(Array.isArray(expoConfig) ? expoConfig : [expoConfig]),
 
-    // 2. Custom Rules for Narratica MVVM Architecture
+    // 2. Custom Rules for Auditure MVVM Architecture
     {
         files: ['**/*.{ts,tsx,js,jsx}'],
 
