@@ -158,44 +158,56 @@ Podcaster traits are converted to descriptive text:
 
 ## TTS Service
 
-### Primary: Edge TTS (Free)
-- Uses Microsoft Edge's neural voices
-- Supports multiple accents and genders
-- Configurable speaking rate and pitch
+### Voice Tiers
 
-### Voice Mapping
+| Tier | Provider | Cost | Use Case |
+|------|----------|------|----------|
+| **Standard** | Google Cloud Standard | $4/1M chars (~$0.06/ep) | Free tier (2 eps/mo) |
+| **Gemini Pro** | Gemini 2.5 Pro TTS | $20/1M tokens (~$0.32/ep) | Free tier (1 ep/mo) + All paid |
+
+### Hybrid Free Tier Model
+- **Free users:** 1 Gemini Pro + 2 Standard episodes/month
+- **Paid users:** All episodes use Gemini 2.5 Pro TTS
+
+### Gemini 2.5 Pro TTS Features
+- Native multi-speaker synthesis (up to 9 speakers per request)
+- Non-verbal cues ([sigh], [laugh], [hesitation])
+- Natural language style prompts for tone, accent, pace, emotion
+- Podcast-optimized audio output
+- Max output duration: ~11 minutes (chunk + stitch for longer)
+
+### Voice Mapping (Standard Tier)
 ```typescript
 MALE: {
-    'United States': 'en-US-GuyNeural',
-    'United Kingdom': 'en-GB-RyanNeural',
-    'Australia': 'en-AU-WilliamNeural',
+    'United States': 'en-US-Standard-A',
+    'United Kingdom': 'en-GB-Standard-B',
+    'Australia': 'en-AU-Standard-B',
     // ...
 }
 FEMALE: {
-    'United States': 'en-US-JennyNeural',
-    'United Kingdom': 'en-GB-SoniaNeural',
+    'United States': 'en-US-Standard-C',
+    'United Kingdom': 'en-GB-Standard-A',
     // ...
 }
 ```
 
 ### Multi-Voice Episodes (DUO/GROUP)
-- Parses script for speaker labels (HOST:, GUEST1:, etc.)
+- **Gemini Pro:** Native multi-speaker - handles speaker labels automatically
+- **Standard:** Parses script for speaker labels (HOST:, GUEST1:, etc.)
 - Assigns contrasting voices to different speakers
-- Concatenates audio segments using ffmpeg
-
-### Fallbacks
-1. Google TTS API (if `GOOGLE_TTS_API_KEY` configured)
-2. Silent placeholder audio (for testing)
+- Concatenates audio segments using ffmpeg (Standard tier only)
 
 ## Environment Variables
 
 ```env
-# Script Generation
-HUGGINGFACE_API_KEY=hf_xxx       # HuggingFace API key (optional, enables AI)
-HUGGINGFACE_MODEL=mistralai/Mistral-7B-Instruct-v0.2
+# Script Generation (AI Worker handles this via OpenAI GPT-4o mini)
+# Core API queues jobs, AI Worker generates scripts
 
-# TTS
-GOOGLE_TTS_API_KEY=xxx           # Google TTS fallback (optional)
+# TTS Configuration
+GOOGLE_CLOUD_PROJECT_ID=your_project_id
+GOOGLE_CLOUD_CREDENTIALS_PATH=/path/to/credentials.json
+GOOGLE_CLOUD_TTS_API_KEY=xxx     # For Gemini 2.5 Pro TTS
+TTS_VOICE_TIER=gemini_pro        # Default: gemini_pro or standard
 TTS_TEMP_DIR=./temp/tts          # Temp directory for audio processing
 
 # Storage
@@ -212,8 +224,8 @@ REDIS_PORT=6379
 ## Dependencies
 
 ### System Requirements
-- **edge-tts**: `pip install edge-tts` (for TTS)
-- **ffmpeg**: Required for audio concatenation (DUO/GROUP episodes)
+- **Google Cloud SDK**: For Gemini 2.5 Pro TTS and Standard TTS
+- **ffmpeg**: Required for audio concatenation (Standard tier multi-voice, chunked episodes)
 - **ffprobe**: Required for audio duration detection
 - **Redis**: Required for progress tracking and playback state
 

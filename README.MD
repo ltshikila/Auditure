@@ -109,8 +109,9 @@ npm run start:mobile
 
 ### AI Processing
 * Python 3.9+
-* LLM integration (HuggingFace Inference API - Mistral-7B) with template fallback
-* TTS engine (Microsoft Edge TTS - free, unlimited)
+* LLM integration (OpenAI GPT-4o mini) with template fallback
+* TTS engine: Gemini 2.5 Pro TTS (paid tiers) + Google Cloud Standard (free tier)
+* Multi-speaker synthesis with up to 9 voices per episode
 
 ### Data & Infrastructure
 * PostgreSQL (relational data)

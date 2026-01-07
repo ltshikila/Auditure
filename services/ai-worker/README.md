@@ -25,11 +25,12 @@ ai-worker/
 ## Features
 
 - **Script Generation**: OpenAI GPT-4o mini with template fallback
-- **Text-to-Speech**: Google Cloud TTS (Standard and Neural2 tiers)
-- **Voice Tiers**: Standard ($4/1M chars) or Neural2 ($16/1M chars)
+- **Text-to-Speech**: Gemini 2.5 Pro TTS (paid) + Google Cloud Standard (free tier)
+- **Voice Tiers**: Standard ($4/1M chars) or Gemini Pro (~$0.32/10-min episode)
 - **Episode Types**: MONOLOGUE, DUO, GROUP (multi-voice support)
-- **Episode Length**: 5-30 minutes
+- **Episode Length**: 5-10 minutes (MVP), up to 30 minutes (chunked)
 - **Voice Customization**: Gender, accent, speaking speed, vocal pitch
+- **Multi-Speaker**: Native support (up to 9 speakers per episode)
 - **Retry Logic**: 3 automatic retries with exponential backoff
 - **Dead Letter Queue**: Failed jobs routed to DLQ after max retries
 - **Real-time Progress**: Redis-based progress tracking for UI updates
@@ -42,7 +43,7 @@ ai-worker/
 | Accent | 6 regions | Voice selection |
 | Speaking Speed | 1-10 | Rate: -30% to +30% |
 | Vocal Pitch | 1-10 | Pitch: -30Hz to +30Hz |
-| Voice Tier | STANDARD/NEURAL | Quality & cost |
+| Voice Tier | STANDARD/GEMINI_PRO | Quality & cost |
 
 ### Supported Accents
 
@@ -59,8 +60,18 @@ ai-worker/
 
 | Tier | Cost | Quality | Use Case |
 |------|------|---------|----------|
-| Standard | $4/1M chars | Good | Free tier users |
-| Neural2 | $16/1M chars | Premium | Paid subscribers |
+| Standard | $4/1M chars (~$0.06/ep) | Good | Free tier (2 episodes/month) |
+| Gemini 2.5 Pro | $20/1M audio tokens (~$0.32/ep) | Premium | Free tier (1 ep/mo) + All paid |
+
+**Hybrid Free Tier Model:**
+- Free users: 1 Gemini Pro + 2 Standard episodes/month
+- Paid users: All episodes use Gemini 2.5 Pro TTS
+
+**Gemini 2.5 Pro Features:**
+- Native multi-speaker synthesis (up to 9 speakers)
+- Non-verbal cues ([sigh], [laugh], etc.)
+- Natural language style prompts
+- Podcast-optimized audio output
 
 ## Environment Variables
 
@@ -81,10 +92,11 @@ REDIS_PORT=6379
 OPENAI_API_KEY=your_openai_key_here
 OPENAI_MODEL=gpt-4o-mini
 
-# Google Cloud TTS
+# Google Cloud / Gemini TTS
 GOOGLE_CLOUD_PROJECT_ID=your_project_id
 GOOGLE_CLOUD_CREDENTIALS_PATH=/path/to/credentials.json
-TTS_VOICE_TIER=neural  # Default tier: standard or neural
+GOOGLE_CLOUD_TTS_API_KEY=your_api_key  # For Gemini TTS
+TTS_VOICE_TIER=gemini_pro  # Default tier: standard or gemini_pro
 
 # Storage
 LOCAL_STORAGE_PATH=./storage
@@ -142,11 +154,13 @@ docker run -e RABBITMQ_URL=amqp://host:5672 \
 4. Generate script (OpenAI GPT-4o mini or templates) (progress: 40%)
 5. Status: SCRIPT_GENERATED (progress: 60%)
 6. Status: AUDIO_GENERATING (progress: 80%)
-7. Generate audio (Google Cloud TTS - Standard or Neural2)
-8. Concatenate segments (if multi-voice)
+7. Generate audio (Gemini 2.5 Pro TTS or Standard based on tier)
+8. Concatenate segments (if multi-voice, or Standard tier)
 9. Save to storage: {userId}/{episodeId}/audio.mp3
 10. Status: COMPLETED (progress: 100%)
 ```
+
+**Note:** Gemini 2.5 Pro TTS has a max output of ~11 minutes. For longer episodes, audio is chunked and stitched.
 
 ### Progress Tracking
 
