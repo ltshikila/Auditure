@@ -24,7 +24,7 @@ Complete JWT-based authentication with email 2FA implementation for both fronten
 - JWT (@nestjs/jwt)
 - Passport (@nestjs/passport)
 - bcrypt (password hashing)
-- Nodemailer (email sending)
+- Resend (email sending)
 
 ### Frontend
 - React Native (Expo)
@@ -48,7 +48,7 @@ Dependencies include:
 - @nestjs/passport
 - passport-jwt
 - bcrypt
-- nodemailer
+- resend
 - @prisma/client
 - prisma
 
@@ -66,25 +66,20 @@ JWT_EXPIRES_IN="15m"
 JWT_REFRESH_SECRET="your-super-secret-refresh-token-key-change-this-in-production"
 JWT_REFRESH_EXPIRES_IN="7d"
 
-# Email Configuration (Gmail example)
-EMAIL_HOST="smtp.gmail.com"
-EMAIL_PORT="587"
-EMAIL_USER="your-email@gmail.com"
-EMAIL_PASSWORD="your-app-password"  # Use App Password for Gmail
+# Email Configuration (Resend API)
 EMAIL_FROM="Auditure <noreply@auditure.app>"
+RESEND_API_KEY="re_xxxxxxxxxxxx"
 
 # OTP Configuration
 OTP_EXPIRY_MINUTES="10"
 ```
 
-#### Setting up Gmail for Email Sending
+#### Setting up Resend for Email Sending
 
-1. Go to your Google Account settings
-2. Enable 2-Step Verification
-3. Generate an App Password:
-   - Go to Security > 2-Step Verification > App Passwords
-   - Select "Mail" and your device
-   - Copy the generated password to `EMAIL_PASSWORD`
+1. Create a free account at [resend.com](https://resend.com)
+2. Add and verify your domain (e.g., auditure.app)
+3. Create an API key in the dashboard
+4. Copy the API key to `RESEND_API_KEY`
 
 ### 3. Database Setup
 
@@ -456,9 +451,9 @@ apps/mobile-app/
 
 ### Email Not Sending
 
-- Verify Gmail App Password is correct
-- Check EMAIL_HOST and EMAIL_PORT
-- Ensure 2FA is enabled on Gmail account
+- Verify RESEND_API_KEY is correct
+- Ensure domain is verified in Resend dashboard
+- Check EMAIL_FROM matches your verified domain
 - Check backend console for email errors
 
 ### Database Connection Error
@@ -522,11 +517,8 @@ apps/mobile-app/
 | JWT_EXPIRES_IN | Access token expiry | `15m` |
 | JWT_REFRESH_SECRET | Secret for refresh tokens | `your-refresh-secret` |
 | JWT_REFRESH_EXPIRES_IN | Refresh token expiry | `7d` |
-| EMAIL_HOST | SMTP host | `smtp.gmail.com` |
-| EMAIL_PORT | SMTP port | `587` |
-| EMAIL_USER | Email address | `your@email.com` |
-| EMAIL_PASSWORD | Email app password | `xxxx xxxx xxxx xxxx` |
 | EMAIL_FROM | From header | `Auditure <noreply@auditure.app>` |
+| RESEND_API_KEY | Resend API key | `re_xxxxxxxxxxxx` |
 | OTP_EXPIRY_MINUTES | OTP validity duration | `10` |
 
 ### Frontend (.env)

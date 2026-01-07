@@ -59,7 +59,7 @@ services/core-api/
 
 - Node.js >= 18
 - Docker & Docker Compose (for infrastructure services)
-- SMTP server (for emails)
+- Resend account (for transactional emails)
 
 ### Installation
 
@@ -136,12 +136,9 @@ JWT_EXPIRES_IN="15m"
 JWT_REFRESH_SECRET="your-refresh-secret-key"
 JWT_REFRESH_EXPIRES_IN="7d"
 
-# Email (Gmail example)
-EMAIL_HOST="smtp.gmail.com"
-EMAIL_PORT="587"
-EMAIL_USER="your-email@gmail.com"
-EMAIL_PASSWORD="your-app-password"
+# Email (Resend API)
 EMAIL_FROM="Auditure <noreply@auditure.app>"
+RESEND_API_KEY="re_xxxxxxxxxxxx"
 
 # OTP Configuration
 OTP_EXPIRY_MINUTES="10"
@@ -348,7 +345,7 @@ npx prisma studio
 
 - [ ] Set strong JWT secrets
 - [ ] Configure production database
-- [ ] Set up email service (SendGrid, AWS SES, etc.)
+- [ ] Set up email service (Resend recommended)
 - [ ] Configure S3 for file storage
 - [ ] Set up RabbitMQ cluster
 - [ ] Enable HTTPS
@@ -515,7 +512,7 @@ All endpoints are prefixed with `/api/v1` in production.
 - **pdf-parse** - PDF text extraction
 - **epub-parser** - EPUB text extraction
 - **amqplib** - RabbitMQ client
-- **nodemailer** - Email sending
+- **resend** - Email sending via Resend API
 
 ### Development Dependencies
 

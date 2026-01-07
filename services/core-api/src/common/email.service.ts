@@ -1,40 +1,27 @@
 import { Injectable, Logger } from '@nestjs/common';
-import * as nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 @Injectable()
 export class EmailService {
-    private transporter: nodemailer.Transporter;
+    private resend: Resend;
     private readonly logger = new Logger(EmailService.name);
     private readonly isDevelopment = process.env.NODE_ENV !== 'production';
 
     constructor() {
-        // In development, use a test account or log emails
-        if (this.isDevelopment) {
-            this.logger.warn('Running in development mode - emails will be logged instead of sent');
-            // Create a fake transporter for development
-            this.transporter = nodemailer.createTransport({
-                streamTransport: true,
-                newline: 'unix',
-            } as any);
-        } else {
-            this.transporter = nodemailer.createTransport({
-                host: process.env.EMAIL_HOST,
-                port: parseInt(process.env.EMAIL_PORT || '587'),
-                secure: false,
-                auth: {
-                    user: process.env.EMAIL_USER,
-                    pass: process.env.EMAIL_PASSWORD,
-                },
-            });
+        const apiKey = process.env.RESEND_API_KEY;
+
+        if (!apiKey && !this.isDevelopment) {
+            this.logger.error('RESEND_API_KEY is not configured');
         }
+
+        this.resend = new Resend(apiKey);
     }
 
     async sendOTP(email: string, otp: string): Promise<void> {
-        const mailOptions = {
-            from: process.env.EMAIL_FROM || 'Auditure <noreply@auditure.app>',
-            to: email,
-            subject: 'Your Auditure Verification Code',
-            html: `
+        const from = process.env.EMAIL_FROM || 'Auditure <noreply@auditure.app>';
+        const expiryMinutes = process.env.OTP_EXPIRY_MINUTES || '10';
+
+        const htmlContent = `
         <!DOCTYPE html>
         <html>
         <head>
@@ -56,7 +43,7 @@ export class EmailService {
               <p>Hello,</p>
               <p>Thank you for signing up with Auditure! To complete your registration, please use the verification code below:</p>
               <div class="otp-code">${otp}</div>
-              <p>This code will expire in ${process.env.OTP_EXPIRY_MINUTES || '10'} minutes.</p>
+              <p>This code will expire in ${expiryMinutes} minutes.</p>
               <p>If you didn't request this code, please ignore this email.</p>
               <p>Best regards,<br>The Auditure Team</p>
             </div>
@@ -66,22 +53,31 @@ export class EmailService {
           </div>
         </body>
         </html>
-      `,
-        };
+      `;
 
         try {
             if (this.isDevelopment) {
-                // In development, just log the OTP
                 this.logger.log(`📧 [DEV] Email would be sent to: ${email}`);
                 this.logger.log(`🔑 [DEV] Verification Code: ${otp}`);
-                this.logger.log(`⏰ [DEV] Expires in: ${process.env.OTP_EXPIRY_MINUTES || '10'} minutes`);
-            } else {
-                await this.transporter.sendMail(mailOptions);
-                this.logger.log(`✅ Verification email sent to: ${email}`);
+                this.logger.log(`⏰ [DEV] Expires in: ${expiryMinutes} minutes`);
+                return;
             }
+
+            const { data, error } = await this.resend.emails.send({
+                from,
+                to: email,
+                subject: 'Your Auditure Verification Code',
+                html: htmlContent,
+            });
+
+            if (error) {
+                this.logger.error('Resend API error:', error);
+                throw new Error('Unable to send verification email. Please try again later.');
+            }
+
+            this.logger.log(`✅ Verification email sent to: ${email} (id: ${data?.id})`);
         } catch (error) {
             this.logger.error('Error sending OTP email:', error);
-            // Don't throw error in development, just log it
             if (!this.isDevelopment) {
                 throw new Error('Unable to send verification email. Please try again later.');
             }

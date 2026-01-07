@@ -116,11 +116,8 @@ JWT_EXPIRES_IN="15m"
 JWT_REFRESH_SECRET="test-refresh-secret-key"
 JWT_REFRESH_EXPIRES_IN="7d"
 
-EMAIL_HOST="smtp.gmail.com"
-EMAIL_PORT="587"
-EMAIL_USER="test@example.com"
-EMAIL_PASSWORD="test-password"
 EMAIL_FROM="Auditure <noreply@auditure.app>"
+RESEND_API_KEY="re_test_mock_key"
 
 OTP_EXPIRY_MINUTES="10"
 
