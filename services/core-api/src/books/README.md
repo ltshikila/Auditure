@@ -321,10 +321,12 @@ Core business logic:
 
 #### TextExtractionService
 Handles text extraction from files:
-- `extractFromPdf()` - Extract text from PDF files
+- `extractFromPdf()` - Extract text from PDF files (with OCR fallback)
 - `extractFromEpub()` - Extract text from EPUB files
-- `detectChaptersInText()` - Auto-detect chapters using patterns
-- Supports chapter detection from TOC and text patterns
+- `extractChaptersFromToc()` - Extract chapters using PDF outline/TOC with page numbers
+- `extractFromScannedPdf()` - OCR extraction for scanned PDFs
+- `detectChaptersInText()` - Regex-based chapter detection (fallback)
+- Hybrid approach: TOC-based (primary) + regex (fallback) for maximum accuracy
 
 #### StorageService
 Abstraction layer for file storage:
@@ -394,10 +396,11 @@ model Chapter {
 ### Supported Formats
 
 #### PDF Files
-- Uses `pdf-parse` library
-- Extracts all text content
-- Preserves basic formatting
+- Uses `pdf-parse` for text extraction
+- Uses `pdfjs-dist` for TOC extraction and OCR
+- Extracts all text content with automatic chapter detection
 - Metadata extraction (title, author, page count)
+- Automatic fallback to OCR for scanned PDFs (< 100 chars/page)
 
 #### EPUB Files
 - Uses `epub-parser` library
@@ -407,7 +410,32 @@ model Chapter {
 
 ### Chapter Detection
 
-Automatic chapter detection using multiple patterns:
+Two-tier chapter detection system for maximum accuracy:
+
+#### 1. TOC-Based Detection (Primary - Most Accurate)
+
+Uses the PDF's built-in Table of Contents (outline) structure:
+
+```
+PDF Outline → getOutline() → TocEntry[] → Page Numbers → Chapter Split
+```
+
+**Process:**
+1. Extract PDF outline using `pdfjs-dist.getOutline()`
+2. Parse each entry to get destination page number via `getPageIndex()`
+3. Extract text page-by-page for accurate splitting
+4. Split content at chapter boundaries based on page ranges
+
+**Handles Edge Cases:**
+- **Chapters on same page**: When chapter 1 ends and chapter 2 starts on the same page, uses regex to find the exact heading position within the shared page text
+- **Nested TOC entries**: Flattens sub-chapters to main chapter level
+- **Missing page numbers**: Skips entries without valid destinations
+
+**Reference:** [PDF.js API - getOutline](https://mozilla.github.io/pdf.js/api/draft/module-pdfjsLib-PDFDocumentProxy.html#getOutline)
+
+#### 2. Regex-Based Detection (Fallback)
+
+When no TOC exists, falls back to pattern matching:
 
 ```javascript
 // Pattern examples
@@ -417,11 +445,38 @@ Automatic chapter detection using multiple patterns:
 "1. First Chapter"
 ```
 
+**Filtering Logic:**
+- Skips Table of Contents entries (detected by page number patterns like `Chapter 1 ... 42`)
+- Skips index references
+- Skips unreasonably high chapter numbers (> 50)
+- Requires minimum 1000 characters per chapter
+
 **Detection Strategy:**
-1. Extract table of contents if available
-2. Search for chapter markers in text
-3. Split text at chapter boundaries
-4. Store individual chapter text
+1. Try TOC-based extraction first (most accurate)
+2. Fall back to regex if no TOC or TOC extraction fails
+3. Search for chapter markers in text
+4. Split text at chapter boundaries
+5. Filter out TOC/index entries
+6. Store individual chapter text
+
+### OCR for Scanned PDFs
+
+Automatically detects and processes scanned PDFs:
+
+```
+Avg chars/page < 100 → OCR Mode → Tesseract.js → Extracted Text
+```
+
+**Process:**
+1. Detect scanned PDF (< 100 characters per page average)
+2. Render each page to image using `pdfjs-dist` canvas API
+3. OCR each page using `tesseract.js` (English language)
+4. Process pages in batches of 5 to manage memory
+5. Concatenate OCR results
+
+**Requirements:**
+- `canvas` package for Node.js canvas support
+- `tesseract.js` for OCR processing
 
 ## Testing
 
@@ -552,11 +607,16 @@ const checkStatus = async (bookId) => {
   "@nestjs/platform-express": "^11.1.10",
   "multer": "^2.0.2",
   "pdf-parse": "^2.4.5",
+  "pdfjs-dist": "^4.x",
   "epub-parser": "^0.2.5",
   "amqplib": "^0.10.9",
-  "he": "^1.2.0"
+  "he": "^1.2.0",
+  "tesseract.js": "^5.x",
+  "canvas": "^2.x"
 }
 ```
+
+**Note:** `pdfjs-dist` is used for TOC extraction and OCR page rendering. `tesseract.js` provides browser-compatible OCR. `canvas` is required for server-side rendering of PDF pages.
 
 ## Performance Considerations
 
@@ -587,7 +647,8 @@ const popular = await booksService.getPopularBooks(10);
 ## Future Enhancements
 
 - [ ] Multiple file upload support
-- [ ] OCR for scanned PDFs
+- [x] OCR for scanned PDFs (implemented with tesseract.js)
+- [x] TOC-based chapter detection with page numbers
 - [ ] Language detection and translation
 - [ ] Summary generation using AI
 - [ ] Bookmark and annotation support

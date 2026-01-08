@@ -22,6 +22,12 @@ export interface ChapterData {
     endPage?: number;
 }
 
+interface TocEntry {
+    title: string;
+    pageNumber: number;
+    chapterNumber?: number;
+}
+
 // Minimum characters per page to consider PDF as having extractable text
 const MIN_CHARS_PER_PAGE = 100;
 
@@ -54,13 +60,269 @@ export class TextExtractionService {
             return this.extractFromScannedPdf(buffer, metadata);
         }
 
-        const chapters = this.detectChaptersInText(fullText);
+        // Try TOC-based chapter extraction first (more accurate)
+        let chapters = await this.extractChaptersFromToc(buffer, metadata.pageCount || 0);
+
+        // Fall back to regex-based detection if no TOC or TOC extraction failed
+        if (chapters.length === 0) {
+            this.logger.log('No TOC found or TOC extraction failed. Using regex-based chapter detection.');
+            chapters = this.detectChaptersInText(fullText);
+        }
 
         return {
             fullText,
             chapters: chapters.length > 0 ? chapters : this.createDefaultChapter(fullText),
             metadata,
             extractionMethod: 'text',
+        };
+    }
+
+    /**
+     * Extract chapters using PDF TOC/outline with page numbers.
+     * This is more accurate than regex-based detection as it uses the
+     * PDF's built-in table of contents structure.
+     *
+     * Handles edge cases:
+     * - Chapters sharing the same page (uses regex to find exact split point)
+     * - Nested TOC entries (flattens to chapter level)
+     * - Missing page numbers (skips entry)
+     */
+    private async extractChaptersFromToc(buffer: Buffer, totalPages: number): Promise<ChapterData[]> {
+        try {
+            const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+            const loadingTask = pdfjs.getDocument({ data: buffer });
+            const pdfDoc = await loadingTask.promise;
+
+            // Extract TOC/outline from PDF
+            const outline = await pdfDoc.getOutline();
+
+            if (!outline || outline.length === 0) {
+                this.logger.debug('PDF has no outline/TOC');
+                return [];
+            }
+
+            // Parse outline entries and get page numbers
+            const tocEntries = await this.parseTocEntries(pdfDoc, outline);
+
+            if (tocEntries.length === 0) {
+                this.logger.debug('Could not extract valid TOC entries');
+                return [];
+            }
+
+            this.logger.log(`Found ${tocEntries.length} TOC entries`);
+
+            // Extract text page-by-page for accurate splitting
+            const pageTexts = await this.extractTextByPage(pdfDoc);
+
+            // Split content based on TOC page numbers
+            const chapters = this.splitTextByToc(tocEntries, pageTexts, totalPages);
+
+            this.logger.log(`Extracted ${chapters.length} chapters from TOC`);
+
+            return chapters;
+        } catch (error) {
+            this.logger.warn(`TOC extraction failed: ${error.message}`);
+            return [];
+        }
+    }
+
+    /**
+     * Parse PDF outline entries recursively to extract TOC with page numbers.
+     */
+    private async parseTocEntries(pdfDoc: any, outline: any[], depth = 0): Promise<TocEntry[]> {
+        const entries: TocEntry[] = [];
+        let chapterCounter = 1;
+
+        for (const item of outline) {
+            try {
+                // Get destination (page reference) for this outline item
+                let pageNumber: number | null = null;
+
+                if (item.dest) {
+                    // Destination can be a name or array
+                    const dest =
+                        typeof item.dest === 'string'
+                            ? await pdfDoc.getDestination(item.dest)
+                            : item.dest;
+
+                    if (dest && dest[0]) {
+                        // dest[0] is a page reference object
+                        const pageRef = dest[0];
+                        pageNumber = await pdfDoc.getPageIndex(pageRef);
+                    }
+                }
+
+                if (pageNumber !== null && pageNumber >= 0) {
+                    const title = item.title?.trim() || `Chapter ${chapterCounter}`;
+
+                    // Try to extract chapter number from title
+                    const chapterMatch = title.match(/^(?:Chapter\s+)?(\d+)/i);
+                    const extractedChapterNum = chapterMatch ? parseInt(chapterMatch[1]) : chapterCounter;
+
+                    entries.push({
+                        title,
+                        pageNumber: pageNumber, // 0-indexed
+                        chapterNumber: extractedChapterNum,
+                    });
+
+                    this.logger.debug(`TOC: "${title}" -> Page ${pageNumber + 1}`);
+                    chapterCounter++;
+                }
+
+                // Process nested items (sub-chapters) - flatten them
+                if (item.items && item.items.length > 0) {
+                    const nestedEntries = await this.parseTocEntries(pdfDoc, item.items, depth + 1);
+                    // Only include top-level chapters, skip sub-sections
+                    if (depth === 0) {
+                        // Nested items might be sub-chapters, we skip them for main chapter extraction
+                    }
+                }
+            } catch (error) {
+                this.logger.debug(`Failed to parse TOC entry: ${error.message}`);
+            }
+        }
+
+        return entries;
+    }
+
+    /**
+     * Extract text from each page of the PDF.
+     */
+    private async extractTextByPage(pdfDoc: any): Promise<string[]> {
+        const pageTexts: string[] = [];
+        const numPages = pdfDoc.numPages;
+
+        for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+            try {
+                const page = await pdfDoc.getPage(pageNum);
+                const textContent = await page.getTextContent();
+
+                // Combine text items into page text
+                const pageText = textContent.items.map((item: any) => item.str).join(' ');
+
+                pageTexts.push(this.cleanText(pageText));
+            } catch (error) {
+                this.logger.debug(`Failed to extract text from page ${pageNum}: ${error.message}`);
+                pageTexts.push('');
+            }
+        }
+
+        return pageTexts;
+    }
+
+    /**
+     * Split text content based on TOC page numbers.
+     * Handles the edge case where multiple chapters start on the same page
+     * by using regex to find the exact chapter heading position.
+     */
+    private splitTextByToc(tocEntries: TocEntry[], pageTexts: string[], totalPages: number): ChapterData[] {
+        const chapters: ChapterData[] = [];
+
+        // Sort entries by page number
+        const sortedEntries = [...tocEntries].sort((a, b) => a.pageNumber - b.pageNumber);
+
+        for (let i = 0; i < sortedEntries.length; i++) {
+            const current = sortedEntries[i];
+            const next = sortedEntries[i + 1];
+
+            const startPage = current.pageNumber; // 0-indexed
+            const endPage = next ? next.pageNumber : totalPages - 1;
+
+            // Collect text from all pages in this chapter's range
+            let chapterText = '';
+
+            for (let pageIdx = startPage; pageIdx <= endPage; pageIdx++) {
+                if (pageIdx < pageTexts.length) {
+                    chapterText += pageTexts[pageIdx] + '\n\n';
+                }
+            }
+
+            // Handle shared page case: if next chapter starts on same page as this one ends
+            if (next && startPage === next.pageNumber) {
+                // Both chapters share the same page - use regex to split
+                chapterText = this.splitSharedPage(chapterText, current.title, next.title);
+            } else if (next && endPage === next.pageNumber && endPage < pageTexts.length) {
+                // This chapter ends on the same page where next chapter starts
+                // Need to trim content after next chapter's heading
+                const sharedPageText = pageTexts[endPage];
+                const splitResult = this.findChapterSplitPoint(sharedPageText, next.title);
+
+                if (splitResult.found) {
+                    // Remove the shared page from chapter text, then add only the portion before next chapter
+                    const textWithoutSharedPage = chapterText
+                        .split('\n\n')
+                        .slice(0, -1)
+                        .join('\n\n');
+                    chapterText = textWithoutSharedPage + '\n\n' + splitResult.beforeHeading;
+                }
+            }
+
+            chapterText = chapterText.trim();
+
+            if (chapterText.length > 0) {
+                chapters.push({
+                    chapterNumber: current.chapterNumber || i + 1,
+                    title: current.title,
+                    text: chapterText,
+                    startPage: startPage + 1, // Convert to 1-indexed for output
+                    endPage: endPage + 1,
+                });
+            }
+        }
+
+        return chapters;
+    }
+
+    /**
+     * Split text when two chapters share the same starting page.
+     */
+    private splitSharedPage(pageText: string, currentTitle: string, nextTitle: string): string {
+        const splitResult = this.findChapterSplitPoint(pageText, nextTitle);
+
+        if (splitResult.found) {
+            return splitResult.beforeHeading;
+        }
+
+        // If we can't find the split point, return the whole text
+        // (the next chapter extraction will handle finding its start)
+        return pageText;
+    }
+
+    /**
+     * Find the position of a chapter heading in text to split at.
+     * Uses flexible matching to handle variations in how titles appear.
+     */
+    private findChapterSplitPoint(
+        text: string,
+        chapterTitle: string,
+    ): { found: boolean; beforeHeading: string; afterHeading: string } {
+        // Create regex patterns to find the chapter heading
+        // Handle common formats: "Chapter X", "Chapter X: Title", "X. Title"
+        const escapedTitle = chapterTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        const patterns = [
+            // Exact title match
+            new RegExp(`(.*?)(?=\\b${escapedTitle}\\b)`, 'is'),
+            // "Chapter N" or "CHAPTER N" format
+            new RegExp(`(.*?)(?=\\bChapter\\s+\\d+\\b)`, 'i'),
+        ];
+
+        for (const pattern of patterns) {
+            const match = text.match(pattern);
+            if (match && match[1]) {
+                const splitPos = match[1].length;
+                return {
+                    found: true,
+                    beforeHeading: text.slice(0, splitPos).trim(),
+                    afterHeading: text.slice(splitPos).trim(),
+                };
+            }
+        }
+
+        return {
+            found: false,
+            beforeHeading: text,
+            afterHeading: '',
         };
     }
 
