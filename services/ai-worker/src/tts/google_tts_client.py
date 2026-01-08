@@ -1,4 +1,15 @@
-"""Google Cloud Text-to-Speech client for audio generation."""
+"""Google Cloud Text-to-Speech client for audio generation.
+
+Uses Google Cloud Standard TTS voices for cost-effective audio generation.
+Pricing: $4 per 1 million characters.
+
+AudioConfig Parameters (from official docs):
+- speaking_rate: 0.25 to 2.0 (1.0 = normal speed)
+- pitch: -20.0 to 20.0 semitones (0 = default)
+
+Reference: https://docs.cloud.google.com/text-to-speech/docs/reference/rest/v1/AudioConfig
+Reference: https://docs.cloud.google.com/text-to-speech/docs/voices
+"""
 
 import logging
 import os
@@ -18,16 +29,14 @@ logger = logging.getLogger(__name__)
 class GoogleTTSClient:
     """Client for Google Cloud Text-to-Speech API.
 
-    Supports two voice tiers:
-    - Standard: $4 per 1 million characters
-    - Neural2/WaveNet: $16 per 1 million characters (Neural2 recommended)
+    Uses Standard voices: $4 per 1 million characters.
+    Used for free tier episodes (2 per month).
     """
 
     def __init__(self, temp_dir: Optional[str] = None):
         """Initialize Google Cloud TTS client."""
         settings = get_settings()
         self.temp_dir = Path(temp_dir or settings.tts_temp_dir)
-        self.voice_tier = settings.tts_voice_tier  # "standard" or "neural"
         self._ensure_temp_dir()
 
         # Initialize client with credentials
@@ -59,12 +68,12 @@ class GoogleTTSClient:
         voice_tier: Optional[str] = None,
     ) -> bytes:
         """
-        Generate audio from text using Google Cloud TTS.
+        Generate audio from text using Google Cloud Standard TTS.
 
         Args:
             text: Text to convert to speech
             voice_config: Voice configuration with voice_id, rate, pitch
-            voice_tier: Override voice tier ("standard" or "neural")
+            voice_tier: Ignored (always uses standard)
 
         Returns:
             Audio data as bytes (MP3 format)
@@ -72,10 +81,8 @@ class GoogleTTSClient:
         if not self.is_available:
             raise RuntimeError("Google Cloud TTS client not configured")
 
-        tier = voice_tier or self.voice_tier
-
-        logger.info(f"Generating audio with Google Cloud TTS")
-        logger.info(f"Voice: {voice_config.voice_id}, Tier: {tier}")
+        logger.info(f"Generating audio with Google Cloud Standard TTS")
+        logger.info(f"Voice: {voice_config.voice_id}")
         logger.info(f"Text length: {len(text)} chars")
 
         # Set up the text input
@@ -107,12 +114,9 @@ class GoogleTTSClient:
 
         audio_data = response.audio_content
 
-        # Log cost estimate
+        # Log cost estimate - Standard is $4/1M chars
         char_count = len(text)
-        if tier == "neural":
-            cost = (char_count / 1_000_000) * 16  # $16/1M chars for Neural2
-        else:
-            cost = (char_count / 1_000_000) * 4   # $4/1M chars for Standard
+        cost = (char_count / 1_000_000) * 4
 
         logger.info(f"Generated {len(audio_data)} bytes of audio")
         logger.info(f"Estimated TTS cost: ${cost:.6f}")
@@ -156,8 +160,11 @@ class GoogleTTSClient:
         """
         Convert rate string to Google TTS speaking_rate.
 
-        Google TTS speaking_rate: 0.25 to 4.0 (1.0 is normal)
+        Google TTS speaking_rate: 0.25 to 2.0 (1.0 is normal)
+        Reference: https://docs.cloud.google.com/text-to-speech/docs/reference/rest/v1/AudioConfig
+
         Input format: "+10%", "-20%", "0%"
+        Output: 0.25-2.0 multiplier
         """
         try:
             # Remove % and parse
@@ -165,8 +172,8 @@ class GoogleTTSClient:
             # Convert percentage to multiplier
             # +30% -> 1.3, -30% -> 0.7
             rate = 1.0 + (percentage / 100)
-            # Clamp to valid range
-            return max(0.25, min(4.0, rate))
+            # Clamp to valid range (official max is 2.0, not 4.0)
+            return max(0.25, min(2.0, rate))
         except (ValueError, AttributeError):
             return 1.0
 

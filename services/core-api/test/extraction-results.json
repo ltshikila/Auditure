@@ -1,0 +1,98 @@
+[
+  {
+    "filename": "computer-security-principles-practice-4th-global.pdf",
+    "success": true,
+    "method": "text",
+    "metadata": {
+      "title": "Computer Security: Principles and Practice, Global Edition, 4/e",
+      "author": "William Stallings",
+      "pageCount": 986
+    },
+    "stats": {
+      "fullTextLength": 2587698,
+      "fullTextWords": 400624,
+      "chapterCount": 9,
+      "avgChapterLength": 285927
+    },
+    "chapters": [
+      {
+        "number": 27,
+        "title": "Trusted Computing and Multilevel Security",
+        "textLength": 618298,
+        "preview": "Chapter 27 Trusted Computing and Multilevel Security 27.1 The Bell-LaPadula Model for Computer Secu"
+      },
+      {
+        "number": 1,
+        "title": "listed a number of fundamental security services, including availability.",
+        "textLength": 91771,
+        "preview": "Chapter 1 listed a number of fundamental security services, including availability. This service re"
+      },
+      {
+        "number": 6,
+        "title": "Table 8.1 lists examples of activities associated with the above steps.",
+        "textLength": 594839,
+        "preview": "Chapter 6. Table 8.1 lists examples of activities associated with the above steps. (a) Target Acquis"
+      },
+      {
+        "number": 12,
+        "title": "on operating systems security. As such, the baseline approach forms a good",
+        "textLength": 146241,
+        "preview": "Chapter 12 on operating systems security. As such, the baseline approach forms a good base from whi"
+      },
+      {
+        "number": 24,
+        "title": "16.4 RECOVERY FROM PHYSICAL SECURITY BREACHES",
+        "textLength": 68141,
+        "preview": "Chapter 24. 16.4 RECOVERY FROM PHYSICAL SECURITY BREACHES The most essential element of recovery fr"
+      },
+      {
+        "number": 14,
+        "title": "Information Flow for Incident Handling",
+        "textLength": 104756,
+        "preview": "Chapter 14. Information Flow for Incident Handling A number of services are either a part of or inte"
+      },
+      {
+        "number": 5,
+        "title": "On the other hand, if a user is given access to software, such as an operat-",
+        "textLength": 670837,
+        "preview": "Chapter 5. On the other hand, if a user is given access to software, such as an operat- ing system o"
+      },
+      {
+        "number": 4,
+        "title": "The matrix element M",
+        "textLength": 104625,
+        "preview": "Chapter 4. The matrix element M ij records the access modes in which subject S i is permit- ted"
+      },
+      {
+        "number": 21,
+        "title": "Any integer",
+        "textLength": 173832,
+        "preview": "Chapter 21. Any integer a71 can be factored in a unique way as a=p 1 a 1 p 2 a 2 Îp t a t where p"
+      }
+    ],
+    "durationMs": 4284
+  },
+  {
+    "filename": "The 48 Laws Of Power.pdf",
+    "success": true,
+    "method": "text",
+    "metadata": {
+      "pageCount": 476
+    },
+    "stats": {
+      "fullTextLength": 1298534,
+      "fullTextWords": 156332,
+      "chapterCount": 1,
+      "avgChapterLength": 1298534
+    },
+    "chapters": [
+      {
+        "number": 1,
+        "title": "Full Book",
+        "textLength": 1298534,
+        "preview": "THE48 LAWSOF POWER ROBERT GREENEhas a degree in classicalstudies andhasbeenan editorat Esquire and"
+      }
+    ],
+    "durationMs": 2081
+  }
+]

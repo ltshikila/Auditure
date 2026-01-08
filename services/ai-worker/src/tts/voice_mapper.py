@@ -1,4 +1,14 @@
-"""Voice mapper for Google Cloud TTS voices."""
+"""Voice mapper for Google Cloud TTS voices.
+
+Maps frontend podcaster configuration (gender, accent, speakingSpeed, vocalPitch)
+to Google Cloud Standard TTS voice parameters.
+
+Voice ID Format: {language}-{region}-Standard-{variant}
+Example: en-US-Standard-A, en-GB-Standard-B, en-AU-Standard-A
+
+Reference: https://docs.cloud.google.com/text-to-speech/docs/voices
+Reference: https://docs.cloud.google.com/text-to-speech/docs/reference/rest/v1/AudioConfig
+"""
 
 import logging
 from dataclasses import dataclass
@@ -11,109 +21,77 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class VoiceConfig:
-    """Voice configuration for TTS."""
+    """Voice configuration for Google Cloud Standard TTS."""
 
     voice_id: str
     gender: str
     accent: str
     rate: str  # e.g., "+10%", "-5%"
     pitch: str  # e.g., "+10Hz", "-5Hz"
-    tier: str = "neural"  # "standard" or "neural"
+    tier: str = "standard"  # Always standard for Google Cloud TTS
 
 
 class VoiceMapper:
-    """Map podcaster settings to Google Cloud TTS voices.
+    """Map podcaster settings to Google Cloud Standard TTS voices.
 
-    Google Cloud TTS Voice Tiers:
-    - Standard: Basic voices, $4/1M characters
-    - Neural2: High-quality neural voices, $16/1M characters (recommended)
+    Google Cloud TTS Standard: $4/1M characters
+    Used for free tier episodes (2 per month).
 
-    Voice ID format: {language}-{region}-{type}-{variant}
-    Example: en-US-Neural2-A, en-US-Standard-A
+    Voice ID format: {language}-{region}-Standard-{variant}
+    Example: en-US-Standard-A
     """
 
-    # Google Cloud TTS voice mapping by gender, accent, and tier
-    # Neural2 voices are higher quality but cost 4x more
-    VOICE_MAP: Dict[str, Dict[str, Dict[str, str]]] = {
+    # Google Cloud TTS Standard voice mapping by gender and accent
+    VOICE_MAP: Dict[str, Dict[str, str]] = {
         "MALE": {
-            "neural": {
-                "United States": "en-US-Neural2-A",
-                "United Kingdom": "en-GB-Neural2-B",
-                "Australia": "en-AU-Neural2-B",
-                "Canada": "en-US-Neural2-A",  # Use US for Canada
-                "Ireland": "en-GB-Neural2-B",  # Use UK for Ireland
-                "India": "en-IN-Neural2-B",
-                "default": "en-US-Neural2-A",
-            },
-            "standard": {
-                "United States": "en-US-Standard-A",
-                "United Kingdom": "en-GB-Standard-B",
-                "Australia": "en-AU-Standard-B",
-                "Canada": "en-US-Standard-A",
-                "Ireland": "en-GB-Standard-B",
-                "India": "en-IN-Standard-B",
-                "default": "en-US-Standard-A",
-            },
+            "United States": "en-US-Standard-A",
+            "United Kingdom": "en-GB-Standard-B",
+            "Australia": "en-AU-Standard-B",
+            "Canada": "en-US-Standard-A",
+            "Ireland": "en-GB-Standard-B",
+            "India": "en-IN-Standard-B",
+            "default": "en-US-Standard-A",
         },
         "FEMALE": {
-            "neural": {
-                "United States": "en-US-Neural2-C",
-                "United Kingdom": "en-GB-Neural2-A",
-                "Australia": "en-AU-Neural2-A",
-                "Canada": "en-US-Neural2-C",
-                "Ireland": "en-GB-Neural2-A",
-                "India": "en-IN-Neural2-A",
-                "default": "en-US-Neural2-C",
-            },
-            "standard": {
-                "United States": "en-US-Standard-C",
-                "United Kingdom": "en-GB-Standard-A",
-                "Australia": "en-AU-Standard-A",
-                "Canada": "en-US-Standard-C",
-                "Ireland": "en-GB-Standard-A",
-                "India": "en-IN-Standard-A",
-                "default": "en-US-Standard-C",
-            },
+            "United States": "en-US-Standard-C",
+            "United Kingdom": "en-GB-Standard-A",
+            "Australia": "en-AU-Standard-A",
+            "Canada": "en-US-Standard-C",
+            "Ireland": "en-GB-Standard-A",
+            "India": "en-IN-Standard-A",
+            "default": "en-US-Standard-C",
         },
     }
 
-    # Additional Neural2 voice variants for multi-speaker episodes
-    NEURAL2_VARIANTS: Dict[str, List[str]] = {
-        "MALE": ["en-US-Neural2-A", "en-US-Neural2-D", "en-US-Neural2-I", "en-US-Neural2-J"],
-        "FEMALE": ["en-US-Neural2-C", "en-US-Neural2-E", "en-US-Neural2-F", "en-US-Neural2-G"],
-    }
-
-    STANDARD_VARIANTS: Dict[str, List[str]] = {
+    # Standard voice variants for multi-speaker episodes
+    VOICE_VARIANTS: Dict[str, List[str]] = {
         "MALE": ["en-US-Standard-A", "en-US-Standard-B", "en-US-Standard-D", "en-US-Standard-I"],
         "FEMALE": ["en-US-Standard-C", "en-US-Standard-E", "en-US-Standard-F", "en-US-Standard-G"],
     }
 
     def __init__(self):
-        """Initialize voice mapper with settings."""
-        settings = get_settings()
-        self.default_tier = settings.tts_voice_tier
+        """Initialize voice mapper."""
+        pass
 
     def get_voice_id(self, gender: str, accent: str, tier: Optional[str] = None) -> str:
         """
-        Get Google Cloud TTS voice ID for gender and accent.
+        Get Google Cloud Standard TTS voice ID for gender and accent.
 
         Args:
             gender: MALE or FEMALE
             accent: Accent/region name
-            tier: Voice tier ("standard" or "neural"), uses default if not specified
+            tier: Ignored (always uses standard)
 
         Returns:
             Google Cloud TTS voice identifier
         """
-        tier = tier or self.default_tier
         gender_voices = self.VOICE_MAP.get(gender, self.VOICE_MAP["MALE"])
-        tier_voices = gender_voices.get(tier, gender_voices["neural"])
 
-        if accent in tier_voices:
-            return tier_voices[accent]
+        if accent in gender_voices:
+            return gender_voices[accent]
 
         logger.warning(f"Unknown accent '{accent}', using default voice")
-        return tier_voices["default"]
+        return gender_voices["default"]
 
     def calculate_rate(self, speaking_speed: int) -> str:
         """
@@ -213,8 +191,6 @@ class VoiceMapper:
         Returns:
             VoiceConfig for the guest
         """
-        tier = main_config.tier
-
         # Alternate gender for odd guests
         if guest_index % 2 == 0:
             gender = "FEMALE" if main_config.gender == "MALE" else "MALE"
@@ -224,11 +200,7 @@ class VoiceMapper:
             pitch_mod = -2
 
         # Get voice variants for variety
-        variants = (
-            self.NEURAL2_VARIANTS[gender]
-            if tier == "neural"
-            else self.STANDARD_VARIANTS[gender]
-        )
+        variants = self.VOICE_VARIANTS[gender]
 
         # Select variant based on guest index
         variant_index = guest_index % len(variants)
@@ -259,5 +231,5 @@ class VoiceMapper:
             accent=main_config.accent,
             rate=f"{rate_sign}{new_rate}%",
             pitch=f"{pitch_sign}{new_pitch}Hz",
-            tier=tier,
+            tier="standard",
         )

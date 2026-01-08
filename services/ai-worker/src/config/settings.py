@@ -32,11 +32,18 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4o-mini"
     openai_max_tokens: int = 16000  # GPT-4o mini supports up to 16,384 output tokens
 
-    # Google Cloud TTS
+    # Google Cloud TTS (Standard voices - $4/1M chars)
     google_cloud_project_id: Optional[str] = None
     google_cloud_credentials_path: Optional[str] = None  # Path to service account JSON
-    # Voice tier: "standard" ($4/1M chars) or "neural" ($16/1M chars)
-    tts_voice_tier: str = "neural"  # Default to Neural2 for paying users
+
+    # Gemini 2.5 Pro TTS (Multi-speaker - ~$0.32/10-min episode)
+    gemini_api_key: Optional[str] = None
+
+    # TTS Configuration
+    # Voice tier options:
+    #   - "standard": Google Cloud Standard ($4/1M chars) - free tier
+    #   - "gemini": Gemini 2.5 Pro (~$0.32/10-min) - paid tiers, multi-speaker
+    tts_voice_tier: str = "gemini"  # Default to Gemini Pro for paying users
 
     # Storage
     local_storage_path: str = "./storage"
@@ -68,6 +75,11 @@ class Settings(BaseSettings):
             self.google_cloud_project_id is not None
             and len(self.google_cloud_project_id) > 0
         )
+
+    @property
+    def has_gemini_tts(self) -> bool:
+        """Check if Gemini TTS is configured."""
+        return self.gemini_api_key is not None and len(self.gemini_api_key) > 0
 
 
 @lru_cache

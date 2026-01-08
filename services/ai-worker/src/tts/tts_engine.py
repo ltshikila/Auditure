@@ -1,17 +1,34 @@
-"""TTS engine orchestrator using Google Cloud TTS."""
+"""TTS engine orchestrator supporting multiple providers.
+
+Supports:
+- Google Cloud Standard TTS ($4/1M chars) - Free tier (2 episodes/month)
+- Gemini 2.5 Pro TTS (~$0.32/10-min) - Paid tiers + 1 free episode/month
+
+Hybrid Model (Free Tier):
+- 1 Gemini Pro episode + 2 Standard episodes per month
+- Provides "aha moment" with premium quality while controlling costs
+"""
 
 import logging
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import List, Dict, Optional
 
 from src.config import get_settings
 from .voice_mapper import VoiceMapper, VoiceConfig
 from .google_tts_client import GoogleTTSClient
+from .gemini_tts_client import GeminiTTSClient
 from .script_parser import ScriptParser, SpeakerSegment
 from .audio_processor import AudioProcessor
 
 logger = logging.getLogger(__name__)
+
+
+class VoiceTier(str, Enum):
+    """Available voice tiers."""
+    STANDARD = "standard"   # Google Cloud Standard - $4/1M chars (free tier)
+    GEMINI = "gemini"       # Gemini 2.5 Pro - ~$0.32/10-min (paid tiers)
 
 
 @dataclass
@@ -20,37 +37,74 @@ class TTSResult:
 
     audio_buffer: bytes
     duration: int  # seconds
-    format: str  # "mp3"
+    format: str  # "mp3" or "wav"
     estimated_cost: float  # Estimated TTS cost in USD
+    voice_tier: str = "neural"  # Which tier was used
 
 
 @dataclass
 class PodcasterVoice:
-    """Podcaster voice settings."""
+    """Podcaster voice settings extracted for TTS.
+
+    These settings are used differently by each TTS provider:
+
+    Google Cloud Standard TTS:
+    - gender + accent → voice ID (e.g., en-AU-Standard-A)
+    - speaking_speed → speaking_rate (0.25-2.0)
+    - vocal_pitch → pitch in semitones (-20 to 20)
+
+    Gemini TTS:
+    - gender → filters available voices
+    - accent → language_code (en-US, en-GB, en-AU, en-IN)
+    - speaking_speed + vocal_pitch → selects best matching voice
+    """
 
     gender: str  # MALE, FEMALE
-    accent: str
+    accent: str  # e.g., "United States", "United Kingdom", "Australia", "India"
     speaking_speed: int  # 1-10
     vocal_pitch: int  # 1-10
 
 
 class TTSEngine:
-    """Orchestrates text-to-speech generation using Google Cloud TTS."""
+    """Orchestrates text-to-speech generation with multiple providers.
+
+    Supports automatic fallback:
+    1. Gemini 2.5 Pro (if configured and requested)
+    2. Google Cloud Neural2/Standard (if configured)
+    3. Error if no provider available
+    """
 
     def __init__(self, voice_tier: Optional[str] = None):
         """Initialize TTS engine with components.
 
         Args:
-            voice_tier: Override voice tier ("standard" or "neural")
+            voice_tier: Override voice tier ("standard", "neural", or "gemini")
         """
         settings = get_settings()
-        self.voice_tier = voice_tier or settings.tts_voice_tier
+        self.default_voice_tier = voice_tier or settings.tts_voice_tier
         self.voice_mapper = VoiceMapper()
-        self.tts_client = GoogleTTSClient()
+        self.google_client = GoogleTTSClient()
+        self.gemini_client = GeminiTTSClient()
         self.script_parser = ScriptParser()
         self.audio_processor = AudioProcessor()
         self.words_per_minute = settings.words_per_minute
         self.temp_dir = Path(settings.tts_temp_dir)
+
+        # Log available providers
+        logger.info(f"TTS Engine initialized:")
+        logger.info(f"  Default tier: {self.default_voice_tier}")
+        logger.info(f"  Gemini available: {self.has_gemini}")
+        logger.info(f"  Google Cloud available: {self.has_google}")
+
+    @property
+    def has_gemini(self) -> bool:
+        """Check if Gemini TTS is available."""
+        return self.gemini_client.is_available
+
+    @property
+    def has_google(self) -> bool:
+        """Check if Google Cloud TTS is available."""
+        return self.google_client.is_available
 
     def generate(
         self,
@@ -71,60 +125,204 @@ class TTSEngine:
         Returns:
             TTSResult with audio buffer, duration, and cost estimate
         """
-        tier = voice_tier or self.voice_tier
+        tier = voice_tier or self.default_voice_tier
         logger.info(f"Generating TTS for {episode_type} episode using {tier} voices")
 
         # Parse script into segments
         segments = self.script_parser.parse(script, episode_type)
         logger.info(f"Parsed {len(segments)} segments")
 
+        # Route to appropriate provider
+        if tier == VoiceTier.GEMINI or tier == "gemini":
+            if self.has_gemini:
+                return self._generate_with_gemini(
+                    script, segments, podcaster_voice, episode_type
+                )
+            else:
+                logger.warning("Gemini TTS not configured, falling back to Standard")
+                tier = VoiceTier.STANDARD
+
+        # Use Google Cloud Standard TTS
+        if tier in [VoiceTier.STANDARD, "standard"]:
+            if self.has_google:
+                return self._generate_with_google(
+                    script, segments, podcaster_voice, episode_type
+                )
+            else:
+                raise RuntimeError("No TTS provider configured")
+
+        raise RuntimeError(f"Unknown voice tier: {tier}")
+
+    def _generate_with_gemini(
+        self,
+        script: str,
+        segments: List[SpeakerSegment],
+        podcaster_voice: PodcasterVoice,
+        episode_type: str,
+    ) -> TTSResult:
+        """Generate audio using Gemini 2.5 Pro TTS (multi-speaker).
+
+        Voice selection uses all podcaster settings:
+        - gender: filters available voices
+        - accent: maps to language_code (en-US, en-GB, en-AU, en-IN)
+        - speaking_speed + vocal_pitch: selects best matching voice
+
+        Reference: https://docs.cloud.google.com/text-to-speech/docs/gemini-tts
+        """
+        logger.info("Using Gemini 2.5 Pro TTS for multi-speaker synthesis")
+
+        # Get language code from accent
+        language_code = self.gemini_client.get_language_code(podcaster_voice.accent)
+        logger.info(f"Accent '{podcaster_voice.accent}' -> language_code '{language_code}'")
+
+        # Build voice assignments based on speakers in script
+        speakers = self.script_parser.get_unique_speakers(segments)
+        voice_configs = self._assign_gemini_voices(speakers, podcaster_voice)
+
+        # Extract voice assignments for logging
+        voice_assignments = {
+            speaker: config.speaker_id
+            for speaker, config in voice_configs.items()
+        }
+        logger.info(f"Voice assignments: {voice_assignments}")
+
+        # Generate audio with full voice configs, language code, and episode type
+        audio_buffer = self.gemini_client.generate_audio(
+            script=script,
+            voice_configs=voice_configs,
+            episode_type=episode_type,
+            language_code=language_code,
+        )
+
+        # Get duration
+        duration = self.audio_processor.get_buffer_duration(audio_buffer)
+        if duration == 0:
+            duration = self.script_parser.estimate_duration(
+                segments, self.words_per_minute
+            )
+
+        # Calculate cost estimate
+        cost = self.gemini_client.estimate_cost(script, duration)
+
+        logger.info(f"Gemini TTS complete. Duration: {duration}s, Cost: ${cost:.4f}")
+
+        return TTSResult(
+            audio_buffer=audio_buffer,
+            duration=duration,
+            format="wav",  # Gemini outputs WAV
+            estimated_cost=cost,
+            voice_tier="gemini",
+        )
+
+    def _generate_with_google(
+        self,
+        script: str,
+        segments: List[SpeakerSegment],
+        podcaster_voice: PodcasterVoice,
+        episode_type: str,
+    ) -> TTSResult:
+        """Generate audio using Google Cloud Standard TTS."""
+        logger.info("Using Google Cloud Standard TTS")
+
         # Calculate total characters for cost estimation
         total_chars = sum(len(seg.text) for seg in segments)
 
         if episode_type == "MONOLOGUE":
-            result = self._generate_monologue(segments, podcaster_voice, tier)
+            result = self._generate_google_monologue(segments, podcaster_voice)
         else:
-            result = self._generate_multi_voice(segments, podcaster_voice, tier)
+            result = self._generate_google_multi_voice(segments, podcaster_voice)
 
-        # Calculate cost estimate
-        if tier == "neural":
-            cost = (total_chars / 1_000_000) * 16  # $16/1M chars
-        else:
-            cost = (total_chars / 1_000_000) * 4   # $4/1M chars
+        # Calculate cost estimate - Standard is $4/1M chars
+        cost = (total_chars / 1_000_000) * 4
 
         result.estimated_cost = cost
-        logger.info(f"TTS generation complete. Duration: {result.duration}s, Est. cost: ${cost:.4f}")
+        result.voice_tier = "standard"
+        logger.info(f"Google TTS complete. Duration: {result.duration}s, Cost: ${cost:.4f}")
 
         return result
 
-    def _generate_monologue(
+    def _assign_gemini_voices(
+        self,
+        speakers: List[str],
+        main_podcaster: PodcasterVoice,
+    ) -> Dict[str, "GeminiVoiceConfig"]:
+        """Assign Gemini voices to speakers using podcaster settings.
+
+        Uses the new voice selection algorithm:
+        - Host: Best matching voice for gender + speaking_speed + vocal_pitch
+        - Guests: Alternating genders with slight speed/pitch variations
+
+        Args:
+            speakers: List of speaker labels from script
+            main_podcaster: Podcaster voice settings from frontend
+
+        Returns:
+            Dict mapping speaker labels to GeminiVoiceConfig objects
+        """
+        from .gemini_tts_client import GeminiVoiceConfig
+
+        assignments: Dict[str, GeminiVoiceConfig] = {}
+        guest_index = 0
+
+        for speaker in speakers:
+            speaker_upper = speaker.upper()
+
+            if speaker_upper in ["HOST", "HOST1", "NARRATOR"]:
+                # Use voice matching main podcaster's settings
+                voice_config = self.gemini_client.get_voice_for_speaker(
+                    speaker_type="HOST",
+                    gender=main_podcaster.gender,
+                    speaking_speed=main_podcaster.speaking_speed,
+                    vocal_pitch=main_podcaster.vocal_pitch,
+                    speaker_index=0,
+                )
+                assignments[speaker] = voice_config
+            else:
+                # Alternate genders for variety
+                alt_gender = "FEMALE" if main_podcaster.gender == "MALE" else "MALE"
+                if guest_index % 2 == 0:
+                    gender = alt_gender
+                else:
+                    gender = main_podcaster.gender
+
+                voice_config = self.gemini_client.get_voice_for_speaker(
+                    speaker_type="GUEST",
+                    gender=gender,
+                    speaking_speed=main_podcaster.speaking_speed,
+                    vocal_pitch=main_podcaster.vocal_pitch,
+                    speaker_index=guest_index,
+                )
+                assignments[speaker] = voice_config
+                guest_index += 1
+
+        return assignments
+
+    def _generate_google_monologue(
         self,
         segments: List[SpeakerSegment],
         podcaster_voice: PodcasterVoice,
-        voice_tier: str,
     ) -> TTSResult:
-        """Generate audio for monologue (single voice)."""
-        # Get voice config for main podcaster
+        """Generate audio for monologue (single voice) using Google Standard TTS."""
+        # Get voice config for main podcaster (always standard tier)
         voice_config = self.voice_mapper.get_voice_config(
             gender=podcaster_voice.gender,
             accent=podcaster_voice.accent,
             speaking_speed=podcaster_voice.speaking_speed,
             vocal_pitch=podcaster_voice.vocal_pitch,
-            tier=voice_tier,
+            tier="standard",
         )
 
         # Combine all text
         full_text = " ".join(seg.text for seg in segments)
 
         # Generate audio
-        audio_buffer = self.tts_client.generate_audio(
-            full_text, voice_config, voice_tier
+        audio_buffer = self.google_client.generate_audio(
+            full_text, voice_config, "standard"
         )
 
         # Get duration
         duration = self.audio_processor.get_buffer_duration(audio_buffer)
         if duration == 0:
-            # Estimate if ffprobe unavailable
             duration = self.script_parser.estimate_duration(
                 segments, self.words_per_minute
             )
@@ -134,21 +332,21 @@ class TTSEngine:
             duration=duration,
             format="mp3",
             estimated_cost=0.0,  # Will be set by caller
+            voice_tier="standard",
         )
 
-    def _generate_multi_voice(
+    def _generate_google_multi_voice(
         self,
         segments: List[SpeakerSegment],
         main_podcaster: PodcasterVoice,
-        voice_tier: str,
     ) -> TTSResult:
-        """Generate audio for multi-voice episodes (DUO/GROUP)."""
+        """Generate audio for multi-voice episodes using Google Standard TTS."""
         # Get unique speakers
         speakers = self.script_parser.get_unique_speakers(segments)
         logger.info(f"Speakers: {speakers}")
 
-        # Create voice configs for each speaker
-        voice_configs = self._assign_voices(speakers, main_podcaster, voice_tier)
+        # Create voice configs for each speaker (always standard tier)
+        voice_configs = self._assign_google_voices(speakers, main_podcaster)
 
         # Generate audio for each segment
         audio_buffers: List[bytes] = []
@@ -159,8 +357,8 @@ class TTSEngine:
                 voice_config = voice_configs[segment.speaker]
                 logger.debug(f"Generating segment {i+1}/{len(segments)}: {segment.speaker}")
 
-                audio_buffer = self.tts_client.generate_audio(
-                    segment.text, voice_config, voice_tier
+                audio_buffer = self.google_client.generate_audio(
+                    segment.text, voice_config, "standard"
                 )
                 audio_buffers.append(audio_buffer)
 
@@ -184,28 +382,28 @@ class TTSEngine:
                 duration=duration,
                 format="mp3",
                 estimated_cost=0.0,  # Will be set by caller
+                voice_tier="standard",
             )
 
         finally:
             # Cleanup any temp files
             self.audio_processor.cleanup_temp_files(temp_files)
 
-    def _assign_voices(
+    def _assign_google_voices(
         self,
         speakers: List[str],
         main_podcaster: PodcasterVoice,
-        voice_tier: str,
     ) -> Dict[str, VoiceConfig]:
-        """Assign voice configs to each speaker."""
+        """Assign Google Standard TTS voice configs to each speaker."""
         voice_configs: Dict[str, VoiceConfig] = {}
 
-        # Main podcaster's voice config
+        # Main podcaster's voice config (always standard tier)
         main_config = self.voice_mapper.get_voice_config(
             gender=main_podcaster.gender,
             accent=main_podcaster.accent,
             speaking_speed=main_podcaster.speaking_speed,
             vocal_pitch=main_podcaster.vocal_pitch,
-            tier=voice_tier,
+            tier="standard",
         )
 
         guest_index = 0
@@ -227,3 +425,33 @@ class TTSEngine:
                 )
 
         return voice_configs
+
+    def estimate_cost(
+        self,
+        script: str,
+        voice_tier: str,
+        target_duration_seconds: Optional[int] = None,
+    ) -> float:
+        """
+        Estimate TTS cost for a script.
+
+        Args:
+            script: The podcast script
+            voice_tier: Which tier to estimate for ("standard" or "gemini")
+            target_duration_seconds: Expected duration (for Gemini accuracy)
+
+        Returns:
+            Estimated cost in USD
+        """
+        char_count = len(script)
+
+        if voice_tier in ["gemini", VoiceTier.GEMINI]:
+            if target_duration_seconds:
+                return self.gemini_client.estimate_cost(script, target_duration_seconds)
+            # Rough estimate: 150 words/min, 5 chars/word
+            estimated_words = char_count / 5
+            estimated_seconds = int((estimated_words / 150) * 60)
+            return self.gemini_client.estimate_cost(script, estimated_seconds)
+        else:
+            # Standard tier: $4/1M chars
+            return (char_count / 1_000_000) * 4

@@ -37,41 +37,89 @@ ai-worker/
 
 ## Voice Parameters
 
-| Parameter | Range | TTS Support |
-|-----------|-------|-------------|
-| Gender | MALE/FEMALE | Voice selection |
-| Accent | 6 regions | Voice selection |
-| Speaking Speed | 1-10 | Rate: -30% to +30% |
-| Vocal Pitch | 1-10 | Pitch: -30Hz to +30Hz |
-| Voice Tier | STANDARD/GEMINI_PRO | Quality & cost |
+| Parameter | Range | Google Standard | Gemini TTS |
+|-----------|-------|-----------------|------------|
+| Gender | MALE/FEMALE | Voice selection | Voice selection |
+| Accent | 6 regions | Voice ID mapping | language_code |
+| Speaking Speed | 1-10 | Rate: 0.7-1.3 | Best-match voice |
+| Vocal Pitch | 1-10 | Pitch: ±10 semitones | Best-match voice |
+| Voice Tier | standard/gemini | — | — |
 
 ### Supported Accents
 
-| Accent | Google Cloud Voice |
-|--------|-------------------|
-| United States | en-US voices |
-| United Kingdom | en-GB voices |
-| Australia | en-AU voices |
-| Canada | en-US voices |
-| Ireland | en-GB voices |
-| India | en-IN voices |
+| Accent | Google Standard | Gemini TTS |
+|--------|-----------------|------------|
+| United States | en-US-Standard-* | en-US (GA) |
+| United Kingdom | en-GB-Standard-* | en-GB (Preview) |
+| Australia | en-AU-Standard-* | en-AU (Preview) |
+| India | en-IN-Standard-* | en-IN (GA) |
+| Canada | en-US-Standard-* | en-US |
+| Ireland | en-GB-Standard-* | en-GB |
+
+**Reference:**
+- [Google Cloud TTS Voices](https://docs.cloud.google.com/text-to-speech/docs/voices)
+- [Gemini TTS Languages](https://docs.cloud.google.com/text-to-speech/docs/gemini-tts#available_languages)
 
 ### Voice Tiers
 
 | Tier | Cost | Quality | Use Case |
 |------|------|---------|----------|
 | Standard | $4/1M chars (~$0.06/ep) | Good | Free tier (2 episodes/month) |
-| Gemini 2.5 Pro | $20/1M audio tokens (~$0.32/ep) | Premium | Free tier (1 ep/mo) + All paid |
+| Gemini Pro | ~$0.32/10-min episode | Premium | Free tier (1 ep/mo) + All paid tiers |
+
+**Reference:** [Gemini TTS Pricing](https://ai.google.dev/gemini-api/docs/pricing)
 
 **Hybrid Free Tier Model:**
 - Free users: 1 Gemini Pro + 2 Standard episodes/month
 - Paid users: All episodes use Gemini 2.5 Pro TTS
 
-**Gemini 2.5 Pro Features:**
-- Native multi-speaker synthesis (up to 9 speakers)
-- Non-verbal cues ([sigh], [laugh], etc.)
-- Natural language style prompts
-- Podcast-optimized audio output
+### Gemini TTS Voice Selection
+
+Gemini TTS uses **30 distinct voices** with unique characteristics. Voice selection algorithm:
+
+1. **Filter by gender** (MALE/FEMALE from podcaster config)
+2. **Map accent to language_code** (en-US, en-GB, en-AU, en-IN)
+3. **Select best-match voice** based on speakingSpeed + vocalPitch
+
+| Voice | Gender | Style | Speed | Pitch |
+|-------|--------|-------|-------|-------|
+| Kore | FEMALE | Firm | 5 | 5 |
+| Charon | MALE | Informative | 5 | 3 |
+| Fenrir | MALE | Excitable | 8 | 6 |
+| Zephyr | FEMALE | Bright | 6 | 8 |
+| Leda | FEMALE | Youthful | 5 | 9 |
+| Puck | MALE | Upbeat | 7 | 7 |
+| Gacrux | FEMALE | Mature | 4 | 2 |
+| Algenib | MALE | Gravelly | 4 | 2 |
+| ... | ... | ... | ... | ... |
+
+**Full 30 voices:** See `src/tts/gemini_tts_client.py`
+
+**Reference:** [Gemini TTS Voices](https://ai.google.dev/gemini-api/docs/speech-generation)
+
+### TTS Markup Tags
+
+Scripts include Gemini TTS markup tags for natural speech synthesis:
+
+| Tag | Effect | Example |
+|-----|--------|---------|
+| `[short pause]` | ~250ms pause | "So [short pause] here's the thing..." |
+| `[medium pause]` | ~500ms pause | "That's interesting. [medium pause] Let me think." |
+| `[long pause]` | ~1s+ pause | "And then [long pause] everything changed." |
+| `[sigh]` | Sighing sound | "[sigh] This is frustrating." |
+| `[laughing]` | Laughter | "Wait, really? [laughing] That's hilarious!" |
+| `[uhm]` | Thinking hesitation | "[uhm] I'm not sure about that." |
+| `[excited]` | Excited delivery | "[excited] This is amazing!" |
+
+**Reference:** [Gemini TTS Prompting Tips](https://docs.cloud.google.com/text-to-speech/docs/gemini-tts#prompting_tips)
+
+### Gemini TTS Features
+
+- **Native multi-speaker synthesis** (up to 9 speakers per request)
+- **Non-verbal cues** ([sigh], [laugh], [uhm], etc.)
+- **Natural language style prompts** (per episode type)
+- **Podcast-optimized audio output** (24kHz WAV)
+- **Regional accent support** (en-US, en-GB, en-AU, en-IN)
 
 ## Environment Variables
 
@@ -92,11 +140,15 @@ REDIS_PORT=6379
 OPENAI_API_KEY=your_openai_key_here
 OPENAI_MODEL=gpt-4o-mini
 
-# Google Cloud / Gemini TTS
+# Google Cloud TTS (Standard voices)
 GOOGLE_CLOUD_PROJECT_ID=your_project_id
 GOOGLE_CLOUD_CREDENTIALS_PATH=/path/to/credentials.json
-GOOGLE_CLOUD_TTS_API_KEY=your_api_key  # For Gemini TTS
-TTS_VOICE_TIER=gemini_pro  # Default tier: standard or gemini_pro
+
+# Gemini 2.5 Pro TTS (Multi-speaker)
+GEMINI_API_KEY=your_gemini_api_key
+
+# TTS Configuration
+TTS_VOICE_TIER=gemini  # Options: standard, gemini
 
 # Storage
 LOCAL_STORAGE_PATH=./storage

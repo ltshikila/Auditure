@@ -144,7 +144,20 @@ Key guidelines:
 - Include natural speech patterns and transitions
 - For multi-speaker formats, create distinct voices and natural dialogue
 - Focus on making complex ideas accessible and interesting
-- Always meet the requested word count - this is critical for episode length"""
+- Always meet the requested word count - this is critical for episode length
+
+TTS MARKUP - CRITICAL:
+Include these markup tags throughout the script for natural text-to-speech:
+- [short pause], [medium pause], [long pause] - For pacing and emphasis
+- [sigh] - For emotional moments (frustration, relief, contemplation)
+- [laughing], [chuckle] - For humor and reactions
+- [uhm], [uh] - For natural thinking hesitation
+- [excited] - Before surprising or exciting information
+
+These tags will be rendered as natural speech sounds by the TTS engine.
+Use them liberally but naturally - a good podcast has personality!
+
+Reference: https://docs.cloud.google.com/text-to-speech/docs/gemini-tts#prompting_tips"""
 
         return self.generate_text(
             prompt=prompt,

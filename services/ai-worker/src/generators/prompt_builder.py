@@ -1,4 +1,16 @@
-"""Prompt builder for script generation."""
+"""Prompt builder for script generation.
+
+Generates prompts for LLM-based podcast script generation with support
+for Gemini TTS markup tags for natural speech synthesis.
+
+Gemini TTS Markup Tags (included in generated scripts):
+- Non-speech sounds: [sigh], [laughing], [uhm]
+- Pacing control: [short pause], [medium pause], [long pause]
+- Style modifiers: [whispering], [excited]
+
+Reference: https://docs.cloud.google.com/text-to-speech/docs/gemini-tts#prompting_tips
+Reference: https://ai.google.dev/gemini-api/docs/speech-generation#prompting-guide
+"""
 
 import logging
 from dataclasses import dataclass
@@ -113,24 +125,50 @@ class PromptBuilder:
         return "\n".join(f"- {d}" for d in descriptions)
 
     def build_episode_type_instructions(self, episode_type: str) -> str:
-        """Get instructions based on episode type."""
+        """Get instructions based on episode type.
+
+        Includes Gemini TTS markup guidance for natural speech synthesis.
+        Reference: https://docs.cloud.google.com/text-to-speech/docs/gemini-tts#prompting_tips
+        """
+        tts_markup_guide = """
+## TTS Markup Tags (USE THESE for natural speech)
+Include these markup tags naturally throughout the script:
+- [short pause] - Brief pause like a comma (~250ms)
+- [medium pause] - Sentence break pause (~500ms)
+- [long pause] - Dramatic pause for emphasis (~1s)
+- [sigh] - Express frustration, relief, or contemplation
+- [laughing] or [chuckle] - Natural laughter reactions
+- [uhm] or [uh] - Thinking hesitation for naturalness
+- [excited] - When sharing surprising or exciting information
+
+Example usage:
+"So I was reading this book [short pause] and honestly [sigh] it completely changed how I think about productivity."
+"Wait, really? [laughing] That's exactly what happened to me!"
+"[uhm] Let me think about that for a second [medium pause] yeah, I think you're right."
+"""
+
         if episode_type == "MONOLOGUE":
-            return """
+            return f"""
 Format: Single host speaking directly to the audience.
 Structure: No speaker labels needed - write as continuous prose.
-Style: First person, intimate, as if speaking to a close friend."""
+Style: First person, intimate, as if speaking to a close friend.
+{tts_markup_guide}"""
 
         elif episode_type == "DUO":
-            return """
+            return f"""
 Format: Two-person conversation between HOST and GUEST.
 Structure: Use speaker labels like "HOST:" and "GUEST:" for each speaking turn.
-Style: Natural dialogue with back-and-forth exchange. The guest can challenge or add perspectives."""
+Style: Natural dialogue with back-and-forth exchange. The guest can challenge or add perspectives.
+Include natural reactions like agreement sounds, laughter, and thoughtful pauses.
+{tts_markup_guide}"""
 
         else:  # GROUP
-            return """
+            return f"""
 Format: Group discussion with HOST, GUEST1, and GUEST2 (optionally GUEST3).
 Structure: Use speaker labels like "HOST:", "GUEST1:", "GUEST2:" for each turn.
-Style: Dynamic conversation with multiple viewpoints. Allow for interruptions and building on ideas."""
+Style: Dynamic conversation with multiple viewpoints. Allow for interruptions and building on ideas.
+Include reactions, agreements, and natural conversational sounds.
+{tts_markup_guide}"""
 
     def build_theme_instructions(self, episode_theme: str) -> str:
         """Get instructions based on episode theme."""
