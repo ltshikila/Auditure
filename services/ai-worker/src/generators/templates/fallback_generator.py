@@ -290,7 +290,7 @@ HOST: And to our listeners, thank you for tuning in. Hit that subscribe button a
         script = f"{intro}\n\n{body}\n\n{conclusion}"
 
         word_count = len(script.split())
-        estimated_minutes = word_count / 150
+        estimated_minutes = word_count / 185  # Gemini TTS speaks at ~185 wpm
         logger.info(
             f"Generated fallback script: {word_count} words, "
             f"~{estimated_minutes:.1f} minutes"

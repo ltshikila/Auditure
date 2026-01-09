@@ -34,28 +34,30 @@
 
 ### Critical Insight
 
-**Free tier uses hybrid model (1 Gemini Pro + 2 Standard)** to balance:
+**Free tier uses hybrid model (1 Gemini + 2 Standard)** to balance:
 - User experience: Premium "aha moment" drives conversions
-- Cost control: Realistic usage ~$0.28/user/month
+- Cost control: Realistic usage ~$0.17/user/month
 - Upgrade incentive: "I want all my episodes in multi-speaker"
 
 ### TTS Strategy
 
-| Phase | TTS Provider | Why |
-|-------|--------------|-----|
-| **MVP** | Gemini 2.5 Pro TTS | Multi-speaker, podcast-optimized, natural dialogue |
-| **Scale (10K+ eps/mo)** | Higgs Audio V2 (self-hosted) | 10-15x cost reduction |
+| Phase | TTS Provider | Cost/Episode | Why |
+|-------|--------------|--------------|-----|
+| **MVP** | Gemini 2.5 Flash TTS | ~$0.15 | Multi-speaker, podcast-optimized, natural dialogue |
+| **Premium** | Gemini 2.5 Pro TTS | ~$0.30 | Highest quality for premium users |
+| **Scale (10K+ eps/mo)** | Higgs Audio V2 (self-hosted) | ~$0.02 | 7-15x cost reduction |
 
 ### MVP Scope
 
 | Feature | MVP | Post-MVP |
 |---------|-----|----------|
 | Episode length | 5-10 min | 11-30 min (chunked), 45-90 min (add-on) |
-| Voice quality | Hybrid (1 Pro + 2 Std) for free, Gemini Pro for paid | Higgs Audio (cost optimization) |
+| Voice quality | Hybrid (1 Gemini + 2 Std) for free, Gemini Flash for paid | Higgs Audio (cost optimization) |
 | Episode types | Monologue, Duo, Group | - |
 | Voice accents | 6 regions | Additional regions |
 | Priority queue | No | Yes (add-on) |
 | Multi-speaker | 1/mo free, unlimited paid | - |
+| Natural dialogue | Chaos-based interruptions and backchannels | - |
 
 ---
 
@@ -115,8 +117,9 @@
 
 | Component | Cost | Notes |
 |-----------|------|-------|
-| **TTS - Standard** | $0.06 | Google Cloud Standard voices ($4/1M chars) |
-| **TTS - Gemini 2.5 Pro** | $0.32 | Podcast-optimized, multi-speaker ($20/1M audio tokens) |
+| **TTS - Standard** | $0.024 | Google Cloud Standard voices ($4/1M chars) |
+| **TTS - Gemini 2.5 Flash** | $0.15 | Podcast-optimized, multi-speaker ($10/1M audio tokens) |
+| **TTS - Gemini 2.5 Pro** | $0.30 | Highest quality ($20/1M audio tokens) |
 | **TTS - Higgs Audio** | $0.02 | Self-hosted on RunPod RTX 4090 ($0.59/hr) |
 | **LLM (GPT-4o mini)** | $0.003 | Script generation |
 | **Storage (S3)** | $0.0001 | ~4MB per episode |
@@ -126,30 +129,39 @@
 
 | Voice Tier | TTS | LLM | Storage | CDN | **Total/Episode** |
 |------------|-----|-----|---------|-----|-------------------|
-| Standard | $0.06 | $0.003 | $0.0001 | $0.04 | **$0.10** |
-| Gemini 2.5 Pro | $0.32 | $0.003 | $0.0001 | $0.04 | **$0.36** |
+| Standard | $0.024 | $0.003 | $0.0001 | $0.04 | **$0.07** |
+| Gemini 2.5 Flash | $0.15 | $0.003 | $0.0001 | $0.04 | **$0.19** |
+| Gemini 2.5 Pro | $0.30 | $0.003 | $0.0001 | $0.04 | **$0.34** |
 | Higgs Audio (future) | $0.02 | $0.003 | $0.0001 | $0.04 | **$0.06** |
 
-### Free Tier Cost (Hybrid: 1 Pro + 2 Standard)
+### Free Tier Cost (Hybrid: 1 Gemini + 2 Standard)
 
-| Usage Pattern | Avg Episodes | Pro Episodes | Std Episodes | Cost/User/Mo |
-|---------------|--------------|--------------|--------------|--------------|
-| Power user | 3.0 | 1.0 | 2.0 | $0.56 |
-| **Realistic** | 1.5 | 0.5 | 1.0 | **$0.28** |
-| Light user | 1.0 | 0.33 | 0.67 | $0.19 |
+| Usage Pattern | Avg Episodes | Gemini Episodes | Std Episodes | Cost/User/Mo |
+|---------------|--------------|-----------------|--------------|--------------|
+| Power user | 3.0 | 1.0 | 2.0 | $0.33 |
+| **Realistic** | 1.5 | 0.5 | 1.0 | **$0.17** |
+| Light user | 1.0 | 0.33 | 0.67 | $0.11 |
 
 *Realistic assumes 50% of free users use their full allocation*
 
-### Gemini 2.5 Pro TTS Pricing Details
+### Gemini 2.5 Flash TTS Pricing Details (Default)
+
+| Component | Rate | Per 10-min Episode |
+|-----------|------|-------------------|
+| Input tokens | $0.50/1M tokens | ~$0.01 |
+| Audio output | $10.00/1M tokens | ~$0.15 |
+| **Total** | | **~$0.15** |
+
+*Audio tokens = 25 tokens per second of audio*
+*10 min = 600 sec × 25 = 15,000 audio tokens*
+
+### Gemini 2.5 Pro TTS Pricing Details (Premium)
 
 | Component | Rate | Per 10-min Episode |
 |-----------|------|-------------------|
 | Input tokens | $1.00/1M tokens | ~$0.02 |
 | Audio output | $20.00/1M tokens | ~$0.30 |
-| **Total** | | **~$0.32** |
-
-*Audio tokens = 25 tokens per second of audio*
-*10 min = 600 sec × 25 = 15,000 audio tokens*
+| **Total** | | **~$0.30** |
 
 ### Gemini TTS Limitations
 

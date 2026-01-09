@@ -1,6 +1,8 @@
 # Auditure AI Worker
 
-Python microservice for AI-powered podcast generation. Handles script generation (via OpenAI GPT-4o mini with template fallback) and text-to-speech conversion (via Google Cloud TTS).
+Python microservice for AI-powered podcast generation. Handles script generation (via OpenAI GPT-4o mini with template fallback) and text-to-speech conversion (via Google Cloud TTS + Gemini 2.5 TTS).
+
+**SDK:** Uses the official `google-genai` SDK for Gemini TTS integration.
 
 ## Architecture
 
@@ -25,12 +27,15 @@ ai-worker/
 ## Features
 
 - **Script Generation**: OpenAI GPT-4o mini with template fallback
-- **Text-to-Speech**: Gemini 2.5 Pro TTS (paid) + Google Cloud Standard (free tier)
-- **Voice Tiers**: Standard ($4/1M chars) or Gemini Pro (~$0.32/10-min episode)
+- **Text-to-Speech**: Gemini 2.5 Flash TTS (premium) + Google Cloud Standard (free tier)
+- **Voice Tiers**: Standard ($4/1M chars) or Gemini (~$0.15/10-min episode)
 - **Episode Types**: MONOLOGUE, DUO, GROUP (multi-voice support)
 - **Episode Length**: 5-10 minutes (MVP), up to 30 minutes (chunked)
 - **Voice Customization**: Gender, accent, speaking speed, vocal pitch
 - **Multi-Speaker**: Native support (up to 9 speakers per episode)
+- **Dynamic WPM**: Script length adjusts based on podcaster speaking speed
+- **Natural Interruptions**: Backchannels and interjections based on chaos factor
+- **Trailing Silence**: 1 second of silence at episode end for natural fade-out
 - **Retry Logic**: 3 automatic retries with exponential backoff
 - **Dead Letter Queue**: Failed jobs routed to DLQ after max retries
 - **Real-time Progress**: Redis-based progress tracking for UI updates
@@ -62,16 +67,22 @@ ai-worker/
 
 ### Voice Tiers
 
-| Tier | Cost | Quality | Use Case |
-|------|------|---------|----------|
-| Standard | $4/1M chars (~$0.06/ep) | Good | Free tier (2 episodes/month) |
-| Gemini Pro | ~$0.32/10-min episode | Premium | Free tier (1 ep/mo) + All paid tiers |
+| Tier | Input Cost | Output Cost | ~Cost/10-min | Quality |
+|------|------------|-------------|--------------|---------|
+| Standard | $4/1M chars | — | ~$0.024 | Good |
+| Gemini Flash | $0.50/1M tokens | $10/1M audio tokens | ~$0.15 | Premium |
+| Gemini Pro | $1.00/1M tokens | $20/1M audio tokens | ~$0.30 | Highest |
+
+**Gemini Audio Token Calculation:**
+- Audio tokens = duration (seconds) × 25 tokens/second
+- 10-minute episode = 600s × 25 = 15,000 audio tokens
+- Cost: (15,000 / 1M) × $10 = **$0.15** per 10-min episode
 
 **Reference:** [Gemini TTS Pricing](https://ai.google.dev/gemini-api/docs/pricing)
 
 **Hybrid Free Tier Model:**
-- Free users: 1 Gemini Pro + 2 Standard episodes/month
-- Paid users: All episodes use Gemini 2.5 Pro TTS
+- Free users: 1 Gemini + 2 Standard episodes/month
+- Paid users: All episodes use Gemini 2.5 Flash TTS
 
 ### Gemini TTS Voice Selection
 
@@ -120,6 +131,47 @@ Scripts include Gemini TTS markup tags for natural speech synthesis:
 - **Natural language style prompts** (per episode type)
 - **Podcast-optimized audio output** (24kHz WAV)
 - **Regional accent support** (en-US, en-GB, en-AU, en-IN)
+- **Base64 audio decoding** (handled automatically by SDK wrapper)
+- **1 second trailing silence** for natural episode endings
+
+### Dynamic Words-Per-Minute (WPM)
+
+Script length automatically adjusts based on the podcaster's **speaking speed** setting to ensure episodes meet duration targets.
+
+**Formula:** `WPM = 130 + (speaking_speed × 10)`
+
+| Speaking Speed | WPM | 5-8 min Target Words |
+|----------------|-----|----------------------|
+| 1 (slow) | 140 | 910 words |
+| 4 (moderate) | 170 | 1,105 words |
+| 5 (normal) | 180 | 1,170 words |
+| 7 (fast) | 200 | 1,300 words |
+| 10 (very fast) | 230 | 1,495 words |
+
+This ensures that faster-speaking podcasters get more words in their scripts, while slower speakers get fewer words, maintaining consistent episode duration.
+
+### Natural Interruptions & Backchannels
+
+Multi-speaker episodes (DUO, GROUP) include verbal cues for natural conversation flow. The frequency and intensity are controlled by the podcaster's **chaos factor** setting.
+
+#### DEBATE Episodes
+
+| Chaos Factor | Style | Frequency | Examples |
+|--------------|-------|-----------|----------|
+| 1-3 | Polite | 2-3 times | "Actually, I see your point, but—" |
+| 4-6 | Engaged | 4-6 times | "Wait, wait—I have to push back—" |
+| 7-10 | Passionate | 7+ times | "—I completely disagree—", "[laughing] Oh come on—" |
+
+#### DISCUSSION Episodes
+
+| Chaos Factor | Style | Frequency | Examples |
+|--------------|-------|-----------|----------|
+| 1-3 | Gentle | Rare | "Mm-hmm", "I see", "That's interesting..." |
+| 4-6 | Warm | 3-4 times | "Oh interesting!", "Yes! And building on that—" |
+| 7-10 | Energetic | 5+ times | "Yes yes yes!", "Ha! So true—" |
+
+#### LECTURE Episodes
+No interruptions (monologue format).
 
 ## Environment Variables
 

@@ -70,11 +70,15 @@ npm run migration:run
 npm run start:gateway
 ```
 
-5. **Configure HuggingFace API Key (optional but recommended):**
+5. **Configure API Keys (required for AI features):**
 
-Create `infra/.env` with your HuggingFace API key:
+Create `infra/.env` with your API keys:
 ```bash
-HUGGINGFACE_API_KEY=your_huggingface_api_key_here
+# Script Generation (OpenAI GPT-4o mini)
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Text-to-Speech (Gemini 2.5 Flash TTS)
+GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
 6. **Run the AI Worker (via Docker Compose):**
@@ -110,8 +114,10 @@ npm run start:mobile
 ### AI Processing
 * Python 3.9+
 * LLM integration (OpenAI GPT-4o mini) with template fallback
-* TTS engine: Gemini 2.5 Pro TTS (paid tiers) + Google Cloud Standard (free tier)
+* TTS engine: Gemini 2.5 Flash TTS (~$0.15/ep) + Google Cloud Standard (free tier fallback)
 * Multi-speaker synthesis with up to 9 voices per episode
+* Dynamic WPM calculation based on podcaster speaking speed
+* Natural interruptions and backchannels based on chaos factor
 
 ### Data & Infrastructure
 * PostgreSQL (relational data)

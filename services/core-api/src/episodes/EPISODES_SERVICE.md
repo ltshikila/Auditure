@@ -162,19 +162,33 @@ Podcaster traits are converted to descriptive text:
 
 | Tier | Provider | Cost | Use Case |
 |------|----------|------|----------|
-| **Standard** | Google Cloud Standard | $4/1M chars (~$0.06/ep) | Free tier (2 eps/mo) |
-| **Gemini Pro** | Gemini 2.5 Pro TTS | $20/1M tokens (~$0.32/ep) | Free tier (1 ep/mo) + All paid |
+| **Standard** | Google Cloud Standard | $4/1M chars (~$0.024/ep) | Free tier fallback |
+| **Gemini Flash** | Gemini 2.5 Flash TTS | $10/1M audio tokens (~$0.15/ep) | Default for all users |
+| **Gemini Pro** | Gemini 2.5 Pro TTS | $20/1M audio tokens (~$0.30/ep) | Premium option |
 
 ### Hybrid Free Tier Model
-- **Free users:** 1 Gemini Pro + 2 Standard episodes/month
-- **Paid users:** All episodes use Gemini 2.5 Pro TTS
+- **Free users:** 1 Gemini + 2 Standard episodes/month
+- **Paid users:** All episodes use Gemini 2.5 Flash TTS
 
-### Gemini 2.5 Pro TTS Features
+### Gemini TTS Features
 - Native multi-speaker synthesis (up to 9 speakers per request)
-- Non-verbal cues ([sigh], [laugh], [hesitation])
+- Non-verbal cues ([sigh], [laugh], [uhm], etc.)
 - Natural language style prompts for tone, accent, pace, emotion
-- Podcast-optimized audio output
+- Podcast-optimized audio output (24kHz WAV)
+- TTS markup tags for natural pauses and delivery
+- 1 second trailing silence for natural episode endings
 - Max output duration: ~11 minutes (chunk + stitch for longer)
+
+### Dynamic WPM Calculation
+Script length automatically adjusts based on podcaster's speaking speed:
+- Formula: `WPM = 130 + (speaking_speed × 10)`
+- Range: 140 WPM (slow) to 230 WPM (very fast)
+
+### Natural Interruptions & Backchannels
+Multi-speaker episodes (DUO, GROUP) include verbal cues controlled by **chaos factor**:
+- **DEBATE episodes:** Interruptions scale from polite (chaos 1-3) to passionate (chaos 7-10)
+- **DISCUSSION episodes:** Friendly backchannels scale with chaos factor
+- **LECTURE episodes:** No interruptions (monologue format)
 
 ### Voice Mapping (Standard Tier)
 ```typescript
@@ -192,7 +206,7 @@ FEMALE: {
 ```
 
 ### Multi-Voice Episodes (DUO/GROUP)
-- **Gemini Pro:** Native multi-speaker - handles speaker labels automatically
+- **Gemini TTS:** Native multi-speaker - handles speaker labels automatically
 - **Standard:** Parses script for speaker labels (HOST:, GUEST1:, etc.)
 - Assigns contrasting voices to different speakers
 - Concatenates audio segments using ffmpeg (Standard tier only)
@@ -206,8 +220,8 @@ FEMALE: {
 # TTS Configuration
 GOOGLE_CLOUD_PROJECT_ID=your_project_id
 GOOGLE_CLOUD_CREDENTIALS_PATH=/path/to/credentials.json
-GOOGLE_CLOUD_TTS_API_KEY=xxx     # For Gemini 2.5 Pro TTS
-TTS_VOICE_TIER=gemini_pro        # Default: gemini_pro or standard
+GEMINI_API_KEY=xxx               # For Gemini 2.5 TTS (via google-genai SDK)
+TTS_VOICE_TIER=gemini            # Default: gemini or standard
 TTS_TEMP_DIR=./temp/tts          # Temp directory for audio processing
 
 # Storage
@@ -224,7 +238,8 @@ REDIS_PORT=6379
 ## Dependencies
 
 ### System Requirements
-- **Google Cloud SDK**: For Gemini 2.5 Pro TTS and Standard TTS
+- **google-genai SDK**: For Gemini 2.5 TTS integration
+- **Google Cloud SDK**: For Standard TTS voices (fallback)
 - **ffmpeg**: Required for audio concatenation (Standard tier multi-voice, chunked episodes)
 - **ffprobe**: Required for audio duration detection
 - **Redis**: Required for progress tracking and playback state

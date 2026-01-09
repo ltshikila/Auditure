@@ -53,7 +53,8 @@
       "Bash(node -e:*)",
       "Bash(npm show:*)",
       "Bash(docker-compose logs:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(docker-compose exec:*)"
     ]
   }
 }

@@ -114,12 +114,30 @@ ACCENT_TO_LANGUAGE_CODE: Dict[str, str] = {
 }
 
 
-def _pcm_to_wav(pcm_data: bytes, channels: int = 1, rate: int = 24000, sample_width: int = 2) -> bytes:
+def _pcm_to_wav(
+    pcm_data: bytes,
+    channels: int = 1,
+    rate: int = 24000,
+    sample_width: int = 2,
+    trailing_silence_sec: float = 1.0,
+) -> bytes:
     """Convert raw PCM data to WAV format.
 
     Gemini TTS outputs PCM 16-bit 24kHz audio without WAV headers.
-    This function adds the proper WAV headers.
+    This function adds the proper WAV headers and optional trailing silence.
+
+    Args:
+        pcm_data: Raw PCM audio bytes
+        channels: Number of audio channels (1=mono)
+        rate: Sample rate in Hz (24000 for Gemini)
+        sample_width: Bytes per sample (2=16-bit)
+        trailing_silence_sec: Seconds of silence to add at the end
     """
+    # Add trailing silence for natural ending
+    if trailing_silence_sec > 0:
+        silence_bytes = int(rate * sample_width * channels * trailing_silence_sec)
+        pcm_data = pcm_data + bytes(silence_bytes)
+
     buffer = io.BytesIO()
     with wave.open(buffer, "wb") as wf:
         wf.setnchannels(channels)
@@ -153,9 +171,10 @@ class GeminiTTSClient:
 
     # Pricing (per 1M tokens) - Gemini 2.5 Flash TTS
     # Reference: https://ai.google.dev/gemini-api/docs/pricing
-    INPUT_PRICE_PER_M = 0.10
-    OUTPUT_PRICE_PER_M = 0.40
-    TOKENS_PER_SECOND = 25  # Audio tokens per second of output
+    # Updated 2026-01-09: Corrected to actual API pricing
+    INPUT_PRICE_PER_M = 0.50    # $0.50 per 1M text tokens
+    OUTPUT_PRICE_PER_M = 10.00  # $10.00 per 1M audio tokens
+    TOKENS_PER_SECOND = 25      # Audio tokens per second of output
 
     def __init__(self, temp_dir: Optional[str] = None):
         """Initialize Gemini TTS client."""
@@ -425,7 +444,8 @@ class GeminiTTSClient:
                         speaker_voice_configs=speaker_configs
                     )
                 )
-                prompt = f"Generate a natural podcast conversation:\n\n{formatted_script}"
+                # Pass script directly without instruction prefix to avoid repetition bug
+                prompt = formatted_script
             else:
                 # Single-speaker configuration
                 main_voice = voice_assignments.get("HOST", voice_assignments.get("NARRATOR", "Kore"))
@@ -436,9 +456,10 @@ class GeminiTTSClient:
                         )
                     )
                 )
-                # For monologue, strip speaker labels
+                # For monologue, strip speaker labels and pass directly
+                # Note: Avoid instruction prefixes as Gemini TTS may read them or cause repetition
                 clean_script = re.sub(r'^[A-Z0-9_]+:\s*', '', formatted_script, flags=re.MULTILINE)
-                prompt = f"Read this podcast script naturally and engagingly:\n\n{clean_script}"
+                prompt = clean_script
 
             # Generate audio
             response = self.client.models.generate_content(

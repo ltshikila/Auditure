@@ -49,7 +49,9 @@ class Settings(BaseSettings):
     local_storage_path: str = "./storage"
 
     # Processing
-    words_per_minute: int = 150
+    # Note: Gemini TTS speaks at ~180-185 wpm, faster than typical 150 wpm
+    # Using 185 ensures scripts have enough words for minimum duration
+    words_per_minute: int = 185
     max_book_content_chars: int = 8000
     script_generation_timeout: int = 120  # Increased for GPT-4o mini
 

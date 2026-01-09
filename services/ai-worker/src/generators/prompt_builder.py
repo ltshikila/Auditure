@@ -170,28 +170,100 @@ Style: Dynamic conversation with multiple viewpoints. Allow for interruptions an
 Include reactions, agreements, and natural conversational sounds.
 {tts_markup_guide}"""
 
-    def build_theme_instructions(self, episode_theme: str) -> str:
-        """Get instructions based on episode theme."""
+    def build_theme_instructions(self, episode_theme: str, chaos_factor: int = 5) -> str:
+        """Get instructions based on episode theme and chaos factor.
+
+        Args:
+            episode_theme: LECTURE, DISCUSSION, or DEBATE
+            chaos_factor: 1-10 scale affecting interruption frequency
+        """
         if episode_theme == "LECTURE":
             return """
 Tone: Educational and informative. Present information clearly with examples.
 Goal: Teach the audience about the book's key concepts and insights."""
 
         elif episode_theme == "DISCUSSION":
-            return """
+            # Discussions have occasional friendly backchannels
+            backchannel_guidance = self._build_backchannel_guidance(chaos_factor, is_debate=False)
+            return f"""
 Tone: Exploratory and collaborative. Share thoughts and reactions organically.
-Goal: Have a genuine conversation about the book's themes and impact."""
+Goal: Have a genuine conversation about the book's themes and impact.
+{backchannel_guidance}"""
 
         else:  # DEBATE
-            return """
+            # Debates have more interruptions based on chaos factor
+            backchannel_guidance = self._build_backchannel_guidance(chaos_factor, is_debate=True)
+            return f"""
 Tone: Argumentative (friendly). Present different perspectives and challenge ideas.
-Goal: Explore the book through contrasting viewpoints and critical analysis."""
+Goal: Explore the book through contrasting viewpoints and critical analysis.
+{backchannel_guidance}"""
+
+    def _build_backchannel_guidance(self, chaos_factor: int, is_debate: bool) -> str:
+        """Build guidance for backchannels and interruptions based on chaos factor.
+
+        Args:
+            chaos_factor: 1-10 scale (higher = more interruptions)
+            is_debate: True for debates (more aggressive), False for discussions (friendly)
+        """
+        chaos = max(1, min(10, chaos_factor))
+
+        if is_debate:
+            # Debates: interruptions scale with chaos factor
+            if chaos <= 3:
+                frequency = "occasionally (2-3 times)"
+                style = "polite interjections"
+                examples = '"Actually, I see your point, but—", "Hold on, let me add—", "Mm-hmm, and also—"'
+            elif chaos <= 6:
+                frequency = "regularly (4-6 times)"
+                style = "engaged interruptions and reactions"
+                examples = '"Wait, wait—I have to push back on that—", "—yes! Exactly—", "No no no, here\'s the thing—", "Mm-hmm, mm-hmm, but consider—"'
+            else:  # chaos 7-10
+                frequency = "frequently (7+ times)"
+                style = "passionate interruptions and heated exchanges"
+                examples = '"—hold on, that\'s not quite right—", "—I completely disagree—", "Right right right, but—!", "See, THIS is where I think—", "[laughing] Oh come on—"'
+
+            return f"""
+## Natural Conversation Flow
+Make the debate feel ALIVE with {style}. Speakers should {frequency} interject while the other is speaking:
+- Use verbal backchannels: "Mm-hmm", "Right", "Exactly", "Interesting..."
+- Include interruptions where one speaker cuts in: {examples}
+- Show reactions in real-time: "[laughing]", "[sigh]", "Wow", "Hmm..."
+- Let speakers build momentum and get passionate about their points
+- Don't wait for complete silence—real debates have overlap and energy!"""
+
+        else:
+            # Discussions: rare friendly interruptions, more backchannels
+            if chaos <= 3:
+                return """
+## Natural Conversation Flow
+Keep the discussion smooth with occasional verbal affirmations:
+- Use gentle backchannels sparingly: "Mm-hmm", "Right", "I see"
+- Speakers should mostly take turns naturally
+- Include thoughtful reactions: "That's interesting...", "I hadn't considered that..."
+"""
+            elif chaos <= 6:
+                return """
+## Natural Conversation Flow
+Add warmth with friendly verbal cues (3-4 times throughout):
+- Use backchannels to show engagement: "Mm-hmm", "Oh interesting!", "Right, right"
+- Occasional friendly interjections: "Oh, that reminds me—", "Yes! And building on that—"
+- Show genuine reactions: "[laughing]", "Wow", "Hmm, that's a great point"
+"""
+            else:  # chaos 7-10
+                return """
+## Natural Conversation Flow
+Create an energetic, friendly discussion with frequent engagement (5+ times):
+- Active backchannels throughout: "Mm-hmm!", "Oh yeah!", "Totally!", "Exactly!"
+- Excited interjections: "—oh wait, I love this part—", "Yes yes yes!", "Ha! So true—"
+- Enthusiastic reactions: "[laughing]", "Oh man...", "See, that's what I'm saying!"
+- Let the energy build naturally—friends talking excitedly about a book they love
+"""
 
     def calculate_target_words(
         self,
         target_length_min: int,
         target_length_max: int,
-        words_per_minute: int = 150,
+        words_per_minute: int = 185,  # Gemini TTS speaks at ~185 wpm
     ) -> int:
         """Calculate target word count from time range."""
         avg_minutes = (target_length_min + target_length_max) / 2
@@ -209,7 +281,8 @@ Goal: Explore the book through contrasting viewpoints and critical analysis."""
         """
         personality_desc = self.build_personality_description(request.podcaster_personality)
         type_instructions = self.build_episode_type_instructions(request.episode_type)
-        theme_instructions = self.build_theme_instructions(request.episode_theme)
+        chaos_factor = request.podcaster_personality.chaos_factor
+        theme_instructions = self.build_theme_instructions(request.episode_theme, chaos_factor)
         target_words = self.calculate_target_words(
             request.target_length_min,
             request.target_length_max,
@@ -229,7 +302,7 @@ Goal: Explore the book through contrasting viewpoints and critical analysis."""
 {theme_instructions}
 
 ## Requirements
-- **CRITICAL: MINIMUM LENGTH**: The script MUST be at least {target_words} words. This is approximately {request.target_length_min}-{request.target_length_max} minutes when spoken at 150 words per minute.
+- **CRITICAL: MINIMUM LENGTH**: The script MUST be at least {target_words} words. This is approximately {request.target_length_min}-{request.target_length_max} minutes when spoken at ~185 words per minute.
 - DO NOT write a short script. Episodes under {request.target_length_min} minutes are unacceptable and will be rejected.
 - Include an engaging introduction that hooks the listener (at least 100 words)
 - Cover ALL the key ideas from the book content provided - discuss each point in depth with examples and commentary

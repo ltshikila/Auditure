@@ -11,7 +11,7 @@ The `docker-compose.yml` spins up the following services:
 | **PostgreSQL** | `auditure_db` | `5432` | Primary relational database for Users, Books, Episodes, and Metadata | Section 6.3 |
 | **RabbitMQ** | `auditure_mq` | `5672` (AMQP)<br>`15672` (UI) | Message broker handling the async job queue for episode generation | Section 6.3, NFR-5 |
 | **Redis** | `auditure_redis` | `6379` | In-memory cache for job progress tracking, playback progress (resume position), and rate limiting | Section 6.3 |
-| **AI Worker** | `auditure_ai_worker` | N/A | Python microservice for script generation (OpenAI GPT-4o mini) and TTS audio synthesis (Google Cloud TTS) | FR-Episode |
+| **AI Worker** | `auditure_ai_worker` | N/A | Python microservice for script generation (OpenAI GPT-4o mini) and TTS audio synthesis (Gemini 2.5 Flash + Google Cloud TTS) | FR-Episode |
 
 ## Usage
 
@@ -152,15 +152,22 @@ HUGGINGFACE_API_KEY=your_huggingface_api_key_here
 | `LOCAL_STORAGE_PATH` | `/storage` | Path for generated audio files |
 | `TTS_TEMP_DIR` | `/app/temp/tts` | Temporary directory for TTS processing |
 
-**Note:** If `HUGGINGFACE_API_KEY` is not set, the worker will fall back to template-based script generation (no LLM).
+**Note:** If `OPENAI_API_KEY` is not set, the worker will fall back to template-based script generation (no LLM).
 
 ### Technology Stack
 
 The AI Worker uses:
-* **Script Generation:** HuggingFace Inference API (Mistral-7B-Instruct) with template fallback
-* **Text-to-Speech:** Microsoft Edge TTS (free, unlimited usage)
+* **Script Generation:** OpenAI GPT-4o mini with template fallback
+* **Text-to-Speech:** Gemini 2.5 Flash TTS (premium) + Google Cloud Standard TTS (free tier)
+* **TTS SDK:** `google-genai` for Gemini TTS integration
 * **Database:** SQLAlchemy ORM connecting to PostgreSQL
 * **Message Queue:** pika (RabbitMQ client)
+
+**TTS Pricing:**
+| Tier | Cost | Use Case |
+|------|------|----------|
+| Standard | $4/1M chars (~$0.024/ep) | Free tier fallback |
+| Gemini Flash | ~$0.15/10-min episode | Default for all users |
 
 ## Data Persistence
 

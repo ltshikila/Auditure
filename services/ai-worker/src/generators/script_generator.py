@@ -63,6 +63,7 @@ class ScriptGenerator:
         episode_theme: str,
         target_length_min: int,
         target_length_max: int,
+        speaking_speed: int = 5,
     ) -> ScriptResult:
         """
         Generate a podcast script.
@@ -80,11 +81,15 @@ class ScriptGenerator:
             episode_theme: LECTURE, DISCUSSION, or DEBATE
             target_length_min: Minimum length in minutes
             target_length_max: Maximum length in minutes
+            speaking_speed: Podcaster speaking speed 1-10 (affects word count)
 
         Returns:
             ScriptResult with generated script and metadata
         """
-        target_words = self._calculate_target_words(target_length_min, target_length_max)
+        # Calculate wpm based on podcaster's speaking speed
+        wpm = self._speed_to_wpm(speaking_speed)
+        target_words = self._calculate_target_words(target_length_min, target_length_max, wpm)
+        logger.info(f"Speaking speed {speaking_speed}/10 -> {wpm} wpm, target: {target_words} words")
 
         # Build personality object
         personality = PodcasterPersonality(
@@ -138,9 +143,9 @@ class ScriptGenerator:
             )
             method = "template"
 
-        # Calculate word count and estimated duration
+        # Calculate word count and estimated duration using podcaster's wpm
         word_count = len(script.split())
-        estimated_duration_seconds = self._estimate_duration_seconds(word_count)
+        estimated_duration_seconds = self._estimate_duration_seconds(word_count, wpm)
         estimated_minutes = estimated_duration_seconds / 60
 
         logger.info(
@@ -190,18 +195,35 @@ class ScriptGenerator:
             estimated_duration_seconds=estimated_duration_seconds,
         )
 
+    def _speed_to_wpm(self, speaking_speed: int) -> int:
+        """
+        Convert podcaster speaking speed (1-10) to words per minute.
+
+        Mapping:
+        - Speed 1: ~140 wpm (slow, deliberate)
+        - Speed 5: ~185 wpm (normal conversational)
+        - Speed 10: ~230 wpm (fast, energetic)
+
+        Formula: wpm = 130 + (speed * 10)
+        """
+        speed = max(1, min(10, speaking_speed))
+        return 130 + (speed * 10)
+
     def _calculate_target_words(
         self,
         target_length_min: int,
         target_length_max: int,
+        wpm: Optional[int] = None,
     ) -> int:
         """Calculate target word count from time range."""
+        words_per_min = wpm or self.words_per_minute
         avg_minutes = (target_length_min + target_length_max) / 2
-        return int(avg_minutes * self.words_per_minute)
+        return int(avg_minutes * words_per_min)
 
-    def _estimate_duration_seconds(self, word_count: int) -> int:
+    def _estimate_duration_seconds(self, word_count: int, wpm: Optional[int] = None) -> int:
         """Estimate audio duration in seconds from word count."""
-        minutes = word_count / self.words_per_minute
+        words_per_min = wpm or self.words_per_minute
+        minutes = word_count / words_per_min
         return int(minutes * 60)
 
     def _generate_with_llm(
