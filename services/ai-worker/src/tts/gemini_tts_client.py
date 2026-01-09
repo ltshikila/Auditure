@@ -20,6 +20,7 @@ Voice Selection:
 Reference: https://ai.google.dev/gemini-api/docs/speech-generation
 """
 
+import base64
 import io
 import logging
 import re
@@ -455,7 +456,47 @@ class GeminiTTSClient:
                 if hasattr(candidate, 'content') and candidate.content.parts:
                     for part in candidate.content.parts:
                         if hasattr(part, 'inline_data') and part.inline_data:
-                            pcm_data = part.inline_data.data
+                            raw_data = part.inline_data.data
+                            mime_type = getattr(part.inline_data, 'mime_type', 'unknown')
+
+                            # Log diagnostic info
+                            logger.info(f"[Gemini TTS] MIME type: {mime_type}")
+                            logger.info(f"[Gemini TTS] Data type: {type(raw_data).__name__}")
+                            logger.info(f"[Gemini TTS] Data length: {len(raw_data)} bytes")
+
+                            # Log first 50 bytes as hex for debugging
+                            if isinstance(raw_data, bytes):
+                                first_bytes = raw_data[:50].hex()
+                                logger.info(f"[Gemini TTS] First 50 bytes (hex): {first_bytes}")
+                                # Also show as ASCII if printable
+                                try:
+                                    ascii_preview = raw_data[:50].decode('ascii', errors='replace')
+                                    logger.info(f"[Gemini TTS] First 50 bytes (ascii): {ascii_preview[:50]}")
+                                except:
+                                    pass
+
+                            # Handle base64-encoded data
+                            if isinstance(raw_data, str):
+                                logger.info("[Gemini TTS] Decoding base64 string data")
+                                pcm_data = base64.b64decode(raw_data)
+                            elif isinstance(raw_data, bytes):
+                                # Check if bytes are actually base64-encoded ASCII
+                                # Base64 chars are A-Z, a-z, 0-9, +, /, = (ASCII 43-122 range)
+                                sample = raw_data[:100]
+                                is_likely_base64 = all(
+                                    (43 <= b <= 122) or b in (10, 13, 32, 61)  # base64 chars + whitespace + =
+                                    for b in sample
+                                )
+
+                                if is_likely_base64:
+                                    logger.info("[Gemini TTS] Detected base64-encoded bytes, decoding...")
+                                    pcm_data = base64.b64decode(raw_data)
+                                    logger.info(f"[Gemini TTS] Decoded to {len(pcm_data)} bytes")
+                                else:
+                                    logger.info("[Gemini TTS] Using raw PCM bytes directly")
+                                    pcm_data = raw_data
+                            else:
+                                pcm_data = raw_data
 
                             # Convert PCM to WAV
                             audio_data = _pcm_to_wav(pcm_data)
