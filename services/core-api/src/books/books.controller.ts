@@ -92,4 +92,9 @@ export class BooksController {
     async retryExtraction(@Request() req, @Param('id') id: string) {
         return this.booksService.retryExtraction(req.user.userId, id);
     }
+
+    @Post(':id/force-reextract')
+    async forceReExtract(@Request() req, @Param('id') id: string) {
+        return this.booksService.forceReExtract(req.user.userId, id);
+    }
 }

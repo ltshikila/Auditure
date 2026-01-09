@@ -31,6 +31,11 @@ interface TocEntry {
 // Minimum characters per page to consider PDF as having extractable text
 const MIN_CHARS_PER_PAGE = 100;
 
+// Quality thresholds for OCR text detection
+const MAX_AVG_WORD_LENGTH = 12; // Words longer than this suggest merged words
+const MIN_SPACE_RATIO = 0.10; // At least 10% of characters should be spaces
+const MAX_LONG_WORD_RATIO = 0.15; // Max 15% of words can be "long" (>15 chars)
+
 @Injectable()
 export class TextExtractionService {
     private readonly logger = new Logger(TextExtractionService.name);
@@ -56,6 +61,14 @@ export class TextExtractionService {
         if (isLikelyScanned) {
             this.logger.log(
                 `PDF appears to be scanned (${avgCharsPerPage.toFixed(0)} chars/page). Falling back to OCR...`,
+            );
+            return this.extractFromScannedPdf(buffer, metadata);
+        }
+
+        // Check if embedded text has poor OCR quality (merged words, garbled text)
+        if (this.isPoorOcrQuality(fullText)) {
+            this.logger.log(
+                `PDF has embedded text but poor OCR quality. Re-running OCR for better results...`,
             );
             return this.extractFromScannedPdf(buffer, metadata);
         }
@@ -710,6 +723,72 @@ export class TextExtractionService {
         cleaned = cleaned.replace(/\f/g, ''); // Form feed characters
 
         return cleaned.trim();
+    }
+
+    /**
+     * Detect if extracted text has poor OCR quality.
+     * Poor quality indicators:
+     * - Merged words (very long "words" without spaces)
+     * - Low space-to-character ratio
+     * - High ratio of abnormally long words
+     *
+     * @returns true if text quality is poor and re-OCR is recommended
+     */
+    private isPoorOcrQuality(text: string): boolean {
+        if (!text || text.length < 1000) {
+            return false; // Not enough text to analyze
+        }
+
+        // Sample middle portion of text (skip front matter)
+        const sampleStart = Math.floor(text.length * 0.2);
+        const sampleEnd = Math.min(sampleStart + 50000, text.length);
+        const sample = text.slice(sampleStart, sampleEnd);
+
+        // Check 1: Space ratio
+        const spaceCount = (sample.match(/\s/g) || []).length;
+        const spaceRatio = spaceCount / sample.length;
+
+        if (spaceRatio < MIN_SPACE_RATIO) {
+            this.logger.log(
+                `Poor OCR detected: Low space ratio (${(spaceRatio * 100).toFixed(1)}% < ${MIN_SPACE_RATIO * 100}%)`,
+            );
+            return true;
+        }
+
+        // Check 2: Average word length and long word ratio
+        const words = sample.split(/\s+/).filter((w) => w.length > 0);
+        if (words.length === 0) {
+            return false;
+        }
+
+        const totalWordLength = words.reduce((sum, w) => sum + w.length, 0);
+        const avgWordLength = totalWordLength / words.length;
+
+        if (avgWordLength > MAX_AVG_WORD_LENGTH) {
+            this.logger.log(
+                `Poor OCR detected: High avg word length (${avgWordLength.toFixed(1)} > ${MAX_AVG_WORD_LENGTH})`,
+            );
+            return true;
+        }
+
+        // Check 3: Ratio of very long words (>15 chars)
+        const longWords = words.filter((w) => w.length > 15);
+        const longWordRatio = longWords.length / words.length;
+
+        if (longWordRatio > MAX_LONG_WORD_RATIO) {
+            this.logger.log(
+                `Poor OCR detected: High long-word ratio (${(longWordRatio * 100).toFixed(1)}% > ${MAX_LONG_WORD_RATIO * 100}%)`,
+            );
+            // Log some examples of long words for debugging
+            const examples = longWords.slice(0, 5).map((w) => w.slice(0, 30));
+            this.logger.debug(`Long word examples: ${examples.join(', ')}`);
+            return true;
+        }
+
+        this.logger.debug(
+            `OCR quality OK: space=${(spaceRatio * 100).toFixed(1)}%, avgWordLen=${avgWordLength.toFixed(1)}, longWordRatio=${(longWordRatio * 100).toFixed(1)}%`,
+        );
+        return false;
     }
 
     private stripHtml(html: string): string {

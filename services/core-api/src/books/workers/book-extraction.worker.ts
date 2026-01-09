@@ -114,7 +114,25 @@ export class BookExtractionWorker implements OnModuleInit {
                 );
             }
 
-            // 6. Update book record
+            // 6. Get current book to check if title/author need updating
+            const currentBook = await this.databaseService.book.findUnique({
+                where: { id: job.bookId },
+            });
+
+            // Determine best title - prefer PDF metadata, then clean up existing title
+            let bestTitle = extracted.metadata.title;
+            if (!bestTitle && currentBook?.title) {
+                // URL-decode and clean up existing title (often from filename)
+                bestTitle = this.cleanupTitle(currentBook.title);
+            }
+
+            // Determine best author - prefer PDF metadata, then try to extract from content
+            let bestAuthor = extracted.metadata.author;
+            if (!bestAuthor && extracted.fullText) {
+                bestAuthor = this.extractAuthorFromContent(extracted.fullText);
+            }
+
+            // 7. Update book record
             await this.databaseService.book.update({
                 where: { id: job.bookId },
                 data: {
@@ -122,9 +140,9 @@ export class BookExtractionWorker implements OnModuleInit {
                     extractedAt: new Date(),
                     fullTextKey,
                     pageCount: extracted.metadata.pageCount,
-                    // Update metadata if not provided
-                    ...(extracted.metadata.title && { title: extracted.metadata.title }),
-                    ...(extracted.metadata.author && { author: extracted.metadata.author }),
+                    // Update metadata - always update title/author if we have better versions
+                    ...(bestTitle && bestTitle !== currentBook?.title && { title: bestTitle }),
+                    ...(bestAuthor && !currentBook?.author && { author: bestAuthor }),
                     ...(extracted.metadata.language && { language: extracted.metadata.language }),
                 },
             });
@@ -169,5 +187,78 @@ export class BookExtractionWorker implements OnModuleInit {
 
             throw error; // Re-throw for RabbitMQ retry logic
         }
+    }
+
+    /**
+     * Clean up a title that may be URL-encoded or derived from a filename.
+     * Examples:
+     * - "The%2048%20Laws%20Of%20Power" → "The 48 Laws Of Power"
+     * - "my-book-title.pdf" → "My Book Title"
+     */
+    private cleanupTitle(title: string): string {
+        if (!title) return title;
+
+        let cleaned = title;
+
+        // URL-decode if it contains encoded characters
+        if (cleaned.includes('%')) {
+            try {
+                cleaned = decodeURIComponent(cleaned);
+            } catch {
+                // If decoding fails, replace common URL-encoded chars manually
+                cleaned = cleaned
+                    .replace(/%20/g, ' ')
+                    .replace(/%2F/g, '/')
+                    .replace(/%26/g, '&')
+                    .replace(/%27/g, "'")
+                    .replace(/%22/g, '"');
+            }
+        }
+
+        // Remove file extension if present
+        cleaned = cleaned.replace(/\.(pdf|epub|txt)$/i, '');
+
+        // Replace hyphens/underscores with spaces (common in filenames)
+        cleaned = cleaned.replace(/[-_]+/g, ' ');
+
+        // Clean up multiple spaces
+        cleaned = cleaned.replace(/\s+/g, ' ').trim();
+
+        return cleaned;
+    }
+
+    /**
+     * Try to extract author name from the first portion of book content.
+     * Looks for common patterns like "by Author Name" or "Author Name" after title.
+     */
+    private extractAuthorFromContent(fullText: string): string | null {
+        if (!fullText || fullText.length < 500) return null;
+
+        // Only look at first 2000 chars (title pages, copyright)
+        const sample = fullText.slice(0, 2000);
+
+        // Common patterns for author attribution
+        const patterns = [
+            // "by Author Name" pattern
+            /\bby\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\b/,
+            // "Author: Name" pattern
+            /\bauthor[:\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\b/i,
+            // "Written by Name" pattern
+            /\bwritten\s+by\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\b/i,
+        ];
+
+        for (const pattern of patterns) {
+            const match = sample.match(pattern);
+            if (match && match[1]) {
+                const author = match[1].trim();
+                // Validate it looks like a real name (2-4 words, reasonable length)
+                if (author.length >= 5 && author.length <= 50) {
+                    this.logger.log(`Extracted author from content: "${author}"`);
+                    return author;
+                }
+            }
+        }
+
+        return null;
     }
 }

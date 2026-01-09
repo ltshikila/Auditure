@@ -293,4 +293,42 @@ export class BooksService {
 
         return this.findOne(userId, id);
     }
+
+    /**
+     * Force re-extraction of a book, even if already completed.
+     * Useful when extraction algorithm has been improved.
+     * Clears existing chapters before re-processing.
+     */
+    async forceReExtract(userId: string, id: string) {
+        const book = await this.findOne(userId, id);
+
+        if (book.extractionStatus === 'PROCESSING') {
+            throw new BadRequestException('Book is currently being processed');
+        }
+
+        // Delete existing chapters
+        await this.databaseService.chapter.deleteMany({
+            where: { bookId: id },
+        });
+
+        // Update status back to pending and clear any extracted text reference
+        await this.databaseService.book.update({
+            where: { id },
+            data: {
+                extractionStatus: 'PENDING',
+                extractionError: null,
+                fullTextKey: null,
+            },
+        });
+
+        // Re-queue job
+        await this.rabbitMQService.publishBookExtractionJob({
+            bookId: book.id,
+            userId: book.userId,
+            fileStorageKey: book.fileStorageKey,
+            sourceType: book.sourceType as 'PDF' | 'EPUB',
+        });
+
+        return this.findOne(userId, id);
+    }
 }
