@@ -71,6 +71,17 @@ export class BooksController {
         return book.chapters;
     }
 
+    @Post(':id/validate-chapters')
+    async validateChapters(
+        @Request() req,
+        @Param('id') id: string,
+        @Body() body: { chapters: number[] },
+    ) {
+        // First verify user owns the book
+        await this.booksService.findOne(req.user.userId, id);
+        return this.booksService.validateChapterNumbers(id, body.chapters);
+    }
+
     @Delete(':id')
     async remove(@Request() req, @Param('id') id: string) {
         await this.booksService.delete(req.user.userId, id);

@@ -59,11 +59,19 @@ export class EpisodesService {
                 throw new ForbiddenException('You can only create episodes from your own books');
             }
 
-            // Validate book extraction is completed
-            if (book.extractionStatus !== 'COMPLETED') {
+            // Validate book extraction is completed (or partially completed)
+            if (!['COMPLETED', 'PARTIALLY_COMPLETED'].includes(book.extractionStatus)) {
                 this.logger.error(`Book ${createEpisodeDto.bookId} extraction not completed: ${book.extractionStatus}`);
                 throw new BadRequestException(
                     'Book extraction must be completed before creating an episode',
+                );
+            }
+
+            // Log warning for partially completed books
+            if (book.extractionStatus === 'PARTIALLY_COMPLETED') {
+                this.logger.warn(
+                    `Creating episode from partially extracted book ${createEpisodeDto.bookId}. ` +
+                        'Some chapters may have limited or missing content.',
                 );
             }
 
@@ -127,7 +135,7 @@ export class EpisodesService {
                 episodeTheme: createEpisodeDto.episodeTheme,
                 targetLengthMin: createEpisodeDto.targetLengthMin,
                 targetLengthMax: createEpisodeDto.targetLengthMax,
-                voiceTier: createEpisodeDto.voiceTier || 'NEURAL',
+                voiceTier: createEpisodeDto.voiceTier || 'STANDARD',
             });
 
             this.logger.log(`Created episode ${episode.id} and queued for generation`);
@@ -228,7 +236,7 @@ export class EpisodesService {
                         episodeTheme: createEpisodeDto.episodeTheme,
                         targetLengthMin: createEpisodeDto.targetLengthMin,
                         targetLengthMax: createEpisodeDto.targetLengthMax,
-                        voiceTier: createEpisodeDto.voiceTier || 'NEURAL',
+                        voiceTier: createEpisodeDto.voiceTier || 'STANDARD',
                         generationStatus: 'PENDING',
                     },
                 });
@@ -256,7 +264,7 @@ export class EpisodesService {
                         episodeTheme: createEpisodeDto.episodeTheme,
                         targetLengthMin: createEpisodeDto.targetLengthMin,
                         targetLengthMax: createEpisodeDto.targetLengthMax,
-                        voiceTier: createEpisodeDto.voiceTier || 'NEURAL',
+                        voiceTier: createEpisodeDto.voiceTier || 'STANDARD',
                     });
                     this.logger.log(`Episode ${episode.id} queued for generation immediately`);
                 } catch (mqError) {
@@ -817,7 +825,7 @@ export class EpisodesService {
             episodeTheme: episode.episodeTheme as any,
             targetLengthMin: episode.targetLengthMin,
             targetLengthMax: episode.targetLengthMax,
-            voiceTier: episode.voiceTier as any || 'NEURAL',
+            voiceTier: episode.voiceTier as any || 'STANDARD',
         });
 
         this.logger.log(`Retrying episode generation for ${episode.id}`);

@@ -67,7 +67,7 @@ class EpisodeRepository:
         content_coverage: str,
         chapter_numbers: List[int],
         max_chars: int = 8000,
-    ) -> str:
+    ) -> Dict[str, Any]:
         """
         Get book content based on coverage type.
 
@@ -78,7 +78,13 @@ class EpisodeRepository:
             max_chars: Maximum characters to return
 
         Returns:
-            Concatenated book content
+            Dict with keys:
+            - content: Concatenated book content
+            - truncated: Whether content was truncated
+            - total_chars: Total characters available
+            - returned_chars: Characters actually returned
+            - chapters_included: Number of chapters fully included
+            - total_chapters: Total chapters requested/available
         """
         session = self.db_client.create_session()
         try:
@@ -94,6 +100,9 @@ class EpisodeRepository:
 
             content_parts = []
             total_chars = 0
+            total_available_chars = sum(len(ch.extracted_text or "") for ch in chapters)
+            chapters_included = 0
+            truncated = False
 
             for chapter in chapters:
                 if chapter.extracted_text:
@@ -102,11 +111,21 @@ class EpisodeRepository:
                         remaining = max_chars - total_chars
                         if remaining > 100:  # Only add if meaningful
                             content_parts.append(chapter.extracted_text[:remaining])
+                            total_chars += remaining
+                        truncated = True
                         break
                     content_parts.append(chapter.extracted_text)
                     total_chars += len(chapter.extracted_text)
+                    chapters_included += 1
 
-            return "\n\n".join(content_parts)
+            return {
+                "content": "\n\n".join(content_parts),
+                "truncated": truncated,
+                "total_chars": total_available_chars,
+                "returned_chars": total_chars,
+                "chapters_included": chapters_included,
+                "total_chapters": len(chapters),
+            }
         finally:
             session.close()
 

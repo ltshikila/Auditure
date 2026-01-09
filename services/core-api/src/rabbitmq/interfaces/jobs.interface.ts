@@ -17,4 +17,5 @@ export interface EpisodeGenerationJob {
     episodeTheme: 'LECTURE' | 'DISCUSSION' | 'DEBATE';
     targetLengthMin: number;
     targetLengthMax: number;
+    voiceTier: 'STANDARD' | 'GEMINI';
 }

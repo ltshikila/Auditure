@@ -1,4 +1,4 @@
-import { EpisodeType, EpisodeTheme, ContentCoverage } from './create-episode.dto';
+import { EpisodeType, EpisodeTheme, ContentCoverage, VoiceTier } from './create-episode.dto';
 
 export enum EpisodeStatus {
     PENDING = 'PENDING',
@@ -26,6 +26,7 @@ export class EpisodeResponseDto {
     episodeTheme: EpisodeTheme;
     targetLengthMin: number;
     targetLengthMax: number;
+    voiceTier: VoiceTier;
 
     // Generated Content
     scriptContent?: string;

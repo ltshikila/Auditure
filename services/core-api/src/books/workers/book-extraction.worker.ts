@@ -67,6 +67,11 @@ export class BookExtractionWorker implements OnModuleInit {
             }
             this.logger.log(`Creating ${uniqueChapters.size} unique chapters (from ${extracted.chapters.length} detected)`);
 
+            // Track extraction quality
+            let emptyChapters = 0;
+            let minimalChapters = 0;
+            const MIN_CHAPTER_CHARS = 500; // Chapters with less than this are considered minimal
+
             for (const chapter of uniqueChapters.values()) {
                 await this.databaseService.chapter.create({
                     data: {
@@ -79,13 +84,41 @@ export class BookExtractionWorker implements OnModuleInit {
                         textLength: chapter.text.length,
                     },
                 });
+
+                // Track chapter quality
+                if (!chapter.text || chapter.text.length === 0) {
+                    emptyChapters++;
+                } else if (chapter.text.length < MIN_CHAPTER_CHARS) {
+                    minimalChapters++;
+                }
+            }
+
+            // Determine extraction status based on quality
+            // PARTIALLY_COMPLETED if:
+            // - Any chapters are empty
+            // - More than 30% of chapters are minimal
+            // - Extraction method was OCR (inherently less reliable)
+            const totalChapters = uniqueChapters.size;
+            const isPartial =
+                emptyChapters > 0 ||
+                (totalChapters > 0 && minimalChapters / totalChapters > 0.3) ||
+                extracted.extractionMethod === 'ocr';
+
+            const extractionStatus = isPartial ? 'PARTIALLY_COMPLETED' : 'COMPLETED';
+
+            if (isPartial) {
+                this.logger.warn(
+                    `Book ${job.bookId} partially extracted: ` +
+                        `${emptyChapters} empty chapters, ${minimalChapters} minimal chapters, ` +
+                        `method: ${extracted.extractionMethod || 'text'}`,
+                );
             }
 
             // 6. Update book record
             await this.databaseService.book.update({
                 where: { id: job.bookId },
                 data: {
-                    extractionStatus: 'COMPLETED',
+                    extractionStatus,
                     extractedAt: new Date(),
                     fullTextKey,
                     pageCount: extracted.metadata.pageCount,
@@ -96,7 +129,7 @@ export class BookExtractionWorker implements OnModuleInit {
                 },
             });
 
-            this.logger.log(`Successfully extracted book ${job.bookId}`);
+            this.logger.log(`Successfully extracted book ${job.bookId} (status: ${extractionStatus})`);
 
             // 7. Queue any pending episodes for this book
             const pendingEpisodes = await this.databaseService.episode.findMany({
@@ -119,6 +152,7 @@ export class BookExtractionWorker implements OnModuleInit {
                     episodeTheme: episode.episodeTheme as any,
                     targetLengthMin: episode.targetLengthMin,
                     targetLengthMax: episode.targetLengthMax,
+                    voiceTier: (episode.voiceTier as any) || 'STANDARD',
                 });
                 this.logger.log(`Queued pending episode ${episode.id} for generation`);
             }

@@ -11,19 +11,26 @@ Reference: https://docs.cloud.google.com/text-to-speech/docs/reference/rest/v1/A
 Reference: https://docs.cloud.google.com/text-to-speech/docs/voices
 """
 
+import io
 import logging
 import os
+import re
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 from google.cloud import texttospeech
 from google.oauth2 import service_account
+from pydub import AudioSegment
 
 from src.config import get_settings
 from .voice_mapper import VoiceConfig
 
 logger = logging.getLogger(__name__)
+
+# Google Cloud TTS has a 5000 byte limit per request
+# Use 4500 to leave buffer for multi-byte characters
+MAX_CHUNK_BYTES = 4500
 
 
 class GoogleTTSClient:
@@ -61,6 +68,69 @@ class GoogleTTSClient:
         """Ensure temp directory exists."""
         self.temp_dir.mkdir(parents=True, exist_ok=True)
 
+    def _split_text_into_chunks(self, text: str, max_bytes: int = MAX_CHUNK_BYTES) -> List[str]:
+        """
+        Split text into chunks that fit within the byte limit.
+
+        Tries to split at sentence boundaries for natural speech.
+        """
+        chunks = []
+        current_chunk = ""
+
+        # Split by sentences (period, exclamation, question mark followed by space or end)
+        sentences = re.split(r'(?<=[.!?])\s+', text)
+
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if not sentence:
+                continue
+
+            # Check if adding this sentence would exceed the limit
+            test_chunk = current_chunk + " " + sentence if current_chunk else sentence
+
+            if len(test_chunk.encode('utf-8')) <= max_bytes:
+                current_chunk = test_chunk
+            else:
+                # If current chunk has content, save it
+                if current_chunk:
+                    chunks.append(current_chunk)
+
+                # If single sentence is too long, split by words
+                if len(sentence.encode('utf-8')) > max_bytes:
+                    words = sentence.split()
+                    current_chunk = ""
+                    for word in words:
+                        test_chunk = current_chunk + " " + word if current_chunk else word
+                        if len(test_chunk.encode('utf-8')) <= max_bytes:
+                            current_chunk = test_chunk
+                        else:
+                            if current_chunk:
+                                chunks.append(current_chunk)
+                            current_chunk = word
+                else:
+                    current_chunk = sentence
+
+        # Don't forget the last chunk
+        if current_chunk:
+            chunks.append(current_chunk)
+
+        return chunks
+
+    def _synthesize_chunk(
+        self,
+        text: str,
+        voice: texttospeech.VoiceSelectionParams,
+        audio_config: texttospeech.AudioConfig,
+    ) -> bytes:
+        """Synthesize a single chunk of text."""
+        synthesis_input = texttospeech.SynthesisInput(text=text)
+        response = self.client.synthesize_speech(
+            input=synthesis_input,
+            voice=voice,
+            audio_config=audio_config,
+        )
+        return response.audio_content
+
     def generate_audio(
         self,
         text: str,
@@ -83,10 +153,7 @@ class GoogleTTSClient:
 
         logger.info(f"Generating audio with Google Cloud Standard TTS")
         logger.info(f"Voice: {voice_config.voice_id}")
-        logger.info(f"Text length: {len(text)} chars")
-
-        # Set up the text input
-        synthesis_input = texttospeech.SynthesisInput(text=text)
+        logger.info(f"Text length: {len(text)} chars ({len(text.encode('utf-8'))} bytes)")
 
         # Configure voice parameters
         voice = texttospeech.VoiceSelectionParams(
@@ -105,14 +172,32 @@ class GoogleTTSClient:
             pitch=pitch,
         )
 
-        # Perform the text-to-speech request
-        response = self.client.synthesize_speech(
-            input=synthesis_input,
-            voice=voice,
-            audio_config=audio_config,
-        )
+        # Check if text needs chunking
+        text_bytes = len(text.encode('utf-8'))
+        if text_bytes <= MAX_CHUNK_BYTES:
+            # Single request - text fits within limit
+            audio_data = self._synthesize_chunk(text, voice, audio_config)
+        else:
+            # Split text and concatenate audio
+            chunks = self._split_text_into_chunks(text)
+            logger.info(f"Text exceeds {MAX_CHUNK_BYTES} bytes, splitting into {len(chunks)} chunks")
 
-        audio_data = response.audio_content
+            audio_segments = []
+            for i, chunk in enumerate(chunks):
+                logger.info(f"Processing chunk {i+1}/{len(chunks)} ({len(chunk.encode('utf-8'))} bytes)")
+                chunk_audio = self._synthesize_chunk(chunk, voice, audio_config)
+                audio_segment = AudioSegment.from_mp3(io.BytesIO(chunk_audio))
+                audio_segments.append(audio_segment)
+
+            # Concatenate all segments
+            combined = audio_segments[0]
+            for segment in audio_segments[1:]:
+                combined += segment
+
+            # Export to MP3 bytes
+            output_buffer = io.BytesIO()
+            combined.export(output_buffer, format="mp3")
+            audio_data = output_buffer.getvalue()
 
         # Log cost estimate - Standard is $4/1M chars
         char_count = len(text)
@@ -150,7 +235,7 @@ class GoogleTTSClient:
         return len(audio_data)
 
     def _extract_language_code(self, voice_id: str) -> str:
-        """Extract language code from voice ID (e.g., 'en-US' from 'en-US-Neural2-A')."""
+        """Extract language code from voice ID (e.g., 'en-US' from 'en-US-Standard-A')."""
         parts = voice_id.split("-")
         if len(parts) >= 2:
             return f"{parts[0]}-{parts[1]}"

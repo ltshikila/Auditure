@@ -1,4 +1,4 @@
-"""Voice mapper for Google Cloud TTS voices.
+"""Voice mapper for Google Cloud Standard TTS voices.
 
 Maps frontend podcaster configuration (gender, accent, speakingSpeed, vocalPitch)
 to Google Cloud Standard TTS voice parameters.
@@ -6,15 +6,15 @@ to Google Cloud Standard TTS voice parameters.
 Voice ID Format: {language}-{region}-Standard-{variant}
 Example: en-US-Standard-A, en-GB-Standard-B, en-AU-Standard-A
 
-Reference: https://docs.cloud.google.com/text-to-speech/docs/voices
-Reference: https://docs.cloud.google.com/text-to-speech/docs/reference/rest/v1/AudioConfig
+Pricing: $4 per 1 million characters
+
+Reference: https://cloud.google.com/text-to-speech/docs/voices
+Reference: https://cloud.google.com/text-to-speech/docs/reference/rest/v1/AudioConfig
 """
 
 import logging
 from dataclasses import dataclass
 from typing import Optional, Dict, List
-
-from src.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -28,14 +28,13 @@ class VoiceConfig:
     accent: str
     rate: str  # e.g., "+10%", "-5%"
     pitch: str  # e.g., "+10Hz", "-5Hz"
-    tier: str = "standard"  # Always standard for Google Cloud TTS
 
 
 class VoiceMapper:
     """Map podcaster settings to Google Cloud Standard TTS voices.
 
     Google Cloud TTS Standard: $4/1M characters
-    Used for free tier episodes (2 per month).
+    Used for free tier episodes.
 
     Voice ID format: {language}-{region}-Standard-{variant}
     Example: en-US-Standard-A
@@ -73,17 +72,16 @@ class VoiceMapper:
         """Initialize voice mapper."""
         pass
 
-    def get_voice_id(self, gender: str, accent: str, tier: Optional[str] = None) -> str:
+    def get_voice_id(self, gender: str, accent: str) -> str:
         """
         Get Google Cloud Standard TTS voice ID for gender and accent.
 
         Args:
             gender: MALE or FEMALE
             accent: Accent/region name
-            tier: Ignored (always uses standard)
 
         Returns:
-            Google Cloud TTS voice identifier
+            Google Cloud TTS Standard voice identifier
         """
         gender_voices = self.VOICE_MAP.get(gender, self.VOICE_MAP["MALE"])
 
@@ -146,29 +144,25 @@ class VoiceMapper:
         accent: str,
         speaking_speed: int = 5,
         vocal_pitch: int = 5,
-        tier: Optional[str] = None,
     ) -> VoiceConfig:
         """
-        Get complete voice configuration.
+        Get complete voice configuration for Google Cloud Standard TTS.
 
         Args:
             gender: MALE or FEMALE
             accent: Accent/region name
             speaking_speed: 1-10 scale
             vocal_pitch: 1-10 scale
-            tier: Voice tier ("standard" or "neural")
 
         Returns:
             VoiceConfig with all TTS parameters
         """
-        tier = tier or self.default_tier
         return VoiceConfig(
-            voice_id=self.get_voice_id(gender, accent, tier),
+            voice_id=self.get_voice_id(gender, accent),
             gender=gender,
             accent=accent,
             rate=self.calculate_rate(speaking_speed),
             pitch=self.calculate_pitch(vocal_pitch),
-            tier=tier,
         )
 
     def get_contrasting_voice(
@@ -231,5 +225,4 @@ class VoiceMapper:
             accent=main_config.accent,
             rate=f"{rate_sign}{new_rate}%",
             pitch=f"{pitch_sign}{new_pitch}Hz",
-            tier="standard",
         )

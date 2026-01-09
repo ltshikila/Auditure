@@ -4,7 +4,7 @@ export type EpisodeType = 'MONOLOGUE' | 'DUO' | 'GROUP';
 export type EpisodeTheme = 'LECTURE' | 'DISCUSSION' | 'DEBATE';
 export type ContentCoverage = 'ENTIRE_BOOK' | 'MULTIPLE_CHAPTERS' | 'SINGLE_CHAPTER';
 export type EpisodeStatus = 'PENDING' | 'SCRIPT_GENERATING' | 'SCRIPT_GENERATED' | 'AUDIO_GENERATING' | 'COMPLETED' | 'FAILED';
-export type VoiceTier = 'STANDARD' | 'NEURAL';
+export type VoiceTier = 'STANDARD' | 'GEMINI';
 
 export interface Episode {
     id: string;

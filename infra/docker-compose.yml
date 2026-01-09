@@ -61,14 +61,28 @@ services:
       DATABASE_URL: postgresql://admin:password@postgres:5432/auditure_db
       LOCAL_STORAGE_PATH: /storage
       TTS_TEMP_DIR: /app/temp/tts
-      HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-}
-      HUGGINGFACE_MODEL: mistralai/Mistral-7B-Instruct-v0.2
+      # LLM - OpenAI GPT-4o mini
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: gpt-4o-mini
+      OPENAI_MAX_TOKENS: 16000
+      # Google Cloud TTS
+      GOOGLE_CLOUD_PROJECT_ID: ${GOOGLE_CLOUD_PROJECT_ID}
+      GOOGLE_APPLICATION_CREDENTIALS: /app/google-credentials.json
+      # Gemini TTS
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      TTS_VOICE_TIER: ${TTS_VOICE_TIER:-standard}
+      # Processing
+      WORDS_PER_MINUTE: 150
+      MAX_BOOK_CONTENT_CHARS: 8000
+      SCRIPT_GENERATION_TIMEOUT: 120
       LOG_LEVEL: INFO
       REDIS_HOST: redis
       REDIS_PORT: 6379
     volumes:
       # Mount core-api's storage directory so both services share the same storage
       - ../services/core-api/storage:/storage
+      # Mount Google credentials
+      - ../services/ai-worker/google-credentials.json:/app/google-credentials.json:ro
     depends_on:
       - rabbitmq
       - postgres

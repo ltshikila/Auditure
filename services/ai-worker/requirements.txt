@@ -13,7 +13,7 @@ openai>=1.0.0                  # OpenAI API client
 google-cloud-texttospeech>=2.14.0  # Google Cloud TTS API
 
 # TTS - Gemini 2.5 Pro (Multi-speaker, podcast-optimized)
-google-generativeai>=0.8.0         # Gemini API for TTS
+google-genai>=1.0.0                # New Gemini API SDK for TTS
 
 # Config
 pydantic==2.5.2                # Settings validation

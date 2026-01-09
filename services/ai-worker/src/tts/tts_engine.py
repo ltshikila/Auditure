@@ -26,9 +26,14 @@ logger = logging.getLogger(__name__)
 
 
 class VoiceTier(str, Enum):
-    """Available voice tiers."""
-    STANDARD = "standard"   # Google Cloud Standard - $4/1M chars (free tier)
-    GEMINI = "gemini"       # Gemini 2.5 Pro - ~$0.32/10-min (paid tiers)
+    """Available voice tiers.
+
+    Maps to TypeScript enum in create-episode.dto.ts:
+    - STANDARD = Google Cloud Standard voices - $4/1M chars (free tier)
+    - GEMINI = Gemini 2.5 Pro TTS - ~$0.32/10-min (premium, multi-speaker)
+    """
+    STANDARD = "standard"   # Google Cloud Standard - $4/1M chars
+    GEMINI = "gemini"       # Gemini 2.5 Pro - ~$0.32/10-min
 
 
 @dataclass
@@ -39,7 +44,7 @@ class TTSResult:
     duration: int  # seconds
     format: str  # "mp3" or "wav"
     estimated_cost: float  # Estimated TTS cost in USD
-    voice_tier: str = "neural"  # Which tier was used
+    voice_tier: str = "standard"  # Which tier was used
 
 
 @dataclass
@@ -69,8 +74,8 @@ class TTSEngine:
     """Orchestrates text-to-speech generation with multiple providers.
 
     Supports automatic fallback:
-    1. Gemini 2.5 Pro (if configured and requested)
-    2. Google Cloud Neural2/Standard (if configured)
+    1. Gemini 2.5 Pro (if configured and requested) - premium multi-speaker
+    2. Google Cloud Standard (if configured) - free tier
     3. Error if no provider available
     """
 
@@ -78,7 +83,7 @@ class TTSEngine:
         """Initialize TTS engine with components.
 
         Args:
-            voice_tier: Override voice tier ("standard", "neural", or "gemini")
+            voice_tier: Override voice tier ("standard" or "gemini")
         """
         settings = get_settings()
         self.default_voice_tier = voice_tier or settings.tts_voice_tier
@@ -132,18 +137,21 @@ class TTSEngine:
         segments = self.script_parser.parse(script, episode_type)
         logger.info(f"Parsed {len(segments)} segments")
 
-        # Route to appropriate provider
-        if tier == VoiceTier.GEMINI or tier == "gemini":
+        # Route to appropriate provider based on voice tier
+        # Normalize tier to lowercase for comparison
+        tier_lower = tier.lower() if isinstance(tier, str) else tier.value
+
+        if tier_lower == "gemini":
             if self.has_gemini:
                 return self._generate_with_gemini(
                     script, segments, podcaster_voice, episode_type
                 )
             else:
                 logger.warning("Gemini TTS not configured, falling back to Standard")
-                tier = VoiceTier.STANDARD
+                tier_lower = "standard"
 
-        # Use Google Cloud Standard TTS
-        if tier in [VoiceTier.STANDARD, "standard"]:
+        # Use Google Cloud Standard TTS ($4/1M chars)
+        if tier_lower == "standard":
             if self.has_google:
                 return self._generate_with_google(
                     script, segments, podcaster_voice, episode_type
@@ -151,7 +159,7 @@ class TTSEngine:
             else:
                 raise RuntimeError("No TTS provider configured")
 
-        raise RuntimeError(f"Unknown voice tier: {tier}")
+        raise RuntimeError(f"Unknown voice tier: {tier}. Use 'standard' or 'gemini'.")
 
     def _generate_with_gemini(
         self,
@@ -221,7 +229,7 @@ class TTSEngine:
         podcaster_voice: PodcasterVoice,
         episode_type: str,
     ) -> TTSResult:
-        """Generate audio using Google Cloud Standard TTS."""
+        """Generate audio using Google Cloud Standard TTS ($4/1M chars)."""
         logger.info("Using Google Cloud Standard TTS")
 
         # Calculate total characters for cost estimation
@@ -232,7 +240,7 @@ class TTSEngine:
         else:
             result = self._generate_google_multi_voice(segments, podcaster_voice)
 
-        # Calculate cost estimate - Standard is $4/1M chars
+        # Calculate cost estimate - Standard: $4/1M chars
         cost = (total_chars / 1_000_000) * 4
 
         result.estimated_cost = cost
@@ -302,23 +310,20 @@ class TTSEngine:
         segments: List[SpeakerSegment],
         podcaster_voice: PodcasterVoice,
     ) -> TTSResult:
-        """Generate audio for monologue (single voice) using Google Standard TTS."""
-        # Get voice config for main podcaster (always standard tier)
+        """Generate audio for monologue (single voice) using Google Cloud Standard TTS."""
+        # Get voice config for main podcaster
         voice_config = self.voice_mapper.get_voice_config(
             gender=podcaster_voice.gender,
             accent=podcaster_voice.accent,
             speaking_speed=podcaster_voice.speaking_speed,
             vocal_pitch=podcaster_voice.vocal_pitch,
-            tier="standard",
         )
 
         # Combine all text
         full_text = " ".join(seg.text for seg in segments)
 
         # Generate audio
-        audio_buffer = self.google_client.generate_audio(
-            full_text, voice_config, "standard"
-        )
+        audio_buffer = self.google_client.generate_audio(full_text, voice_config)
 
         # Get duration
         duration = self.audio_processor.get_buffer_duration(audio_buffer)
@@ -340,12 +345,12 @@ class TTSEngine:
         segments: List[SpeakerSegment],
         main_podcaster: PodcasterVoice,
     ) -> TTSResult:
-        """Generate audio for multi-voice episodes using Google Standard TTS."""
+        """Generate audio for multi-voice episodes using Google Cloud Standard TTS."""
         # Get unique speakers
         speakers = self.script_parser.get_unique_speakers(segments)
         logger.info(f"Speakers: {speakers}")
 
-        # Create voice configs for each speaker (always standard tier)
+        # Create voice configs for each speaker
         voice_configs = self._assign_google_voices(speakers, main_podcaster)
 
         # Generate audio for each segment
@@ -358,7 +363,7 @@ class TTSEngine:
                 logger.debug(f"Generating segment {i+1}/{len(segments)}: {segment.speaker}")
 
                 audio_buffer = self.google_client.generate_audio(
-                    segment.text, voice_config, "standard"
+                    segment.text, voice_config
                 )
                 audio_buffers.append(audio_buffer)
 
@@ -394,16 +399,15 @@ class TTSEngine:
         speakers: List[str],
         main_podcaster: PodcasterVoice,
     ) -> Dict[str, VoiceConfig]:
-        """Assign Google Standard TTS voice configs to each speaker."""
+        """Assign Google Cloud Standard TTS voice configs to each speaker."""
         voice_configs: Dict[str, VoiceConfig] = {}
 
-        # Main podcaster's voice config (always standard tier)
+        # Main podcaster's voice config
         main_config = self.voice_mapper.get_voice_config(
             gender=main_podcaster.gender,
             accent=main_podcaster.accent,
             speaking_speed=main_podcaster.speaking_speed,
             vocal_pitch=main_podcaster.vocal_pitch,
-            tier="standard",
         )
 
         guest_index = 0

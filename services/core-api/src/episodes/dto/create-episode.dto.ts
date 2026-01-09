@@ -31,7 +31,7 @@ export enum ContentCoverage {
 
 export enum VoiceTier {
     STANDARD = 'STANDARD',  // Google Cloud Standard voices - $4/1M chars
-    NEURAL = 'NEURAL',      // Google Cloud Neural2 voices - $16/1M chars
+    GEMINI = 'GEMINI',      // Gemini 2.5 Pro TTS - ~$0.32/10-min episode
 }
 
 export class CreateEpisodeDto {

@@ -217,7 +217,7 @@ enum ContentCoverage {
 // Voice Tier for TTS (affects quality and cost)
 enum VoiceTier {
   STANDARD  // Google Cloud Standard voices - $4/1M chars
-  NEURAL    // Google Cloud Neural2 voices - $16/1M chars
+  GEMINI    // Gemini 2.5 Pro TTS - ~$0.32/10-min episode
 }
 
 model Episode {
@@ -237,7 +237,7 @@ model Episode {
   episodeTheme          EpisodeTheme
   targetLengthMin       Int            // Minimum target length in minutes
   targetLengthMax       Int            // Maximum target length in minutes
-  voiceTier             VoiceTier      @default(NEURAL)  // TTS voice quality tier
+  voiceTier             VoiceTier      @default(STANDARD)  // TTS voice quality tier
 
   // Generated Content
   scriptContent         String?        @db.Text

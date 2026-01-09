@@ -159,21 +159,62 @@ Authorization: Bearer <access_token>
 
 **Response (200):**
 ```json
+[
+  {
+    "id": "uuid",
+    "chapterNumber": 1,
+    "title": "Chapter 1",
+    "startPage": 1,
+    "endPage": 15,
+    "textLength": 5420
+  },
+  {
+    "id": "uuid",
+    "chapterNumber": 2,
+    "title": "Chapter 2",
+    "startPage": 16,
+    "endPage": 32,
+    "textLength": 6100
+  }
+]
+```
+
+---
+
+#### Validate Chapters
+```http
+POST /books/:id/validate-chapters
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
 {
-  "chapters": [
-    {
-      "id": "uuid",
-      "chapterNumber": 1,
-      "title": "Chapter 1"
-    },
-    {
-      "id": "uuid",
-      "chapterNumber": 2,
-      "title": "Chapter 2"
-    }
-  ]
+  "chapters": [1, 2, 3]
 }
 ```
+
+**Response (200):**
+```json
+{
+  "valid": true,
+  "invalidChapters": [],
+  "availableChapters": [1, 2, 3, 4, 5]
+}
+```
+
+**Response with invalid chapters (200):**
+```json
+{
+  "valid": false,
+  "invalidChapters": [99, 100],
+  "availableChapters": [1, 2, 3, 4, 5]
+}
+```
+
+Use this endpoint before creating an episode to verify that the requested chapter numbers exist in the book.
+
+**Error Responses:**
+- `404 Not Found` - Book doesn't exist
+- `403 Forbidden` - Not the book owner
 
 ---
 

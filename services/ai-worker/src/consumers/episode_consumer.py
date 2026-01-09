@@ -62,11 +62,11 @@ class EpisodeConsumer(BaseConsumer):
             "episodeTheme": "LECTURE" | "DISCUSSION" | "DEBATE",
             "targetLengthMin": 15,
             "targetLengthMax": 25,
-            "voiceTier": "STANDARD" | "NEURAL"
+            "voiceTier": "STANDARD" | "GEMINI"
         }
         """
         episode_id = message["episodeId"]
-        voice_tier = message.get("voiceTier", "NEURAL").lower()  # Default to neural
+        voice_tier = message.get("voiceTier", "STANDARD").lower()  # Default to standard
 
         logger.info("=" * 50)
         logger.info(f"[EPISODE] Starting generation for: {episode_id}")
@@ -98,17 +98,30 @@ class EpisodeConsumer(BaseConsumer):
 
             # Step 3: Get book content
             logger.info(f"[STEP 3/9] Fetching book content (coverage: {message['contentCoverage']})...")
-            book_content = self.repository.get_book_content(
+            content_result = self.repository.get_book_content(
                 book_id=message["bookId"],
                 content_coverage=message["contentCoverage"],
                 chapter_numbers=message.get("chapters", []),
                 max_chars=self.max_content_chars,
             )
 
+            book_content = content_result["content"]
             if not book_content or not book_content.strip():
                 raise ValueError("No book content available for script generation")
 
-            logger.info(f"[STEP 3/9] Retrieved {len(book_content)} chars of book content")
+            # Log truncation warning if content was truncated
+            if content_result["truncated"]:
+                logger.warning(
+                    f"[STEP 3/9] Content truncated! "
+                    f"Used {content_result['returned_chars']:,} of {content_result['total_chars']:,} chars "
+                    f"({content_result['chapters_included']}/{content_result['total_chapters']} chapters fully included). "
+                    f"Consider using fewer chapters for better coverage."
+                )
+            else:
+                logger.info(
+                    f"[STEP 3/9] Retrieved {content_result['returned_chars']:,} chars "
+                    f"({content_result['chapters_included']} chapters)"
+                )
 
             # Step 4: Generate script
             logger.info("[STEP 4/9] Starting script generation...")

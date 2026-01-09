@@ -212,8 +212,46 @@ export class BooksService {
         });
     }
 
+    /**
+     * Validate that requested chapter numbers exist in the book.
+     * Returns list of invalid chapter numbers (empty if all valid).
+     */
+    async validateChapterNumbers(
+        bookId: string,
+        chapterNumbers: number[],
+    ): Promise<{ valid: boolean; invalidChapters: number[]; availableChapters: number[] }> {
+        const chapters = await this.databaseService.chapter.findMany({
+            where: { bookId },
+            select: { chapterNumber: true },
+        });
+
+        const availableChapters = chapters.map(ch => ch.chapterNumber);
+        const invalidChapters = chapterNumbers.filter(num => !availableChapters.includes(num));
+
+        return {
+            valid: invalidChapters.length === 0,
+            invalidChapters,
+            availableChapters,
+        };
+    }
+
     async delete(userId: string, id: string): Promise<void> {
         const book = await this.findOne(userId, id);
+
+        // Mark any pending/in-progress episodes as failed before deleting the book
+        // This prevents orphaned episodes that can never be processed
+        await this.databaseService.episode.updateMany({
+            where: {
+                bookId: id,
+                generationStatus: {
+                    in: ['PENDING', 'SCRIPT_GENERATING', 'SCRIPT_GENERATED', 'AUDIO_GENERATING'],
+                },
+            },
+            data: {
+                generationStatus: 'FAILED',
+                generationError: 'Book was deleted before episode generation completed',
+            },
+        });
 
         // Delete file from storage
         if (book.fileStorageKey) {
@@ -225,7 +263,7 @@ export class BooksService {
             await this.storageService.deleteFile(book.fullTextKey);
         }
 
-        // Delete database record (cascade deletes chapters)
+        // Delete database record (cascade deletes chapters and episodes)
         await this.databaseService.book.delete({ where: { id } });
     }
 

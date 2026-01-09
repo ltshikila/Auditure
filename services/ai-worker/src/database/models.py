@@ -176,6 +176,7 @@ class Episode(Base):
     episode_theme = Column("episodeTheme", String, nullable=False)  # LECTURE, DISCUSSION, DEBATE
     target_length_min = Column("targetLengthMin", Integer, nullable=False)
     target_length_max = Column("targetLengthMax", Integer, nullable=False)
+    voice_tier = Column("voiceTier", String, default="STANDARD")  # STANDARD or GEMINI
 
     # Generated content
     script_content = Column("scriptContent", Text, nullable=True)

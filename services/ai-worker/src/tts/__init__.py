@@ -1,8 +1,8 @@
 """Text-to-Speech module supporting multiple providers.
 
 Providers:
-- Google Cloud TTS (Standard/Neural2): Basic and high-quality voices
-- Gemini 2.5 Pro TTS: Multi-speaker, podcast-optimized synthesis
+- Google Cloud Standard TTS: Cost-effective voices ($4/1M chars) - free tier
+- Gemini 2.5 Pro TTS: Multi-speaker, podcast-optimized synthesis (~$0.32/10-min)
 """
 
 from .tts_engine import TTSEngine, TTSResult, PodcasterVoice, VoiceTier

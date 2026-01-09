@@ -14,6 +14,7 @@ export class Episode {
     episodeTheme: string;
     targetLengthMin: number;
     targetLengthMax: number;
+    voiceTier: string;
     scriptContent?: string;
     audioFileKey?: string;
     generationStatus: string;

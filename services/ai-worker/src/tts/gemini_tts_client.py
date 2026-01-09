@@ -1,33 +1,33 @@
 """Gemini 2.5 TTS client for multi-speaker podcast synthesis.
 
+Uses the official google-genai SDK for text-to-speech.
+
 Gemini TTS Features:
 - Native multi-speaker synthesis (up to 9 distinct voices)
-- Natural dialogue with non-verbal cues ([sigh], [laugh], [inhale], etc.)
+- Natural dialogue with expressive speech
 - Podcast-optimized output quality
-- Style prompts for voice customization
-- Regional accent support (en-US, en-GB, en-AU, en-IN)
+- 24 language support
+- 30 prebuilt voice options
 
 Available Models:
-- gemini-2.5-flash-tts: Low latency, multi-speaker ($0.50/1M input, $10/1M output)
-- gemini-2.5-pro-tts: High control for podcasts ($1.00/1M input, $20/1M output)
+- gemini-2.5-flash-preview-tts: Fast, multi-speaker
+- gemini-2.5-pro-preview-tts: Higher quality for podcasts
 
 Voice Selection:
 - 30 distinct voices with unique characteristics
 - Voices mapped by perceived speed, pitch, and gender
-- Frontend speakingSpeed/vocalPitch → best matching voice
 
-Reference: https://docs.cloud.google.com/text-to-speech/docs/gemini-tts
 Reference: https://ai.google.dev/gemini-api/docs/speech-generation
 """
 
-import base64
+import io
 import logging
 import re
+import wave
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Dict, Any
 
-import google.generativeai as genai
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -99,7 +99,6 @@ GEMINI_VOICES: Dict[str, Dict[str, Any]] = {
 }
 
 # Supported English language codes for regional accents
-# Reference: https://docs.cloud.google.com/text-to-speech/docs/gemini-tts#available_languages
 ACCENT_TO_LANGUAGE_CODE: Dict[str, str] = {
     "United States": "en-US",
     "United Kingdom": "en-GB",
@@ -114,8 +113,23 @@ ACCENT_TO_LANGUAGE_CODE: Dict[str, str] = {
 }
 
 
+def _pcm_to_wav(pcm_data: bytes, channels: int = 1, rate: int = 24000, sample_width: int = 2) -> bytes:
+    """Convert raw PCM data to WAV format.
+
+    Gemini TTS outputs PCM 16-bit 24kHz audio without WAV headers.
+    This function adds the proper WAV headers.
+    """
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as wf:
+        wf.setnchannels(channels)
+        wf.setsampwidth(sample_width)
+        wf.setframerate(rate)
+        wf.writeframes(pcm_data)
+    return buffer.getvalue()
+
+
 class GeminiTTSClient:
-    """Client for Gemini TTS API.
+    """Client for Gemini TTS API using google-genai SDK.
 
     Supports native multi-speaker dialogue synthesis with natural
     conversational qualities optimized for podcast content.
@@ -124,21 +138,22 @@ class GeminiTTSClient:
     1. Filter by gender (from podcaster config)
     2. Map accent to language_code (en-US, en-GB, en-AU, en-IN)
     3. Select voice closest to desired speakingSpeed and vocalPitch
+
+    Reference: https://ai.google.dev/gemini-api/docs/speech-generation
     """
 
     # Gemini model for TTS
-    MODEL_NAME = "gemini-2.5-pro-preview-tts"
+    MODEL_NAME = "gemini-2.5-flash-preview-tts"
 
-    # Audio output configuration
-    AUDIO_CONFIG = {
-        "encoding": "LINEAR16",  # 16-bit PCM
-        "sample_rate_hertz": 24000,
-    }
+    # Audio output configuration (Gemini outputs PCM 16-bit 24kHz)
+    SAMPLE_RATE = 24000
+    SAMPLE_WIDTH = 2  # 16-bit
+    CHANNELS = 1
 
-    # Pricing (per 1M tokens) - Gemini 2.5 Pro TTS
+    # Pricing (per 1M tokens) - Gemini 2.5 Flash TTS
     # Reference: https://ai.google.dev/gemini-api/docs/pricing
-    INPUT_PRICE_PER_M = 1.00
-    OUTPUT_PRICE_PER_M = 20.00
+    INPUT_PRICE_PER_M = 0.10
+    OUTPUT_PRICE_PER_M = 0.40
     TOKENS_PER_SECOND = 25  # Audio tokens per second of output
 
     def __init__(self, temp_dir: Optional[str] = None):
@@ -147,19 +162,26 @@ class GeminiTTSClient:
         self.temp_dir = Path(temp_dir or settings.tts_temp_dir)
         self._ensure_temp_dir()
 
-        # Configure Gemini API
+        # Configure Gemini API with new SDK
         self.api_key = settings.gemini_api_key
+        self.client = None
+
         if self.api_key:
-            genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel(self.MODEL_NAME)
+            try:
+                from google import genai
+                self.client = genai.Client(api_key=self.api_key)
+                logger.info("Gemini TTS client initialized with google-genai SDK")
+            except ImportError:
+                logger.error("google-genai package not installed. Run: pip install google-genai")
+            except Exception as e:
+                logger.error(f"Failed to initialize Gemini client: {e}")
         else:
-            self.model = None
             logger.warning("Gemini TTS not configured - no API key found")
 
     @property
     def is_available(self) -> bool:
         """Check if Gemini TTS is configured."""
-        return self.model is not None
+        return self.client is not None
 
     def _ensure_temp_dir(self) -> None:
         """Ensure temp directory exists."""
@@ -174,8 +196,6 @@ class GeminiTTSClient:
 
         Returns:
             Language code (e.g., "en-GB", "en-AU")
-
-        Reference: https://docs.cloud.google.com/text-to-speech/docs/gemini-tts#available_languages
         """
         return ACCENT_TO_LANGUAGE_CODE.get(accent, ACCENT_TO_LANGUAGE_CODE["default"])
 
@@ -198,11 +218,6 @@ class GeminiTTSClient:
 
         Returns:
             Voice name (e.g., "Kore", "Charon")
-
-        Algorithm:
-        1. Filter voices by gender
-        2. Calculate distance to each voice's natural speed/pitch
-        3. Return voice with minimum distance
         """
         # Filter by gender
         candidates = [
@@ -211,7 +226,6 @@ class GeminiTTSClient:
         ]
 
         if not candidates:
-            # Fallback if no gender match
             candidates = list(GEMINI_VOICES.items())
             logger.warning(f"No voices found for gender '{gender}', using all voices")
 
@@ -219,7 +233,7 @@ class GeminiTTSClient:
         speed = max(1, min(10, speaking_speed))
         pitch = max(1, min(10, vocal_pitch))
 
-        # Find voice with minimum Euclidean distance to desired characteristics
+        # Find voice with minimum Euclidean distance
         def distance(voice_info: Dict) -> float:
             speed_diff = abs(voice_info["speed"] - speed)
             pitch_diff = abs(voice_info["pitch"] - pitch)
@@ -258,12 +272,10 @@ class GeminiTTSClient:
             GeminiVoiceConfig with voice settings
         """
         if speaker_type.upper() in ["HOST", "HOST1", "NARRATOR"]:
-            # Use best matching voice for host
             voice_name = self.select_best_voice(gender, speaking_speed, vocal_pitch)
         else:
-            # For guests, we want variety - shift speed/pitch slightly
-            # and use alternating gender if desired
-            speed_offset = (speaker_index % 3) - 1  # -1, 0, 1
+            # For guests, shift speed/pitch slightly for variety
+            speed_offset = (speaker_index % 3) - 1
             pitch_offset = ((speaker_index + 1) % 3) - 1
 
             adjusted_speed = max(1, min(10, speaking_speed + speed_offset * 2))
@@ -279,23 +291,42 @@ class GeminiTTSClient:
             style_prompt=f"Speak in a {voice_info['style'].lower()} manner",
         )
 
+    def _build_speaker_configs(
+        self,
+        voice_assignments: Dict[str, str],
+    ) -> list:
+        """Build speaker voice configs for multi-speaker TTS."""
+        from google.genai import types
+
+        configs = []
+        for speaker, voice_name in voice_assignments.items():
+            configs.append(
+                types.SpeakerVoiceConfig(
+                    speaker=speaker,
+                    voice_config=types.VoiceConfig(
+                        prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                            voice_name=voice_name,
+                        )
+                    )
+                )
+            )
+        return configs
+
     def _format_script_for_gemini(
         self,
         script: str,
         voice_assignments: Dict[str, str],
     ) -> str:
         """
-        Format script with Gemini-compatible speaker tags.
+        Format script with speaker labels for multi-speaker TTS.
 
         Converts:
             HOST: Hello everyone!
             GUEST: Great to be here!
 
-        To Gemini's multi-speaker format with voice assignments:
-            Kore: Hello everyone!
-            Charon: Great to be here!
-
-        Reference: https://docs.cloud.google.com/text-to-speech/docs/gemini-tts#prompting_tips
+        To format expected by Gemini multi-speaker:
+            Host: Hello everyone!
+            Guest: Great to be here!
         """
         formatted_lines = []
 
@@ -310,85 +341,12 @@ class GeminiTTSClient:
             if match:
                 speaker = match.group(1)
                 dialogue = match.group(2)
-
-                # Map to Gemini voice name
-                voice_name = voice_assignments.get(speaker, voice_assignments.get("HOST", "Kore"))
-                formatted_lines.append(f"{voice_name}: {dialogue}")
+                # Use speaker name as-is for multi-speaker config
+                formatted_lines.append(f"{speaker}: {dialogue}")
             else:
-                # Non-dialogue line (narration or continuation)
                 formatted_lines.append(line)
 
         return '\n'.join(formatted_lines)
-
-    def _build_style_prompt(
-        self,
-        episode_type: str,
-        voice_configs: Dict[str, GeminiVoiceConfig],
-    ) -> str:
-        """
-        Build style prompt for Gemini TTS based on episode type.
-
-        Follows the "Three Levers of Speech Control" from docs:
-        1. Style Prompt - emotional tone and delivery context
-        2. Text Content - semantic meaning (handled in script)
-        3. Markup Tags - localized style changes (handled in script)
-
-        Reference: https://ai.google.dev/gemini-api/docs/speech-generation#prompting-guide
-        """
-        # Build character descriptions
-        characters = []
-        for speaker, config in voice_configs.items():
-            characters.append(f"- {config.speaker_id}: {config.style} delivery")
-
-        characters_str = "\n".join(characters)
-
-        if episode_type == "MONOLOGUE":
-            return f"""You are generating audio for a podcast episode.
-
-Audio Profile:
-{characters_str}
-
-Scene: An intimate podcast recording studio. The host speaks directly to dedicated listeners.
-
-Director's Notes:
-- Speak naturally and engagingly, as if recording for loyal subscribers
-- Include appropriate pauses for emphasis and to let ideas sink in
-- Render any markup tags naturally: [sigh], [laugh], [pause], etc.
-- Maintain a warm, conversational tone throughout
-- The 'Vocal Smile': Keep the tone bright and inviting"""
-
-        elif episode_type == "DUO":
-            return f"""You are generating audio for a two-person podcast conversation.
-
-Audio Profile:
-{characters_str}
-
-Scene: A comfortable podcast studio where two hosts have great chemistry.
-
-Director's Notes:
-- Create natural, flowing conversation with authentic reactions
-- React genuinely to what the other person says - agreement, surprise, curiosity
-- Include natural speech patterns: brief pauses, thinking sounds, laughter
-- Render markup tags naturally: [sigh], [laugh], [uhm], [pause], etc.
-- Build on each other's points organically
-- Maintain distinct voice personalities while keeping chemistry"""
-
-        else:  # GROUP
-            return f"""You are generating audio for a group podcast discussion.
-
-Audio Profile:
-{characters_str}
-
-Scene: An energetic podcast studio with multiple hosts in lively discussion.
-
-Director's Notes:
-- Create dynamic group conversation with multiple perspectives
-- Allow for natural interruptions and building on ideas
-- Each speaker should have a distinct personality and speaking style
-- Include reactions, agreements, and friendly disagreements
-- Render markup tags naturally: [sigh], [laugh], [uhm], [pause], etc.
-- Maintain energy and engagement throughout the discussion
-- Balance speaking time while keeping conversation natural"""
 
     @retry(
         stop=stop_after_attempt(3),
@@ -409,7 +367,7 @@ Director's Notes:
         Generate audio from podcast script using Gemini TTS.
 
         Args:
-            script: The podcast script with speaker labels and markup tags
+            script: The podcast script with speaker labels
             voice_assignments: Map of speaker labels to Gemini voice names
                 e.g., {"HOST": "Kore", "GUEST": "Charon"}
             voice_configs: Full voice configurations (overrides voice_assignments)
@@ -420,10 +378,12 @@ Director's Notes:
         Returns:
             Audio data as bytes (WAV format, 24kHz)
 
-        Reference: https://docs.cloud.google.com/text-to-speech/docs/gemini-tts
+        Reference: https://ai.google.dev/gemini-api/docs/speech-generation
         """
         if not self.is_available:
             raise GeminiTTSError("Gemini TTS client not configured")
+
+        from google.genai import types
 
         # Default voice assignments if not provided
         if voice_assignments is None and voice_configs is None:
@@ -444,57 +404,66 @@ Director's Notes:
                 for speaker, config in voice_configs.items()
             }
 
-        # Format script for Gemini
+        # Format script
         formatted_script = self._format_script_for_gemini(script, voice_assignments)
-
-        # Build style prompt
-        if style_prompt is None:
-            if voice_configs:
-                style_prompt = self._build_style_prompt(episode_type, voice_configs)
-            else:
-                # Create minimal configs for style prompt
-                minimal_configs = {
-                    speaker: GeminiVoiceConfig(
-                        speaker_id=voice_name,
-                        style=GEMINI_VOICES.get(voice_name, {}).get("style", "Natural"),
-                    )
-                    for speaker, voice_name in voice_assignments.items()
-                }
-                style_prompt = self._build_style_prompt(episode_type, minimal_configs)
-
-        prompt = f"""{style_prompt}
-
-Language/Accent: {language_code}
-
-Generate podcast audio for the following script. Each line starts with the speaker's name followed by their dialogue. Render all markup tags naturally.
-
-{formatted_script}"""
 
         logger.info(f"[Gemini TTS] Generating audio for script ({len(script)} chars)")
         logger.info(f"[Gemini TTS] Language: {language_code}")
         logger.info(f"[Gemini TTS] Speakers: {list(set(voice_assignments.values()))}")
 
         try:
-            # Generate audio using Gemini
-            response = self.model.generate_content(
-                prompt,
-                generation_config=genai.GenerationConfig(
-                    response_mime_type="audio/wav",
-                ),
+            # Determine if multi-speaker or single-speaker
+            unique_speakers = set(voice_assignments.keys())
+            is_multi_speaker = len(unique_speakers) > 1 and episode_type != "MONOLOGUE"
+
+            if is_multi_speaker:
+                # Multi-speaker configuration
+                speaker_configs = self._build_speaker_configs(voice_assignments)
+                speech_config = types.SpeechConfig(
+                    multi_speaker_voice_config=types.MultiSpeakerVoiceConfig(
+                        speaker_voice_configs=speaker_configs
+                    )
+                )
+                prompt = f"Generate a natural podcast conversation:\n\n{formatted_script}"
+            else:
+                # Single-speaker configuration
+                main_voice = voice_assignments.get("HOST", voice_assignments.get("NARRATOR", "Kore"))
+                speech_config = types.SpeechConfig(
+                    voice_config=types.VoiceConfig(
+                        prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                            voice_name=main_voice,
+                        )
+                    )
+                )
+                # For monologue, strip speaker labels
+                clean_script = re.sub(r'^[A-Z0-9_]+:\s*', '', formatted_script, flags=re.MULTILINE)
+                prompt = f"Read this podcast script naturally and engagingly:\n\n{clean_script}"
+
+            # Generate audio
+            response = self.client.models.generate_content(
+                model=self.MODEL_NAME,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_modalities=["AUDIO"],
+                    speech_config=speech_config,
+                )
             )
 
-            # Extract audio data from response
+            # Extract audio data
             if response.candidates and len(response.candidates) > 0:
                 candidate = response.candidates[0]
                 if hasattr(candidate, 'content') and candidate.content.parts:
                     for part in candidate.content.parts:
                         if hasattr(part, 'inline_data') and part.inline_data:
-                            audio_data = base64.b64decode(part.inline_data.data)
+                            pcm_data = part.inline_data.data
+
+                            # Convert PCM to WAV
+                            audio_data = _pcm_to_wav(pcm_data)
 
                             # Log metrics
-                            duration_estimate = len(audio_data) / (24000 * 2)  # 24kHz, 16-bit
+                            duration_estimate = len(pcm_data) / (self.SAMPLE_RATE * self.SAMPLE_WIDTH)
                             audio_tokens = int(duration_estimate * self.TOKENS_PER_SECOND)
-                            input_tokens = len(prompt) // 4  # Rough estimate
+                            input_tokens = len(prompt) // 4
 
                             input_cost = (input_tokens / 1_000_000) * self.INPUT_PRICE_PER_M
                             output_cost = (audio_tokens / 1_000_000) * self.OUTPUT_PRICE_PER_M
@@ -508,6 +477,8 @@ Generate podcast audio for the following script. Each line starts with the speak
 
             raise GeminiTTSError("No audio data in response")
 
+        except GeminiTTSError:
+            raise
         except Exception as e:
             error_msg = f"Gemini TTS generation failed: {str(e)}"
             logger.error(error_msg)
@@ -524,14 +495,6 @@ Generate podcast audio for the following script. Each line starts with the speak
     ) -> int:
         """
         Generate audio and save to file.
-
-        Args:
-            script: The podcast script
-            output_path: Path to save the audio file
-            voice_assignments: Speaker to voice mapping
-            episode_type: MONOLOGUE, DUO, or GROUP
-            language_code: Language/accent code
-            style_prompt: Optional style guidance
 
         Returns:
             Size of generated file in bytes
@@ -568,8 +531,7 @@ Generate podcast audio for the following script. Each line starts with the speak
         Returns:
             Audio data as bytes
         """
-        # Format as single-speaker script
-        script = f"{voice}: {text}"
+        script = f"NARRATOR: {text}"
         return self.generate_audio(
             script,
             voice_assignments={"NARRATOR": voice},
@@ -589,7 +551,7 @@ Generate podcast audio for the following script. Each line starts with the speak
         Returns:
             Estimated cost in USD
         """
-        input_tokens = len(script) // 4  # Rough estimate
+        input_tokens = len(script) // 4
         audio_tokens = target_duration_seconds * self.TOKENS_PER_SECOND
 
         input_cost = (input_tokens / 1_000_000) * self.INPUT_PRICE_PER_M

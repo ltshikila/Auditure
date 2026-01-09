@@ -7,7 +7,7 @@ export interface Book {
   title: string;
   author?: string;
   sourceType: 'PDF' | 'EPUB';
-  extractionStatus: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  extractionStatus: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'PARTIALLY_COMPLETED' | 'FAILED';
   pageCount?: number;
   originalFileName?: string;
   createdAt: string;
@@ -19,7 +19,15 @@ export interface Chapter {
   id: string;
   chapterNumber: number;
   title?: string;
+  startPage?: number;
+  endPage?: number;
   textLength?: number;
+}
+
+export interface ChapterValidationResult {
+  valid: boolean;
+  invalidChapters: number[];
+  availableChapters: number[];
 }
 
 class BookService {
@@ -75,6 +83,18 @@ class BookService {
 
   async retryExtraction(id: string, token: string): Promise<Book> {
     return apiClient.post<Book>(`/books/${id}/retry-extraction`, {}, token);
+  }
+
+  async validateChapters(
+    bookId: string,
+    chapters: number[],
+    token: string
+  ): Promise<ChapterValidationResult> {
+    return apiClient.post<ChapterValidationResult>(
+      `/books/${bookId}/validate-chapters`,
+      { chapters },
+      token
+    );
   }
 }
 

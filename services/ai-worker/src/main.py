@@ -29,11 +29,14 @@ def main() -> None:
     logger.info(f"Storage path: {settings.local_storage_path}")
     logger.info(f"LLM available: {settings.has_llm_api}")
     if settings.has_llm_api:
-        logger.info(f"  HuggingFace Model: {settings.huggingface_model}")
-        logger.info(f"  API Key: {settings.huggingface_api_key[:10]}...{settings.huggingface_api_key[-4:]}")
+        logger.info(f"  OpenAI Model: {settings.openai_model}")
+        logger.info(f"  API Key: {settings.openai_api_key[:10]}...{settings.openai_api_key[-4:]}")
     else:
-        logger.warning("  No HuggingFace API key configured - will use template fallback")
-        logger.warning("  Set HUGGINGFACE_API_KEY environment variable to enable LLM generation")
+        logger.warning("  No OpenAI API key configured - will use template fallback")
+        logger.warning("  Set OPENAI_API_KEY environment variable to enable LLM generation")
+    logger.info(f"TTS Voice Tier: {settings.tts_voice_tier}")
+    logger.info(f"  Google TTS available: {settings.has_google_tts}")
+    logger.info(f"  Gemini TTS available: {settings.has_gemini_tts}")
     logger.info("=" * 60)
 
     # Ensure directories exist
