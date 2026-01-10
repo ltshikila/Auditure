@@ -22,6 +22,36 @@ export class BooksService {
         private rabbitMQService: RabbitMQService,
     ) {}
 
+    /**
+     * Clean up a book title that may be URL-encoded or from a filename.
+     * Examples:
+     * - "The%2048%20Laws%20Of%20Power" → "The 48 Laws Of Power"
+     * - "my-book-title.pdf" → "My Book Title"
+     */
+    private cleanupTitle(title: string): string {
+        if (!title) return title;
+
+        let cleaned = title;
+
+        // URL-decode if needed (handles %20, %2F, etc.)
+        try {
+            cleaned = decodeURIComponent(cleaned);
+        } catch {
+            // If decoding fails, continue with original
+        }
+
+        // Remove common file extensions
+        cleaned = cleaned.replace(/\.(pdf|epub|mobi|azw3?)$/i, '');
+
+        // Replace hyphens and underscores with spaces
+        cleaned = cleaned.replace(/[-_]+/g, ' ');
+
+        // Collapse multiple spaces
+        cleaned = cleaned.replace(/\s+/g, ' ').trim();
+
+        return cleaned;
+    }
+
     async uploadBook(userId: string, file: any, createBookDto: CreateBookDto) {
         this.logger.log(`uploadBook() called for user ${userId}`);
         this.logger.log(`File: ${file?.originalname} (${file?.mimetype}, ${file?.size} bytes)`);
@@ -59,13 +89,17 @@ export class BooksService {
 
             // 4. Create book record
             this.logger.log('Creating book record in database...');
+            const cleanedTitle = this.cleanupTitle(createBookDto.title);
+            if (cleanedTitle !== createBookDto.title) {
+                this.logger.log(`Title cleaned: "${createBookDto.title}" → "${cleanedTitle}"`);
+            }
             let book;
             try {
                 book = await this.databaseService.book.create({
                     data: {
                         id: bookId,
                         userId,
-                        title: createBookDto.title,
+                        title: cleanedTitle,
                         author: createBookDto.author,
                         isbn: createBookDto.isbn,
                         language: createBookDto.language || 'en',

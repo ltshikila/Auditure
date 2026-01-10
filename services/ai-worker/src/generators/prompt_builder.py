@@ -3,13 +3,28 @@
 Generates prompts for LLM-based podcast script generation with support
 for Gemini TTS markup tags for natural speech synthesis.
 
-Gemini TTS Markup Tags (included in generated scripts):
-- Non-speech sounds: [sigh], [laughing], [uhm]
-- Pacing control: [short pause], [medium pause], [long pause]
-- Style modifiers: [whispering], [excited]
+OFFICIAL Gemini TTS Markup Tags (ONLY use these - others will be spoken aloud!):
 
-Reference: https://docs.cloud.google.com/text-to-speech/docs/gemini-tts#prompting_tips
-Reference: https://ai.google.dev/gemini-api/docs/speech-generation#prompting-guide
+Mode 1 - Non-Speech Sounds (acted out, not spoken):
+- [sigh] - Express frustration, relief, contemplation
+- [laughing] - Natural laughter
+- [uhm] - Thinking hesitation
+
+Mode 2 - Style Modifiers (modify delivery, not vocalized):
+- [whispering] - Decreases volume
+- [shouting] - Increases volume
+- [sarcasm] - Sarcastic tone
+- [extremely fast] - Accelerated speech (good for disclaimers)
+
+Mode 4 - Pacing/Pauses (control rhythm):
+- [short pause] - Brief silence (~250ms)
+- [medium pause] - Standard sentence break (~500ms)
+- [long pause] - Extended dramatic pause (~1000ms+)
+
+IMPORTANT: Do NOT use unofficial tags like [nodding], [thoughtfully], [intrigued],
+[chuckle], [excited], [curious], etc. - these will be SPOKEN ALOUD, not acted out!
+
+Reference: https://docs.cloud.google.com/text-to-speech/docs/gemini-tts#markup_tag_guide
 """
 
 import logging
@@ -46,6 +61,10 @@ class ScriptRequest:
     episode_theme: str  # LECTURE, DISCUSSION, DEBATE
     target_length_min: int  # minutes
     target_length_max: int  # minutes
+    content_is_limited: bool = False  # True when only partial content provided
+    is_retry: bool = False  # True when retrying due to short script
+    retry_count: int = 0  # 0 = first attempt, 1 = first retry, 2 = second retry
+    expansion_ratio: float = 1.0  # How much to expand content (target_words / source_words)
 
 
 class PromptBuilder:
@@ -131,15 +150,26 @@ class PromptBuilder:
         Reference: https://docs.cloud.google.com/text-to-speech/docs/gemini-tts#prompting_tips
         """
         tts_markup_guide = """
-## TTS Markup Tags (USE THESE for natural speech)
-Include these markup tags naturally throughout the script:
-- [short pause] - Brief pause like a comma (~250ms)
-- [medium pause] - Sentence break pause (~500ms)
-- [long pause] - Dramatic pause for emphasis (~1s)
+## TTS Markup Tags (OFFICIAL TAGS ONLY - others will be spoken aloud!)
+Include ONLY these official markup tags throughout the script:
+
+**Non-Speech Sounds (acted out):**
 - [sigh] - Express frustration, relief, or contemplation
-- [laughing] or [chuckle] - Natural laughter reactions
-- [uhm] or [uh] - Thinking hesitation for naturalness
-- [excited] - When sharing surprising or exciting information
+- [laughing] - Natural laughter reactions
+- [uhm] - Thinking hesitation for naturalness
+
+**Pacing/Pauses:**
+- [short pause] - Brief pause (~250ms)
+- [medium pause] - Sentence break (~500ms)
+- [long pause] - Dramatic pause (~1s)
+
+**Style Modifiers (change delivery):**
+- [whispering] - Quiet, intimate delivery
+- [sarcasm] - Sarcastic tone
+
+**IMPORTANT:** Do NOT use tags like [nodding], [thoughtfully], [intrigued], [chuckle],
+[excited], [curious], [smiling], etc. - these are NOT official and will be SPOKEN ALOUD!
+Use descriptive words instead: "That's fascinating" instead of "[intrigued]"
 
 Example usage:
 "So I was reading this book [short pause] and honestly [sigh] it completely changed how I think about productivity."
@@ -265,9 +295,94 @@ Create an energetic, friendly discussion with frequent engagement (5+ times):
         target_length_max: int,
         words_per_minute: int = 185,  # Gemini TTS speaks at ~185 wpm
     ) -> int:
-        """Calculate target word count from time range."""
-        avg_minutes = (target_length_min + target_length_max) / 2
-        return int(avg_minutes * words_per_minute)
+        """Calculate target word count from time range.
+
+        Always aims for the MAXIMUM duration - the minimum is the tolerance floor.
+        """
+        # Always aim for the max - user's min is just the acceptable floor
+        return int(target_length_max * words_per_minute)
+
+    def build_deep_dive_instructions(
+        self,
+        retry_count: int = 0,
+        expansion_ratio: float = 1.0,
+        target_words: int = 2000,
+    ) -> str:
+        """Build instructions for deep diving into limited content.
+
+        Args:
+            retry_count: 0 = first attempt, 1+ = retries
+            expansion_ratio: How much bigger the script needs to be vs source content
+            target_words: Exact target word count
+        """
+        # Calculate how aggressive the instructions need to be
+        needs_major_expansion = expansion_ratio >= 2.0  # Need 2x+ the source content
+
+        retry_emphasis = ""
+        if retry_count == 1:
+            retry_emphasis = """
+**WARNING - FIRST ATTEMPT WAS TOO SHORT**
+Your previous script was rejected for being too short. This time:
+- Write AT LEAST 50% more content
+- Add 3+ real-world examples per concept
+- Spend more time on analysis and implications
+- Include more personal anecdotes and observations
+"""
+        elif retry_count >= 2:
+            retry_emphasis = f"""
+**CRITICAL - SECOND RETRY - YOUR SCRIPT MUST BE {target_words}+ WORDS**
+This is your FINAL attempt. Previous attempts were rejected for insufficient length.
+You MUST write at least {target_words} words. Count your paragraphs:
+- A good paragraph is ~100-150 words
+- You need approximately {target_words // 120} paragraphs MINIMUM
+- If you're unsure, ADD MORE CONTENT
+
+MANDATORY additions:
+- 4-5 detailed real-world examples per concept
+- Extended personal anecdotes (2-3 paragraphs each)
+- Historical context and background information
+- Comparisons to other books, theories, or ideas
+- Practical applications and step-by-step advice
+- Potential objections and counterarguments
+- Future implications and predictions
+"""
+
+        expansion_guidance = ""
+        if needs_major_expansion:
+            expansion_guidance = f"""
+## CONTENT EXPANSION REQUIRED
+The source material is SHORT but you need to create a FULL-LENGTH episode.
+Your script must be approximately {int(expansion_ratio)}x longer than the source content.
+This means you must ADD SUBSTANTIAL ORIGINAL CONTENT:
+- Extended commentary and analysis
+- Multiple examples for every point
+- Personal stories and experiences
+- Historical and cultural context
+- Practical applications
+- Thought experiments and hypotheticals
+"""
+
+        return f"""{retry_emphasis}{expansion_guidance}
+## Deep Dive Instructions (CRITICAL - READ CAREFULLY)
+Your job is NOT to summarize briefly. You must create a COMPLETE, FULL-LENGTH podcast episode.
+EXTENSIVELY DISCUSS every concept presented, spending significant time on each.
+
+For EACH idea or concept in the source material, you MUST include:
+1. **Explain the core concept** (3-4 sentences minimum)
+2. **Provide context** - Why does this matter? Historical background? (3-4 sentences)
+3. **Give real-world examples** - At least 3-4 concrete examples from everyday life, history, business, sports, or current events. DESCRIBE each example in detail (2-3 sentences per example).
+4. **Discuss implications** - What happens if you apply this? Short-term and long-term consequences? (4-5 sentences)
+5. **Personal analysis** - Share your personal take, experiences, observations, and stories (1-2 paragraphs)
+6. **Practical application** - How can listeners use this in their daily lives? Step-by-step if applicable. (3-4 sentences)
+7. **Connect to other ideas** - Relate to other concepts, books, philosophies, or common knowledge (2-3 sentences)
+8. **Potential objections** - What might critics say? How would you respond? (2-3 sentences)
+
+**REMEMBER: Your audience is listening to LEARN and be ENTERTAINED.**
+A rushed, shallow episode is WORSE than a thorough, engaging one.
+When in doubt, ADD MORE CONTENT. Longer is always better than shorter.
+
+**Minimum content per concept: 250-400 words of discussion.**
+"""
 
     def build_prompt(self, request: ScriptRequest) -> str:
         """
@@ -290,6 +405,26 @@ Create an energetic, friendly discussion with frequent engagement (5+ times):
 
         author_line = f" by {request.book_author}" if request.book_author else ""
 
+        # Build deep dive instructions if content is limited or this is a retry
+        deep_dive_section = ""
+        if request.content_is_limited or request.retry_count > 0 or request.expansion_ratio >= 1.5:
+            deep_dive_section = self.build_deep_dive_instructions(
+                retry_count=request.retry_count,
+                expansion_ratio=request.expansion_ratio,
+                target_words=target_words,
+            )
+
+        # Adjust target words up for retries (more aggressive with each retry)
+        adjusted_target = target_words
+        if request.retry_count >= 2:
+            adjusted_target = int(target_words * 1.5)  # 50% more on second retry
+            logger.info(f"Second retry: increased target from {target_words} to {adjusted_target} words")
+        elif request.retry_count == 1:
+            adjusted_target = int(target_words * 1.3)  # 30% more on first retry
+            logger.info(f"First retry: increased target from {target_words} to {adjusted_target} words")
+        elif request.content_is_limited or request.expansion_ratio >= 1.5:
+            adjusted_target = int(target_words * 1.15)  # 15% buffer for limited content
+
         prompt = f"""You are {request.podcaster_name}, a podcast host creating an episode about "{request.book_title}"{author_line}.
 
 ## Your Personality
@@ -300,9 +435,9 @@ Create an energetic, friendly discussion with frequent engagement (5+ times):
 
 ## Episode Theme
 {theme_instructions}
-
+{deep_dive_section}
 ## Requirements
-- **CRITICAL: MINIMUM LENGTH**: The script MUST be at least {target_words} words. This is approximately {request.target_length_min}-{request.target_length_max} minutes when spoken at ~185 words per minute.
+- **CRITICAL: MINIMUM LENGTH**: The script MUST be at least {adjusted_target} words. This is approximately {request.target_length_min}-{request.target_length_max} minutes when spoken at ~185 words per minute.
 - DO NOT write a short script. Episodes under {request.target_length_min} minutes are unacceptable and will be rejected.
 - Include an engaging introduction that hooks the listener (at least 100 words)
 - Cover ALL the key ideas from the book content provided - discuss each point in depth with examples and commentary

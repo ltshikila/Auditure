@@ -146,6 +146,7 @@ class EpisodeConsumer(BaseConsumer):
                 target_length_min=message["targetLengthMin"],
                 target_length_max=message["targetLengthMax"],
                 speaking_speed=podcaster.speaking_speed,
+                voice_tier=voice_tier,
             )
 
             logger.info(

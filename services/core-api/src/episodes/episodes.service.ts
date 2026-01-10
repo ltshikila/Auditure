@@ -23,6 +23,9 @@ import { EpisodeResponseDto, EpisodeStatus } from './dto/episode-response.dto';
 export class EpisodesService {
     private readonly logger = new Logger(EpisodesService.name);
 
+    // Official Gemini TTS tags that should be stripped from user-facing transcripts
+    private static readonly TTS_TAGS_PATTERN = /\[(sigh|laughing|uhm|short pause|medium pause|long pause|whispering|shouting|sarcasm|extremely fast)\]/gi;
+
     constructor(
         private databaseService: DatabaseService,
         private rabbitMQService: RabbitMQService,
@@ -31,6 +34,40 @@ export class EpisodesService {
         @Inject(forwardRef(() => BooksService))
         private booksService: BooksService,
     ) {}
+
+    /**
+     * Clean TTS markup tags from transcript for user display.
+     * Removes official Gemini TTS tags like [laughing], [sigh], [short pause], etc.
+     * Also removes any other bracketed tags that may have slipped through.
+     */
+    private cleanTranscriptForDisplay(scriptContent: string | null): string | null {
+        if (!scriptContent) return scriptContent;
+
+        let cleaned = scriptContent;
+
+        // Remove official TTS tags
+        cleaned = cleaned.replace(EpisodesService.TTS_TAGS_PATTERN, '');
+
+        // Remove any other bracketed tags (catch-all for unofficial tags like [nodding], [thoughtfully])
+        // Only remove single-word or two-word tags to avoid removing actual content in brackets
+        cleaned = cleaned.replace(/\[([a-zA-Z]+(\s[a-zA-Z]+)?)\]/g, '');
+
+        // Clean up extra whitespace that may result from tag removal
+        cleaned = cleaned.replace(/\s{2,}/g, ' ');
+        cleaned = cleaned.replace(/\s+([.,!?])/g, '$1');
+
+        return cleaned.trim();
+    }
+
+    /**
+     * Clean transcripts for an array of episodes
+     */
+    private cleanEpisodesTranscripts<T extends { scriptContent?: string | null }>(episodes: T[]): T[] {
+        return episodes.map(episode => ({
+            ...episode,
+            scriptContent: this.cleanTranscriptForDisplay(episode.scriptContent ?? null),
+        }));
+    }
 
     /**
      * Create a new episode and queue it for generation
@@ -324,7 +361,7 @@ export class EpisodesService {
             },
         });
 
-        return episodes as EpisodeResponseDto[];
+        return this.cleanEpisodesTranscripts(episodes) as EpisodeResponseDto[];
     }
 
     /**
@@ -421,9 +458,10 @@ export class EpisodesService {
             },
         });
 
-        // Transform response
+        // Transform response and clean transcripts
         const transformedEpisodes = episodes.map((e) => ({
             ...e,
+            scriptContent: this.cleanTranscriptForDisplay(e.scriptContent),
             creator: e.user,
             user: undefined,
         })) as any as EpisodeResponseDto[];
@@ -477,6 +515,7 @@ export class EpisodesService {
 
         return episodes.map((e) => ({
             ...e,
+            scriptContent: this.cleanTranscriptForDisplay(e.scriptContent),
             creator: e.user,
             user: undefined,
         })) as any as EpisodeResponseDto[];
@@ -508,7 +547,7 @@ export class EpisodesService {
             },
         });
 
-        return episodes as EpisodeResponseDto[];
+        return this.cleanEpisodesTranscripts(episodes) as EpisodeResponseDto[];
     }
 
     /**
@@ -537,7 +576,7 @@ export class EpisodesService {
             },
         });
 
-        return episodes as EpisodeResponseDto[];
+        return this.cleanEpisodesTranscripts(episodes) as EpisodeResponseDto[];
     }
 
     /**
@@ -582,6 +621,7 @@ export class EpisodesService {
 
         return {
             ...episode,
+            scriptContent: this.cleanTranscriptForDisplay(episode.scriptContent),
             creator: episode.user,
             user: undefined,
         } as any as EpisodeResponseDto;

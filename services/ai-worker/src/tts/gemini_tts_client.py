@@ -176,6 +176,11 @@ class GeminiTTSClient:
     OUTPUT_PRICE_PER_M = 10.00  # $10.00 per 1M audio tokens
     TOKENS_PER_SECOND = 25      # Audio tokens per second of output
 
+    # Chunking configuration - Gemini TTS has ~10-11 min output limit
+    # Use conservative 8 min chunks to ensure we stay within limits
+    MAX_CHUNK_DURATION_SEC = 480  # 8 minutes per chunk
+    MAX_CHUNK_CHARS = 12000       # ~8 min at ~270 wpm ≈ 2160 words ≈ 12k chars
+
     def __init__(self, temp_dir: Optional[str] = None):
         """Initialize Gemini TTS client."""
         settings = get_settings()
@@ -368,6 +373,128 @@ class GeminiTTSClient:
 
         return '\n'.join(formatted_lines)
 
+    def _needs_chunking(self, script: str) -> bool:
+        """Check if script needs to be split into chunks."""
+        return len(script) > self.MAX_CHUNK_CHARS
+
+    def _split_script_into_chunks(self, script: str) -> List[str]:
+        """
+        Split a long script into chunks that fit within Gemini's output limit.
+
+        Splits at speaker turn boundaries to maintain dialogue flow.
+        Each chunk stays under MAX_CHUNK_CHARS.
+
+        Returns:
+            List of script chunks
+        """
+        if len(script) <= self.MAX_CHUNK_CHARS:
+            return [script]
+
+        chunks = []
+        current_chunk = []
+        current_length = 0
+
+        # Split by speaker turns (lines starting with SPEAKER:)
+        lines = script.split('\n')
+
+        for line in lines:
+            line_length = len(line) + 1  # +1 for newline
+
+            # If adding this line would exceed limit, save current chunk
+            if current_length + line_length > self.MAX_CHUNK_CHARS and current_chunk:
+                chunks.append('\n'.join(current_chunk))
+                current_chunk = []
+                current_length = 0
+
+            current_chunk.append(line)
+            current_length += line_length
+
+        # Don't forget the last chunk
+        if current_chunk:
+            chunks.append('\n'.join(current_chunk))
+
+        logger.info(f"[Gemini TTS] Split script into {len(chunks)} chunks "
+                   f"({len(script)} chars total)")
+        for i, chunk in enumerate(chunks):
+            logger.info(f"[Gemini TTS] Chunk {i+1}: {len(chunk)} chars")
+
+        return chunks
+
+    def _generate_single_chunk(
+        self,
+        script: str,
+        voice_assignments: Dict[str, str],
+        episode_type: str,
+        language_code: str,
+    ) -> bytes:
+        """
+        Generate audio for a single chunk of script.
+
+        Returns:
+            Raw PCM audio data (not WAV)
+        """
+        from google.genai import types
+
+        formatted_script = self._format_script_for_gemini(script, voice_assignments)
+
+        # Determine if multi-speaker or single-speaker
+        unique_speakers = set(voice_assignments.keys())
+        is_multi_speaker = len(unique_speakers) > 1 and episode_type != "MONOLOGUE"
+
+        if is_multi_speaker:
+            speaker_configs = self._build_speaker_configs(voice_assignments)
+            speech_config = types.SpeechConfig(
+                multi_speaker_voice_config=types.MultiSpeakerVoiceConfig(
+                    speaker_voice_configs=speaker_configs
+                )
+            )
+            prompt = formatted_script
+        else:
+            main_voice = voice_assignments.get("HOST", voice_assignments.get("NARRATOR", "Kore"))
+            speech_config = types.SpeechConfig(
+                voice_config=types.VoiceConfig(
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                        voice_name=main_voice,
+                    )
+                )
+            )
+            clean_script = re.sub(r'^[A-Z0-9_]+:\s*', '', formatted_script, flags=re.MULTILINE)
+            prompt = clean_script
+
+        # Generate audio
+        response = self.client.models.generate_content(
+            model=self.MODEL_NAME,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_modalities=["AUDIO"],
+                speech_config=speech_config,
+            )
+        )
+
+        # Extract PCM audio data
+        if response.candidates and len(response.candidates) > 0:
+            candidate = response.candidates[0]
+            if hasattr(candidate, 'content') and candidate.content.parts:
+                for part in candidate.content.parts:
+                    if hasattr(part, 'inline_data') and part.inline_data:
+                        raw_data = part.inline_data.data
+
+                        # Handle base64-encoded data
+                        if isinstance(raw_data, str):
+                            return base64.b64decode(raw_data)
+                        elif isinstance(raw_data, bytes):
+                            sample = raw_data[:100]
+                            is_likely_base64 = all(
+                                (43 <= b <= 122) or b in (10, 13, 32, 61)
+                                for b in sample
+                            )
+                            if is_likely_base64:
+                                return base64.b64decode(raw_data)
+                            return raw_data
+                        return raw_data
+
+        raise GeminiTTSError("No audio data in chunk response")
+
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=30),
@@ -424,14 +551,52 @@ class GeminiTTSClient:
                 for speaker, config in voice_configs.items()
             }
 
-        # Format script
-        formatted_script = self._format_script_for_gemini(script, voice_assignments)
-
         logger.info(f"[Gemini TTS] Generating audio for script ({len(script)} chars)")
         logger.info(f"[Gemini TTS] Language: {language_code}")
         logger.info(f"[Gemini TTS] Speakers: {list(set(voice_assignments.values()))}")
 
         try:
+            # Check if script needs chunking (exceeds ~10 min output limit)
+            if self._needs_chunking(script):
+                logger.info(f"[Gemini TTS] Script exceeds {self.MAX_CHUNK_CHARS} chars, using chunked generation")
+                chunks = self._split_script_into_chunks(script)
+
+                # Generate audio for each chunk
+                all_pcm_data = []
+                total_cost = 0.0
+
+                for i, chunk in enumerate(chunks):
+                    logger.info(f"[Gemini TTS] Generating chunk {i+1}/{len(chunks)} ({len(chunk)} chars)...")
+                    pcm_data = self._generate_single_chunk(
+                        chunk, voice_assignments, episode_type, language_code
+                    )
+                    all_pcm_data.append(pcm_data)
+
+                    # Calculate cost for this chunk
+                    duration_sec = len(pcm_data) / (self.SAMPLE_RATE * self.SAMPLE_WIDTH)
+                    audio_tokens = int(duration_sec * self.TOKENS_PER_SECOND)
+                    input_tokens = len(chunk) // 4
+                    chunk_cost = (input_tokens / 1_000_000) * self.INPUT_PRICE_PER_M + \
+                                 (audio_tokens / 1_000_000) * self.OUTPUT_PRICE_PER_M
+                    total_cost += chunk_cost
+                    logger.info(f"[Gemini TTS] Chunk {i+1} generated: {duration_sec:.1f}s, cost: ${chunk_cost:.4f}")
+
+                # Concatenate all PCM data
+                combined_pcm = b''.join(all_pcm_data)
+                total_duration = len(combined_pcm) / (self.SAMPLE_RATE * self.SAMPLE_WIDTH)
+
+                logger.info(f"[Gemini TTS] Combined {len(chunks)} chunks: {total_duration:.1f}s total")
+                logger.info(f"[Gemini TTS] Total estimated cost: ${total_cost:.4f}")
+
+                # Convert combined PCM to WAV
+                audio_data = _pcm_to_wav(combined_pcm)
+                logger.info(f"[Gemini TTS] Generated {len(audio_data)} bytes")
+                return audio_data
+
+            # Single-call generation for shorter scripts
+            # Format script
+            formatted_script = self._format_script_for_gemini(script, voice_assignments)
+
             # Determine if multi-speaker or single-speaker
             unique_speakers = set(voice_assignments.keys())
             is_multi_speaker = len(unique_speakers) > 1 and episode_type != "MONOLOGUE"
