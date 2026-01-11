@@ -7,7 +7,7 @@
     "services/*"
   ],
   "scripts": {
-    "start:mobile": "npm run start --workspace=apps/mobile-app",
+    "start:mobile": "npx expo start --clear --workspace=apps/mobile-app",
     "start:core-api": "npm run start:dev --workspace=services/core-api",
     "test": "npm run test --workspaces"
   },

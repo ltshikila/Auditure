@@ -13,6 +13,7 @@ export class Book {
     fileMimeType?: string;
     extractionStatus: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'PARTIALLY_COMPLETED';
     extractionError?: string;
+    extractionWarnings?: string[];
     extractedAt?: Date;
     fullTextKey?: string;
     createdAt: Date;

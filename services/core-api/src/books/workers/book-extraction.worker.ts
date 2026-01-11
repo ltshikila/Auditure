@@ -140,12 +140,21 @@ export class BookExtractionWorker implements OnModuleInit {
                     extractedAt: new Date(),
                     fullTextKey,
                     pageCount: extracted.metadata.pageCount,
+                    // Store extraction warnings for user notification
+                    extractionWarnings: extracted.extractionWarnings || [],
                     // Update metadata - always update title/author if we have better versions
                     ...(bestTitle && bestTitle !== currentBook?.title && { title: bestTitle }),
                     ...(bestAuthor && !currentBook?.author && { author: bestAuthor }),
                     ...(extracted.metadata.language && { language: extracted.metadata.language }),
                 },
             });
+
+            // Log warnings if present
+            if (extracted.extractionWarnings && extracted.extractionWarnings.length > 0) {
+                this.logger.warn(
+                    `Book ${job.bookId} extraction warnings: ${extracted.extractionWarnings.join(' | ')}`,
+                );
+            }
 
             this.logger.log(`Successfully extracted book ${job.bookId} (status: ${extractionStatus})`);
 

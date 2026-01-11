@@ -19,6 +19,11 @@ export class BookResponseDto {
     fileSize?: number;
     extractionStatus: string;
     extractionError?: string;
+    /**
+     * Warnings about extraction quality.
+     * Present when chapter detection fell back to less accurate methods.
+     */
+    extractionWarnings?: string[];
     extractedAt?: Date;
     createdAt: Date;
     updatedAt: Date;

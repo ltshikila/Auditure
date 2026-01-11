@@ -527,14 +527,28 @@ HOST: Let's dive right in..."""
 {format_instruction}
 {format_example}
 
-## Source Content
+## Source Content (THIS IS THE ONLY CONTENT YOU CAN REFERENCE!)
 {book_content}
+
+## STRICT CONTENT BOUNDARIES - READ CAREFULLY!
+You are discussing ONLY the content shown above. You must:
+- **NEVER mention any law numbers, chapter titles, or concepts NOT explicitly written in the Source Content**
+- **NEVER reference "Law 2", "Law 3", or ANY other laws if they're not in the text above**
+- **NEVER say things like "as we'll see in later laws" or "building on other laws"**
+- **If you know this book, COMPLETELY IGNORE that knowledge - pretend you've never read it**
+
+When you need to EXPAND and add depth, use ONLY these techniques:
+1. **General real-world examples** - from history, business, politics, sports, relationships (NOT from this book)
+2. **Personal anecdotes** - hypothetical stories about "someone you know" or "imagine if..."
+3. **Deeper analysis** - ask "why does this work?" and "what are the psychological principles?"
+4. **Practical applications** - "how would you apply this at work?" or "in your personal life?"
+5. **Counterarguments** - "but some might say..." and then respond to objections
+6. **Repeat and rephrase** key concepts from the source in different ways
 
 ## Critical Requirements
 - Write EXACTLY around {words_per_chunk} words (this is important!)
 - {"EVERY line must start with HOST: or GUEST: - NO EXCEPTIONS!" if episode_type == "DUO" else ""}
 - {"EVERY line must start with HOST:, GUEST1:, or GUEST2: - NO EXCEPTIONS!" if episode_type == "GROUP" else ""}
-- Be detailed, add examples, share insights
 - Use natural speech patterns with pauses and reactions
 - Official TTS tags: [sigh], [laughing], [uhm], [short pause], [medium pause], [long pause]
 

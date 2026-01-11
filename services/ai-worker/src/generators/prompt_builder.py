@@ -446,8 +446,23 @@ When in doubt, ADD MORE CONTENT. Longer is always better than shorter.
 - End with a thorough conclusion that summarizes key points and provides a call to action (at least 100 words)
 - When in doubt, add MORE detail, MORE examples, and MORE commentary - longer is better than shorter
 
-## Book Content to Discuss
+## Book Content to Discuss (THIS IS THE ONLY CONTENT YOU CAN REFERENCE!)
 {request.book_content}
+
+## STRICT CONTENT BOUNDARIES - CRITICAL!
+You are discussing ONLY the content shown above. You must:
+- **NEVER mention any law numbers, chapter titles, or concepts NOT explicitly written above**
+- **NEVER reference other parts of this book that aren't shown above**
+- **NEVER say things like "as we'll see later" or "in other chapters"**
+- **If you know this book, COMPLETELY IGNORE that knowledge - pretend you've never read it**
+
+When you need to EXPAND and fill time, use ONLY these techniques:
+1. **General real-world examples** - from history, business, politics, sports, relationships (NOT from this book)
+2. **Personal anecdotes** - hypothetical stories about "someone I know" or "imagine if..."
+3. **Deeper analysis** - ask "why does this work?" and "what are the psychological principles?"
+4. **Practical applications** - "how would you apply this at work?" or "in your personal life?"
+5. **Counterarguments** - "but some might say..." and respond to objections
+6. **Repeat and rephrase** key concepts from the source in different ways
 
 ## Episode Title
 "{request.episode_title}"

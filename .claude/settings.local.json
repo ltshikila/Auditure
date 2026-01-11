@@ -56,7 +56,8 @@
       "Bash(find:*)",
       "Bash(docker-compose exec:*)",
       "Bash(docker exec:*)",
-      "Bash(python -m py_compile:*)"
+      "Bash(python -m py_compile:*)",
+      "Bash(git -C \"c:\\\\Users\\\\ltshi\\\\OneDrive\\\\Documents\\\\GitHub\\\\Auditure\" log --oneline -15)"
     ]
   }
 }

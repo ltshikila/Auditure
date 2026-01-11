@@ -57,6 +57,7 @@ model Book {
   // Extraction Status
   extractionStatus  ExtractionStatus @default(PENDING)
   extractionError   String?
+  extractionWarnings String[]        // Warnings about extraction quality (e.g., "Could not detect chapters")
   extractedAt       DateTime?
 
   // Content

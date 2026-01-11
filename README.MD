@@ -67,7 +67,7 @@ npm run migration:run
 4. **Run the Backend (Core API):**
 
 ```bash
-npm run start:gateway
+npm run start:core-api
 ```
 
 5. **Configure API Keys (required for AI features):**
@@ -163,11 +163,119 @@ For detailed information about specific components:
 
 ## Contributing
 
-Please read our contributing guidelines before submitting pull requests. Ensure all code:
-* Passes linting checks
-* Includes unit tests
-* Maintains modular structure
-* Follows TypeScript/Python best practices
+We welcome contributions! Please follow these guidelines before submitting pull requests.
+
+### Getting Started
+
+1. Fork the repository and create a feature branch from `master`
+2. Use descriptive branch names: `feature/add-voice-preview`, `fix/audio-playback-bug`, `refactor/episode-service`
+3. Keep commits atomic and focused on a single change
+
+### Code Quality Requirements
+
+#### Linting
+
+All code must pass linting checks before merge:
+
+**TypeScript (Mobile App & Core API):**
+```bash
+# Run ESLint
+npm run lint
+
+# Auto-fix issues
+npm run lint:fix
+```
+
+**Python (AI Worker):**
+```bash
+cd services/ai-worker
+
+# Run flake8 for style checks
+flake8 src/
+
+# Run mypy for type checking
+mypy src/
+```
+
+#### Testing
+
+All new features and bug fixes must include tests:
+
+**TypeScript:**
+```bash
+# Run Jest tests
+npm run test
+
+# Run with coverage
+npm run test:coverage
+```
+
+**Python:**
+```bash
+cd services/ai-worker
+
+# Run pytest
+pytest
+
+# Run with coverage
+pytest --cov=src
+```
+
+* Aim for >80% code coverage on new code
+* Include unit tests for business logic
+* Add integration tests for API endpoints and service interactions
+
+### Code Style
+
+#### TypeScript Best Practices
+
+* Use strict TypeScript (`strict: true` in tsconfig)
+* Define explicit return types for functions
+* Use interfaces for object shapes, types for unions/primitives
+* Prefer `const` over `let`, avoid `var`
+* Use async/await over raw Promises
+* Follow NestJS conventions: decorators, dependency injection, DTOs with class-validator
+
+#### Python Best Practices
+
+* Follow PEP 8 style guidelines
+* Use type hints for all function signatures
+* Use Pydantic models for data validation
+* Prefer f-strings for string formatting
+* Use context managers for resource handling
+* Keep functions focused and under 50 lines
+
+### Modular Structure
+
+* **Mobile App:** One component per file, co-locate styles and tests
+* **Core API:** One module per domain (auth, users, episodes), use NestJS module boundaries
+* **AI Worker:** Separate concerns into generators, clients, consumers, and models
+* Avoid circular dependencies between modules
+* Keep shared utilities in dedicated `common/` or `utils/` directories
+
+### Commit Messages
+
+Use conventional commit format:
+```
+type(scope): short description
+
+[optional body with more details]
+```
+
+Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+
+Examples:
+* `feat(episodes): add support for group conversations`
+* `fix(tts): handle timeout errors in Gemini client`
+* `docs(readme): expand contributing guidelines`
+
+### Pull Request Process
+
+1. Ensure all checks pass (lint, tests, build)
+2. Update documentation if adding new features
+3. Add a clear PR description explaining the changes
+4. Request review from at least one maintainer
+5. Squash commits before merge if requested
 
 ## Helpful Commands
 ```bash

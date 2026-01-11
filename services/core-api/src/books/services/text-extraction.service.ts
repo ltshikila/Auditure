@@ -12,6 +12,18 @@ export interface ExtractedContent {
         language?: string;
     };
     extractionMethod?: 'text' | 'ocr';
+    /**
+     * Warnings about extraction quality or limitations.
+     * Users should be notified about these issues.
+     */
+    extractionWarnings?: string[];
+}
+
+export enum ExtractionQuality {
+    HIGH = 'high',         // Embedded TOC/bookmarks used
+    MEDIUM = 'medium',     // Printed TOC parsed successfully
+    LOW = 'low',           // Regex-based detection only
+    FALLBACK = 'fallback', // Single "Full Book" chapter
 }
 
 export interface ChapterData {
@@ -73,20 +85,66 @@ export class TextExtractionService {
             return this.extractFromScannedPdf(buffer, metadata);
         }
 
-        // Try TOC-based chapter extraction first (more accurate)
+        // Track extraction quality and warnings
+        const warnings: string[] = [];
+        let extractionQuality: ExtractionQuality = ExtractionQuality.HIGH;
+
+        // Try TOC-based chapter extraction first (most accurate - uses PDF bookmarks)
         let chapters = await this.extractChaptersFromToc(buffer, metadata.pageCount || 0);
 
-        // Fall back to regex-based detection if no TOC or TOC extraction failed
+        // If no embedded TOC, try parsing printed TOC from text (uses page numbers)
+        if (chapters.length === 0 && metadata.pageCount) {
+            this.logger.log('No embedded TOC. Trying to parse printed TOC from text...');
+            chapters = this.extractChaptersFromPrintedToc(fullText, metadata.pageCount);
+
+            if (chapters.length > 0) {
+                extractionQuality = ExtractionQuality.MEDIUM;
+                this.logger.log(`Extracted ${chapters.length} chapters using printed TOC`);
+            }
+        }
+
+        // Fall back to regex-based detection (least accurate - pattern matching only)
         if (chapters.length === 0) {
-            this.logger.log('No TOC found or TOC extraction failed. Using regex-based chapter detection.');
+            this.logger.log('No TOC found. Using regex-based chapter detection...');
             chapters = this.detectChaptersInText(fullText);
+
+            if (chapters.length > 0) {
+                extractionQuality = ExtractionQuality.LOW;
+                warnings.push(
+                    'Chapter detection used pattern matching only. Chapter boundaries may be inaccurate. ' +
+                        'For best results, use a PDF with embedded bookmarks or a clear table of contents.',
+                );
+            }
+        }
+
+        // Ultimate fallback: single "Full Book" chapter
+        let finalChapters: ChapterData[];
+        if (chapters.length > 0) {
+            finalChapters = chapters;
+        } else {
+            finalChapters = this.createDefaultChapter(fullText);
+            extractionQuality = ExtractionQuality.FALLBACK;
+            warnings.push(
+                'Could not detect chapter structure in this PDF. The entire book has been extracted as a single chapter. ' +
+                    'This may happen with scanned books, unusual formatting, or PDFs without a table of contents. ' +
+                    'You can still generate episodes, but chapter selection will not be available.',
+            );
+        }
+
+        this.logger.log(
+            `Extraction complete: ${finalChapters.length} chapter(s), ${fullText.length} chars, quality: ${extractionQuality}`,
+        );
+
+        if (warnings.length > 0) {
+            this.logger.warn(`Extraction warnings: ${warnings.join(' | ')}`);
         }
 
         return {
             fullText,
-            chapters: chapters.length > 0 ? chapters : this.createDefaultChapter(fullText),
+            chapters: finalChapters,
             metadata,
             extractionMethod: 'text',
+            extractionWarnings: warnings.length > 0 ? warnings : undefined,
         };
     }
 
@@ -310,7 +368,7 @@ export class TextExtractionService {
         chapterTitle: string,
     ): { found: boolean; beforeHeading: string; afterHeading: string } {
         // Create regex patterns to find the chapter heading
-        // Handle common formats: "Chapter X", "Chapter X: Title", "X. Title"
+        // Handle common formats: "Chapter X", "Chapter X: Title", "LAW X", "X. Title"
         const escapedTitle = chapterTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
         const patterns = [
@@ -318,6 +376,8 @@ export class TextExtractionService {
             new RegExp(`(.*?)(?=\\b${escapedTitle}\\b)`, 'is'),
             // "Chapter N" or "CHAPTER N" format
             new RegExp(`(.*?)(?=\\bChapter\\s+\\d+\\b)`, 'i'),
+            // "LAW N" or "Law N" format (with or without space due to OCR)
+            new RegExp(`(.*?)(?=\\bLAW\\s*\\d+\\b)`, 'i'),
         ];
 
         for (const pattern of patterns) {
@@ -337,6 +397,306 @@ export class TextExtractionService {
             beforeHeading: text,
             afterHeading: '',
         };
+    }
+
+    /**
+     * Extract chapters by parsing printed TOC from the text content.
+     * This handles PDFs that have a printed table of contents but no embedded bookmarks.
+     *
+     * Strategy:
+     * 1. Find the printed TOC section in the text
+     * 2. Parse TOC entries to extract chapter titles and page numbers
+     * 3. Estimate character positions based on page numbers
+     * 4. Split text at estimated positions, refining with heading detection
+     */
+    private extractChaptersFromPrintedToc(fullText: string, pageCount: number): ChapterData[] {
+        // Step 1: Find and parse printed TOC entries
+        const tocEntries = this.parsePrintedTocEntries(fullText);
+
+        if (tocEntries.length < 2) {
+            this.logger.debug(
+                `Found only ${tocEntries.length} printed TOC entries - not enough for chapter splitting`,
+            );
+            return [];
+        }
+
+        this.logger.log(`Found ${tocEntries.length} printed TOC entries`);
+
+        // Step 2: Estimate characters per page
+        const charsPerPage = fullText.length / pageCount;
+        this.logger.debug(`Estimated ${charsPerPage.toFixed(0)} characters per page`);
+
+        // Step 3: Find the end of TOC section (where actual content begins)
+        const tocEndPosition = this.findTocEndPosition(fullText, tocEntries);
+        const contentText = fullText.slice(tocEndPosition);
+        const contentStartPage = Math.floor(tocEndPosition / charsPerPage);
+
+        this.logger.debug(
+            `TOC ends at position ${tocEndPosition}, content starts around page ${contentStartPage + 1}`,
+        );
+
+        // Step 4: Split content at chapter boundaries
+        const chapters = this.splitTextByPrintedToc(contentText, tocEntries, charsPerPage, contentStartPage);
+
+        // Filter out chapters with insufficient content
+        const MIN_CHAPTER_LENGTH = 1000;
+        const validChapters = chapters.filter((ch) => ch.text.length >= MIN_CHAPTER_LENGTH);
+
+        this.logger.log(
+            `Extracted ${validChapters.length} valid chapters from printed TOC (filtered ${chapters.length - validChapters.length} short entries)`,
+        );
+
+        return validChapters;
+    }
+
+    /**
+     * Parse printed TOC entries from text.
+     * Supports multiple formats:
+     * - "Chapter 1 Overview 23" (title followed by page number)
+     * - "Chapter 1: Overview ... 23" (with dots)
+     * - "1. Overview 23" (numbered list)
+     * - "LAW 1 Never Outshine the Master 1" (law format)
+     */
+    private parsePrintedTocEntries(text: string): TocEntry[] {
+        const entries: TocEntry[] = [];
+
+        // Find TOC section - look for "contents" heading
+        const tocMatch = text.match(/\b(contents|table\s+of\s+contents)\b/i);
+        if (!tocMatch) {
+            this.logger.debug('No TOC section found in text');
+            return [];
+        }
+
+        // Extract a reasonable section after "contents" (up to ~10000 chars or until we hit main content)
+        const tocStart = tocMatch.index!;
+        const tocSection = text.slice(tocStart, tocStart + 15000);
+
+        // Patterns for TOC entries with page numbers
+        // Format: "Chapter X Title ... PageNum" or "LAW X Title PageNum"
+        const patterns = [
+            // "Chapter 1 Title 23" or "Chapter 1: Title 23" or "Chapter 1 Title ... 23"
+            /^(Chapter\s+(\d+))[\s:\.]+([^\d\n]+?)\s+(\d{1,4})\s*$/gim,
+            // "CHAPTER 1 TITLE 23"
+            /^(CHAPTER\s+(\d+))[\s:\.]+([^\d\n]+?)\s+(\d{1,4})\s*$/gim,
+            // "LAW 1 Title 23" or "LAW1 Title 23"
+            /^(LAW\s*(\d+))[\s:\.]+([^\d\n]+?)\s+(\d{1,4})\s*$/gim,
+            // "1. Title 23" or "1 Title 23" (simple numbered)
+            /^(\d+)[\.\s]+([A-Z][^\d\n]+?)\s+(\d{1,4})\s*$/gm,
+        ];
+
+        for (const pattern of patterns) {
+            let match: RegExpExecArray | null;
+            const regex = new RegExp(pattern);
+
+            while ((match = regex.exec(tocSection)) !== null) {
+                let chapterNum: number;
+                let title: string;
+                let pageNum: number;
+
+                if (pattern.source.startsWith('^(\\d+)')) {
+                    // Simple numbered format: group 1 = number, group 2 = title, group 3 = page
+                    chapterNum = parseInt(match[1]);
+                    title = match[2].trim();
+                    pageNum = parseInt(match[3]);
+                } else {
+                    // Chapter/LAW format: group 2 = number, group 3 = title, group 4 = page
+                    chapterNum = parseInt(match[2]);
+                    title = match[3].trim();
+                    pageNum = parseInt(match[4]);
+                }
+
+                // Clean up title - remove trailing dots and excess whitespace
+                title = title.replace(/\.{2,}\s*$/, '').replace(/\s+/g, ' ').trim();
+
+                // Skip if title looks like a section number (e.g., "1.1 Introduction")
+                if (/^\d+\.\d+/.test(title)) {
+                    continue;
+                }
+
+                // Skip duplicates
+                if (entries.some((e) => e.chapterNumber === chapterNum)) {
+                    continue;
+                }
+
+                // Validate page number is reasonable (1-9999)
+                if (pageNum >= 1 && pageNum <= 9999 && title.length > 0) {
+                    entries.push({
+                        title: title,
+                        pageNumber: pageNum,
+                        chapterNumber: chapterNum,
+                    });
+                }
+            }
+
+            // If we found entries with this pattern, don't try other patterns
+            if (entries.length >= 3) {
+                break;
+            }
+        }
+
+        // Sort by chapter number
+        entries.sort((a, b) => (a.chapterNumber || 0) - (b.chapterNumber || 0));
+
+        return entries;
+    }
+
+    /**
+     * Find where the TOC section ends and main content begins.
+     * Looks for the first chapter heading after the TOC.
+     */
+    private findTocEndPosition(text: string, tocEntries: TocEntry[]): number {
+        if (tocEntries.length === 0) return 0;
+
+        // The first chapter in TOC tells us what to look for
+        const firstChapter = tocEntries[0];
+        const firstChapterNum = firstChapter.chapterNumber || 1;
+        const firstChapterTitle = firstChapter.title;
+
+        // Create patterns to find the actual chapter heading (not TOC entry)
+        const escapedTitle = firstChapterTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        // Look for chapter heading WITHOUT a page number following it
+        // This distinguishes actual headings from TOC entries
+        const patterns = [
+            // "Chapter 1" or "CHAPTER 1" at start of line, followed by title or newline (no page number)
+            new RegExp(
+                `^Chapter\\s+${firstChapterNum}\\b(?!.*\\d{1,4}\\s*$)[\\s:]*(?:${escapedTitle})?`,
+                'im',
+            ),
+            // Just the title at start of line (for formats without "Chapter X" prefix)
+            new RegExp(`^${escapedTitle}\\s*$`, 'im'),
+            // "1.1" section number (indicates we're in chapter content)
+            new RegExp(`^${firstChapterNum}\\.1\\b`, 'im'),
+        ];
+
+        // Start searching after "contents" heading
+        const contentsMatch = text.match(/\bcontents\b/i);
+        const searchStart = contentsMatch ? contentsMatch.index! + 500 : 0;
+
+        let earliestMatch = text.length;
+
+        for (const pattern of patterns) {
+            const searchText = text.slice(searchStart);
+            const match = searchText.match(pattern);
+
+            if (match && match.index !== undefined) {
+                const absolutePos = searchStart + match.index;
+                if (absolutePos < earliestMatch) {
+                    earliestMatch = absolutePos;
+                }
+            }
+        }
+
+        // If no match found, estimate based on page count
+        // TOC typically ends around page 10-20 for most books
+        if (earliestMatch === text.length && tocEntries.length > 0) {
+            const firstContentPage = tocEntries[0].pageNumber;
+            const charsPerPage = text.length / (tocEntries[tocEntries.length - 1].pageNumber + 50);
+            earliestMatch = Math.min(text.length * 0.1, firstContentPage * charsPerPage);
+        }
+
+        return Math.max(0, earliestMatch);
+    }
+
+    /**
+     * Split text content using parsed TOC page numbers.
+     * Uses character position estimation with heading-based refinement.
+     */
+    private splitTextByPrintedToc(
+        contentText: string,
+        tocEntries: TocEntry[],
+        charsPerPage: number,
+        contentStartPage: number,
+    ): ChapterData[] {
+        const chapters: ChapterData[] = [];
+
+        // Sort entries by page number
+        const sortedEntries = [...tocEntries].sort((a, b) => a.pageNumber - b.pageNumber);
+
+        for (let i = 0; i < sortedEntries.length; i++) {
+            const current = sortedEntries[i];
+            const next = sortedEntries[i + 1];
+
+            // Estimate character position for this chapter's start
+            const pageOffset = current.pageNumber - contentStartPage - 1;
+            const estimatedStart = Math.max(0, Math.floor(pageOffset * charsPerPage));
+
+            // Estimate end position (start of next chapter, or end of text)
+            let estimatedEnd: number;
+            if (next) {
+                const nextPageOffset = next.pageNumber - contentStartPage - 1;
+                estimatedEnd = Math.floor(nextPageOffset * charsPerPage);
+            } else {
+                estimatedEnd = contentText.length;
+            }
+
+            // Refine positions by looking for actual chapter headings
+            const refinedStart = this.refineChapterStart(contentText, current, estimatedStart, charsPerPage);
+            let refinedEnd = estimatedEnd;
+
+            if (next) {
+                refinedEnd = this.refineChapterStart(contentText, next, estimatedEnd, charsPerPage);
+            }
+
+            // Extract chapter text
+            const chapterText = contentText.slice(refinedStart, refinedEnd).trim();
+
+            if (chapterText.length > 0) {
+                chapters.push({
+                    chapterNumber: current.chapterNumber || i + 1,
+                    title: current.title,
+                    text: chapterText,
+                    startPage: current.pageNumber,
+                    endPage: next ? next.pageNumber - 1 : undefined,
+                });
+            }
+        }
+
+        return chapters;
+    }
+
+    /**
+     * Refine chapter start position by searching for the actual heading.
+     * Searches within a window around the estimated position.
+     */
+    private refineChapterStart(
+        text: string,
+        tocEntry: TocEntry,
+        estimatedPos: number,
+        charsPerPage: number,
+    ): number {
+        // Search window: 2 pages before and after estimated position
+        const windowSize = Math.floor(charsPerPage * 2);
+        const searchStart = Math.max(0, estimatedPos - windowSize);
+        const searchEnd = Math.min(text.length, estimatedPos + windowSize);
+        const searchText = text.slice(searchStart, searchEnd);
+
+        const chapterNum = tocEntry.chapterNumber || 1;
+        const escapedTitle = tocEntry.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        // Patterns to find the chapter heading
+        const patterns = [
+            // "Chapter X" or "CHAPTER X" followed by title
+            new RegExp(`Chapter\\s+${chapterNum}\\b[\\s:]*${escapedTitle.slice(0, 20)}`, 'i'),
+            // Just "Chapter X" at start of line
+            new RegExp(`^Chapter\\s+${chapterNum}\\b`, 'im'),
+            // LAW format
+            new RegExp(`^LAW\\s*${chapterNum}\\b`, 'im'),
+            // Title alone (capitalized)
+            new RegExp(`^${escapedTitle.slice(0, 30)}`, 'im'),
+            // Section number like "1.1"
+            new RegExp(`^${chapterNum}\\.1\\b`, 'im'),
+        ];
+
+        for (const pattern of patterns) {
+            const match = searchText.match(pattern);
+            if (match && match.index !== undefined) {
+                return searchStart + match.index;
+            }
+        }
+
+        // No heading found, return estimated position
+        return estimatedPos;
     }
 
     async extractFromScannedPdf(
@@ -377,14 +737,33 @@ export class TextExtractionService {
             const fullText = this.cleanText(pageTexts.join('\n\n'));
             const chapters = this.detectChaptersInText(fullText);
 
+            // OCR extraction has inherent quality limitations
+            const warnings: string[] = [
+                'This PDF was processed using OCR (optical character recognition). ' +
+                    'Text accuracy may vary, especially for complex layouts, images, or handwritten content.',
+            ];
+
+            const finalChapters = chapters.length > 0 ? chapters : this.createDefaultChapter(fullText);
+
+            if (chapters.length === 0) {
+                warnings.push(
+                    'Could not detect chapter structure. The book has been extracted as a single chapter.',
+                );
+            }
+
+            this.logger.log(
+                `OCR extraction complete: ${finalChapters.length} chapter(s), ${fullText.length} chars`,
+            );
+
             return {
                 fullText,
-                chapters: chapters.length > 0 ? chapters : this.createDefaultChapter(fullText),
+                chapters: finalChapters,
                 metadata: {
                     ...existingMetadata,
                     pageCount: numPages,
                 },
                 extractionMethod: 'ocr',
+                extractionWarnings: warnings,
             };
         } catch (error) {
             this.logger.error('OCR extraction failed', error);
@@ -466,9 +845,12 @@ export class TextExtractionService {
     private detectChaptersInText(text: string): ChapterData[] {
         // Patterns for chapter detection - match at start of line
         // Captures: full match, chapter number, optional title
+        // Supports: "Chapter X", "CHAPTER X", "LAW X", "Law X", etc.
         const chapterPatterns = [
             /^(Chapter\s+(\d+))(?:[:\.\s]+(.*))?$/gim,
             /^(CHAPTER\s+(\d+))(?:[:\.\s]+(.*))?$/gim,
+            /^(LAW\s*(\d+))(?:[:\.\s]+(.*))?$/gim,  // "LAW 1" or "LAW1" (OCR often removes space)
+            /^(Law\s*(\d+))(?:[:\.\s]+(.*))?$/gim,
         ];
 
         interface ChapterMatch {
@@ -492,6 +874,25 @@ export class TextExtractionService {
                 title = title.replace(/\s+\d{1,4}\s*$/, '').trim();
                 if (!title) {
                     title = `Chapter ${chapterNum}`;
+                }
+
+                // Skip if this looks like a mid-sentence reference rather than a chapter heading
+                // Chapter headings typically have capitalized titles like "Overview", "User Authentication"
+                // References look like "Chapter 1 listed a number..." or "Chapter 4. The matrix..."
+                const firstWord = title.split(/\s+/)[0];
+                if (firstWord && firstWord.length > 2) {
+                    // If first word starts lowercase or is a common verb, it's likely a sentence
+                    const looksLikeSentence =
+                        /^[a-z]/.test(firstWord) || // starts with lowercase
+                        /^(the|a|an|is|are|was|were|has|have|had|will|would|could|should|can|may|might|must|listed|includes|describes|explains|provides|contains|discusses|presents|covers|shows|demonstrates|illustrates|introduces|examines|explores|considers|addresses|deals|focuses|offers|gives|takes|makes|uses|also|then|this|that|these|those|it|its|such|each|both|all|any|some|most|many|few|several|various|other|another|more|less|further|additional|following|preceding|above|below|previous|next|first|second|third|last|final|later|earlier|recently|currently|already|still|yet|now|here|there|where|when|how|why|what|which|who|whom|whose)$/i.test(
+                            firstWord,
+                        );
+                    if (looksLikeSentence) {
+                        this.logger.debug(
+                            `Skipping mid-sentence reference: "Chapter ${chapterNum} ${title.slice(0, 30)}..."`,
+                        );
+                        continue;
+                    }
                 }
 
                 chapterMatches.push({
@@ -533,8 +934,9 @@ export class TextExtractionService {
         const chapters = this.splitTextAtChapterPositions(text, uniqueMatches);
 
         // Filter out chapters with insufficient content (likely TOC entries that slipped through)
-        // Real chapters should have at least 1000 characters of content
-        const MIN_CHAPTER_CONTENT_LENGTH = 1000;
+        // Real chapters should have at least 2500 characters of content
+        // (TOC entries with brief summaries are typically 100-500 chars between headings)
+        const MIN_CHAPTER_CONTENT_LENGTH = 2500;
         const validChapters = chapters.filter((chapter) => {
             if (chapter.text.length < MIN_CHAPTER_CONTENT_LENGTH) {
                 this.logger.debug(
@@ -610,13 +1012,25 @@ export class TextExtractionService {
 
     private isInTableOfContents(context: string, matchPositionInContext: number): boolean {
         // Check for TOC indicators in the surrounding text
-        const tocIndicators = ['table of contents', 'list of chapters', '-----'];
+        // Include variations commonly found in books (including OCR'd text)
+        const tocIndicators = [
+            'table of contents',
+            'list of chapters',
+            '-----',
+            'contents\n',  // "CONTENTS" at start of section
+            '\ncontents',  // "CONTENTS" preceded by newline
+        ];
 
         // Check if any TOC indicator is present
         for (const indicator of tocIndicators) {
             if (context.includes(indicator)) {
                 return true;
             }
+        }
+
+        // Also check for standalone "CONTENTS" word (common in books)
+        if (/\bcontents\b/i.test(context)) {
+            return true;
         }
 
         // Get the line containing the chapter match
@@ -633,13 +1047,21 @@ export class TextExtractionService {
 
         // Also check if the "title" ends with what looks like a page number
         // e.g., "Cryptographic Tools 52" where 52 is a page number
-        const titleMatch = chapterLine.match(/chapter\s+\d+[:\.\s]+(.+)/i);
+        // Supports both "Chapter X" and "LAW X" formats
+        const titleMatch = chapterLine.match(/(?:chapter|law)\s*\d+[:\.\s]+(.+)/i);
         if (titleMatch) {
             const title = titleMatch[1].trim();
             // If title ends with a standalone number (likely page number)
             if (/\s+\d{1,4}$/.test(title)) {
                 return true;
             }
+        }
+
+        // Check for "page" appearing within a few lines after the chapter heading
+        // This is a strong TOC indicator (e.g., "LAW1\npage\n1\n")
+        const nextFewLines = afterMatch.slice(0, 100).toLowerCase();
+        if (/\bpage\b/.test(nextFewLines)) {
+            return true;
         }
 
         return false;
@@ -649,8 +1071,8 @@ export class TextExtractionService {
         // Index entries typically have page numbers right after the chapter reference
         const afterMatch = context.slice(matchPositionInContext);
 
-        // Pattern like "Chapter 1, 45" or "Chapter 1: 45, 67, 89"
-        if (/^chapter\s+\d+[,:\s]+\d+(?:\s*,\s*\d+)*\s*$/im.test(afterMatch.slice(0, 50))) {
+        // Pattern like "Chapter 1, 45" or "Chapter 1: 45, 67, 89" or "LAW 1, 45"
+        if (/^(?:chapter|law)\s*\d+[,:\s]+\d+(?:\s*,\s*\d+)*\s*$/im.test(afterMatch.slice(0, 50))) {
             return true;
         }
 
