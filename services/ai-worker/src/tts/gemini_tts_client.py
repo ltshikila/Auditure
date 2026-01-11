@@ -147,6 +147,144 @@ def _pcm_to_wav(
     return buffer.getvalue()
 
 
+def _crossfade_pcm_chunks(
+    chunks: List[bytes],
+    sample_rate: int = 24000,
+    sample_width: int = 2,
+    crossfade_ms: int = 50,
+) -> bytes:
+    """Crossfade multiple PCM audio chunks to eliminate clicks and pops.
+
+    This prevents audio artifacts at chunk boundaries by smoothly
+    blending the end of one chunk with the beginning of the next.
+
+    Args:
+        chunks: List of raw PCM audio data (16-bit signed)
+        sample_rate: Audio sample rate in Hz
+        sample_width: Bytes per sample (2 for 16-bit)
+        crossfade_ms: Crossfade duration in milliseconds
+
+    Returns:
+        Combined PCM data with smooth transitions
+    """
+    import struct
+
+    if not chunks:
+        return b''
+
+    if len(chunks) == 1:
+        return chunks[0]
+
+    # Calculate crossfade samples
+    crossfade_samples = int(sample_rate * crossfade_ms / 1000)
+    bytes_per_sample = sample_width
+
+    # Ensure sample alignment for all chunks
+    aligned_chunks = []
+    for chunk in chunks:
+        # Truncate to align on sample boundaries
+        aligned_length = (len(chunk) // bytes_per_sample) * bytes_per_sample
+        aligned_chunks.append(chunk[:aligned_length])
+
+    result = bytearray()
+    fade_out_data = b''  # Initialize outside loop
+
+    for i, chunk in enumerate(aligned_chunks):
+        if i == 0:
+            # First chunk: use all but leave room for crossfade at end
+            if len(chunk) > crossfade_samples * bytes_per_sample:
+                result.extend(chunk[:-crossfade_samples * bytes_per_sample])
+                fade_out_data = chunk[-crossfade_samples * bytes_per_sample:]
+            else:
+                result.extend(chunk)
+                fade_out_data = b''
+        else:
+            # Get crossfade regions
+            curr_fade_in = chunk[:crossfade_samples * bytes_per_sample]
+
+            # Perform crossfade if we have both regions
+            if fade_out_data and curr_fade_in:
+                crossfade_result = bytearray()
+                num_samples = min(
+                    len(fade_out_data) // bytes_per_sample,
+                    len(curr_fade_in) // bytes_per_sample
+                )
+
+                for j in range(num_samples):
+                    # Calculate fade factor (0 to 1) with smooth curve
+                    t = j / max(num_samples - 1, 1)
+                    # Use smoothstep for more natural crossfade
+                    fade_factor = t * t * (3 - 2 * t)
+
+                    # Extract samples (16-bit signed little-endian)
+                    prev_sample = struct.unpack('<h', fade_out_data[j*2:(j+1)*2])[0]
+                    curr_sample = struct.unpack('<h', curr_fade_in[j*2:(j+1)*2])[0]
+
+                    # Blend samples
+                    blended = int(prev_sample * (1 - fade_factor) + curr_sample * fade_factor)
+
+                    # Clamp to 16-bit range
+                    blended = max(-32768, min(32767, blended))
+
+                    crossfade_result.extend(struct.pack('<h', blended))
+
+                result.extend(crossfade_result)
+            elif fade_out_data:
+                # No fade in data, just add fade out
+                result.extend(fade_out_data)
+
+            # Add rest of current chunk (after crossfade region)
+            remaining = chunk[crossfade_samples * bytes_per_sample:]
+
+            # Save fade out region for next iteration
+            if len(remaining) > crossfade_samples * bytes_per_sample and i < len(aligned_chunks) - 1:
+                result.extend(remaining[:-crossfade_samples * bytes_per_sample])
+                fade_out_data = remaining[-crossfade_samples * bytes_per_sample:]
+            else:
+                result.extend(remaining)
+                fade_out_data = b''
+
+    return bytes(result)
+
+
+def _analyze_pcm_chunk(chunk: bytes, chunk_index: int, sample_rate: int = 24000, sample_width: int = 2) -> dict:
+    """Analyze PCM chunk for diagnostic purposes.
+
+    Returns metrics about the audio chunk to help identify quality issues.
+    """
+    import struct
+
+    if not chunk:
+        return {"error": "empty chunk"}
+
+    num_samples = len(chunk) // sample_width
+    duration_sec = num_samples / sample_rate
+
+    # Calculate RMS (volume indicator)
+    samples = []
+    for i in range(min(num_samples, 10000)):  # Sample first 10k samples
+        sample = struct.unpack('<h', chunk[i*2:(i+1)*2])[0]
+        samples.append(sample)
+
+    if samples:
+        rms = (sum(s*s for s in samples) / len(samples)) ** 0.5
+        max_amplitude = max(abs(s) for s in samples)
+        dc_offset = sum(samples) / len(samples)
+    else:
+        rms = 0
+        max_amplitude = 0
+        dc_offset = 0
+
+    return {
+        "chunk_index": chunk_index,
+        "duration_sec": round(duration_sec, 2),
+        "rms": round(rms, 1),
+        "max_amplitude": max_amplitude,
+        "dc_offset": round(dc_offset, 1),
+        "size_bytes": len(chunk),
+    }
+
+
 class GeminiTTSClient:
     """Client for Gemini TTS API using google-genai SDK.
 
@@ -579,10 +717,20 @@ class GeminiTTSClient:
                     chunk_cost = (input_tokens / 1_000_000) * self.INPUT_PRICE_PER_M + \
                                  (audio_tokens / 1_000_000) * self.OUTPUT_PRICE_PER_M
                     total_cost += chunk_cost
-                    logger.info(f"[Gemini TTS] Chunk {i+1} generated: {duration_sec:.1f}s, cost: ${chunk_cost:.4f}")
 
-                # Concatenate all PCM data
-                combined_pcm = b''.join(all_pcm_data)
+                    # Analyze chunk audio quality for diagnostics
+                    chunk_stats = _analyze_pcm_chunk(pcm_data, i, self.SAMPLE_RATE, self.SAMPLE_WIDTH)
+                    logger.info(f"[Gemini TTS] Chunk {i+1} generated: {duration_sec:.1f}s, cost: ${chunk_cost:.4f}")
+                    logger.info(f"[Gemini TTS] Chunk {i+1} audio stats: RMS={chunk_stats['rms']}, max={chunk_stats['max_amplitude']}, dc_offset={chunk_stats['dc_offset']}")
+
+                # Concatenate all PCM data with crossfade to prevent audio artifacts
+                logger.info(f"[Gemini TTS] Crossfading {len(all_pcm_data)} chunks...")
+                combined_pcm = _crossfade_pcm_chunks(
+                    all_pcm_data,
+                    sample_rate=self.SAMPLE_RATE,
+                    sample_width=self.SAMPLE_WIDTH,
+                    crossfade_ms=50,  # 50ms crossfade for smooth transitions
+                )
                 total_duration = len(combined_pcm) / (self.SAMPLE_RATE * self.SAMPLE_WIDTH)
 
                 logger.info(f"[Gemini TTS] Combined {len(chunks)} chunks: {total_duration:.1f}s total")

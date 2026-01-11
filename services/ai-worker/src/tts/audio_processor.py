@@ -34,6 +34,7 @@ class AudioProcessor:
         self,
         file_paths: List[Path],
         output_path: Optional[Path] = None,
+        re_encode: bool = False,
     ) -> Path:
         """
         Concatenate multiple audio files into one.
@@ -41,6 +42,8 @@ class AudioProcessor:
         Args:
             file_paths: List of audio file paths to concatenate
             output_path: Optional output path (auto-generated if not provided)
+            re_encode: If True, re-encode audio for consistent quality
+                       (slower but prevents audio artifacts from mismatched encodings)
 
         Returns:
             Path to the concatenated audio file
@@ -69,18 +72,34 @@ class AudioProcessor:
                     abs_path = str(file_path.absolute()).replace("'", "'\\''")
                     f.write(f"file '{abs_path}'\n")
 
-            # Run ffmpeg concat
-            cmd = [
-                "ffmpeg",
-                "-f", "concat",
-                "-safe", "0",
-                "-i", str(list_file),
-                "-c", "copy",
-                "-y",  # Overwrite output
-                str(output_path),
-            ]
+            if re_encode:
+                # Re-encode to ensure consistent quality and prevent artifacts
+                # Use high-quality settings to minimize quality loss
+                cmd = [
+                    "ffmpeg",
+                    "-f", "concat",
+                    "-safe", "0",
+                    "-i", str(list_file),
+                    "-c:a", "libmp3lame",  # MP3 encoder
+                    "-b:a", "192k",         # 192kbps bitrate
+                    "-ar", "44100",         # Standard sample rate
+                    "-ac", "1",             # Mono (matches TTS output)
+                    "-y",  # Overwrite output
+                    str(output_path),
+                ]
+            else:
+                # Stream copy - faster but may have issues with mismatched encodings
+                cmd = [
+                    "ffmpeg",
+                    "-f", "concat",
+                    "-safe", "0",
+                    "-i", str(list_file),
+                    "-c", "copy",
+                    "-y",  # Overwrite output
+                    str(output_path),
+                ]
 
-            logger.info(f"Concatenating {len(file_paths)} audio files")
+            logger.info(f"Concatenating {len(file_paths)} audio files (re_encode={re_encode})")
 
             result = subprocess.run(
                 cmd,
@@ -104,12 +123,15 @@ class AudioProcessor:
     def concatenate_audio_buffers(
         self,
         audio_buffers: List[bytes],
+        re_encode: bool = True,
     ) -> bytes:
         """
         Concatenate multiple audio buffers into one.
 
         Args:
             audio_buffers: List of audio data buffers
+            re_encode: If True, re-encode to ensure consistent quality
+                       (prevents high-pass filtered sound from mismatched encodings)
 
         Returns:
             Combined audio data
@@ -134,8 +156,8 @@ class AudioProcessor:
                     f.write(buffer)
                 temp_files.append(temp_file)
 
-            # Concatenate files
-            output_file = self.concatenate_audio_files(temp_files)
+            # Concatenate files with re-encoding for consistent quality
+            output_file = self.concatenate_audio_files(temp_files, re_encode=re_encode)
 
             # Read result
             with open(output_file, "rb") as f:

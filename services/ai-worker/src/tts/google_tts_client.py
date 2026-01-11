@@ -189,14 +189,20 @@ class GoogleTTSClient:
                 audio_segment = AudioSegment.from_mp3(io.BytesIO(chunk_audio))
                 audio_segments.append(audio_segment)
 
-            # Concatenate all segments
+            # Concatenate all segments with crossfade to prevent clicks
             combined = audio_segments[0]
             for segment in audio_segments[1:]:
-                combined += segment
+                # Add small crossfade (25ms) to prevent audio artifacts at chunk boundaries
+                combined = combined.append(segment, crossfade=25)
 
-            # Export to MP3 bytes
+            # Export to MP3 bytes with consistent quality settings
             output_buffer = io.BytesIO()
-            combined.export(output_buffer, format="mp3")
+            combined.export(
+                output_buffer,
+                format="mp3",
+                bitrate="192k",  # Consistent bitrate to prevent quality degradation
+                parameters=["-q:a", "0"],  # Highest quality MP3 encoding
+            )
             audio_data = output_buffer.getvalue()
 
         # Log cost estimate - Standard is $4/1M chars
