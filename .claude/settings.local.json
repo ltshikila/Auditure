@@ -57,7 +57,11 @@
       "Bash(docker-compose exec:*)",
       "Bash(docker exec:*)",
       "Bash(python -m py_compile:*)",
-      "Bash(git -C \"c:\\\\Users\\\\ltshi\\\\OneDrive\\\\Documents\\\\GitHub\\\\Auditure\" log --oneline -15)"
+      "Bash(git -C \"c:\\\\Users\\\\ltshi\\\\OneDrive\\\\Documents\\\\GitHub\\\\Auditure\" log --oneline -15)",
+      "Bash(git diff:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix playback bugs, add book cover extraction\n\n- fix audio playing at 2x speed by explicitly setting rate: 1.0\n- disable inaccurate transcript sync \\(word-count estimation unreliable\\)\n- prevent transcript text truncation \\(aposiopesis\\)\n- add hybrid cover extraction \\(Google Books API + PDF first page\\)\n- update schema with coverImageUrl/coverImageKey fields\n- include coverImageUrl in episode API responses\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push)"
     ]
   }
 }

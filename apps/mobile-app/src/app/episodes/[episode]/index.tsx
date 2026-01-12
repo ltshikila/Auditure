@@ -178,7 +178,7 @@ export default function EpisodeInfoScreen() {
 
     return (
         <SafeAreaView edges={['top']} className="flex-1 bg-brand-beige">
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView showsVerticalScrollIndicator={false} className="pb-32">
                 {/* Header */}
                 <View className="px-6 pt-4 pb-2 flex-row items-center justify-between">
                     <TouchableOpacity
@@ -197,14 +197,13 @@ export default function EpisodeInfoScreen() {
                         <Ionicons
                             name={isLiked ? 'heart' : 'heart-outline'}
                             size={24}
-                            color={isLiked ? '#920002' : '#1A1C1E'}
+                            color={isLiked ? '#E8847C' : '#E8847C'}
                         />
                     </TouchableOpacity>
                 </View>
 
-                {/* Cover and Info */}
-                <View className="px-6 pt-6 items-center">
-                    {/* Book Cover */}
+                {/* Book Cover */}
+                <View className="px-6 pt-4 items-center">
                     <View className="w-48 h-72 rounded-xl overflow-hidden shadow-lg bg-brand-input">
                         {episode.book?.coverImageUrl ? (
                             <Image
@@ -218,55 +217,109 @@ export default function EpisodeInfoScreen() {
                             </View>
                         )}
                     </View>
+                </View>
 
-                    {/* Episode Title */}
-                    <Text className="font-jakarta-bold text-2xl text-[#1A1C1E] text-center mt-6 px-4">
-                        {episode.title}
-                    </Text>
-
-                    {/* Podcaster Name */}
-                    {episode.podcaster?.name && (
-                        <Text className="font-inter text-[#858585] text-center mt-1">
-                            By {episode.podcaster.name}
+                {/* Title Row with Play Button */}
+                <View className="px-6 mt-6 flex-row items-start">
+                    <View className="flex-1 pr-4">
+                        {/* Episode Title */}
+                        <Text className="font-jakarta-bold text-2xl text-[#1A1C1E]">
+                            {episode.title}
                         </Text>
+
+                        {/* Podcaster Name */}
+                        <Text className="font-inter text-[#858585] mt-1">
+                            By {episode.podcaster?.name || 'Virtual Podcaster'}
+                        </Text>
+                    </View>
+
+                    {/* Play Button - positioned to right of title */}
+                    {!isGenerating && episode.generationStatus !== 'FAILED' && (
+                        <TouchableOpacity
+                            onPress={handlePlay}
+                            className="w-14 h-14 rounded-full bg-brand-red items-center justify-center shadow-lg"
+                        >
+                            <Ionicons
+                                name={isCurrentlyPlaying ? 'pause' : 'play'}
+                                size={24}
+                                color="white"
+                            />
+                        </TouchableOpacity>
                     )}
+                </View>
 
-                    {/* Stats Row */}
-                    <View className="flex-row items-center mt-4 space-x-6">
-                        {/* Rating - placeholder */}
-                        <View className="flex-row items-center">
-                            <Ionicons name="star" size={16} color="#BF9A54" />
-                            <Text className="font-inter text-[#858585] ml-1">4.5</Text>
-                        </View>
+                {/* Stats Row */}
+                <View className="flex-row items-center px-6 mt-4 space-x-6">
+                    {/* Rating */}
+                    <View className="flex-row items-center">
+                        <Ionicons name="star" size={18} color="#E8847C" />
+                        <Text className="font-inter-medium text-[#1A1C1E] ml-1.5">4.5</Text>
+                    </View>
 
-                        {/* Language - placeholder */}
-                        <View className="flex-row items-center">
-                            <Ionicons name="language" size={16} color="#858585" />
-                            <Text className="font-inter text-[#858585] ml-1">English</Text>
-                        </View>
+                    {/* Language */}
+                    <View className="flex-row items-center">
+                        <Text className="text-lg">🈯</Text>
+                        <Text className="font-inter-medium text-[#1A1C1E] ml-1.5">English</Text>
+                    </View>
 
-                        {/* Duration */}
-                        <View className="flex-row items-center">
-                            <Ionicons name="time-outline" size={16} color="#858585" />
-                            <Text className="font-inter text-[#858585] ml-1">
-                                {formatDuration(episode.duration)}
-                            </Text>
-                        </View>
+                    {/* Duration */}
+                    <View className="flex-row items-center">
+                        <Ionicons name="mic" size={18} color="#E8847C" />
+                        <Text className="font-inter-medium text-[#1A1C1E] ml-1.5">
+                            {formatDuration(episode.duration)}
+                        </Text>
                     </View>
                 </View>
 
-                {/* Tabs - Summary, Details, Author, Reviews */}
+                {/* Generation Progress (if generating) */}
+                {isGenerating && (
+                    <View className="px-6 mt-4">
+                        <View className="bg-brand-input rounded-2xl p-4">
+                            <View className="flex-row items-center justify-between mb-2">
+                                <View className="flex-row items-center">
+                                    <ActivityIndicator size="small" color="#BF9A54" />
+                                    <Text className="font-inter-medium text-[#1A1C1E] ml-2">
+                                        Generating...
+                                    </Text>
+                                </View>
+                                <Text className="font-jakarta-bold text-brand-gold">
+                                    {generationProgress?.progress ?? 0}%
+                                </Text>
+                            </View>
+                            <View className="h-2 bg-[#E8E3D6] rounded-full overflow-hidden">
+                                <View
+                                    className="h-full bg-brand-gold rounded-full"
+                                    style={{ width: `${generationProgress?.progress ?? 0}%` }}
+                                />
+                            </View>
+                            <Text className="font-inter text-[#858585] text-xs mt-2 text-center">
+                                {getStatusText(generationProgress?.status)}
+                            </Text>
+                        </View>
+                    </View>
+                )}
+
+                {/* Generation Failed */}
+                {episode.generationStatus === 'FAILED' && (
+                    <View className="px-6 mt-4">
+                        <View className="bg-[#920002]/10 rounded-xl p-4 flex-row items-center">
+                            <Ionicons name="alert-circle" size={20} color="#920002" />
+                            <Text className="font-inter text-[#920002] ml-2 flex-1">
+                                Generation failed. Please try again.
+                            </Text>
+                        </View>
+                    </View>
+                )}
+
+                {/* Tabs */}
                 <View className="flex-row px-6 mt-6 border-b border-[#E8E3D6]">
-                    <TouchableOpacity className="pb-3 mr-6 border-b-2 border-brand-red">
+                    <TouchableOpacity className="pb-3 mr-8 border-b-2 border-brand-red">
                         <Text className="font-inter-medium text-brand-red">Summary</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                        className="pb-3 mr-6"
-                        onPress={() => router.push(`/episodes/${episode.id}/play`)}
-                    >
+                    <TouchableOpacity className="pb-3 mr-8">
                         <Text className="font-inter text-[#858585]">Details</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity className="pb-3 mr-6">
+                    <TouchableOpacity className="pb-3 mr-8">
                         <Text className="font-inter text-[#858585]">Author</Text>
                     </TouchableOpacity>
                     <TouchableOpacity className="pb-3">
@@ -274,138 +327,14 @@ export default function EpisodeInfoScreen() {
                     </TouchableOpacity>
                 </View>
 
-                {/* Description / Summary */}
-                <View className="px-6 mt-4">
+                {/* Summary / Script Content */}
+                <View className="px-6 mt-4 mb-32">
                     <Text className="font-inter text-[#666666] leading-6 text-base">
-                        {episode.description ||
-                            episode.book?.title
-                            ? `An engaging podcast episode about "${episode.book?.title}". Listen to discover insights and perspectives on this fascinating book.`
-                            : 'No description available for this episode.'}
+                        {episode.scriptContent
+                            ? episode.scriptContent.substring(0, 800).replace(/^(HOST|GUEST|NARRATOR|HOST1|GUEST1|GUEST2):\s*/gim, '') + '...'
+                            : episode.description ||
+                              `An engaging podcast episode about "${episode.book?.title || 'this book'}". Listen to discover insights and perspectives on this fascinating book.`}
                     </Text>
-                </View>
-
-                {/* Episode Info Cards */}
-                <View className="px-6 mt-6 space-y-3">
-                    {/* Play Count */}
-                    <View className="flex-row items-center justify-between bg-white rounded-xl p-4">
-                        <View className="flex-row items-center">
-                            <Ionicons name="play-circle-outline" size={24} color="#BF9A54" />
-                            <Text className="font-inter-medium text-[#1A1C1E] ml-3">
-                                Play Count
-                            </Text>
-                        </View>
-                        <Text className="font-inter text-[#858585]">
-                            {episode.playCount} plays
-                        </Text>
-                    </View>
-
-                    {/* Likes */}
-                    <View className="flex-row items-center justify-between bg-white rounded-xl p-4">
-                        <View className="flex-row items-center">
-                            <Ionicons name="heart-outline" size={24} color="#BF9A54" />
-                            <Text className="font-inter-medium text-[#1A1C1E] ml-3">
-                                Likes
-                            </Text>
-                        </View>
-                        <Text className="font-inter text-[#858585]">
-                            {episode.likeCount} likes
-                        </Text>
-                    </View>
-
-                    {/* Transcript Button */}
-                    {episode.scriptContent && (
-                        <TouchableOpacity
-                            onPress={() => router.push(`/episodes/${episode.id}/transcript`)}
-                            className="flex-row items-center justify-between bg-white rounded-xl p-4"
-                        >
-                            <View className="flex-row items-center">
-                                <Ionicons
-                                    name="document-text-outline"
-                                    size={24}
-                                    color="#BF9A54"
-                                />
-                                <Text className="font-inter-medium text-[#1A1C1E] ml-3">
-                                    View Transcript
-                                </Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={20} color="#858585" />
-                        </TouchableOpacity>
-                    )}
-
-                    {/* Share Button */}
-                    <TouchableOpacity
-                        onPress={handleShare}
-                        className="flex-row items-center justify-between bg-white rounded-xl p-4"
-                    >
-                        <View className="flex-row items-center">
-                            <Ionicons name="share-social-outline" size={24} color="#BF9A54" />
-                            <Text className="font-inter-medium text-[#1A1C1E] ml-3">
-                                Share Episode
-                            </Text>
-                        </View>
-                        <Text className="font-inter text-[#858585]">
-                            {episode.shareCount} shares
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Play Button / Generation Progress */}
-                <View className="px-6 mt-8 mb-32">
-                    {isGenerating ? (
-                        <View className="bg-brand-input rounded-2xl p-6">
-                            {/* Progress Header */}
-                            <View className="flex-row items-center justify-between mb-3">
-                                <View className="flex-row items-center">
-                                    <ActivityIndicator size="small" color="#BF9A54" />
-                                    <Text className="font-inter-medium text-[#1A1C1E] ml-2">
-                                        Generating Episode
-                                    </Text>
-                                </View>
-                                <Text className="font-jakarta-bold text-brand-gold text-lg">
-                                    {generationProgress?.progress ?? 0}%
-                                </Text>
-                            </View>
-
-                            {/* Progress Bar */}
-                            <View className="h-3 bg-[#E8E3D6] rounded-full overflow-hidden">
-                                <View
-                                    className="h-full bg-brand-gold rounded-full"
-                                    style={{ width: `${generationProgress?.progress ?? 0}%` }}
-                                />
-                            </View>
-
-                            {/* Status Text */}
-                            <Text className="font-inter text-[#858585] text-sm mt-3 text-center">
-                                {getStatusText(generationProgress?.status)}
-                            </Text>
-                        </View>
-                    ) : episode.generationStatus === 'FAILED' ? (
-                        <View className="bg-[#920002]/10 rounded-2xl p-6">
-                            <View className="flex-row items-center justify-center mb-2">
-                                <Ionicons name="alert-circle" size={24} color="#920002" />
-                                <Text className="font-inter-medium text-[#920002] ml-2">
-                                    Generation Failed
-                                </Text>
-                            </View>
-                            <Text className="font-inter text-[#920002]/70 text-sm text-center">
-                                There was an error generating this episode. Please try again.
-                            </Text>
-                        </View>
-                    ) : (
-                        <TouchableOpacity
-                            onPress={handlePlay}
-                            className="bg-brand-red rounded-full py-4 flex-row items-center justify-center shadow-lg"
-                        >
-                            <Ionicons
-                                name={isCurrentlyPlaying ? 'pause' : 'play'}
-                                size={24}
-                                color="white"
-                            />
-                            <Text className="font-inter-bold text-white text-lg ml-2">
-                                {isCurrentlyPlaying ? 'Playing' : 'Play Episode'}
-                            </Text>
-                        </TouchableOpacity>
-                    )}
                 </View>
             </ScrollView>
         </SafeAreaView>

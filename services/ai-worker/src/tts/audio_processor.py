@@ -171,6 +171,69 @@ class AudioProcessor:
             if output_file and output_file.exists():
                 output_file.unlink()
 
+    def convert_wav_to_mp3(self, wav_buffer: bytes) -> bytes:
+        """
+        Convert WAV audio buffer to MP3 format.
+
+        This is needed for Gemini TTS output (24kHz WAV) to ensure
+        compatibility with mobile players like expo-av.
+
+        Args:
+            wav_buffer: WAV audio data
+
+        Returns:
+            MP3 audio data
+
+        Raises:
+            AudioProcessingError: If conversion fails
+        """
+        input_file = self.temp_dir / f"{uuid.uuid4()}_input.wav"
+        output_file = self.temp_dir / f"{uuid.uuid4()}_output.mp3"
+
+        try:
+            # Write WAV to temp file
+            with open(input_file, "wb") as f:
+                f.write(wav_buffer)
+
+            # Convert to MP3 with high quality settings
+            cmd = [
+                "ffmpeg",
+                "-i", str(input_file),
+                "-c:a", "libmp3lame",
+                "-b:a", "192k",         # 192kbps bitrate
+                "-ar", "44100",         # Standard sample rate for mobile
+                "-ac", "1",             # Mono
+                "-y",
+                str(output_file),
+            ]
+
+            logger.info("Converting WAV to MP3 for mobile compatibility")
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
+
+            if result.returncode != 0:
+                logger.error(f"ffmpeg conversion error: {result.stderr}")
+                raise AudioProcessingError(f"WAV to MP3 conversion failed: {result.stderr}")
+
+            # Read result
+            with open(output_file, "rb") as f:
+                mp3_data = f.read()
+
+            logger.info(f"Converted {len(wav_buffer)} bytes WAV to {len(mp3_data)} bytes MP3")
+            return mp3_data
+
+        finally:
+            # Cleanup temp files
+            if input_file.exists():
+                input_file.unlink()
+            if output_file.exists():
+                output_file.unlink()
+
     def get_audio_duration(self, file_path: Path) -> int:
         """
         Get audio duration in seconds using ffprobe.

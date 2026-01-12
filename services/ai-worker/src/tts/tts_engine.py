@@ -195,12 +195,16 @@ class TTSEngine:
         logger.info(f"Voice assignments: {voice_assignments}")
 
         # Generate audio with full voice configs, language code, and episode type
-        audio_buffer = self.gemini_client.generate_audio(
+        wav_buffer = self.gemini_client.generate_audio(
             script=script,
             voice_configs=voice_configs,
             episode_type=episode_type,
             language_code=language_code,
         )
+
+        # Convert WAV to MP3 for mobile compatibility (expo-av has issues with 24kHz WAV)
+        logger.info("Converting Gemini WAV output to MP3 for mobile compatibility...")
+        audio_buffer = self.audio_processor.convert_wav_to_mp3(wav_buffer)
 
         # Get duration
         duration = self.audio_processor.get_buffer_duration(audio_buffer)
@@ -217,7 +221,7 @@ class TTSEngine:
         return TTSResult(
             audio_buffer=audio_buffer,
             duration=duration,
-            format="wav",  # Gemini outputs WAV
+            format="mp3",  # Converted to MP3 for mobile compatibility
             estimated_cost=cost,
             voice_tier="gemini",
         )

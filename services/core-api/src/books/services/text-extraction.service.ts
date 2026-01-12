@@ -106,7 +106,7 @@ export class TextExtractionService {
         // Fall back to regex-based detection (least accurate - pattern matching only)
         if (chapters.length === 0) {
             this.logger.log('No TOC found. Using regex-based chapter detection...');
-            chapters = this.detectChaptersInText(fullText);
+            chapters = this.detectChaptersInText(fullText, metadata.pageCount);
 
             if (chapters.length > 0) {
                 extractionQuality = ExtractionQuality.LOW;
@@ -658,6 +658,10 @@ export class TextExtractionService {
     /**
      * Refine chapter start position by searching for the actual heading.
      * Searches within a window around the estimated position.
+     *
+     * IMPORTANT: Pattern order matters! More specific chapter heading patterns
+     * must come before section number patterns to avoid matching "1.1" instead
+     * of "CHAPTER 1".
      */
     private refineChapterStart(
         text: string,
@@ -674,28 +678,38 @@ export class TextExtractionService {
         const chapterNum = tocEntry.chapterNumber || 1;
         const escapedTitle = tocEntry.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-        // Patterns to find the chapter heading
+        // Patterns to find the chapter heading - ORDER MATTERS!
+        // More specific patterns first, section numbers LAST
         const patterns = [
+            // "CHAPTER X / TITLE" format (common in textbooks)
+            new RegExp(`CHAPTER\\s+${chapterNum}\\s*/\\s*`, 'i'),
             // "Chapter X" or "CHAPTER X" followed by title
-            new RegExp(`Chapter\\s+${chapterNum}\\b[\\s:]*${escapedTitle.slice(0, 20)}`, 'i'),
-            // Just "Chapter X" at start of line
+            new RegExp(`Chapter\\s+${chapterNum}\\b[\\s:/.]*${escapedTitle.slice(0, 15)}`, 'i'),
+            // Just "CHAPTER X" (uppercase) - textbook style
+            new RegExp(`CHAPTER\\s+${chapterNum}\\b`, 'm'),
+            // Just "Chapter X" at start of line (title case)
             new RegExp(`^Chapter\\s+${chapterNum}\\b`, 'im'),
             // LAW format
             new RegExp(`^LAW\\s*${chapterNum}\\b`, 'im'),
-            // Title alone (capitalized)
-            new RegExp(`^${escapedTitle.slice(0, 30)}`, 'im'),
-            // Section number like "1.1"
-            new RegExp(`^${chapterNum}\\.1\\b`, 'im'),
+            // Title alone at start of line (must be ALL CAPS or Title Case, not lowercase)
+            new RegExp(`^${escapedTitle.slice(0, 30).toUpperCase()}`, 'm'),
+            // DO NOT add section number pattern (e.g., "1.1") as it matches mid-chapter content
         ];
 
         for (const pattern of patterns) {
             const match = searchText.match(pattern);
             if (match && match.index !== undefined) {
+                this.logger.debug(
+                    `Found chapter ${chapterNum} heading at offset ${searchStart + match.index} using pattern: ${pattern.source.slice(0, 50)}`,
+                );
                 return searchStart + match.index;
             }
         }
 
         // No heading found, return estimated position
+        this.logger.debug(
+            `Could not find chapter ${chapterNum} heading, using estimated position ${estimatedPos}`,
+        );
         return estimatedPos;
     }
 
@@ -735,7 +749,7 @@ export class TextExtractionService {
             }
 
             const fullText = this.cleanText(pageTexts.join('\n\n'));
-            const chapters = this.detectChaptersInText(fullText);
+            const chapters = this.detectChaptersInText(fullText, numPages);
 
             // OCR extraction has inherent quality limitations
             const warnings: string[] = [
@@ -842,7 +856,7 @@ export class TextExtractionService {
         };
     }
 
-    private detectChaptersInText(text: string): ChapterData[] {
+    private detectChaptersInText(text: string, pageCount?: number): ChapterData[] {
         // Patterns for chapter detection - match at start of line
         // Captures: full match, chapter number, optional title
         // Supports: "Chapter X", "CHAPTER X", "LAW X", "Law X", etc.
@@ -931,7 +945,7 @@ export class TextExtractionService {
         });
 
         // Split text at actual chapter positions
-        const chapters = this.splitTextAtChapterPositions(text, uniqueMatches);
+        const chapters = this.splitTextAtChapterPositions(text, uniqueMatches, pageCount);
 
         // Filter out chapters with insufficient content (likely TOC entries that slipped through)
         // Real chapters should have at least 2500 characters of content
@@ -1094,8 +1108,12 @@ export class TextExtractionService {
             matchLength: number;
             fullMatch: string;
         }>,
+        pageCount?: number,
     ): ChapterData[] {
         const chapters: ChapterData[] = [];
+
+        // Estimate characters per page for startPage/endPage calculation
+        const charsPerPage = pageCount && pageCount > 0 ? text.length / pageCount : 0;
 
         for (let i = 0; i < chapterMatches.length; i++) {
             const currentMatch = chapterMatches[i];
@@ -1109,14 +1127,20 @@ export class TextExtractionService {
 
             const chapterText = text.slice(startPosition, endPosition).trim();
 
+            // Estimate page numbers from character positions
+            const startPage = charsPerPage > 0 ? Math.floor(startPosition / charsPerPage) + 1 : undefined;
+            const endPage = charsPerPage > 0 ? Math.floor(endPosition / charsPerPage) : undefined;
+
             chapters.push({
                 chapterNumber: currentMatch.chapterNumber,
                 title: currentMatch.title,
                 text: chapterText,
+                startPage,
+                endPage,
             });
 
             this.logger.debug(
-                `Chapter ${currentMatch.chapterNumber}: "${currentMatch.title}" - ${chapterText.length} chars`,
+                `Chapter ${currentMatch.chapterNumber}: "${currentMatch.title}" - ${chapterText.length} chars (pages ${startPage || '?'}-${endPage || '?'})`,
             );
         }
 
