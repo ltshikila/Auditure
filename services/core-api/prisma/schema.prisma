@@ -54,6 +54,10 @@ model Book {
   fileSize          Int?
   fileMimeType      String?
 
+  // Cover Image
+  coverImageUrl     String?      // Public URL for cover image (from Google Books or S3)
+  coverImageKey     String?      // S3 storage key (for extracted covers)
+
   // Extraction Status
   extractionStatus  ExtractionStatus @default(PENDING)
   extractionError   String?

@@ -3,6 +3,7 @@ import { MulterModule } from '@nestjs/platform-express';
 import { BooksController } from './books.controller';
 import { BooksService } from './books.service';
 import { TextExtractionService } from './services/text-extraction.service';
+import { CoverExtractionService } from './services/cover-extraction.service';
 import { BookExtractionWorker } from './workers/book-extraction.worker';
 
 @Module({
@@ -12,7 +13,7 @@ import { BookExtractionWorker } from './workers/book-extraction.worker';
         }),
     ],
     controllers: [BooksController],
-    providers: [BooksService, TextExtractionService, BookExtractionWorker],
+    providers: [BooksService, TextExtractionService, CoverExtractionService, BookExtractionWorker],
     exports: [BooksService], // For Episodes and Feed modules to consume
 })
 export class BooksModule {}

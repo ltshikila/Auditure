@@ -202,6 +202,8 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
                     shouldPlay: true,
                     positionMillis: initialPosition,
                     progressUpdateIntervalMillis: 500,
+                    rate: 1.0,
+                    shouldCorrectPitch: true,
                 },
                 onPlaybackStatusUpdate
             );

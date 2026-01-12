@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { RabbitMQService } from '../../rabbitmq/rabbitmq.service';
 import { TextExtractionService } from '../services/text-extraction.service';
+import { CoverExtractionService } from '../services/cover-extraction.service';
 import { StorageService } from '../../common/storage.service';
 import { DatabaseService } from '../../database/database.service';
 import { BookExtractionJob } from '../../rabbitmq/interfaces/jobs.interface';
@@ -12,6 +13,7 @@ export class BookExtractionWorker implements OnModuleInit {
     constructor(
         private rabbitMQService: RabbitMQService,
         private textExtractionService: TextExtractionService,
+        private coverExtractionService: CoverExtractionService,
         private storageService: StorageService,
         private databaseService: DatabaseService,
     ) {}
@@ -44,7 +46,27 @@ export class BookExtractionWorker implements OnModuleInit {
                 throw new Error(`Unsupported source type: ${job.sourceType}`);
             }
 
-            // 4. Store full text in storage
+            // 4. Extract cover image (hybrid: Google Books API + file extraction)
+            const storageKey = `${job.userId}/${job.bookId}`;
+            const coverResult = await this.coverExtractionService.extractCover(
+                fileBuffer,
+                job.sourceType as 'PDF' | 'EPUB',
+                {
+                    title: extracted.metadata.title,
+                    author: extracted.metadata.author,
+                },
+                async (imageBuffer, key) => {
+                    await this.storageService.uploadFile(imageBuffer, key, 'image/jpeg');
+                    return key;
+                },
+                storageKey,
+            );
+
+            if (coverResult.coverImageUrl) {
+                this.logger.log(`Cover extracted for book ${job.bookId} (source: ${coverResult.source})`);
+            }
+
+            // 5. Store full text in storage
             const fullTextKey = `${job.userId}/${job.bookId}/fulltext.txt`;
             await this.storageService.uploadFile(
                 Buffer.from(extracted.fullText),
@@ -132,7 +154,7 @@ export class BookExtractionWorker implements OnModuleInit {
                 bestAuthor = this.extractAuthorFromContent(extracted.fullText);
             }
 
-            // 7. Update book record
+            // 8. Update book record
             await this.databaseService.book.update({
                 where: { id: job.bookId },
                 data: {
@@ -140,6 +162,9 @@ export class BookExtractionWorker implements OnModuleInit {
                     extractedAt: new Date(),
                     fullTextKey,
                     pageCount: extracted.metadata.pageCount,
+                    // Cover image
+                    coverImageUrl: coverResult.coverImageUrl,
+                    coverImageKey: coverResult.coverImageKey,
                     // Store extraction warnings for user notification
                     extractionWarnings: extracted.extractionWarnings || [],
                     // Update metadata - always update title/author if we have better versions

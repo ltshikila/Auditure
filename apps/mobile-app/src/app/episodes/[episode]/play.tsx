@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     View,
     Text,
@@ -14,27 +14,40 @@ import { usePlayback } from '@/contexts/PlaybackContext';
 import { Episode, episodeService } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
 
-const PLAYBACK_RATES = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+// Returns first few lines of transcript as a static preview
+// Note: Time-synced preview is disabled because TTS doesn't provide timing data
+function getTranscriptPreview(scriptContent: string | null | undefined): string {
+    if (!scriptContent) return '';
+
+    // Parse script into lines
+    const rawLines = scriptContent
+        .split(/(?<=[.!?])\s+|(?=(?:HOST|GUEST|NARRATOR|HOST1|GUEST1|GUEST2):\s)/gi)
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+
+    // Get first few meaningful lines for preview
+    const previewLines: string[] = [];
+    for (const line of rawLines) {
+        const cleanLine = line.replace(/^(HOST|GUEST|NARRATOR|HOST1|GUEST1|GUEST2):\s*/i, '');
+        if (cleanLine.length > 0) {
+            previewLines.push(cleanLine);
+            if (previewLines.join(' ').length > 150) break;
+        }
+    }
+
+    return previewLines.join(' ').substring(0, 200);
+}
 
 export default function EpisodePlayScreen() {
     const { episode: episodeId } = useLocalSearchParams<{ episode: string }>();
     const {
         episode,
-        isPlaying,
-        isLoading,
         position,
         duration,
-        playbackRate,
         play,
-        pause,
-        resume,
         seekTo,
-        skipForward,
-        skipBackward,
-        setPlaybackRate,
     } = usePlayback();
 
-    const [showRateMenu, setShowRateMenu] = useState(false);
     const [localEpisode, setLocalEpisode] = useState<Episode | null>(null);
     const [isSeeking, setIsSeeking] = useState(false);
     const [seekValue, setSeekValue] = useState(0);
@@ -80,14 +93,6 @@ export default function EpisodePlayScreen() {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const handlePlayPause = () => {
-        if (isPlaying) {
-            pause();
-        } else {
-            resume();
-        }
-    };
-
     const handleSliderStart = () => {
         setIsSeeking(true);
         setSeekValue(position);
@@ -102,13 +107,13 @@ export default function EpisodePlayScreen() {
         setIsSeeking(false);
     };
 
-    const handleRateChange = (rate: number) => {
-        setPlaybackRate(rate);
-        setShowRateMenu(false);
-    };
-
     const displayEpisode = episode?.id === episodeId ? episode : localEpisode;
     const displayPosition = isSeeking ? seekValue : position;
+
+    // Get static transcript preview (time sync not available)
+    const transcriptPreview = useMemo(() => {
+        return getTranscriptPreview(displayEpisode?.scriptContent);
+    }, [displayEpisode?.scriptContent]);
 
     if (!displayEpisode) {
         return (
@@ -188,110 +193,25 @@ export default function EpisodePlayScreen() {
                 </View>
             </View>
 
-            {/* Transcript Toggle */}
-            <View className="px-6 mt-4">
+
+            {/* Transcript Preview Card - with bottom padding for mini player */}
+            {displayEpisode.scriptContent && (
                 <TouchableOpacity
                     onPress={() => router.push(`/episodes/${episodeId}/transcript`)}
-                    className="bg-white rounded-xl py-3 px-4"
+                    className="mx-6 mt-4 mb-28 bg-[#F5F2EB] rounded-2xl p-4 border border-[#E8E3D6]"
+                    activeOpacity={0.9}
                 >
-                    <View className="flex-row items-center justify-between">
-                        <Text className="font-inter-medium text-[#1A1C1E]">Transcripts</Text>
-                        <Ionicons name="chevron-forward" size={20} color="#858585" />
-                    </View>
-                    {displayEpisode.scriptContent && (
-                        <Text
-                            className="font-inter text-xs text-[#858585] mt-1"
-                            numberOfLines={2}
-                        >
-                            {displayEpisode.scriptContent.substring(0, 100)}...
-                        </Text>
-                    )}
+                    <Text className="font-jakarta-bold text-[#1A1C1E] text-base mb-2">
+                        Transcripts
+                    </Text>
+                    <Text
+                        className="font-inter text-[#858585] text-sm leading-5"
+                        numberOfLines={4}
+                    >
+                        {transcriptPreview || displayEpisode.scriptContent.substring(0, 150)}
+                    </Text>
                 </TouchableOpacity>
-            </View>
-
-            {/* Controls */}
-            <View className="px-6 mt-6 mb-8">
-                <View className="flex-row items-center justify-center">
-                    {/* Skip Backward */}
-                    <TouchableOpacity
-                        onPress={() => skipBackward(10)}
-                        className="w-16 h-16 items-center justify-center"
-                    >
-                        <View className="items-center">
-                            <Ionicons name="play-back" size={28} color="#1A1C1E" />
-                            <Text className="font-inter text-xs text-[#858585] mt-1">10</Text>
-                        </View>
-                    </TouchableOpacity>
-
-                    {/* Play/Pause */}
-                    <TouchableOpacity
-                        onPress={handlePlayPause}
-                        className="w-20 h-20 rounded-full bg-brand-red items-center justify-center mx-8 shadow-lg"
-                    >
-                        {isLoading ? (
-                            <ActivityIndicator size="large" color="white" />
-                        ) : (
-                            <Ionicons
-                                name={isPlaying ? 'pause' : 'play'}
-                                size={36}
-                                color="white"
-                            />
-                        )}
-                    </TouchableOpacity>
-
-                    {/* Skip Forward */}
-                    <TouchableOpacity
-                        onPress={() => skipForward(30)}
-                        className="w-16 h-16 items-center justify-center"
-                    >
-                        <View className="items-center">
-                            <Ionicons name="play-forward" size={28} color="#1A1C1E" />
-                            <Text className="font-inter text-xs text-[#858585] mt-1">30</Text>
-                        </View>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Bottom Controls */}
-                <View className="flex-row items-center justify-center mt-6 space-x-8">
-                    {/* Playback Rate */}
-                    <TouchableOpacity
-                        onPress={() => setShowRateMenu(!showRateMenu)}
-                        className="px-4 py-2 rounded-full bg-white border border-[#E8E3D6]"
-                    >
-                        <Text className="font-inter-medium text-[#1A1C1E]">
-                            {playbackRate}x
-                        </Text>
-                    </TouchableOpacity>
-
-                    {/* Like Button */}
-                    <TouchableOpacity className="w-10 h-10 items-center justify-center">
-                        <Ionicons name="heart-outline" size={24} color="#1A1C1E" />
-                    </TouchableOpacity>
-                </View>
-
-                {/* Rate Menu */}
-                {showRateMenu && (
-                    <View className="flex-row justify-center flex-wrap mt-4 bg-white rounded-xl p-3">
-                        {PLAYBACK_RATES.map((rate) => (
-                            <TouchableOpacity
-                                key={rate}
-                                onPress={() => handleRateChange(rate)}
-                                className={`px-4 py-2 m-1 rounded-full ${
-                                    playbackRate === rate ? 'bg-brand-gold' : 'bg-[#E8E3D6]'
-                                }`}
-                            >
-                                <Text
-                                    className={`font-inter text-sm ${
-                                        playbackRate === rate ? 'text-white' : 'text-[#1A1C1E]'
-                                    }`}
-                                >
-                                    {rate}x
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                )}
-            </View>
+            )}
         </SafeAreaView>
     );
 }
