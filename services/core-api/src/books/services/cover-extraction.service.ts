@@ -167,9 +167,19 @@ export class CoverExtractionService {
             if (coverUrl) {
                 // Google Books URLs use HTTP, convert to HTTPS
                 // Also remove edge=curl parameter which adds a page curl effect
-                const cleanUrl = coverUrl
+                let cleanUrl = coverUrl
                     .replace('http://', 'https://')
                     .replace('&edge=curl', '');
+
+                // Upgrade to higher resolution if possible
+                // Google Books zoom parameter: 1=128px, 2=256px, 3=512px, 4=800px
+                // Replace zoom=1 with zoom=4 for highest resolution
+                if (cleanUrl.includes('zoom=1')) {
+                    cleanUrl = cleanUrl.replace('zoom=1', 'zoom=4');
+                } else if (!cleanUrl.includes('zoom=')) {
+                    // Add zoom parameter if not present
+                    cleanUrl += (cleanUrl.includes('?') ? '&' : '?') + 'zoom=4';
+                }
 
                 this.logger.log(`Found Google Books cover for query "${query}": ${cleanUrl}`);
                 return cleanUrl;
