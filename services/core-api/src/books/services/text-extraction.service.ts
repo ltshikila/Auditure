@@ -8,8 +8,12 @@ export interface ExtractedContent {
     metadata: {
         title?: string;
         author?: string;
+        subject?: string;
+        keywords?: string[];
         pageCount?: number;
         language?: string;
+        creationDate?: Date;
+        modificationDate?: Date;
     };
     extractionMethod?: 'text' | 'ocr';
     /**
@@ -37,11 +41,74 @@ export interface ChapterData {
 interface TocEntry {
     title: string;
     pageNumber: number;
+    pageLabel?: string; // Display label (e.g., "i", "ii", "1", "A-1")
     chapterNumber?: number;
+    level: number; // Nesting depth (0 = top level)
+    /** Destination type from PDF (XYZ, Fit, FitH, etc.) */
+    destType?: string;
+    /** Y coordinate on page where chapter starts (for same-page splitting) */
+    destY?: number;
+    /** Whether this entry represents actual chapter content vs front/back matter */
+    isChapter: boolean;
+}
+
+/** Page label configuration from PDF */
+interface PageLabelRange {
+    startPage: number; // 0-indexed physical page
+    prefix?: string; // e.g., "A-" for "A-1", "A-2"
+    style?: 'decimal' | 'roman-lower' | 'roman-upper' | 'alpha-lower' | 'alpha-upper';
+    startNumber: number; // Starting number for this range
 }
 
 // Minimum characters per page to consider PDF as having extractable text
 const MIN_CHARS_PER_PAGE = 100;
+
+// Front matter patterns to identify non-chapter content
+const FRONT_MATTER_PATTERNS = new Set([
+    'cover',
+    'front cover',
+    'title page',
+    'title',
+    'copyright',
+    'copyright page',
+    'dedication',
+    'dedication page',
+    'acknowledgments',
+    'acknowledgements',
+    'preface',
+    'foreword',
+    'introduction',
+    'prologue',
+    'about the author',
+    'about the authors',
+    'contents',
+    'table of contents',
+    'notation',
+    'symbols',
+    'key to symbols',
+    'list of symbols',
+    'abbreviations',
+    'list of abbreviations',
+]);
+
+// Back matter patterns
+const BACK_MATTER_PATTERNS = new Set([
+    'index',
+    'bibliography',
+    'selected bibliography',
+    'references',
+    'appendix',
+    'appendices',
+    'glossary',
+    'notes',
+    'endnotes',
+    'afterword',
+    'epilogue',
+    'colophon',
+    'about the author',
+    'about the authors',
+    'back cover',
+]);
 
 // Quality thresholds for OCR text detection
 const MAX_AVG_WORD_LENGTH = 12; // Words longer than this suggest merged words
@@ -58,11 +125,7 @@ export class TextExtractionService {
         const pdfParse = require('pdf-parse');
         const data = await pdfParse(buffer);
 
-        const metadata = {
-            title: data.info?.Title,
-            author: data.info?.Author,
-            pageCount: data.numpages,
-        };
+        const metadata = this.extractEnhancedMetadata(data);
 
         const fullText = this.cleanText(data.text);
 
@@ -161,7 +224,9 @@ export class TextExtractionService {
     private async extractChaptersFromToc(buffer: Buffer, totalPages: number): Promise<ChapterData[]> {
         try {
             const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
-            const loadingTask = pdfjs.getDocument({ data: buffer });
+            // pdfjs-dist requires Uint8Array, not Node.js Buffer
+            const uint8Array = new Uint8Array(buffer);
+            const loadingTask = pdfjs.getDocument({ data: uint8Array });
             const pdfDoc = await loadingTask.promise;
 
             // Extract TOC/outline from PDF
@@ -172,21 +237,34 @@ export class TextExtractionService {
                 return [];
             }
 
-            // Parse outline entries and get page numbers
-            const tocEntries = await this.parseTocEntries(pdfDoc, outline);
+            // Log raw outline structure for debugging
+            this.logger.log(`Raw PDF outline has ${outline.length} top-level entries`);
+            this.logOutlineStructure(outline, 0);
+
+            // Extract page labels (Roman numerals, custom prefixes, etc.)
+            const pageLabels = await this.extractPageLabels(pdfDoc);
+
+            // Parse outline entries and get page numbers with coordinates
+            const tocEntries = await this.parseTocEntries(pdfDoc, outline, pageLabels);
 
             if (tocEntries.length === 0) {
                 this.logger.debug('Could not extract valid TOC entries');
                 return [];
             }
 
-            this.logger.log(`Found ${tocEntries.length} TOC entries`);
+            // Filter to only chapter entries for splitting
+            const chapterEntries = tocEntries.filter(e => e.isChapter);
+            this.logger.log(`Found ${tocEntries.length} TOC entries, ${chapterEntries.length} are chapters`);
 
             // Extract text page-by-page for accurate splitting
             const pageTexts = await this.extractTextByPage(pdfDoc);
 
-            // Split content based on TOC page numbers
-            const chapters = this.splitTextByToc(tocEntries, pageTexts, totalPages);
+            // Split content based on TOC page numbers (use chapter entries only)
+            const chapters = this.splitTextByToc(
+                chapterEntries.length > 0 ? chapterEntries : tocEntries,
+                pageTexts,
+                totalPages,
+            );
 
             this.logger.log(`Extracted ${chapters.length} chapters from TOC`);
 
@@ -198,16 +276,53 @@ export class TextExtractionService {
     }
 
     /**
-     * Parse PDF outline entries recursively to extract TOC with page numbers.
+     * Log the raw outline structure for debugging.
      */
-    private async parseTocEntries(pdfDoc: any, outline: any[], depth = 0): Promise<TocEntry[]> {
+    private logOutlineStructure(outline: any[], depth: number): void {
+        const indent = '  '.repeat(depth);
+        for (const item of outline) {
+            const hasChildren = item.items && item.items.length > 0;
+            const childCount = hasChildren ? ` (${item.items.length} children)` : '';
+            this.logger.log(`${indent}OUTLINE: "${item.title}"${childCount}`);
+            if (hasChildren && depth < 2) {
+                // Only log 2 levels deep to avoid spam
+                this.logOutlineStructure(item.items, depth + 1);
+            }
+        }
+    }
+
+    /**
+     * Parse PDF outline entries recursively to extract TOC with page numbers,
+     * coordinates, and page labels for accurate chapter splitting.
+     */
+    private async parseTocEntries(
+        pdfDoc: any,
+        outline: any[],
+        pageLabels: Map<number, string>,
+        depth = 0,
+    ): Promise<TocEntry[]> {
         const entries: TocEntry[] = [];
         let chapterCounter = 1;
 
         for (const item of outline) {
             try {
-                // Get destination (page reference) for this outline item
+                const title = item.title?.trim() || '';
+
+                if (title.length === 0) {
+                    // Still process nested items
+                    if (item.items && item.items.length > 0) {
+                        const nestedEntries = await this.parseTocEntries(
+                            pdfDoc, item.items, pageLabels, depth + 1
+                        );
+                        entries.push(...nestedEntries);
+                    }
+                    continue;
+                }
+
+                // Get destination (page reference and coordinates) for this outline item
                 let pageNumber: number | null = null;
+                let destType: string | undefined;
+                let destY: number | undefined;
 
                 if (item.dest) {
                     // Destination can be a name or array
@@ -220,33 +335,62 @@ export class TextExtractionService {
                         // dest[0] is a page reference object
                         const pageRef = dest[0];
                         pageNumber = await pdfDoc.getPageIndex(pageRef);
+
+                        // dest[1] is the destination type (name like /XYZ, /Fit, /FitH, etc.)
+                        // dest[2], dest[3], dest[4] are coordinates depending on type
+                        if (dest[1]?.name) {
+                            destType = dest[1].name;
+
+                            // For XYZ destinations: [page, /XYZ, left, top, zoom]
+                            // For FitH destinations: [page, /FitH, top]
+                            if (destType === 'XYZ' && dest[3] !== null) {
+                                destY = dest[3]; // Y coordinate (top)
+                            } else if (destType === 'FitH' && dest[2] !== null) {
+                                destY = dest[2]; // Y coordinate for FitH
+                            }
+                        }
                     }
                 }
 
                 if (pageNumber !== null && pageNumber >= 0) {
-                    const title = item.title?.trim() || `Chapter ${chapterCounter}`;
+                    // Determine if this is actual chapter content
+                    const isChapter = this.isChapterContent(title, depth);
+
+                    // Log why entries are being skipped for debugging
+                    if (!isChapter) {
+                        this.logger.debug(`TOC entry skipped (not chapter): "${title}" at level ${depth}`);
+                    }
 
                     // Try to extract chapter number from title
-                    const chapterMatch = title.match(/^(?:Chapter\s+)?(\d+)/i);
-                    const extractedChapterNum = chapterMatch ? parseInt(chapterMatch[1]) : chapterCounter;
+                    const chapterMatch = title.match(/^(?:Chapter|LAW|Law|Part|Section)?\s*(\d+)/i);
+                    const extractedChapterNum = isChapter
+                        ? (chapterMatch ? parseInt(chapterMatch[1]) : chapterCounter++)
+                        : undefined;
+
+                    // Get page label (e.g., "iv", "12", "A-3")
+                    const pageLabel = pageLabels.get(pageNumber);
 
                     entries.push({
                         title,
-                        pageNumber: pageNumber, // 0-indexed
+                        pageNumber, // 0-indexed
+                        pageLabel,
                         chapterNumber: extractedChapterNum,
+                        level: depth,
+                        destType,
+                        destY,
+                        isChapter,
                     });
 
-                    this.logger.debug(`TOC: "${title}" -> Page ${pageNumber + 1}`);
-                    chapterCounter++;
+                    this.logger.debug(
+                        `TOC: "${title}" -> Page ${pageNumber + 1}${pageLabel ? ` (${pageLabel})` : ''}, ` +
+                        `Level ${depth}, isChapter=${isChapter}${destY !== undefined ? `, Y=${destY}` : ''}`
+                    );
                 }
 
-                // Process nested items (sub-chapters) - flatten them
+                // Process nested items recursively and include them
                 if (item.items && item.items.length > 0) {
-                    const nestedEntries = await this.parseTocEntries(pdfDoc, item.items, depth + 1);
-                    // Only include top-level chapters, skip sub-sections
-                    if (depth === 0) {
-                        // Nested items might be sub-chapters, we skip them for main chapter extraction
-                    }
+                    const nestedEntries = await this.parseTocEntries(pdfDoc, item.items, pageLabels, depth + 1);
+                    entries.push(...nestedEntries);
                 }
             } catch (error) {
                 this.logger.debug(`Failed to parse TOC entry: ${error.message}`);
@@ -282,15 +426,176 @@ export class TextExtractionService {
     }
 
     /**
-     * Split text content based on TOC page numbers.
+     * Extract enhanced metadata from PDF info dictionary.
+     * Includes subject, keywords, dates in addition to basic title/author.
+     */
+    private extractEnhancedMetadata(data: any): ExtractedContent['metadata'] {
+        const info = data.info || {};
+
+        // Parse keywords (can be comma, semicolon, or space separated)
+        let keywords: string[] | undefined;
+        if (info.Keywords) {
+            keywords = info.Keywords
+                .split(/[,;]/)
+                .map((k: string) => k.trim())
+                .filter((k: string) => k.length > 0);
+        }
+
+        return {
+            title: info.Title || undefined,
+            author: info.Author || undefined,
+            subject: info.Subject || undefined,
+            keywords: keywords?.length ? keywords : undefined,
+            pageCount: data.numpages,
+            language: info.Language || undefined,
+            creationDate: this.parsePdfDate(info.CreationDate),
+            modificationDate: this.parsePdfDate(info.ModDate),
+        };
+    }
+
+    /**
+     * Parse PDF date format (D:YYYYMMDDHHmmSSOHH'mm')
+     * Example: "D:20231215103045+05'30'" -> Date object
+     */
+    private parsePdfDate(dateStr?: string): Date | undefined {
+        if (!dateStr) return undefined;
+
+        try {
+            // Remove "D:" prefix if present
+            const cleaned = dateStr.replace(/^D:/, '');
+
+            // Extract components: YYYYMMDDHHmmSS
+            const year = parseInt(cleaned.slice(0, 4));
+            const month = parseInt(cleaned.slice(4, 6)) - 1; // 0-indexed
+            const day = parseInt(cleaned.slice(6, 8)) || 1;
+            const hour = parseInt(cleaned.slice(8, 10)) || 0;
+            const minute = parseInt(cleaned.slice(10, 12)) || 0;
+            const second = parseInt(cleaned.slice(12, 14)) || 0;
+
+            if (isNaN(year) || year < 1900 || year > 2100) {
+                return undefined;
+            }
+
+            return new Date(year, month, day, hour, minute, second);
+        } catch {
+            this.logger.debug(`Failed to parse PDF date: ${dateStr}`);
+            return undefined;
+        }
+    }
+
+    /**
+     * Extract page labels from PDF (handles Roman numerals, custom prefixes, etc.)
+     * Returns a Map from 0-indexed page number to display label.
+     */
+    private async extractPageLabels(pdfDoc: any): Promise<Map<number, string>> {
+        const pageLabels = new Map<number, string>();
+
+        try {
+            // PDF.js getPageLabels returns array of labels for each page
+            const labels = await pdfDoc.getPageLabels();
+
+            if (labels && Array.isArray(labels)) {
+                for (let i = 0; i < labels.length; i++) {
+                    if (labels[i]) {
+                        pageLabels.set(i, labels[i]);
+                    }
+                }
+                this.logger.debug(`Extracted ${pageLabels.size} page labels from PDF`);
+            }
+        } catch (error) {
+            // Page labels are optional - many PDFs don't have them
+            this.logger.debug(`No page labels in PDF: ${error.message}`);
+        }
+
+        return pageLabels;
+    }
+
+    /**
+     * Convert a number to Roman numeral (for fallback when PDF lacks labels).
+     */
+    private toRomanNumeral(num: number): string {
+        const romanNumerals: [number, string][] = [
+            [1000, 'm'], [900, 'cm'], [500, 'd'], [400, 'cd'],
+            [100, 'c'], [90, 'xc'], [50, 'l'], [40, 'xl'],
+            [10, 'x'], [9, 'ix'], [5, 'v'], [4, 'iv'], [1, 'i']
+        ];
+
+        let result = '';
+        for (const [value, numeral] of romanNumerals) {
+            while (num >= value) {
+                result += numeral;
+                num -= value;
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Determine if a TOC entry title represents actual chapter content
+     * vs front matter (preface, TOC) or back matter (index, bibliography).
+     */
+    private isChapterContent(title: string, level: number): boolean {
+        const titleLower = title.toLowerCase().trim();
+
+        // Skip front and back matter - check exact match first
+        if (FRONT_MATTER_PATTERNS.has(titleLower) || BACK_MATTER_PATTERNS.has(titleLower)) {
+            return false;
+        }
+
+        // Also check if title contains any front/back matter pattern
+        for (const pattern of FRONT_MATTER_PATTERNS) {
+            if (titleLower.includes(pattern) && !titleLower.includes('law') && !titleLower.includes('chapter')) {
+                return false;
+            }
+        }
+        for (const pattern of BACK_MATTER_PATTERNS) {
+            if (titleLower.includes(pattern) && !titleLower.includes('law') && !titleLower.includes('chapter')) {
+                return false;
+            }
+        }
+
+        // Check for chapter indicators (at ANY nesting level)
+        // Matches: "Chapter 1", "LAW 1", "Law1", "LESSON 5", etc.
+        const chapterPattern = /^(chapter|part|section|law|lesson|unit|module)\s*\d+/i;
+        if (chapterPattern.test(title)) {
+            return true;
+        }
+
+        // Check for numbered entries like "1. Title" or "1 Title" (at ANY level)
+        // This catches TOC entries without "Chapter/LAW" prefix
+        const numberedPattern = /^\d+[\.\s]/;
+        if (numberedPattern.test(title)) {
+            return true;
+        }
+
+        // Top-level entries with reasonable titles are likely chapters
+        // (Skip very short titles like "I" or "1" unless they match chapter patterns)
+        if (level <= 1 && title.length > 2 && title.length < 200) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Split text content based on TOC page numbers and coordinates.
      * Handles the edge case where multiple chapters start on the same page
-     * by using regex to find the exact chapter heading position.
+     * using Y coordinates when available, falling back to title regex matching.
      */
     private splitTextByToc(tocEntries: TocEntry[], pageTexts: string[], totalPages: number): ChapterData[] {
         const chapters: ChapterData[] = [];
 
-        // Sort entries by page number
-        const sortedEntries = [...tocEntries].sort((a, b) => a.pageNumber - b.pageNumber);
+        // Sort entries by page number, then by Y coordinate (descending - PDF Y starts from bottom)
+        // This ensures chapters on the same page are ordered top-to-bottom
+        const sortedEntries = [...tocEntries].sort((a, b) => {
+            if (a.pageNumber !== b.pageNumber) {
+                return a.pageNumber - b.pageNumber;
+            }
+            // Same page: sort by Y coordinate descending (higher Y = higher on page)
+            const aY = a.destY ?? Infinity;
+            const bY = b.destY ?? Infinity;
+            return bY - aY;
+        });
 
         for (let i = 0; i < sortedEntries.length; i++) {
             const current = sortedEntries[i];
@@ -310,8 +615,14 @@ export class TextExtractionService {
 
             // Handle shared page case: if next chapter starts on same page as this one ends
             if (next && startPage === next.pageNumber) {
-                // Both chapters share the same page - use regex to split
-                chapterText = this.splitSharedPage(chapterText, current.title, next.title);
+                // Both chapters share the same page
+                // Try coordinate-based splitting first, fall back to regex
+                chapterText = this.splitSharedPageWithCoordinates(
+                    chapterText,
+                    current,
+                    next,
+                    pageTexts[startPage] || '',
+                );
             } else if (next && endPage === next.pageNumber && endPage < pageTexts.length) {
                 // This chapter ends on the same page where next chapter starts
                 // Need to trim content after next chapter's heading
@@ -345,9 +656,50 @@ export class TextExtractionService {
     }
 
     /**
-     * Split text when two chapters share the same starting page.
+     * Split a shared page between two chapters using coordinates when available.
+     * Falls back to title-based regex splitting if coordinates aren't available.
      */
-    private splitSharedPage(pageText: string, currentTitle: string, nextTitle: string): string {
+    private splitSharedPageWithCoordinates(
+        pageText: string,
+        current: TocEntry,
+        next: TocEntry,
+        rawPageText: string,
+    ): string {
+        // If both chapters have Y coordinates, we can estimate the split position
+        if (current.destY !== undefined && next.destY !== undefined && current.destY > next.destY) {
+            // Calculate approximate character position based on Y coordinate ratio
+            // PDF Y coordinates: higher value = higher on page
+            // Estimate: the ratio of Y positions roughly maps to text position
+            const pageHeight = current.destY; // Use current's Y as approximate page top
+            const splitRatio = (pageHeight - next.destY) / pageHeight;
+            const estimatedSplitPos = Math.floor(rawPageText.length * splitRatio);
+
+            // Search for next chapter's title near the estimated position
+            const searchWindow = Math.min(500, rawPageText.length * 0.2);
+            const searchStart = Math.max(0, estimatedSplitPos - searchWindow);
+            const searchEnd = Math.min(rawPageText.length, estimatedSplitPos + searchWindow);
+            const searchText = rawPageText.slice(searchStart, searchEnd);
+
+            const splitResult = this.findChapterSplitPoint(searchText, next.title);
+            if (splitResult.found) {
+                const absoluteSplitPos = searchStart + (searchText.length - splitResult.afterHeading.length - next.title.length);
+                this.logger.debug(
+                    `Coordinate-based split for "${next.title}": Y=${next.destY}, ` +
+                    `estimated pos=${estimatedSplitPos}, actual=${absoluteSplitPos}`
+                );
+                return rawPageText.slice(0, absoluteSplitPos).trim();
+            }
+        }
+
+        // Fall back to regex-based title matching
+        return this.splitSharedPage(pageText, current.title, next.title);
+    }
+
+    /**
+     * Split text when two chapters share the same starting page.
+     * Uses regex to find the next chapter's title and split before it.
+     */
+    private splitSharedPage(pageText: string, _currentTitle: string, nextTitle: string): string {
         const splitResult = this.findChapterSplitPoint(pageText, nextTitle);
 
         if (splitResult.found) {
@@ -467,9 +819,9 @@ export class TextExtractionService {
             return [];
         }
 
-        // Extract a reasonable section after "contents" (up to ~10000 chars or until we hit main content)
+        // Extract a reasonable section after "contents" (enough for ~50 chapter entries)
         const tocStart = tocMatch.index!;
-        const tocSection = text.slice(tocStart, tocStart + 15000);
+        const tocSection = text.slice(tocStart, tocStart + 30000);
 
         // Patterns for TOC entries with page numbers
         // Format: "Chapter X Title ... PageNum" or "LAW X Title PageNum"
@@ -478,10 +830,11 @@ export class TextExtractionService {
             /^(Chapter\s+(\d+))[\s:\.]+([^\d\n]+?)\s+(\d{1,4})\s*$/gim,
             // "CHAPTER 1 TITLE 23"
             /^(CHAPTER\s+(\d+))[\s:\.]+([^\d\n]+?)\s+(\d{1,4})\s*$/gim,
-            // "LAW 1 Title 23" or "LAW1 Title 23"
-            /^(LAW\s*(\d+))[\s:\.]+([^\d\n]+?)\s+(\d{1,4})\s*$/gim,
-            // "1. Title 23" or "1 Title 23" (simple numbered)
-            /^(\d+)[\.\s]+([A-Z][^\d\n]+?)\s+(\d{1,4})\s*$/gm,
+            // "LAW 1 Title 23" or "LAW1 Title 23" or "LAW1Title 23" (OCR may merge)
+            // Title can contain digits (e.g., "LAW 48 ASSUME FORMLESSNESS 419")
+            /^(LAW\s*(\d+))[\s:\.]*(.*?)\s+(\d{1,4})\s*$/gim,
+            // "1. Title 23" (only match if number is <= 100 to avoid page number confusion)
+            /^(\d{1,2})\.[\s]+([A-Z][^\n]+?)\s+(\d{1,4})\s*$/gm,
         ];
 
         for (const pattern of patterns) {
@@ -518,12 +871,20 @@ export class TextExtractionService {
                     continue;
                 }
 
+                // Skip unreasonable chapter numbers (likely misparsed page numbers)
+                if (chapterNum > 100) {
+                    this.logger.debug(`Skipping unreasonable chapter number: ${chapterNum}`);
+                    continue;
+                }
+
                 // Validate page number is reasonable (1-9999)
                 if (pageNum >= 1 && pageNum <= 9999 && title.length > 0) {
                     entries.push({
                         title: title,
                         pageNumber: pageNum,
                         chapterNumber: chapterNum,
+                        level: 0, // Printed TOC entries are top-level
+                        isChapter: true, // Printed TOC parsing only captures chapter-level entries
                     });
                 }
             }
@@ -723,8 +1084,9 @@ export class TextExtractionService {
             // Use pdf.js to render PDF pages to images, then OCR each page
             const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
 
-            // Load PDF document
-            const loadingTask = pdfjs.getDocument({ data: buffer });
+            // Load PDF document (pdfjs-dist requires Uint8Array, not Node.js Buffer)
+            const uint8Array = new Uint8Array(buffer);
+            const loadingTask = pdfjs.getDocument({ data: uint8Array });
             const pdfDoc = await loadingTask.promise;
             const numPages = pdfDoc.numPages;
 
@@ -863,8 +1225,8 @@ export class TextExtractionService {
         const chapterPatterns = [
             /^(Chapter\s+(\d+))(?:[:\.\s]+(.*))?$/gim,
             /^(CHAPTER\s+(\d+))(?:[:\.\s]+(.*))?$/gim,
-            /^(LAW\s*(\d+))(?:[:\.\s]+(.*))?$/gim,  // "LAW 1" or "LAW1" (OCR often removes space)
-            /^(Law\s*(\d+))(?:[:\.\s]+(.*))?$/gim,
+            /^(LAW\s*(\d+))[:\.\s]*(.*)$/gim,  // "LAW 1", "LAW1", or "LAW1TITLE" (OCR often removes spaces)
+            /^(Law\s*(\d+))[:\.\s]*(.*)$/gim,
         ];
 
         interface ChapterMatch {
@@ -1071,10 +1433,10 @@ export class TextExtractionService {
             }
         }
 
-        // Check for "page" appearing within a few lines after the chapter heading
-        // This is a strong TOC indicator (e.g., "LAW1\npage\n1\n")
-        const nextFewLines = afterMatch.slice(0, 100).toLowerCase();
-        if (/\bpage\b/.test(nextFewLines)) {
+        // Check for "page" appearing as a standalone word on its own line (TOC format)
+        // e.g., "LAW1\npage\n1\n" - but NOT "turn the page" or "page of history"
+        const nextFewLines = afterMatch.slice(0, 50);
+        if (/^\s*page\s*$/im.test(nextFewLines)) {
             return true;
         }
 

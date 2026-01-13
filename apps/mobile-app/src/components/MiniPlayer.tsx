@@ -27,7 +27,7 @@ export const MiniPlayer: React.FC = () => {
     if (!episode) return null;
 
     // Check if on play or transcript page - show simplified version
-    const isPlayerPage = segments.includes('play') || segments.includes('transcript');
+    const isPlayerPage = (segments as string[]).includes('play') || (segments as string[]).includes('transcript');
 
     const handlePress = () => {
         if (!isPlayerPage) {

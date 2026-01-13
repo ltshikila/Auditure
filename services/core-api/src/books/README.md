@@ -367,7 +367,11 @@ Handles text extraction from files:
 - `extractChaptersFromToc()` - Extract chapters using PDF outline/TOC with page numbers
 - `extractFromScannedPdf()` - OCR extraction for scanned PDFs
 - `detectChaptersInText()` - Regex-based chapter detection (fallback)
+- `extractEnhancedMetadata()` - Extract comprehensive metadata (title, author, subject, keywords, dates)
+- `extractPageLabels()` - Extract page labels (Roman numerals, custom prefixes)
+- `isChapterContent()` - Intelligent front/back matter filtering
 - Hybrid approach: TOC-based (primary) + regex (fallback) for maximum accuracy
+- Coordinate-based same-page chapter splitting for precise boundaries
 
 #### StorageService
 Abstraction layer for file storage:
@@ -438,9 +442,16 @@ model Chapter {
 
 #### PDF Files
 - Uses `pdf-parse` for text extraction
-- Uses `pdfjs-dist` for TOC extraction and OCR
+- Uses `pdfjs-dist` for TOC extraction, page labels, and OCR
 - Extracts all text content with automatic chapter detection
-- Metadata extraction (title, author, page count)
+- **Enhanced metadata extraction:**
+  - Title, author, subject, keywords
+  - Creation and modification dates
+  - Page count and language
+- **Page label support:**
+  - Roman numerals (i, ii, iii, iv...)
+  - Custom prefixes (A-1, A-2, B-1...)
+  - Mixed numbering schemes
 - Automatic fallback to OCR for scanned PDFs (< 100 chars/page)
 
 #### EPUB Files
@@ -458,18 +469,43 @@ Two-tier chapter detection system for maximum accuracy:
 Uses the PDF's built-in Table of Contents (outline) structure:
 
 ```
-PDF Outline → getOutline() → TocEntry[] → Page Numbers → Chapter Split
+PDF Outline → getOutline() → TocEntry[] → Page Numbers + Coordinates → Chapter Split
 ```
 
 **Process:**
 1. Extract PDF outline using `pdfjs-dist.getOutline()`
-2. Parse each entry to get destination page number via `getPageIndex()`
-3. Extract text page-by-page for accurate splitting
-4. Split content at chapter boundaries based on page ranges
+2. Extract page labels using `pdfjs-dist.getPageLabels()` (Roman numerals, etc.)
+3. Parse each entry to get:
+   - Destination page number via `getPageIndex()`
+   - Y coordinate from destination array (for same-page splitting)
+   - Page label (e.g., "iv", "12", "A-3")
+4. Filter entries using `isChapterContent()` to exclude front/back matter
+5. Extract text page-by-page for accurate splitting
+6. Split content at chapter boundaries using coordinates when available
+
+**TocEntry Structure:**
+```typescript
+interface TocEntry {
+  title: string;
+  pageNumber: number;      // 0-indexed physical page
+  pageLabel?: string;      // Display label (e.g., "i", "ii", "1")
+  chapterNumber?: number;
+  level: number;           // Nesting depth (0 = top level)
+  destType?: string;       // PDF destination type (XYZ, Fit, FitH)
+  destY?: number;          // Y coordinate for same-page splitting
+  isChapter: boolean;      // True if actual chapter content
+}
+```
+
+**Front/Back Matter Filtering:**
+Automatically identifies and filters non-chapter content:
+- **Front matter**: Cover, Title Page, Copyright, Dedication, Acknowledgments, Preface, Foreword, Table of Contents
+- **Back matter**: Index, Bibliography, References, Appendix, Glossary, Notes, Afterword, Epilogue
 
 **Handles Edge Cases:**
-- **Chapters on same page**: When chapter 1 ends and chapter 2 starts on the same page, uses regex to find the exact heading position within the shared page text
-- **Nested TOC entries**: Flattens sub-chapters to main chapter level
+- **Chapters on same page**: Uses Y coordinates from PDF destinations for precise splitting. Falls back to regex title matching when coordinates aren't available.
+- **Page labels**: Correctly handles PDFs with Roman numeral front matter (i, ii, iii) transitioning to Arabic numerals (1, 2, 3)
+- **Nested TOC entries**: Processes recursively, tracking depth level
 - **Missing page numbers**: Skips entries without valid destinations
 
 **Reference:** [PDF.js API - getOutline](https://mozilla.github.io/pdf.js/api/draft/module-pdfjsLib-PDFDocumentProxy.html#getOutline)
@@ -690,6 +726,10 @@ const popular = await booksService.getPopularBooks(10);
 - [ ] Multiple file upload support
 - [x] OCR for scanned PDFs (implemented with tesseract.js)
 - [x] TOC-based chapter detection with page numbers
+- [x] Enhanced metadata extraction (subject, keywords, creation/modification dates)
+- [x] Page label support (Roman numerals, custom prefixes)
+- [x] Coordinate-based same-page chapter splitting
+- [x] Front/back matter filtering (preface, index, bibliography, etc.)
 - [ ] Language detection and translation
 - [ ] Summary generation using AI
 - [ ] Bookmark and annotation support

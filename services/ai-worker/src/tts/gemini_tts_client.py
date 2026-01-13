@@ -3,7 +3,7 @@
 Uses the official google-genai SDK for text-to-speech.
 
 Gemini TTS Features:
-- Native multi-speaker synthesis (up to 9 distinct voices)
+- Native multi-speaker synthesis (exactly 2 voices supported by API)
 - Natural dialogue with expressive speech
 - Podcast-optimized output quality
 - 24 language support
@@ -23,6 +23,7 @@ Reference: https://ai.google.dev/gemini-api/docs/speech-generation
 import base64
 import io
 import logging
+import random
 import re
 import wave
 from dataclasses import dataclass
@@ -413,6 +414,42 @@ class GeminiTTSClient:
 
         return voice_name
 
+    def get_random_guest_voice(self, host_voice: str = "Kore") -> str:
+        """
+        Select a random guest voice that contrasts with the host.
+
+        Picks a voice of the opposite gender from the host for variety,
+        or a different voice of the same gender if needed.
+
+        Args:
+            host_voice: The voice name used for the host
+
+        Returns:
+            A random voice name for the guest
+        """
+        host_info = GEMINI_VOICES.get(host_voice, {"gender": "FEMALE"})
+        host_gender = host_info["gender"]
+
+        # Prefer opposite gender for contrast
+        opposite_gender = "MALE" if host_gender == "FEMALE" else "FEMALE"
+
+        # Get candidates of opposite gender
+        candidates = [
+            name for name, info in GEMINI_VOICES.items()
+            if info["gender"] == opposite_gender
+        ]
+
+        # If no opposite gender voices, use same gender but exclude host
+        if not candidates:
+            candidates = [
+                name for name in GEMINI_VOICES.keys()
+                if name != host_voice
+            ]
+
+        selected = random.choice(candidates)
+        logger.info(f"[Gemini TTS] Random guest voice selected: {selected} (host: {host_voice})")
+        return selected
+
     def get_voice_for_speaker(
         self,
         speaker_type: str,
@@ -575,12 +612,30 @@ class GeminiTTSClient:
 
         formatted_script = self._format_script_for_gemini(script, voice_assignments)
 
+        # Count actual unique speakers in the chunk
+        actual_speakers = set()
+        for line in script.split('\n'):
+            match = re.match(r'^([A-Z0-9_]+):\s*', line.strip())
+            if match:
+                actual_speakers.add(match.group(1))
+
         # Determine if multi-speaker or single-speaker
-        unique_speakers = set(voice_assignments.keys())
-        is_multi_speaker = len(unique_speakers) > 1 and episode_type != "MONOLOGUE"
+        is_multi_speaker = len(actual_speakers) > 1 and episode_type != "MONOLOGUE"
+
+        # Gemini multi-speaker API only supports exactly 2 speakers
+        # For 3+ speakers, use segment-by-segment generation
+        if is_multi_speaker and len(actual_speakers) > 2:
+            logger.info(f"[Gemini TTS] Chunk has {len(actual_speakers)} speakers - using segment-by-segment")
+            return self._generate_segment_by_segment(script, voice_assignments, language_code)
 
         if is_multi_speaker:
-            speaker_configs = self._build_speaker_configs(voice_assignments)
+            # Filter voice_assignments to only include actual speakers
+            filtered_assignments = {
+                speaker: voice
+                for speaker, voice in voice_assignments.items()
+                if speaker in actual_speakers
+            }
+            speaker_configs = self._build_speaker_configs(filtered_assignments)
             speech_config = types.SpeechConfig(
                 multi_speaker_voice_config=types.MultiSpeakerVoiceConfig(
                     speaker_voice_configs=speaker_configs
@@ -633,6 +688,141 @@ class GeminiTTSClient:
 
         raise GeminiTTSError("No audio data in chunk response")
 
+    def _generate_segment_by_segment(
+        self,
+        script: str,
+        voice_assignments: Dict[str, str],
+        language_code: str,
+    ) -> bytes:
+        """
+        Generate audio segment-by-segment for 3+ speaker scripts.
+
+        Since Gemini multi-speaker only supports exactly 2 voices, this method
+        generates each speaker turn individually with single-speaker mode and
+        concatenates them with crossfade.
+
+        Args:
+            script: The podcast script with speaker labels
+            voice_assignments: Map of speaker labels to Gemini voice names
+            language_code: Language/accent code
+
+        Returns:
+            Raw PCM audio data (not WAV)
+        """
+        from google.genai import types
+
+        # Parse script into speaker turns
+        turns = []
+        current_speaker = None
+        current_lines = []
+
+        for line in script.split('\n'):
+            line = line.strip()
+            if not line:
+                continue
+
+            # Check for speaker label pattern
+            match = re.match(r'^([A-Z0-9_]+):\s*(.+)$', line)
+            if match:
+                # Save previous turn
+                if current_speaker and current_lines:
+                    turns.append((current_speaker, ' '.join(current_lines)))
+
+                current_speaker = match.group(1)
+                current_lines = [match.group(2)]
+            elif current_speaker:
+                # Continuation of current speaker's turn
+                current_lines.append(line)
+
+        # Don't forget the last turn
+        if current_speaker and current_lines:
+            turns.append((current_speaker, ' '.join(current_lines)))
+
+        if not turns:
+            raise GeminiTTSError("No speaker turns found in script")
+
+        logger.info(f"[Gemini TTS] Segment-by-segment: {len(turns)} turns to generate")
+
+        # Generate audio for each turn
+        all_pcm_data = []
+
+        for i, (speaker, dialogue) in enumerate(turns):
+            voice = voice_assignments.get(speaker, "Kore")
+            logger.info(f"[Gemini TTS] Turn {i+1}/{len(turns)}: {speaker} ({voice}) - {len(dialogue)} chars")
+
+            # Single-speaker generation
+            speech_config = types.SpeechConfig(
+                voice_config=types.VoiceConfig(
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                        voice_name=voice,
+                    )
+                )
+            )
+
+            try:
+                response = self.client.models.generate_content(
+                    model=self.MODEL_NAME,
+                    contents=dialogue,
+                    config=types.GenerateContentConfig(
+                        response_modalities=["AUDIO"],
+                        speech_config=speech_config,
+                    )
+                )
+
+                # Extract PCM audio data
+                if response.candidates and len(response.candidates) > 0:
+                    candidate = response.candidates[0]
+                    if hasattr(candidate, 'content') and candidate.content.parts:
+                        for part in candidate.content.parts:
+                            if hasattr(part, 'inline_data') and part.inline_data:
+                                raw_data = part.inline_data.data
+
+                                # Handle base64-encoded data
+                                if isinstance(raw_data, str):
+                                    pcm_data = base64.b64decode(raw_data)
+                                elif isinstance(raw_data, bytes):
+                                    sample = raw_data[:100]
+                                    is_likely_base64 = all(
+                                        (43 <= b <= 122) or b in (10, 13, 32, 61)
+                                        for b in sample
+                                    )
+                                    if is_likely_base64:
+                                        pcm_data = base64.b64decode(raw_data)
+                                    else:
+                                        pcm_data = raw_data
+                                else:
+                                    pcm_data = raw_data
+
+                                all_pcm_data.append(pcm_data)
+                                duration = len(pcm_data) / (self.SAMPLE_RATE * self.SAMPLE_WIDTH)
+                                logger.info(f"[Gemini TTS] Turn {i+1} generated: {duration:.1f}s")
+                                break
+                        else:
+                            raise GeminiTTSError(f"No audio data in turn {i+1} response")
+                    else:
+                        raise GeminiTTSError(f"No content in turn {i+1} response")
+                else:
+                    raise GeminiTTSError(f"No candidates in turn {i+1} response")
+
+            except GeminiTTSError:
+                raise
+            except Exception as e:
+                raise GeminiTTSError(f"Failed to generate turn {i+1}: {str(e)}")
+
+        # Crossfade all segments
+        logger.info(f"[Gemini TTS] Crossfading {len(all_pcm_data)} segments...")
+        combined_pcm = _crossfade_pcm_chunks(
+            all_pcm_data,
+            sample_rate=self.SAMPLE_RATE,
+            sample_width=self.SAMPLE_WIDTH,
+            crossfade_ms=30,  # Shorter crossfade for segment transitions
+        )
+
+        total_duration = len(combined_pcm) / (self.SAMPLE_RATE * self.SAMPLE_WIDTH)
+        logger.info(f"[Gemini TTS] Segment-by-segment complete: {total_duration:.1f}s total")
+
+        return combined_pcm
+
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=30),
@@ -672,14 +862,14 @@ class GeminiTTSClient:
 
         # Default voice assignments if not provided
         if voice_assignments is None and voice_configs is None:
+            host_voice = "Kore"
+            guest_voice = self.get_random_guest_voice(host_voice)
             voice_assignments = {
-                "HOST": "Kore",
-                "HOST1": "Kore",
-                "NARRATOR": "Kore",
-                "GUEST": "Charon",
-                "GUEST1": "Charon",
-                "GUEST2": "Fenrir",
-                "GUEST3": "Puck",
+                "HOST": host_voice,
+                "HOST1": host_voice,
+                "NARRATOR": host_voice,
+                "GUEST": guest_voice,
+                "GUEST1": guest_voice,
             }
 
         # Build voice assignments from configs if provided
@@ -745,13 +935,38 @@ class GeminiTTSClient:
             # Format script
             formatted_script = self._format_script_for_gemini(script, voice_assignments)
 
+            # Count actual unique speakers in the script
+            actual_speakers = set()
+            for line in script.split('\n'):
+                match = re.match(r'^([A-Z0-9_]+):\s*', line.strip())
+                if match:
+                    actual_speakers.add(match.group(1))
+
             # Determine if multi-speaker or single-speaker
             unique_speakers = set(voice_assignments.keys())
-            is_multi_speaker = len(unique_speakers) > 1 and episode_type != "MONOLOGUE"
+            is_multi_speaker = len(actual_speakers) > 1 and episode_type != "MONOLOGUE"
+
+            # Gemini multi-speaker API only supports exactly 2 speakers
+            # For 3+ speakers, fall back to segment-by-segment generation
+            if is_multi_speaker and len(actual_speakers) > 2:
+                logger.info(f"[Gemini TTS] {len(actual_speakers)} speakers detected - using segment-by-segment generation")
+                logger.info(f"[Gemini TTS] Actual speakers: {actual_speakers}")
+                pcm_data = self._generate_segment_by_segment(
+                    script, voice_assignments, language_code
+                )
+                audio_data = _pcm_to_wav(pcm_data)
+                logger.info(f"[Gemini TTS] Generated {len(audio_data)} bytes via segment-by-segment")
+                return audio_data
 
             if is_multi_speaker:
-                # Multi-speaker configuration
-                speaker_configs = self._build_speaker_configs(voice_assignments)
+                # Multi-speaker configuration (exactly 2 speakers)
+                # Filter voice_assignments to only include actual speakers in script
+                filtered_assignments = {
+                    speaker: voice
+                    for speaker, voice in voice_assignments.items()
+                    if speaker in actual_speakers
+                }
+                speaker_configs = self._build_speaker_configs(filtered_assignments)
                 speech_config = types.SpeechConfig(
                     multi_speaker_voice_config=types.MultiSpeakerVoiceConfig(
                         speaker_voice_configs=speaker_configs

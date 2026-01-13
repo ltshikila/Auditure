@@ -81,28 +81,57 @@ export class CoverExtractionService {
     /**
      * Fetch cover image URL from Google Books API.
      * Free API, no key required for basic queries.
+     *
+     * Search strategy (in order of preference):
+     * 1. ISBN search (most accurate)
+     * 2. Title + Author search
+     * 3. Title only search (fallback - author metadata is often wrong)
      */
     private async fetchGoogleBooksCover(metadata: {
         title?: string;
         author?: string;
         isbn?: string;
     }): Promise<string | null> {
-        try {
-            let query = '';
+        // Build list of queries to try in order
+        const queries: string[] = [];
 
-            // Prefer ISBN search (most accurate)
-            if (metadata.isbn) {
-                query = `isbn:${metadata.isbn}`;
-            } else if (metadata.title) {
-                // Search by title and author
-                query = `intitle:${encodeURIComponent(metadata.title)}`;
-                if (metadata.author) {
-                    query += `+inauthor:${encodeURIComponent(metadata.author)}`;
-                }
-            } else {
-                return null;
+        // 1. ISBN search (most accurate)
+        if (metadata.isbn) {
+            queries.push(`isbn:${metadata.isbn}`);
+        }
+
+        // 2. Title + Author search
+        if (metadata.title && metadata.author) {
+            queries.push(
+                `intitle:${encodeURIComponent(metadata.title)}+inauthor:${encodeURIComponent(metadata.author)}`
+            );
+        }
+
+        // 3. Title only search (fallback - PDF author metadata is often wrong/publisher name)
+        if (metadata.title) {
+            queries.push(`intitle:${encodeURIComponent(metadata.title)}`);
+        }
+
+        if (queries.length === 0) {
+            return null;
+        }
+
+        // Try each query until we find a cover
+        for (const query of queries) {
+            const result = await this.tryGoogleBooksQuery(query);
+            if (result) {
+                return result;
             }
+        }
 
+        return null;
+    }
+
+    /**
+     * Execute a single Google Books API query and extract cover URL.
+     */
+    private async tryGoogleBooksQuery(query: string): Promise<string | null> {
+        try {
             const url = `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=1`;
             this.logger.debug(`Google Books API query: ${url}`);
 
@@ -115,7 +144,7 @@ export class CoverExtractionService {
             const data = await response.json();
 
             if (data.totalItems === 0 || !data.items || data.items.length === 0) {
-                this.logger.debug('No results from Google Books API');
+                this.logger.debug(`No results for query: ${query}`);
                 return null;
             }
 
@@ -142,7 +171,7 @@ export class CoverExtractionService {
                     .replace('http://', 'https://')
                     .replace('&edge=curl', '');
 
-                this.logger.debug(`Found Google Books cover: ${cleanUrl}`);
+                this.logger.log(`Found Google Books cover for query "${query}": ${cleanUrl}`);
                 return cleanUrl;
             }
 
@@ -159,7 +188,9 @@ export class CoverExtractionService {
     private async extractPdfCover(buffer: Buffer): Promise<Buffer | null> {
         try {
             const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
-            const loadingTask = pdfjs.getDocument({ data: buffer });
+            // pdfjs-dist requires Uint8Array, not Node.js Buffer
+            const uint8Array = new Uint8Array(buffer);
+            const loadingTask = pdfjs.getDocument({ data: uint8Array });
             const pdfDoc = await loadingTask.promise;
 
             // Get first page
@@ -175,9 +206,11 @@ export class CoverExtractionService {
             const context = canvas.getContext('2d');
 
             // Render PDF page to canvas
+            // Cast to any - node-canvas types don't match browser/pdfjs types
             await page.render({
-                canvasContext: context,
+                canvasContext: context as any,
                 viewport: viewport,
+                canvas: canvas as any,
             }).promise;
 
             // Convert to JPEG buffer
