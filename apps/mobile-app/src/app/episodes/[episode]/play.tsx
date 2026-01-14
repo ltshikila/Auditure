@@ -142,15 +142,18 @@ export default function EpisodePlayScreen() {
 
             {/* Cover Art */}
             <View className="flex-1 items-center justify-center px-12">
-                <View className="w-full aspect-square max-w-[300px] rounded-2xl overflow-hidden shadow-2xl bg-brand-input">
+                <View
+                    className="rounded-2xl overflow-hidden shadow-2xl bg-brand-input"
+                    style={{ maxHeight: 300, maxWidth: 300 }}
+                >
                     {displayEpisode.book?.coverImageUrl ? (
                         <Image
                             source={{ uri: displayEpisode.book.coverImageUrl }}
-                            className="w-full h-full"
-                            resizeMode="cover"
+                            style={{ width: 300, height: 300 }}
+                            resizeMode="contain"
                         />
                     ) : (
-                        <View className="w-full h-full bg-brand-gold/20 items-center justify-center">
+                        <View className="w-[300px] h-[300px] bg-brand-gold/20 items-center justify-center">
                             <Ionicons name="book" size={80} color="#BF9A54" />
                         </View>
                     )}

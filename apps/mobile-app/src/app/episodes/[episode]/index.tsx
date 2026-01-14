@@ -204,15 +204,15 @@ export default function EpisodeInfoScreen() {
 
                 {/* Book Cover */}
                 <View className="px-6 pt-4 items-center">
-                    <View className="w-48 h-72 rounded-xl overflow-hidden shadow-lg bg-brand-input">
+                    <View className="h-72 rounded-xl overflow-hidden shadow-lg bg-brand-input">
                         {episode.book?.coverImageUrl ? (
                             <Image
                                 source={{ uri: episode.book.coverImageUrl }}
-                                className="w-full h-full"
-                                resizeMode="cover"
+                                style={{ width: 192, height: 288 }}
+                                resizeMode="contain"
                             />
                         ) : (
-                            <View className="w-full h-full bg-brand-gold/20 items-center justify-center">
+                            <View className="w-48 h-72 bg-brand-gold/20 items-center justify-center">
                                 <Ionicons name="book" size={48} color="#BF9A54" />
                             </View>
                         )}

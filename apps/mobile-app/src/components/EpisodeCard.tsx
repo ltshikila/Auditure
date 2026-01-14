@@ -15,12 +15,12 @@ export const EpisodeCard: React.FC<EpisodeCardProps> = ({ episode, onPress }) =>
             style={{ width: 110 }}
         >
             {/* Book Cover */}
-            <View className="w-[110px] h-[160px] rounded-lg overflow-hidden bg-brand-input mb-2 shadow-sm">
+            <View className="w-[110px] h-[160px] rounded-lg overflow-hidden bg-brand-input mb-2 shadow-sm items-center justify-center">
                 {episode.book?.coverImageUrl ? (
                     <Image
                         source={{ uri: episode.book.coverImageUrl }}
-                        className="w-full h-full"
-                        resizeMode="cover"
+                        style={{ width: 110, height: 160 }}
+                        resizeMode="contain"
                     />
                 ) : (
                     <View className="w-full h-full bg-gradient-to-b from-brand-gold/30 to-brand-gold/10 items-center justify-center">

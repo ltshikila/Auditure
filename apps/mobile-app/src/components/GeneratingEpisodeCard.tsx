@@ -79,12 +79,12 @@ export const GeneratingEpisodeCard: React.FC<GeneratingEpisodeCardProps> = ({ ep
         >
             <View className="flex-row">
                 {/* Book Cover Thumbnail */}
-                <View className="w-14 h-20 rounded-lg overflow-hidden bg-brand-input mr-3">
+                <View className="w-14 h-20 rounded-lg overflow-hidden bg-brand-input mr-3 items-center justify-center">
                     {episode.book?.coverImageUrl ? (
                         <Image
                             source={{ uri: episode.book.coverImageUrl }}
-                            className="w-full h-full"
-                            resizeMode="cover"
+                            style={{ width: 56, height: 80 }}
+                            resizeMode="contain"
                         />
                     ) : (
                         <View className="w-full h-full bg-brand-gold/20 items-center justify-center">

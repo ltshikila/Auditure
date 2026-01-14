@@ -8,6 +8,7 @@ import {
     ActivityIndicator,
     Alert,
     FlatList,
+    Modal,
 } from 'react-native';
 import React, { useState, useEffect, useCallback } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,6 +35,7 @@ const Create = () => {
     const insets = useSafeAreaInsets();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
     // Podcasters
     const [podcasters, setPodcasters] = useState<Podcaster[]>([]);
@@ -204,14 +206,6 @@ const Create = () => {
         });
     };
 
-    const handleSelectAllChapters = () => {
-        if (selectedChapterIds.size === bookChapters.length) {
-            setSelectedChapterIds(new Set());
-        } else {
-            setSelectedChapterIds(new Set(bookChapters.map(c => c.chapterNumber)));
-        }
-    };
-
     // Filter books by search term
     const filteredBooks = userBooks.filter(book =>
         book.title.toLowerCase().includes(bookSearch.toLowerCase()) ||
@@ -355,7 +349,8 @@ const Create = () => {
             }
 
             if (bookSourceMode === 'upload' && selectedFile) {
-                // Create with file upload
+                // Create with file upload - track progress
+                setUploadProgress(0);
                 await episodeService.createWithFile(
                     selectedFile,
                     {
@@ -369,8 +364,10 @@ const Create = () => {
                         targetLengthMax,
                         voiceTier,
                     },
-                    token
+                    token,
+                    (progress) => setUploadProgress(progress)
                 );
+                setUploadProgress(null);
             } else if (selectedBookId) {
                 // Create with existing book
                 await episodeService.create(
@@ -397,6 +394,7 @@ const Create = () => {
             Alert.alert('Error', err.message || 'Failed to create episode');
         } finally {
             setIsSubmitting(false);
+            setUploadProgress(null);
         }
     };
 
@@ -716,27 +714,6 @@ const Create = () => {
                                         </View>
                                     ) : (
                                         <View>
-                                            {/* Select all toggle */}
-                                            <TouchableOpacity
-                                                onPress={handleSelectAllChapters}
-                                                className="flex-row items-center mb-2"
-                                            >
-                                                <View
-                                                    className={`w-5 h-5 rounded border mr-2 items-center justify-center ${
-                                                        selectedChapterIds.size === bookChapters.length
-                                                            ? 'bg-brand-gold border-brand-gold'
-                                                            : 'border-[#858585]'
-                                                    }`}
-                                                >
-                                                    {selectedChapterIds.size === bookChapters.length && (
-                                                        <Ionicons name="checkmark" size={14} color="white" />
-                                                    )}
-                                                </View>
-                                                <Text className="font-inter-medium text-[#1A1C1E] text-sm">
-                                                    Select All ({bookChapters.length} chapters)
-                                                </Text>
-                                            </TouchableOpacity>
-
                                             {/* Chapter list */}
                                             <ScrollView
                                                 nestedScrollEnabled
@@ -903,6 +880,59 @@ const Create = () => {
                     )}
                 </TouchableOpacity>
             </ScrollView>
+
+            {/* Upload Progress Modal */}
+            <Modal
+                visible={uploadProgress !== null}
+                transparent
+                animationType="fade"
+            >
+                <View className="flex-1 bg-black/50 items-center justify-center px-8">
+                    <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
+                        <View className="items-center mb-4">
+                            <View className="bg-brand-gold/20 rounded-full p-4 mb-3">
+                                <Ionicons name="cloud-upload" size={32} color="#BF9A54" />
+                            </View>
+                            <Text className="font-jakarta-bold text-lg text-[#1A1C1E]">
+                                Uploading Book
+                            </Text>
+                            <Text className="font-inter text-[#858585] text-sm text-center mt-1">
+                                {selectedFile?.name}
+                            </Text>
+                        </View>
+
+                        {/* Progress bar */}
+                        <View className="mb-2">
+                            <View className="h-3 bg-[#E8E3D6] rounded-full overflow-hidden">
+                                <View
+                                    className="h-full bg-brand-gold rounded-full"
+                                    style={{ width: `${uploadProgress ?? 0}%` }}
+                                />
+                            </View>
+                        </View>
+
+                        <View className="flex-row justify-between">
+                            <Text className="font-inter text-[#858585] text-xs">
+                                {uploadProgress ?? 0}% uploaded
+                            </Text>
+                            <Text className="font-inter text-[#858585] text-xs">
+                                Please wait...
+                            </Text>
+                        </View>
+
+                        {uploadProgress === 100 && (
+                            <View className="mt-4 bg-brand-gold/10 rounded-xl px-4 py-3">
+                                <View className="flex-row items-center">
+                                    <ActivityIndicator size="small" color="#BF9A54" />
+                                    <Text className="font-inter text-brand-gold text-sm ml-2">
+                                        Processing book...
+                                    </Text>
+                                </View>
+                            </View>
+                        )}
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 };

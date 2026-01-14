@@ -8,6 +8,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export const MINI_PLAYER_HEIGHT = 80;
 export const SIMPLIFIED_PLAYER_HEIGHT = 64;
+export const TAB_BAR_HEIGHT = 96;
+
+const PLAYBACK_SPEEDS = [1, 1.25, 1.5, 1.75, 2];
 
 export const MiniPlayer: React.FC = () => {
     const insets = useSafeAreaInsets();
@@ -15,10 +18,12 @@ export const MiniPlayer: React.FC = () => {
         episode,
         isPlaying,
         isLoading,
+        playbackRate,
         pause,
         resume,
         skipBackward,
         skipForward,
+        setPlaybackRate,
     } = usePlayback();
 
     // Use segments to detect current route - more reliable than usePathname
@@ -28,6 +33,9 @@ export const MiniPlayer: React.FC = () => {
 
     // Check if on play or transcript page - show simplified version
     const isPlayerPage = (segments as string[]).includes('play') || (segments as string[]).includes('transcript');
+
+    // Check if we're in the (tabs) layout - tab bar is only visible there
+    const isInTabsLayout = (segments as string[])[0] === '(tabs)';
 
     const handlePress = () => {
         if (!isPlayerPage) {
@@ -54,6 +62,17 @@ export const MiniPlayer: React.FC = () => {
         skipForward(10);
     };
 
+    const handleSpeedChange = (e: any) => {
+        e.stopPropagation();
+        const currentIndex = PLAYBACK_SPEEDS.indexOf(playbackRate);
+        const nextIndex = (currentIndex + 1) % PLAYBACK_SPEEDS.length;
+        setPlaybackRate(PLAYBACK_SPEEDS[nextIndex]);
+    };
+
+    const formatSpeed = (rate: number) => {
+        return rate === 1 ? '1x' : `${rate}x`;
+    };
+
     // Simplified player for play/transcript pages (controls only, centered)
     if (isPlayerPage) {
         return (
@@ -75,7 +94,18 @@ export const MiniPlayer: React.FC = () => {
                         elevation: 12,
                     }}
                 >
-                    <View className="flex-row items-center justify-center px-6 py-3">
+                    <View className="flex-row items-center justify-center px-4 py-3">
+                        {/* Playback Speed */}
+                        <TouchableOpacity
+                            onPress={handleSpeedChange}
+                            className="w-12 h-12 items-center justify-center mr-2"
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                            <Text className="text-white text-sm font-inter-medium">
+                                {formatSpeed(playbackRate)}
+                            </Text>
+                        </TouchableOpacity>
+
                         {/* Skip Back */}
                         <TouchableOpacity
                             onPress={handleSkipBack}
@@ -91,7 +121,7 @@ export const MiniPlayer: React.FC = () => {
                         {/* Play/Pause */}
                         <TouchableOpacity
                             onPress={handlePlayPause}
-                            className="w-14 h-14 rounded-full bg-brand-red items-center justify-center mx-6"
+                            className="w-14 h-14 rounded-full bg-brand-red items-center justify-center mx-4"
                         >
                             {isLoading ? (
                                 <ActivityIndicator size="small" color="white" />
@@ -119,7 +149,7 @@ export const MiniPlayer: React.FC = () => {
                         {/* Heart/Like */}
                         <TouchableOpacity
                             onPress={(e) => e.stopPropagation()}
-                            className="w-12 h-12 items-center justify-center ml-4"
+                            className="w-12 h-12 items-center justify-center ml-2"
                             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                         >
                             <Ionicons name="heart-outline" size={24} color="#FFFFFF" />
@@ -137,7 +167,7 @@ export const MiniPlayer: React.FC = () => {
             exiting={FadeOutDown.duration(300)}
             className="absolute left-4 right-4"
             style={{
-                bottom: insets.bottom + 8,
+                bottom: isInTabsLayout ? TAB_BAR_HEIGHT + 8 : insets.bottom + 8,
             }}
         >
             <TouchableOpacity
@@ -155,12 +185,12 @@ export const MiniPlayer: React.FC = () => {
                 {/* Main content row */}
                 <View className="flex-row items-center px-4 py-3">
                     {/* Book cover */}
-                    <View className="w-11 h-11 rounded-lg overflow-hidden bg-[#2A2C2E] mr-3">
+                    <View className="w-11 h-11 rounded-lg overflow-hidden bg-[#2A2C2E] mr-3 items-center justify-center">
                         {episode.book?.coverImageUrl ? (
                             <Image
                                 source={{ uri: episode.book.coverImageUrl }}
-                                className="w-full h-full"
-                                resizeMode="cover"
+                                style={{ width: 44, height: 44 }}
+                                resizeMode="contain"
                             />
                         ) : (
                             <View className="w-full h-full items-center justify-center">
