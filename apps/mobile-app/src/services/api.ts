@@ -163,7 +163,12 @@ class ApiClient {
     });
   }
 
-  async uploadFormData<T>(endpoint: string, formData: FormData, token?: string): Promise<T> {
+  async uploadFormData<T>(
+    endpoint: string,
+    formData: FormData,
+    token?: string,
+    onProgress?: (progress: number) => void
+  ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
 
     console.log(`[API] POST (multipart) ${url}`);
@@ -179,6 +184,7 @@ class ApiClient {
         if (event.lengthComputable) {
           const percentComplete = Math.round((event.loaded / event.total) * 100);
           console.log(`[API] Upload progress: ${percentComplete}% (${event.loaded}/${event.total} bytes)`);
+          onProgress?.(percentComplete);
         }
       };
 

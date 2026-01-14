@@ -118,7 +118,7 @@ export class CoverExtractionService {
 
         // Try each query until we find a cover
         for (const query of queries) {
-            const result = await this.tryGoogleBooksQuery(query);
+            const result = await this.tryGoogleBooksQuery(query, metadata.title);
             if (result) {
                 return result;
             }
@@ -128,11 +128,52 @@ export class CoverExtractionService {
     }
 
     /**
-     * Execute a single Google Books API query and extract cover URL.
+     * Normalize a title for comparison (lowercase, remove punctuation, collapse whitespace)
      */
-    private async tryGoogleBooksQuery(query: string): Promise<string | null> {
+    private normalizeTitle(title: string): string {
+        return title
+            .toLowerCase()
+            .replace(/[^\w\s]/g, '') // Remove punctuation
+            .replace(/\s+/g, ' ')    // Collapse whitespace
+            .trim();
+    }
+
+    /**
+     * Check if two titles are similar enough to be considered a match.
+     * Returns true if the normalized titles match or one contains the other.
+     */
+    private titlesMatch(expectedTitle: string, returnedTitle: string): boolean {
+        const normalizedExpected = this.normalizeTitle(expectedTitle);
+        const normalizedReturned = this.normalizeTitle(returnedTitle);
+
+        // Exact match
+        if (normalizedExpected === normalizedReturned) {
+            return true;
+        }
+
+        // One contains the other (for subtitles, editions, etc.)
+        if (normalizedReturned.includes(normalizedExpected) ||
+            normalizedExpected.includes(normalizedReturned)) {
+            return true;
+        }
+
+        // Check if main title matches (before colon/dash)
+        const expectedMain = normalizedExpected.split(/[:\-–—]/)[0].trim();
+        const returnedMain = normalizedReturned.split(/[:\-–—]/)[0].trim();
+        if (expectedMain === returnedMain && expectedMain.length > 5) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Execute a single Google Books API query and extract cover URL.
+     * Validates that the returned book title matches the expected title.
+     */
+    private async tryGoogleBooksQuery(query: string, expectedTitle?: string): Promise<string | null> {
         try {
-            const url = `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=1`;
+            const url = `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=5`;
             this.logger.debug(`Google Books API query: ${url}`);
 
             const response = await fetch(url);
@@ -148,43 +189,56 @@ export class CoverExtractionService {
                 return null;
             }
 
-            const volumeInfo = data.items[0].volumeInfo;
-            const imageLinks = volumeInfo?.imageLinks;
+            // Find the first result that matches the expected title and has an image
+            for (const item of data.items) {
+                const volumeInfo = item.volumeInfo;
+                const returnedTitle = volumeInfo?.title;
+                const imageLinks = volumeInfo?.imageLinks;
 
-            if (!imageLinks) {
-                this.logger.debug('No image links in Google Books result');
-                return null;
-            }
-
-            // Prefer larger images: extraLarge > large > medium > small > thumbnail
-            const coverUrl =
-                imageLinks.extraLarge ||
-                imageLinks.large ||
-                imageLinks.medium ||
-                imageLinks.small ||
-                imageLinks.thumbnail;
-
-            if (coverUrl) {
-                // Google Books URLs use HTTP, convert to HTTPS
-                // Also remove edge=curl parameter which adds a page curl effect
-                let cleanUrl = coverUrl
-                    .replace('http://', 'https://')
-                    .replace('&edge=curl', '');
-
-                // Upgrade to higher resolution if possible
-                // Google Books zoom parameter: 1=128px, 2=256px, 3=512px, 4=800px
-                // Replace zoom=1 with zoom=4 for highest resolution
-                if (cleanUrl.includes('zoom=1')) {
-                    cleanUrl = cleanUrl.replace('zoom=1', 'zoom=4');
-                } else if (!cleanUrl.includes('zoom=')) {
-                    // Add zoom parameter if not present
-                    cleanUrl += (cleanUrl.includes('?') ? '&' : '?') + 'zoom=4';
+                // Skip results without images
+                if (!imageLinks) {
+                    continue;
                 }
 
-                this.logger.log(`Found Google Books cover for query "${query}": ${cleanUrl}`);
-                return cleanUrl;
+                // Validate title match if expected title provided
+                if (expectedTitle && returnedTitle) {
+                    if (!this.titlesMatch(expectedTitle, returnedTitle)) {
+                        this.logger.debug(`Title mismatch: expected "${expectedTitle}", got "${returnedTitle}"`);
+                        continue;
+                    }
+                }
+
+                // Prefer larger images: extraLarge > large > medium > small > thumbnail
+                const coverUrl =
+                    imageLinks.extraLarge ||
+                    imageLinks.large ||
+                    imageLinks.medium ||
+                    imageLinks.small ||
+                    imageLinks.thumbnail;
+
+                if (coverUrl) {
+                    // Google Books URLs use HTTP, convert to HTTPS
+                    // Also remove edge=curl parameter which adds a page curl effect
+                    let cleanUrl = coverUrl
+                        .replace('http://', 'https://')
+                        .replace('&edge=curl', '');
+
+                    // Upgrade to higher resolution if possible
+                    // Google Books zoom parameter: 1=128px, 2=256px, 3=512px, 4=800px
+                    // Replace zoom=1 with zoom=4 for highest resolution
+                    if (cleanUrl.includes('zoom=1')) {
+                        cleanUrl = cleanUrl.replace('zoom=1', 'zoom=4');
+                    } else if (!cleanUrl.includes('zoom=')) {
+                        // Add zoom parameter if not present
+                        cleanUrl += (cleanUrl.includes('?') ? '&' : '?') + 'zoom=4';
+                    }
+
+                    this.logger.log(`Found Google Books cover for "${returnedTitle}" (query: "${query}"): ${cleanUrl}`);
+                    return cleanUrl;
+                }
             }
 
+            this.logger.debug(`No matching results with images for query: ${query}`);
             return null;
         } catch (error) {
             this.logger.warn(`Google Books API fetch failed: ${error.message}`);

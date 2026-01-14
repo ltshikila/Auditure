@@ -554,24 +554,49 @@ export class TextExtractionService {
             }
         }
 
+        // Exclude "Part One", "Part Two", etc. - these are section dividers, not chapters
+        // Also exclude other organizational headers
+        const partWordPattern = /^part\s+(one|two|three|four|five|six|seven|eight|nine|ten|\w+)\b/i;
+        if (partWordPattern.test(title)) {
+            return false;
+        }
+
+        // Exclude common organizational headers that aren't chapters
+        const orgHeaderPattern = /^(online\s+chapters|online\s+appendices|acronyms|credits|list\s+of)/i;
+        if (orgHeaderPattern.test(title)) {
+            return false;
+        }
+
         // Check for chapter indicators (at ANY nesting level)
         // Matches: "Chapter 1", "LAW 1", "Law1", "LESSON 5", etc.
-        const chapterPattern = /^(chapter|part|section|law|lesson|unit|module)\s*\d+/i;
+        const chapterPattern = /^(chapter|law|lesson|unit|module)\s*\d+/i;
         if (chapterPattern.test(title)) {
             return true;
         }
 
-        // Check for numbered entries like "1. Title" or "1 Title" (at ANY level)
+        // "Part 1", "Part 2" etc. with numbers ARE chapters (not "Part One" with words)
+        const partNumberPattern = /^part\s*\d+/i;
+        if (partNumberPattern.test(title)) {
+            return true;
+        }
+
+        // Check for numbered entries like "1. Title" or "1 Title" (top-level only)
         // This catches TOC entries without "Chapter/LAW" prefix
-        const numberedPattern = /^\d+[\.\s]/;
-        if (numberedPattern.test(title)) {
+        // Only apply to top-level (level 0-1) to avoid matching subsections like "2.1 Title"
+        // Pattern matches: "1." (not "1.1"), "1 " (number followed by space)
+        const numberedPattern = /^(\d+\.(?!\d)|\d+\s)/;  // "1." or "1 " but not "1.1"
+        if (level <= 1 && numberedPattern.test(title)) {
             return true;
         }
 
         // Top-level entries with reasonable titles are likely chapters
-        // (Skip very short titles like "I" or "1" unless they match chapter patterns)
+        // But ONLY if they start with "Chapter" to avoid false positives
+        // (Skip generic titles like "Part One Technical Issues")
         if (level <= 1 && title.length > 2 && title.length < 200) {
-            return true;
+            // Only accept if it looks like a chapter title
+            if (/^chapter\s/i.test(title)) {
+                return true;
+            }
         }
 
         return false;

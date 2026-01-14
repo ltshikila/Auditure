@@ -106,7 +106,8 @@ class EpisodeService {
     async createWithFile(
         file: FileUpload,
         episodeData: CreateEpisodeWithFileDto,
-        token: string
+        token: string,
+        onProgress?: (progress: number) => void
     ): Promise<Episode> {
         console.log('[EpisodeService] createWithFile called');
         console.log('[EpisodeService] File URI:', file.uri);
@@ -147,7 +148,7 @@ class EpisodeService {
 
         console.log('[EpisodeService] All fields appended, calling API...');
 
-        return apiClient.uploadFormData<Episode>('/episodes/with-file', formData, token);
+        return apiClient.uploadFormData<Episode>('/episodes/with-file', formData, token, onProgress);
     }
 
     /**
