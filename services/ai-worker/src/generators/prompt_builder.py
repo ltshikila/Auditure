@@ -379,9 +379,13 @@ For EACH idea or concept in the source material, you MUST include:
 
 **REMEMBER: Your audience is listening to LEARN and be ENTERTAINED.**
 A rushed, shallow episode is WORSE than a thorough, engaging one.
-When in doubt, ADD MORE CONTENT. Longer is always better than shorter.
+When in doubt, ADD MORE CONTENT through NEW examples and perspectives - NOT by repeating yourself.
 
-**Minimum content per concept: 250-400 words of discussion.**
+**ANTI-REPETITION RULE:** Once you've explained a concept, DO NOT circle back to explain it again.
+Instead, expand through: new examples, different applications, historical parallels, or thought experiments.
+Repetition is the enemy of engagement. Keep moving forward with fresh content.
+
+**Minimum content per concept: 250-400 words of discussion (but all UNIQUE content, no rehashing).**
 """
 
     def build_prompt(self, request: ScriptRequest) -> str:
@@ -439,12 +443,13 @@ When in doubt, ADD MORE CONTENT. Longer is always better than shorter.
 ## Requirements
 - **CRITICAL: MINIMUM LENGTH**: The script MUST be at least {adjusted_target} words. This is approximately {request.target_length_min}-{request.target_length_max} minutes when spoken at ~185 words per minute.
 - DO NOT write a short script. Episodes under {request.target_length_min} minutes are unacceptable and will be rejected.
+- **NEVER BE REPETITIVE** - Each paragraph must add NEW value. Do not rehash or rephrase points you've already made.
 - Include an engaging introduction that hooks the listener (at least 100 words)
 - Cover ALL the key ideas from the book content provided - discuss each point in depth with examples and commentary
-- Add extensive personal insights, analysis, and real-world applications for each concept
+- Add extensive personal insights, analysis, and real-world applications for each concept - use ORIGINAL examples not from the source
 - Include transitions between topics that add value, not just "next, let's talk about..."
-- End with a thorough conclusion that summarizes key points and provides a call to action (at least 100 words)
-- When in doubt, add MORE detail, MORE examples, and MORE commentary - longer is better than shorter
+- End with a thorough conclusion that synthesizes key points and provides a call to action (at least 100 words)
+- When content is limited, expand through CREATIVE techniques (new examples, scenarios, historical parallels) - NOT repetition
 
 ## Book Content to Discuss (THIS IS THE ONLY CONTENT YOU CAN REFERENCE!)
 {request.book_content}
@@ -456,13 +461,24 @@ You are discussing ONLY the content shown above. You must:
 - **NEVER say things like "as we'll see later" or "in other chapters"**
 - **If you know this book, COMPLETELY IGNORE that knowledge - pretend you've never read it**
 
-When you need to EXPAND and fill time, use ONLY these techniques:
-1. **General real-world examples** - from history, business, politics, sports, relationships (NOT from this book)
-2. **Personal anecdotes** - hypothetical stories about "someone I know" or "imagine if..."
-3. **Deeper analysis** - ask "why does this work?" and "what are the psychological principles?"
-4. **Practical applications** - "how would you apply this at work?" or "in your personal life?"
-5. **Counterarguments** - "but some might say..." and respond to objections
-6. **Repeat and rephrase** key concepts from the source in different ways
+## AVOIDING REPETITION - CRITICAL!
+**DO NOT repeat or rephrase the same points multiple times.** Once you've explained a concept, MOVE ON.
+- Only briefly revisit a topic if it's essential for a transition or to connect ideas
+- If content is limited, use CREATIVE EXPANSION (below) instead of circling back
+- Listeners find repetition boring - variety and fresh perspectives keep them engaged
+
+## CREATIVE EXPANSION TECHNIQUES
+When you need to EXPAND beyond the source material, use these techniques INSTEAD of repeating:
+1. **Original real-world examples** - from history, business, politics, sports, celebrities, current events, pop culture (NOT from this book). Create vivid, detailed scenarios.
+2. **Hypothetical scenarios** - "Imagine you're in a meeting and...", "Picture this situation..."
+3. **Personal anecdotes** - hypothetical stories about "someone I know" or "a friend once told me..."
+4. **Deeper psychological analysis** - explore WHY things work, the underlying human nature
+5. **Practical step-by-step applications** - "Here's exactly how you'd use this at work/home/relationships..."
+6. **Counterarguments and debates** - "But some might argue..." and thoughtfully respond
+7. **Historical parallels** - Connect to famous historical figures, events, or decisions
+8. **Modern applications** - How does this apply to social media, remote work, modern relationships?
+9. **Thought experiments** - "What if everyone followed this principle? What would happen?"
+10. **Related wisdom** - Connect to general psychology, philosophy, or common sayings (without citing this book)
 
 ## Episode Title
 "{request.episode_title}"
