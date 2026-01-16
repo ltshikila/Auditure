@@ -116,14 +116,20 @@ export class CoverExtractionService {
             return null;
         }
 
+        // Log what we're searching for
+        this.logger.log(`Google Books search for: title="${metadata.title}", author="${metadata.author}", isbn="${metadata.isbn}"`);
+        this.logger.log(`Will try ${queries.length} queries: ${queries.join(' | ')}`);
+
         // Try each query until we find a cover
         for (const query of queries) {
+            this.logger.log(`Trying Google Books query: ${query}`);
             const result = await this.tryGoogleBooksQuery(query, metadata.title);
             if (result) {
                 return result;
             }
         }
 
+        this.logger.warn(`No Google Books cover found after trying ${queries.length} queries`);
         return null;
     }
 
@@ -185,27 +191,34 @@ export class CoverExtractionService {
             const data = await response.json();
 
             if (data.totalItems === 0 || !data.items || data.items.length === 0) {
-                this.logger.debug(`No results for query: ${query}`);
+                this.logger.log(`No results for query: ${query}`);
                 return null;
             }
+
+            this.logger.log(`Got ${data.items.length} results from Google Books`);
 
             // Find the first result that matches the expected title and has an image
             for (const item of data.items) {
                 const volumeInfo = item.volumeInfo;
                 const returnedTitle = volumeInfo?.title;
+                const returnedAuthors = volumeInfo?.authors?.join(', ') || 'unknown';
                 const imageLinks = volumeInfo?.imageLinks;
+
+                this.logger.log(`  Result: "${returnedTitle}" by ${returnedAuthors}, hasImage: ${!!imageLinks}`);
 
                 // Skip results without images
                 if (!imageLinks) {
+                    this.logger.log(`    Skipping - no image`);
                     continue;
                 }
 
                 // Validate title match if expected title provided
                 if (expectedTitle && returnedTitle) {
                     if (!this.titlesMatch(expectedTitle, returnedTitle)) {
-                        this.logger.debug(`Title mismatch: expected "${expectedTitle}", got "${returnedTitle}"`);
+                        this.logger.log(`    Skipping - title mismatch: expected "${expectedTitle}"`);
                         continue;
                     }
+                    this.logger.log(`    Title match confirmed!`);
                 }
 
                 // Prefer larger images: extraLarge > large > medium > small > thumbnail

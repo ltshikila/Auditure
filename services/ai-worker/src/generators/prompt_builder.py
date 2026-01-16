@@ -65,6 +65,9 @@ class ScriptRequest:
     is_retry: bool = False  # True when retrying due to short script
     retry_count: int = 0  # 0 = first attempt, 1 = first retry, 2 = second retry
     expansion_ratio: float = 1.0  # How much to expand content (target_words / source_words)
+    # Content scope info for the intro
+    content_scope: str = "the book"  # e.g., "Chapter 2", "the entire book", "Chapters 1-3"
+    chapter_title: Optional[str] = None  # Title of the chapter if single chapter
 
 
 class PromptBuilder:
@@ -444,12 +447,20 @@ Repetition is the enemy of engagement. Keep moving forward with fresh content.
 - **CRITICAL: MINIMUM LENGTH**: The script MUST be at least {adjusted_target} words. This is approximately {request.target_length_min}-{request.target_length_max} minutes when spoken at ~185 words per minute.
 - DO NOT write a short script. Episodes under {request.target_length_min} minutes are unacceptable and will be rejected.
 - **NEVER BE REPETITIVE** - Each paragraph must add NEW value. Do not rehash or rephrase points you've already made.
+- **INTRODUCTION MUST STATE SCOPE**: In the introduction, clearly state what you're covering (e.g., "Today we're diving into {request.content_scope} from {request.book_title}"{f' - specifically {request.chapter_title}' if request.chapter_title else ''})
 - Include an engaging introduction that hooks the listener (at least 100 words)
 - Cover ALL the key ideas from the book content provided - discuss each point in depth with examples and commentary
 - Add extensive personal insights, analysis, and real-world applications for each concept - use ORIGINAL examples not from the source
 - Include transitions between topics that add value, not just "next, let's talk about..."
 - End with a thorough conclusion that synthesizes key points and provides a call to action (at least 100 words)
 - When content is limited, expand through CREATIVE techniques (new examples, scenarios, historical parallels) - NOT repetition
+
+## TTS TAGS - ONLY USE THESE OFFICIAL TAGS
+The only allowed TTS expression tags are:
+- [sigh], [laughing], [chuckling], [clearing throat], [uhm], [uh]
+- [short pause], [medium pause], [long pause]
+- [whispering], [excited]
+**DO NOT use tags like [nodding], [smiling], [thoughtful], [leaning in], [gesturing], or any visual/physical actions - these cannot be synthesized by TTS!**
 
 ## Book Content to Discuss (THIS IS THE ONLY CONTENT YOU CAN REFERENCE!)
 {request.book_content}

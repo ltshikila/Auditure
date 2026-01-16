@@ -381,6 +381,7 @@ class ScriptGenerator:
 
         chunks = []
         previous_summary = ""
+        topics_covered: List[str] = []  # Track topics to avoid repetition
 
         for chunk_num in range(num_chunks):
             is_first = chunk_num == 0
@@ -403,6 +404,7 @@ class ScriptGenerator:
                 is_first=is_first,
                 is_last=is_last,
                 expansion_ratio=expansion_ratio,
+                topics_covered=topics_covered if chunk_num > 0 else None,
             )
 
             logger.info(f"Generating chunk {chunk_num + 1}/{num_chunks}...")
@@ -418,6 +420,11 @@ class ScriptGenerator:
                 # Extract last few sentences as context for next chunk
                 sentences = chunk_script.replace('\n', ' ').split('. ')
                 previous_summary = '. '.join(sentences[-3:]) if len(sentences) > 3 else chunk_script[-500:]
+
+                # Extract key topics from this chunk to avoid repetition
+                new_topics = self._extract_topics_from_chunk(chunk_script)
+                topics_covered.extend(new_topics)
+                logger.info(f"Topics covered so far: {topics_covered}")
 
         # Combine all chunks
         combined_script = self._combine_chunks(chunks, episode_type)
@@ -443,6 +450,8 @@ class ScriptGenerator:
         is_first: bool,
         is_last: bool,
         expansion_ratio: float,
+        topics_covered: Optional[List[str]] = None,
+        content_scope: str = "the book",
     ) -> str:
         """Build a prompt for generating a specific chunk of the script."""
         author_line = f" by {book_author}" if book_author else ""
@@ -450,28 +459,42 @@ class ScriptGenerator:
         # Personality description
         personality_desc = self.prompt_builder.build_personality_description(personality)
 
+        # Build topics covered section if any
+        topics_section = ""
+        if topics_covered and len(topics_covered) > 0:
+            topics_list = "\n".join(f"  - {topic}" for topic in topics_covered)
+            topics_section = f"""
+## TOPICS ALREADY COVERED - DO NOT REPEAT THESE!
+The following topics have already been discussed in previous parts. DO NOT repeat or rehash them:
+{topics_list}
+
+Focus on NEW topics and fresh perspectives. If you must reference a covered topic, do so only briefly as a transition.
+"""
+
         # Position-specific instructions
         if is_first:
             position_instruction = f"""
 ## Part 1 of {total_chunks} - INTRODUCTION
 This is the OPENING of the episode. You MUST:
 - Start with an engaging hook to grab listeners
-- Introduce the book "{book_title}" and why it matters
-- Set up what you'll be discussing
+- Introduce the book "{book_title}" and clearly state you're covering {content_scope}
+- Set up what you'll be discussing in this episode
 - Begin exploring the first key concepts from the content
 - Write approximately {words_per_chunk} words
+- End with a transition like "We'll continue after a short break" or "Stay with us" - NOT "see you next time"
 - Do NOT conclude or wrap up - this continues in the next part
 """
         elif is_last:
             position_instruction = f"""
 ## Part {chunk_num} of {total_chunks} - CONCLUSION
 This is the FINAL part of the episode. You MUST:
-- Continue naturally from where we left off
-- Discuss any remaining insights and concepts
+- Start with "Welcome back" or "And we're back" to continue naturally
+- Continue from where we left off
+- Discuss any remaining insights and concepts (that haven't been covered yet!)
 - Provide a thorough conclusion summarizing key takeaways
 - End with a compelling call-to-action for listeners
 - Write approximately {words_per_chunk} words
-
+{topics_section}
 PREVIOUS CONTEXT (continue from here):
 {previous_summary}
 """
@@ -479,12 +502,14 @@ PREVIOUS CONTEXT (continue from here):
             position_instruction = f"""
 ## Part {chunk_num} of {total_chunks} - CONTINUATION
 This is a MIDDLE section of the episode. You MUST:
-- Continue naturally from where we left off
-- Dive deeper into the concepts from the book
+- Start with "Welcome back" or "And we're back" to continue naturally
+- Continue from where we left off
+- Dive deeper into NEW concepts from the book (not ones already covered!)
 - Add examples, analysis, and personal insights
 - Write approximately {words_per_chunk} words
+- End with a transition like "We'll continue after the break" or "We'll be right back" - NOT "see you next time"
 - Do NOT conclude - the episode continues after this
-
+{topics_section}
 PREVIOUS CONTEXT (continue from here):
 {previous_summary}
 """
@@ -550,7 +575,12 @@ When you need to EXPAND and add depth, use ONLY these techniques:
 - {"EVERY line must start with HOST: or GUEST: - NO EXCEPTIONS!" if episode_type == "DUO" else ""}
 - {"EVERY line must start with HOST:, GUEST1:, or GUEST2: - NO EXCEPTIONS!" if episode_type == "GROUP" else ""}
 - Use natural speech patterns with pauses and reactions
-- Official TTS tags: [sigh], [laughing], [uhm], [short pause], [medium pause], [long pause]
+
+## TTS TAGS - ONLY USE THESE OFFICIAL TAGS
+- [sigh], [laughing], [chuckling], [clearing throat], [uhm], [uh]
+- [short pause], [medium pause], [long pause]
+- [whispering], [excited]
+**DO NOT use [nodding], [smiling], [thoughtful], [leaning in], [gesturing], or any visual/physical actions!**
 
 Now write Part {chunk_num}:
 """
@@ -679,8 +709,53 @@ Now write Part {chunk_num}:
         logger.info(f"Template generated {len(script.split())} words")
         return script
 
+    def _extract_topics_from_chunk(self, chunk_script: str) -> List[str]:
+        """Extract key topics/concepts discussed in a chunk to avoid repetition.
+
+        Uses simple heuristics to identify main discussion points.
+        """
+        import re
+
+        topics = []
+
+        # Look for patterns that indicate topic discussion
+        # Pattern 1: "Let's talk about X" / "Let's discuss X"
+        patterns = [
+            r"let's (?:talk about|discuss|explore|dive into) ([^.!?]+)",
+            r"the (?:key|main|first|second|third|next) (?:concept|idea|point|principle|lesson) (?:is|here is) ([^.!?]+)",
+            r"this (?:is|shows|demonstrates|illustrates) ([^.!?]+)",
+            r"what (?:we're|we are) seeing here is ([^.!?]+)",
+            r"the (?:idea|concept|principle) of ([^.!?]+)",
+        ]
+
+        text_lower = chunk_script.lower()
+        for pattern in patterns:
+            matches = re.findall(pattern, text_lower)
+            for match in matches:
+                # Clean up the match
+                topic = match.strip()[:100]  # Limit length
+                if len(topic) > 10:  # Only meaningful topics
+                    topics.append(topic)
+
+        # Also extract any quoted concepts or emphasized phrases
+        quoted = re.findall(r'"([^"]{10,50})"', chunk_script)
+        topics.extend(quoted[:3])  # Limit to top 3 quoted phrases
+
+        # Deduplicate and limit
+        seen = set()
+        unique_topics = []
+        for topic in topics:
+            topic_key = topic.lower().strip()
+            if topic_key not in seen:
+                seen.add(topic_key)
+                unique_topics.append(topic)
+
+        return unique_topics[:5]  # Return top 5 topics
+
     def _clean_script(self, script: str, episode_type: str) -> str:
         """Clean and format the generated script."""
+        import re
+
         # Remove any instruction leakage
         lines = script.split("\n")
         cleaned_lines = []
@@ -704,5 +779,31 @@ Now write Part {chunk_num}:
             script = script.replace("Guest:", "GUEST:")
             script = script.replace("Guest 1:", "GUEST1:")
             script = script.replace("Guest 2:", "GUEST2:")
+
+        # Remove unofficial TTS tags that can't be synthesized
+        # Keep only: [sigh], [laughing], [chuckling], [clearing throat], [uhm], [uh],
+        #            [short pause], [medium pause], [long pause], [whispering], [excited]
+        unofficial_tags = [
+            r'\[nodding\]', r'\[nods\]',
+            r'\[smiling\]', r'\[smiles\]',
+            r'\[thoughtful\]', r'\[thinking\]',
+            r'\[leaning in\]', r'\[leans in\]', r'\[leaning forward\]',
+            r'\[gesturing\]', r'\[gestures\]',
+            r'\[shaking head\]', r'\[shakes head\]',
+            r'\[raising eyebrows\]', r'\[raises eyebrows\]',
+            r'\[pointing\]', r'\[points\]',
+            r'\[looking\]', r'\[looks\]',
+            r'\[turning\]', r'\[turns\]',
+            r'\[sitting\]', r'\[stands\]', r'\[standing\]',
+            r'\[pausing\]',  # Use [short/medium/long pause] instead
+            r'\[grinning\]', r'\[grins\]',
+            r'\[frowning\]', r'\[frowns\]',
+            r'\[winking\]', r'\[winks\]',
+        ]
+        for tag in unofficial_tags:
+            script = re.sub(tag, '', script, flags=re.IGNORECASE)
+
+        # Clean up any double spaces left behind
+        script = re.sub(r'  +', ' ', script)
 
         return script.strip()

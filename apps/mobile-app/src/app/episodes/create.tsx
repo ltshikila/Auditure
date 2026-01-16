@@ -901,26 +901,33 @@ const Create = () => {
                             </Text>
                         </View>
 
-                        {/* Progress bar */}
-                        <View className="mb-2">
-                            <View className="h-3 bg-[#E8E3D6] rounded-full overflow-hidden">
-                                <View
-                                    className="h-full bg-brand-gold rounded-full"
-                                    style={{ width: `${uploadProgress ?? 0}%` }}
-                                />
-                            </View>
-                        </View>
+                        {/* Progress bar - raw progress goes to 200%, so divide by 2 */}
+                        {(() => {
+                            const displayProgress = Math.min(100, Math.round((uploadProgress ?? 0) / 2));
+                            return (
+                                <>
+                                    <View className="mb-2">
+                                        <View className="h-3 bg-[#E8E3D6] rounded-full overflow-hidden">
+                                            <View
+                                                className="h-full bg-brand-gold rounded-full"
+                                                style={{ width: `${displayProgress}%` }}
+                                            />
+                                        </View>
+                                    </View>
 
-                        <View className="flex-row justify-between">
-                            <Text className="font-inter text-[#858585] text-xs">
-                                {uploadProgress ?? 0}% uploaded
-                            </Text>
-                            <Text className="font-inter text-[#858585] text-xs">
-                                Please wait...
-                            </Text>
-                        </View>
+                                    <View className="flex-row justify-between">
+                                        <Text className="font-inter text-[#858585] text-xs">
+                                            {displayProgress}% uploaded
+                                        </Text>
+                                        <Text className="font-inter text-[#858585] text-xs">
+                                            Please wait...
+                                        </Text>
+                                    </View>
+                                </>
+                            );
+                        })()}
 
-                        {uploadProgress === 100 && (
+                        {(uploadProgress ?? 0) >= 200 && (
                             <View className="mt-4 bg-brand-gold/10 rounded-xl px-4 py-3">
                                 <View className="flex-row items-center">
                                     <ActivityIndicator size="small" color="#BF9A54" />
