@@ -185,9 +185,18 @@ class ApiClient {
     });
   }
 
-  async delete<T>(endpoint: string, token?: string): Promise<T> {
+  async patch<T>(endpoint: string, body?: any, token?: string): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+  }
+
+  async delete<T>(endpoint: string, token?: string, body?: any): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'DELETE',
+      body: body ? JSON.stringify(body) : undefined,
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
   }
