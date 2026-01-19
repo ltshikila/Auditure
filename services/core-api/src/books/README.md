@@ -7,6 +7,7 @@ Complete book management system with file upload, text extraction, and async pro
 - ✅ PDF and EPUB file upload (up to 50MB)
 - ✅ Async text extraction with RabbitMQ
 - ✅ Automatic chapter detection
+- ✅ Cover image extraction (Google Books API + PDF/EPUB fallback)
 - ✅ Local file storage with S3-ready abstraction
 - ✅ Full-text search capabilities
 - ✅ Extraction retry mechanism
@@ -42,6 +43,7 @@ author: "F. Scott Fitzgerald" (optional)
   "author": "F. Scott Fitzgerald",
   "sourceType": "PDF",
   "fileStorageKey": "books/user-uuid/filename.pdf",
+  "coverImageUrl": "https://books.google.com/books/content?id=xxx&printsec=frontcover&img=1&zoom=4",
   "extractionStatus": "PENDING",
   "createdAt": "2025-01-15T10:00:00Z",
   "updatedAt": "2025-01-15T10:00:00Z"
@@ -106,6 +108,7 @@ Authorization: Bearer <access_token>
   "author": "F. Scott Fitzgerald",
   "sourceType": "PDF",
   "extractionStatus": "COMPLETED",
+  "coverImageUrl": "https://books.google.com/books/content?id=xxx&printsec=frontcover&img=1&zoom=4",
   "fullTextKey": "books/user-uuid/fulltext.txt",
   "chapters": [
     {
@@ -119,6 +122,10 @@ Authorization: Bearer <access_token>
   "createdAt": "2025-01-15T10:00:00Z"
 }
 ```
+
+**Cover Image Sources:**
+- `coverImageUrl` may be an external URL (Google Books) or a local storage path (`/api/storage/{userId}/{bookId}/cover.jpg`)
+- See [Cover Image Extraction](#cover-image-extraction) for details
 
 **Error Responses:**
 - `404 Not Found` - Book doesn't exist
@@ -373,6 +380,15 @@ Handles text extraction from files:
 - Hybrid approach: TOC-based (primary) + regex (fallback) for maximum accuracy
 - Coordinate-based same-page chapter splitting for precise boundaries
 
+#### CoverExtractionService
+Handles cover image extraction with fallback strategy:
+- `extractCover()` - Main entry point for cover extraction
+- `fetchGoogleBooksCover()` - Query Google Books API for high-quality covers
+- `extractPdfCover()` - Extract embedded images or render first page
+- `extractEpubCover()` - Extract cover from EPUB metadata (partial)
+- Title validation to prevent incorrect cover matches
+- High-resolution image upgrade (zoom=4)
+
 #### StorageService
 Abstraction layer for file storage:
 - `uploadFile()` - Store file in configured backend
@@ -418,6 +434,8 @@ model Book {
   author            String?
   sourceType        SourceType   // PDF, EPUB, URL
   fileStorageKey    String
+  coverImageUrl     String?      // External URL (Google Books) or local storage path
+  coverImageKey     String?      // Storage key for locally extracted covers
   extractionStatus  ExtractionStatus @default(PENDING)
   extractionError   String?
   fullTextKey       String?
@@ -554,6 +572,103 @@ Avg chars/page < 100 → OCR Mode → Tesseract.js → Extracted Text
 **Requirements:**
 - `canvas` package for Node.js canvas support
 - `tesseract.js` for OCR processing
+
+## Cover Image Extraction
+
+The `CoverExtractionService` automatically extracts or fetches cover images during book processing.
+
+### Extraction Strategy
+
+Cover images are obtained using a priority-based fallback strategy:
+
+```
+1. Google Books API (highest quality)
+   ↓ (if no match found)
+2. PDF/EPUB File Extraction
+   ↓ (if extraction fails)
+3. No cover image
+```
+
+### Google Books API (Primary)
+
+Queries the free Google Books API to find high-quality cover images:
+
+**Search Strategy (in order):**
+1. **ISBN search** - Most accurate (`isbn:9780743273565`)
+2. **Title + Author** - Combined search (`intitle:gatsby+inauthor:fitzgerald`)
+3. **Title only** - Fallback for incorrect author metadata
+
+**Features:**
+- Title validation prevents wrong book covers
+- Automatic HTTPS upgrade
+- High-resolution images (zoom=4 parameter)
+- Removes page curl effect (`edge=curl`)
+
+**Example Response:**
+```typescript
+{
+  coverImageUrl: "https://books.google.com/books/content?id=xxx&zoom=4",
+  coverImageKey: null,  // External URL, not stored locally
+  source: "google_books"
+}
+```
+
+### PDF Cover Extraction (Fallback)
+
+When Google Books doesn't have a cover, extracts from the PDF file:
+
+**Method 1: Embedded Image Extraction**
+- Scans first page for image objects
+- Extracts the largest embedded image
+- Converts to JPEG using canvas
+
+**Method 2: Page Rendering**
+- Renders first page at 2x scale
+- Converts canvas to JPEG
+- Fallback when no embedded images exist
+
+**Example Response:**
+```typescript
+{
+  coverImageUrl: "/api/storage/{userId}/{bookId}/cover.jpg",
+  coverImageKey: "{userId}/{bookId}/cover.jpg",
+  source: "pdf_extraction"
+}
+```
+
+### EPUB Cover Extraction
+
+Looks for cover in EPUB metadata:
+- Checks `metadata.cover` property
+- Searches manifest for `cover-image` ID
+- Note: EPUB extraction is partially implemented
+
+### Cover URL Resolution
+
+Cover URLs can be:
+- **External**: Google Books URLs (served directly)
+- **Local**: Storage paths served via `/api/storage/*`
+
+**Client-side handling:**
+```typescript
+function resolveCoverUrl(coverImageUrl: string | null): string | null {
+  if (!coverImageUrl) return null;
+
+  // External URL - use directly
+  if (coverImageUrl.startsWith('http')) {
+    return coverImageUrl;
+  }
+
+  // Local path - prepend API base URL
+  return `${API_BASE_URL}${coverImageUrl}`;
+}
+```
+
+### Dependencies
+
+- `pdfjs-dist` - PDF parsing and image extraction
+- `canvas` - Server-side image rendering
+- `epub-parser` - EPUB metadata access (for cover extraction)
 
 ## Testing
 
@@ -730,6 +845,7 @@ const popular = await booksService.getPopularBooks(10);
 - [x] Page label support (Roman numerals, custom prefixes)
 - [x] Coordinate-based same-page chapter splitting
 - [x] Front/back matter filtering (preface, index, bibliography, etc.)
+- [x] Cover image extraction (Google Books API + PDF/EPUB fallback)
 - [ ] Language detection and translation
 - [ ] Summary generation using AI
 - [ ] Bookmark and annotation support

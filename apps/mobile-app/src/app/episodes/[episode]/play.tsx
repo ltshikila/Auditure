@@ -13,6 +13,7 @@ import Slider from '@react-native-community/slider';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { Episode, episodeService } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
+import { resolveCoverUrl } from '@/services/api';
 
 // Returns first few lines of transcript as a static preview
 // Note: Time-synced preview is disabled because TTS doesn't provide timing data
@@ -146,9 +147,9 @@ export default function EpisodePlayScreen() {
                     className="rounded-2xl overflow-hidden shadow-2xl bg-brand-input"
                     style={{ maxHeight: 300, maxWidth: 300 }}
                 >
-                    {displayEpisode.book?.coverImageUrl ? (
+                    {resolveCoverUrl(displayEpisode.book?.coverImageUrl) ? (
                         <Image
-                            source={{ uri: displayEpisode.book.coverImageUrl }}
+                            source={{ uri: resolveCoverUrl(displayEpisode.book?.coverImageUrl)! }}
                             style={{ width: 300, height: 300 }}
                             resizeMode="contain"
                         />

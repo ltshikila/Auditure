@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Image, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Episode, EpisodeStatus } from '@/services/episode.service';
+import { resolveCoverUrl } from '@/services/api';
 
 interface GeneratingEpisodeCardProps {
     episode: Episode;
@@ -80,9 +81,9 @@ export const GeneratingEpisodeCard: React.FC<GeneratingEpisodeCardProps> = ({ ep
             <View className="flex-row">
                 {/* Book Cover Thumbnail */}
                 <View className="w-14 h-20 rounded-lg overflow-hidden bg-brand-input mr-3 items-center justify-center">
-                    {episode.book?.coverImageUrl ? (
+                    {resolveCoverUrl(episode.book?.coverImageUrl) ? (
                         <Image
-                            source={{ uri: episode.book.coverImageUrl }}
+                            source={{ uri: resolveCoverUrl(episode.book?.coverImageUrl)! }}
                             style={{ width: 56, height: 80 }}
                             resizeMode="contain"
                         />

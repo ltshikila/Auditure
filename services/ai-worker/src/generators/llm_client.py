@@ -150,12 +150,14 @@ TTS MARKUP - CRITICAL:
 Include these markup tags throughout the script for natural text-to-speech:
 - [short pause], [medium pause], [long pause] - For pacing and emphasis
 - [sigh] - For emotional moments (frustration, relief, contemplation)
-- [laughing], [chuckle] - For humor and reactions
+- [laughing], [chuckling] - For humor and reactions
 - [uhm], [uh] - For natural thinking hesitation
-- [excited] - Before surprising or exciting information
+- [whispering] - For quieter, intimate delivery
+- [clearing throat] - For natural transitions
 
 These tags will be rendered as natural speech sounds by the TTS engine.
 Use them liberally but naturally - a good podcast has personality!
+DO NOT use [excited], [nodding], [smiling] or other unofficial tags - they will be spoken aloud!
 
 Reference: https://docs.cloud.google.com/text-to-speech/docs/gemini-tts#prompting_tips"""
 

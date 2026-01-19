@@ -92,6 +92,9 @@ export class CoverExtractionService {
         author?: string;
         isbn?: string;
     }): Promise<string | null> {
+        // Log incoming metadata immediately
+        this.logger.log(`[fetchGoogleBooksCover] Called with metadata: ${JSON.stringify(metadata)}`);
+
         // Build list of queries to try in order
         const queries: string[] = [];
 
@@ -113,6 +116,7 @@ export class CoverExtractionService {
         }
 
         if (queries.length === 0) {
+            this.logger.warn(`[fetchGoogleBooksCover] No queries could be built - no title/author/isbn in metadata`);
             return null;
         }
 
@@ -261,6 +265,9 @@ export class CoverExtractionService {
 
     /**
      * Extract cover image from PDF first page.
+     * Tries multiple methods:
+     * 1. Extract embedded images from the first page
+     * 2. Fall back to rendering the first page (may not work in all environments)
      */
     private async extractPdfCover(buffer: Buffer): Promise<Buffer | null> {
         try {
@@ -273,28 +280,107 @@ export class CoverExtractionService {
             // Get first page
             const page = await pdfDoc.getPage(1);
 
-            // Render at reasonable resolution for cover image
-            const scale = 2.0; // Higher for better quality
-            const viewport = page.getViewport({ scale });
+            // Method 1: Try to extract embedded images from the page
+            try {
+                const operatorList = await page.getOperatorList();
+                const imageObjects: any[] = [];
 
-            // Create canvas for rendering
-            const { createCanvas } = await import('canvas');
-            const canvas = createCanvas(viewport.width, viewport.height);
-            const context = canvas.getContext('2d');
+                // Look for image objects in the operator list
+                for (let i = 0; i < operatorList.fnArray.length; i++) {
+                    const fn = operatorList.fnArray[i];
+                    // OPS.paintImageXObject = 85, OPS.paintJpegXObject = 82
+                    if (fn === 85 || fn === 82) {
+                        const imgName = operatorList.argsArray[i][0];
+                        imageObjects.push(imgName);
+                    }
+                }
 
-            // Render PDF page to canvas
-            // Cast to any - node-canvas types don't match browser/pdfjs types
-            await page.render({
-                canvasContext: context as any,
-                viewport: viewport,
-                canvas: canvas as any,
-            }).promise;
+                this.logger.debug(`Found ${imageObjects.length} image objects on first page`);
 
-            // Convert to JPEG buffer
-            const imageBuffer = canvas.toBuffer('image/jpeg', { quality: 0.85 });
+                // If there are images, try to extract the first/largest one
+                if (imageObjects.length > 0) {
+                    const objs = page.objs;
+                    for (const imgName of imageObjects) {
+                        try {
+                            const img = await new Promise<any>((resolve, reject) => {
+                                objs.get(imgName, resolve);
+                                setTimeout(() => reject(new Error('Timeout')), 5000);
+                            });
 
-            this.logger.debug(`Rendered PDF cover: ${imageBuffer.length} bytes`);
-            return imageBuffer;
+                            if (img && img.data && img.width && img.height) {
+                                // Convert raw image data to JPEG using canvas
+                                const { createCanvas, createImageData } = await import('canvas');
+                                const imgCanvas = createCanvas(img.width, img.height);
+                                const imgContext = imgCanvas.getContext('2d');
+
+                                // Create ImageData from raw pixel data
+                                const channels = img.data.length / (img.width * img.height);
+                                let imageDataArray: Uint8ClampedArray;
+
+                                if (channels === 4) {
+                                    // RGBA - use directly
+                                    imageDataArray = new Uint8ClampedArray(img.data);
+                                } else if (channels === 3) {
+                                    // RGB - convert to RGBA
+                                    imageDataArray = new Uint8ClampedArray(img.width * img.height * 4);
+                                    for (let i = 0, j = 0; i < img.data.length; i += 3, j += 4) {
+                                        imageDataArray[j] = img.data[i];         // R
+                                        imageDataArray[j + 1] = img.data[i + 1]; // G
+                                        imageDataArray[j + 2] = img.data[i + 2]; // B
+                                        imageDataArray[j + 3] = 255;             // A
+                                    }
+                                } else if (channels === 1) {
+                                    // Grayscale - convert to RGBA
+                                    imageDataArray = new Uint8ClampedArray(img.width * img.height * 4);
+                                    for (let i = 0, j = 0; i < img.data.length; i++, j += 4) {
+                                        imageDataArray[j] = img.data[i];     // R
+                                        imageDataArray[j + 1] = img.data[i]; // G
+                                        imageDataArray[j + 2] = img.data[i]; // B
+                                        imageDataArray[j + 3] = 255;         // A
+                                    }
+                                } else {
+                                    continue; // Skip unsupported format
+                                }
+
+                                const imageData = createImageData(imageDataArray, img.width, img.height);
+                                imgContext.putImageData(imageData, 0, 0);
+
+                                const imageBuffer = imgCanvas.toBuffer('image/jpeg', { quality: 0.85 });
+                                this.logger.log(`Extracted embedded image from PDF: ${img.width}x${img.height}, ${imageBuffer.length} bytes`);
+                                return imageBuffer;
+                            }
+                        } catch (imgError) {
+                            this.logger.debug(`Failed to extract image ${imgName}: ${imgError.message}`);
+                        }
+                    }
+                }
+            } catch (extractError) {
+                this.logger.debug(`Embedded image extraction failed: ${extractError.message}`);
+            }
+
+            // Method 2: Try rendering with canvas (may fail in some environments)
+            try {
+                const scale = 2.0;
+                const viewport = page.getViewport({ scale });
+                const { createCanvas } = await import('canvas');
+                const canvas = createCanvas(viewport.width, viewport.height);
+                const context = canvas.getContext('2d');
+
+                await page.render({
+                    canvasContext: context as any,
+                    viewport: viewport,
+                    canvas: canvas as any,
+                }).promise;
+
+                const imageBuffer = canvas.toBuffer('image/jpeg', { quality: 0.85 });
+                this.logger.log(`Rendered PDF cover via canvas: ${imageBuffer.length} bytes`);
+                return imageBuffer;
+            } catch (renderError) {
+                this.logger.debug(`Canvas rendering failed: ${renderError.message}`);
+            }
+
+            this.logger.warn('All PDF cover extraction methods failed');
+            return null;
         } catch (error) {
             this.logger.error(`PDF cover extraction failed: ${error.message}`);
             return null;

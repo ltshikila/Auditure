@@ -30,6 +30,8 @@ model User {
   books            Book[]
   podcasters       Podcaster[]
   episodes         Episode[]
+  settings         UserSettings?
+  subscription     Subscription?
 
   @@map("users")
 }
@@ -225,6 +227,19 @@ enum VoiceTier {
   GEMINI    // Gemini 2.5 Pro TTS - ~$0.32/10-min episode
 }
 
+// Subscription tier
+enum SubscriptionTier {
+  FREE
+  PREMIUM
+}
+
+// Theme preference for app settings
+enum ThemePreference {
+  LIGHT
+  DARK
+  SYSTEM
+}
+
 model Episode {
   id                    String         @id @default(uuid())
   userId                String
@@ -279,4 +294,89 @@ model Episode {
   @@index([isPublic])
   @@index([generationStatus])
   @@map("episodes")
+}
+
+model UserSettings {
+  id                        String          @id @default(uuid())
+  userId                    String          @unique
+
+  // Theme
+  theme                     ThemePreference @default(SYSTEM)
+
+  // Notifications
+  pushNotificationsEnabled  Boolean         @default(true)
+  emailNotificationsEnabled Boolean         @default(true)
+  marketingEmailsEnabled    Boolean         @default(false)
+
+  // Privacy
+  profilePublic             Boolean         @default(false)
+  showListeningActivity     Boolean         @default(true)
+
+  // Audio/Playback
+  autoPlayEnabled           Boolean         @default(true)
+  playbackSpeed             Float           @default(1.0)
+  downloadOverWifiOnly      Boolean         @default(true)
+
+  // Legal
+  termsAcceptedAt           DateTime?
+  termsVersion              String?
+  privacyPolicyAcceptedAt   DateTime?
+  privacyPolicyVersion      String?
+
+  // Timestamps
+  createdAt                 DateTime        @default(now())
+  updatedAt                 DateTime        @updatedAt
+
+  // Relations
+  user                      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+model Subscription {
+  id                    String           @id @default(uuid())
+  userId                String           @unique
+
+  // Subscription Info
+  tier                  SubscriptionTier @default(FREE)
+
+  // Usage Tracking (reset monthly)
+  geminiEpisodesUsed    Int              @default(0)
+  standardEpisodesUsed  Int              @default(0)
+  usagePeriodStart      DateTime         @default(now())
+
+  // Limits (configurable per tier)
+  geminiEpisodeLimit    Int              @default(1)
+  standardEpisodeLimit  Int              @default(2)
+
+  // Premium subscription details (for future payment integration)
+  stripeCustomerId      String?
+  stripeSubscriptionId  String?
+  premiumStartedAt      DateTime?
+  premiumExpiresAt      DateTime?
+
+  // Timestamps
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  // Relations
+  user                  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tier])
+  @@index([usagePeriodStart])
+  @@map("subscriptions")
+}
+
+model TermsAndConditions {
+  id            String   @id @default(uuid())
+
+  version       String   @unique
+  content       String   @db.Text
+  effectiveDate DateTime
+  isActive      Boolean  @default(false)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("terms_and_conditions")
 }

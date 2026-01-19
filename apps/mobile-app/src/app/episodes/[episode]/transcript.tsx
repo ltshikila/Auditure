@@ -17,6 +17,7 @@ import { episodeService, Episode } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { MINI_PLAYER_HEIGHT } from '@/components/MiniPlayer';
+import { resolveCoverUrl } from '@/services/api';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const LINE_HEIGHT = 64;
@@ -352,9 +353,9 @@ export default function TranscriptScreen() {
 
                 {/* Book cover thumbnail */}
                 <View className="w-10 h-10 rounded-lg overflow-hidden bg-[#E8E3D6] mx-3 items-center justify-center">
-                    {displayEpisode.book?.coverImageUrl ? (
+                    {resolveCoverUrl(displayEpisode.book?.coverImageUrl) ? (
                         <Image
-                            source={{ uri: displayEpisode.book.coverImageUrl }}
+                            source={{ uri: resolveCoverUrl(displayEpisode.book?.coverImageUrl)! }}
                             style={{ width: 40, height: 40 }}
                             resizeMode="contain"
                         />

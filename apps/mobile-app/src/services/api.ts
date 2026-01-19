@@ -1,5 +1,34 @@
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
+// Debug: Log the API base URL at startup
+console.log('[API] Base URL:', API_BASE_URL);
+
+/**
+ * Resolve a cover image URL to an absolute URL.
+ * Google Books URLs are already absolute (https://...), but locally extracted
+ * covers use relative paths (/api/storage/...) that need the API base prepended.
+ */
+export function resolveCoverUrl(coverImageUrl: string | null | undefined): string | null {
+  if (!coverImageUrl) return null;
+
+  // Already an absolute URL (Google Books, etc.)
+  if (coverImageUrl.startsWith('http://') || coverImageUrl.startsWith('https://')) {
+    return coverImageUrl;
+  }
+
+  // Relative URL - prepend API base
+  let resolved: string;
+  if (coverImageUrl.startsWith('/')) {
+    resolved = `${API_BASE_URL}${coverImageUrl}`;
+  } else {
+    // Fallback - treat as relative
+    resolved = `${API_BASE_URL}/${coverImageUrl}`;
+  }
+
+  console.log('[API] Resolved cover URL:', coverImageUrl, '->', resolved);
+  return resolved;
+}
+
 export interface ApiError {
   message: string;
   statusCode: number;

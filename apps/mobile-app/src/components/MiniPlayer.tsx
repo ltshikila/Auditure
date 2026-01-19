@@ -5,6 +5,7 @@ import { usePlayback } from '@/contexts/PlaybackContext';
 import { router, useSegments } from 'expo-router';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { resolveCoverUrl } from '@/services/api';
 
 export const MINI_PLAYER_HEIGHT = 80;
 export const SIMPLIFIED_PLAYER_HEIGHT = 64;
@@ -186,9 +187,9 @@ export const MiniPlayer: React.FC = () => {
                 <View className="flex-row items-center px-4 py-3">
                     {/* Book cover */}
                     <View className="w-11 h-11 rounded-lg overflow-hidden bg-[#2A2C2E] mr-3 items-center justify-center">
-                        {episode.book?.coverImageUrl ? (
+                        {resolveCoverUrl(episode.book?.coverImageUrl) ? (
                             <Image
-                                source={{ uri: episode.book.coverImageUrl }}
+                                source={{ uri: resolveCoverUrl(episode.book?.coverImageUrl)! }}
                                 style={{ width: 44, height: 44 }}
                                 resizeMode="contain"
                             />

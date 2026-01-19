@@ -143,10 +143,23 @@ PENDING → SCRIPT_GENERATING → SCRIPT_GENERATED → AUDIO_GENERATING → COMP
 ### Prompt Engineering
 The service builds prompts that include:
 - Book content and metadata
+- **Content scope** (specific chapters being covered, e.g., "Chapter 2: The Power of Habit")
 - Podcaster personality traits
 - Episode type (monologue/duo/group)
 - Episode theme (lecture/discussion/debate)
 - Target length constraints
+
+### Chapter-Aware Content Scope
+Episode introductions automatically mention specific chapters based on user selection:
+- Single chapter: "Today we're covering **Chapter 3: The Power of Habit**"
+- Multiple chapters: "Today we're covering **Chapters 1-5**"
+- Entire book: "Today we're covering **the entire book**"
+
+### Anti-Repetition (Chunked Generation)
+For longer episodes (>1800 words), the generator uses chunked generation with topic tracking:
+- Topics, examples, quotes, and proper nouns are extracted from each chunk
+- Subsequent chunks receive a list of "already covered" items
+- LLM is explicitly instructed to use fresh examples and avoid repeating topics
 
 ### Personality Integration
 Podcaster traits are converted to descriptive text:

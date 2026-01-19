@@ -65,6 +65,8 @@ class ScriptGenerator:
         target_length_max: int,
         speaking_speed: int = 5,
         voice_tier: str = "standard",
+        content_scope: str = "the book",
+        chapter_title: Optional[str] = None,
     ) -> ScriptResult:
         """
         Generate a podcast script.
@@ -84,6 +86,8 @@ class ScriptGenerator:
             target_length_max: Maximum length in minutes
             speaking_speed: Podcaster speaking speed 1-10 (affects word count)
             voice_tier: TTS voice tier (gemini, premium, standard)
+            content_scope: Description of content being covered (e.g., "Chapter 2", "Chapters 1-3")
+            chapter_title: Title of the chapter if single chapter selected
 
         Returns:
             ScriptResult with generated script and metadata
@@ -138,6 +142,8 @@ class ScriptGenerator:
                     content_is_limited=content_is_limited,
                     retry_count=0,
                     expansion_ratio=expansion_ratio,
+                    content_scope=content_scope,
+                    chapter_title=chapter_title,
                 )
                 method = "llm"
 
@@ -170,6 +176,8 @@ class ScriptGenerator:
                         content_is_limited=True,  # Force deep dive on retry
                         retry_count=retry_num,
                         expansion_ratio=expansion_ratio,
+                        content_scope=content_scope,
+                        chapter_title=chapter_title,
                     )
                     retry_count = retry_num
                     method = f"llm_retry{retry_num}"
@@ -360,6 +368,7 @@ class ScriptGenerator:
         episode_theme: str,
         target_words: int,
         expansion_ratio: float,
+        content_scope: str = "the book",
     ) -> str:
         """Generate a long script in multiple chunks and combine them.
 
@@ -405,6 +414,7 @@ class ScriptGenerator:
                 is_last=is_last,
                 expansion_ratio=expansion_ratio,
                 topics_covered=topics_covered if chunk_num > 0 else None,
+                content_scope=content_scope,
             )
 
             logger.info(f"Generating chunk {chunk_num + 1}/{num_chunks}...")
@@ -464,11 +474,13 @@ class ScriptGenerator:
         if topics_covered and len(topics_covered) > 0:
             topics_list = "\n".join(f"  - {topic}" for topic in topics_covered)
             topics_section = f"""
-## TOPICS ALREADY COVERED - DO NOT REPEAT THESE!
-The following topics have already been discussed in previous parts. DO NOT repeat or rehash them:
+## ALREADY COVERED - DO NOT REPEAT THESE TOPICS OR EXAMPLES!
+The following topics, examples, and references have already been used in previous parts.
+DO NOT repeat them or use similar examples:
 {topics_list}
 
-Focus on NEW topics and fresh perspectives. If you must reference a covered topic, do so only briefly as a transition.
+CRITICAL: Use DIFFERENT examples and scenarios! If you talked about a restaurant example, use a different industry.
+If you mentioned a specific person or company, don't mention them again. Create FRESH illustrations!
 """
 
         # Position-specific instructions
@@ -579,8 +591,8 @@ When you need to EXPAND and add depth, use ONLY these techniques:
 ## TTS TAGS - ONLY USE THESE OFFICIAL TAGS
 - [sigh], [laughing], [chuckling], [clearing throat], [uhm], [uh]
 - [short pause], [medium pause], [long pause]
-- [whispering], [excited]
-**DO NOT use [nodding], [smiling], [thoughtful], [leaning in], [gesturing], or any visual/physical actions!**
+- [whispering]
+**DO NOT use [nodding], [smiling], [thoughtful], [leaning in], [gesturing], [excited], or any visual/physical actions!**
 
 Now write Part {chunk_num}:
 """
@@ -621,6 +633,8 @@ Now write Part {chunk_num}:
         content_is_limited: bool = False,
         retry_count: int = 0,
         expansion_ratio: float = 1.0,
+        content_scope: str = "the book",
+        chapter_title: Optional[str] = None,
     ) -> str:
         """Generate script using LLM."""
         retry_info = f" (RETRY #{retry_count} with enhanced prompt)" if retry_count > 0 else ""
@@ -640,6 +654,7 @@ Now write Part {chunk_num}:
                 episode_theme=episode_theme,
                 target_words=target_words,
                 expansion_ratio=expansion_ratio,
+                content_scope=content_scope,
             )
             logger.info(f"Chunked generation produced {len(script.split())} words")
             return script
@@ -660,6 +675,8 @@ Now write Part {chunk_num}:
             is_retry=retry_count > 0,
             retry_count=retry_count,
             expansion_ratio=expansion_ratio,
+            content_scope=content_scope,
+            chapter_title=chapter_title,
         )
 
         # Request more words on retries (increasingly aggressive)
@@ -710,17 +727,17 @@ Now write Part {chunk_num}:
         return script
 
     def _extract_topics_from_chunk(self, chunk_script: str) -> List[str]:
-        """Extract key topics/concepts discussed in a chunk to avoid repetition.
+        """Extract key topics, concepts, AND examples discussed in a chunk to avoid repetition.
 
-        Uses simple heuristics to identify main discussion points.
+        Uses heuristics to identify main discussion points and the examples/scenarios used.
+        Returns strings that describe both what was covered and how it was illustrated.
         """
         import re
 
         topics = []
 
         # Look for patterns that indicate topic discussion
-        # Pattern 1: "Let's talk about X" / "Let's discuss X"
-        patterns = [
+        topic_patterns = [
             r"let's (?:talk about|discuss|explore|dive into) ([^.!?]+)",
             r"the (?:key|main|first|second|third|next) (?:concept|idea|point|principle|lesson) (?:is|here is) ([^.!?]+)",
             r"this (?:is|shows|demonstrates|illustrates) ([^.!?]+)",
@@ -729,17 +746,57 @@ Now write Part {chunk_num}:
         ]
 
         text_lower = chunk_script.lower()
-        for pattern in patterns:
+        for pattern in topic_patterns:
             matches = re.findall(pattern, text_lower)
             for match in matches:
                 # Clean up the match
                 topic = match.strip()[:100]  # Limit length
                 if len(topic) > 10:  # Only meaningful topics
-                    topics.append(topic)
+                    topics.append(f"Topic: {topic}")
 
-        # Also extract any quoted concepts or emphasized phrases
+        # Extract EXAMPLES and SCENARIOS used (these should NOT be repeated)
+        example_patterns = [
+            # "For example, ..." / "For instance, ..."
+            r"for (?:example|instance),?\s+([^.!?]{20,150})",
+            # "Take X for example" / "Consider X"
+            r"(?:take|consider|look at|think about)\s+([^.!?]{10,100})\s+(?:for example|as an example)?",
+            # "Like when..." / "Like if..."
+            r"like (?:when|if|how)\s+([^.!?]{20,150})",
+            # "Imagine..." / "Picture..."
+            r"(?:imagine|picture|suppose|say)\s+([^.!?]{20,150})",
+            # "A good example is..." / "One example would be..."
+            r"(?:a|one|another|the best) (?:good |great |perfect |classic )?example (?:is|would be|here is)\s+([^.!?]{20,150})",
+            # "Think of it like..." / "It's like..."
+            r"(?:think of it like|it's like|it's similar to)\s+([^.!?]{20,150})",
+            # "In the story..." / "The author describes..."
+            r"(?:in the story|the author (?:describes|talks about|mentions)|the book (?:describes|talks about))\s+([^.!?]{20,150})",
+        ]
+
+        for pattern in example_patterns:
+            matches = re.findall(pattern, text_lower)
+            for match in matches:
+                example = match.strip()[:120]
+                if len(example) > 15:  # Only meaningful examples
+                    topics.append(f"Example used: {example}")
+
+        # Extract any quoted concepts or emphasized phrases
         quoted = re.findall(r'"([^"]{10,50})"', chunk_script)
-        topics.extend(quoted[:3])  # Limit to top 3 quoted phrases
+        for q in quoted[:3]:
+            topics.append(f"Quote/concept: {q}")
+
+        # Extract named people, companies, or case studies mentioned
+        # Look for capitalized proper nouns that might be case studies
+        proper_nouns = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b', chunk_script)
+        # Filter out common words and keep unique ones
+        common_words = {'The', 'This', 'That', 'What', 'When', 'Where', 'How', 'Why', 'Who',
+                        'And', 'But', 'Or', 'So', 'Well', 'Now', 'Today', 'Here', 'There',
+                        'Chapter', 'Part', 'Section', 'Book', 'Author', 'Host', 'Guest'}
+        unique_nouns = set()
+        for noun in proper_nouns:
+            if noun not in common_words and len(noun) > 3:
+                unique_nouns.add(noun)
+        for noun in list(unique_nouns)[:3]:
+            topics.append(f"Referenced: {noun}")
 
         # Deduplicate and limit
         seen = set()
@@ -750,7 +807,7 @@ Now write Part {chunk_num}:
                 seen.add(topic_key)
                 unique_topics.append(topic)
 
-        return unique_topics[:5]  # Return top 5 topics
+        return unique_topics[:10]  # Return top 10 items (topics + examples)
 
     def _clean_script(self, script: str, episode_type: str) -> str:
         """Clean and format the generated script."""
@@ -782,7 +839,7 @@ Now write Part {chunk_num}:
 
         # Remove unofficial TTS tags that can't be synthesized
         # Keep only: [sigh], [laughing], [chuckling], [clearing throat], [uhm], [uh],
-        #            [short pause], [medium pause], [long pause], [whispering], [excited]
+        #            [short pause], [medium pause], [long pause], [whispering]
         unofficial_tags = [
             r'\[nodding\]', r'\[nods\]',
             r'\[smiling\]', r'\[smiles\]',
@@ -799,6 +856,7 @@ Now write Part {chunk_num}:
             r'\[grinning\]', r'\[grins\]',
             r'\[frowning\]', r'\[frowns\]',
             r'\[winking\]', r'\[winks\]',
+            r'\[excited\]',  # Not an official Gemini TTS tag
         ]
         for tag in unofficial_tags:
             script = re.sub(tag, '', script, flags=re.IGNORECASE)

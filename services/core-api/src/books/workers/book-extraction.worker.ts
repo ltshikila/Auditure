@@ -46,13 +46,26 @@ export class BookExtractionWorker implements OnModuleInit {
                 throw new Error(`Unsupported source type: ${job.sourceType}`);
             }
 
+            // 3.5. Get current book from database to access original title (from filename)
+            // This is needed because PDF metadata often lacks title/author
+            const currentBook = await this.databaseService.book.findUnique({
+                where: { id: job.bookId },
+            });
+
+            // Determine best title for cover search - prefer PDF metadata, then database title
+            let coverSearchTitle = extracted.metadata.title;
+            if (!coverSearchTitle && currentBook?.title) {
+                coverSearchTitle = this.cleanupTitle(currentBook.title);
+                this.logger.log(`Using database title for cover search: "${coverSearchTitle}"`);
+            }
+
             // 4. Extract cover image (hybrid: Google Books API + file extraction)
             const storageKey = `${job.userId}/${job.bookId}`;
             const coverResult = await this.coverExtractionService.extractCover(
                 fileBuffer,
                 job.sourceType as 'PDF' | 'EPUB',
                 {
-                    title: extracted.metadata.title,
+                    title: coverSearchTitle,
                     author: extracted.metadata.author,
                 },
                 async (imageBuffer, key) => {
@@ -136,12 +149,8 @@ export class BookExtractionWorker implements OnModuleInit {
                 );
             }
 
-            // 6. Get current book to check if title/author need updating
-            const currentBook = await this.databaseService.book.findUnique({
-                where: { id: job.bookId },
-            });
-
-            // Determine best title - prefer PDF metadata, then clean up existing title
+            // 6. Determine best title/author for database update
+            // (currentBook was already fetched earlier for cover search)
             let bestTitle = extracted.metadata.title;
             if (!bestTitle && currentBook?.title) {
                 // URL-decode and clean up existing title (often from filename)

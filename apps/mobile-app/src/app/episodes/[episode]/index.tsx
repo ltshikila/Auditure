@@ -15,6 +15,7 @@ import { Episode, episodeService } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { playbackService, GenerationProgress } from '@/services/playback.service';
+import { resolveCoverUrl } from '@/services/api';
 
 export default function EpisodeInfoScreen() {
     const { episode: episodeId } = useLocalSearchParams<{ episode: string }>();
@@ -205,9 +206,9 @@ export default function EpisodeInfoScreen() {
                 {/* Book Cover */}
                 <View className="px-6 pt-4 items-center">
                     <View className="h-72 rounded-xl overflow-hidden shadow-lg bg-brand-input">
-                        {episode.book?.coverImageUrl ? (
+                        {resolveCoverUrl(episode.book?.coverImageUrl) ? (
                             <Image
-                                source={{ uri: episode.book.coverImageUrl }}
+                                source={{ uri: resolveCoverUrl(episode.book?.coverImageUrl)! }}
                                 style={{ width: 192, height: 288 }}
                                 resizeMode="contain"
                             />

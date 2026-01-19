@@ -123,6 +123,13 @@ class EpisodeConsumer(BaseConsumer):
                     f"({content_result['chapters_included']} chapters)"
                 )
 
+            # Build content_scope and chapter_title for script generation
+            content_scope, chapter_title = self._build_content_scope(
+                content_coverage=message["contentCoverage"],
+                chapter_info=content_result.get("chapter_info", []),
+            )
+            logger.info(f"[STEP 3/9] Content scope: {content_scope}")
+
             # Step 4: Generate script
             logger.info("[STEP 4/9] Starting script generation...")
             self._update_progress(episode_id, PROGRESS_SCRIPT_GENERATING, "SCRIPT_GENERATING")
@@ -147,6 +154,8 @@ class EpisodeConsumer(BaseConsumer):
                 target_length_max=message["targetLengthMax"],
                 speaking_speed=podcaster.speaking_speed,
                 voice_tier=voice_tier,
+                content_scope=content_scope,
+                chapter_title=chapter_title,
             )
 
             logger.info(
@@ -276,3 +285,61 @@ class EpisodeConsumer(BaseConsumer):
         except Exception as e:
             logger.error(f"Failed to update progress in Redis: {e}")
             # Don't raise - progress update failure shouldn't stop processing
+
+    def _build_content_scope(
+        self,
+        content_coverage: str,
+        chapter_info: list,
+    ) -> tuple:
+        """
+        Build content_scope string and chapter_title from coverage info.
+
+        Args:
+            content_coverage: ENTIRE_BOOK, MULTIPLE_CHAPTERS, or SINGLE_CHAPTER
+            chapter_info: List of dicts with 'number' and 'title' keys
+
+        Returns:
+            Tuple of (content_scope, chapter_title)
+            - content_scope: e.g., "Chapter 2", "Chapters 1-3", "the entire book"
+            - chapter_title: Title if single chapter, None otherwise
+        """
+        if not chapter_info:
+            return ("the book", None)
+
+        if content_coverage == "ENTIRE_BOOK" or content_coverage == "FULL":
+            return ("the entire book", None)
+
+        if content_coverage == "SINGLE_CHAPTER" and len(chapter_info) == 1:
+            ch = chapter_info[0]
+            chapter_num = ch.get("number", 1)
+            chapter_title = ch.get("title")
+
+            if chapter_title:
+                return (f"Chapter {chapter_num}: {chapter_title}", chapter_title)
+            else:
+                return (f"Chapter {chapter_num}", None)
+
+        # Multiple chapters
+        if len(chapter_info) == 1:
+            ch = chapter_info[0]
+            chapter_num = ch.get("number", 1)
+            chapter_title = ch.get("title")
+            if chapter_title:
+                return (f"Chapter {chapter_num}: {chapter_title}", chapter_title)
+            return (f"Chapter {chapter_num}", None)
+
+        # Multiple chapters - build a range or list
+        chapter_numbers = [ch.get("number", i + 1) for i, ch in enumerate(chapter_info)]
+        chapter_numbers.sort()
+
+        # Check if chapters are consecutive
+        if chapter_numbers == list(range(chapter_numbers[0], chapter_numbers[-1] + 1)):
+            # Consecutive range: "Chapters 1-5"
+            return (f"Chapters {chapter_numbers[0]}-{chapter_numbers[-1]}", None)
+        else:
+            # Non-consecutive: "Chapters 1, 3, and 5"
+            if len(chapter_numbers) == 2:
+                return (f"Chapters {chapter_numbers[0]} and {chapter_numbers[1]}", None)
+            else:
+                nums_str = ", ".join(str(n) for n in chapter_numbers[:-1])
+                return (f"Chapters {nums_str}, and {chapter_numbers[-1]}", None)

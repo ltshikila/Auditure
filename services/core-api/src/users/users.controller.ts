@@ -1,34 +1,118 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+    Controller,
+    Get,
+    Post,
+    Patch,
+    Delete,
+    Body,
+    UseGuards,
+    Request,
+    HttpCode,
+    HttpStatus,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { DeleteAccountDto } from './dto/delete-account.dto';
+import { UpdateSettingsDto } from './dto/user-settings.dto';
+import { AcceptTermsDto } from './dto/accept-terms.dto';
 
 @Controller('users')
+@UseGuards(JwtAuthGuard)
 export class UsersController {
     constructor(private readonly usersService: UsersService) {}
 
-    @Post()
-    create(@Body() createUserDto: CreateUserDto) {
-        return this.usersService.create(createUserDto);
+    // ========== PROFILE ==========
+
+    /**
+     * Get current user profile
+     * GET /users/me
+     */
+    @Get('me')
+    getProfile(@Request() req) {
+        return this.usersService.getProfile(req.user.userId);
     }
 
-    @Get()
-    findAll() {
-        return this.usersService.findAll();
+    /**
+     * Update current user profile
+     * PATCH /users/me
+     */
+    @Patch('me')
+    updateProfile(@Request() req, @Body() updateProfileDto: UpdateProfileDto) {
+        return this.usersService.updateProfile(req.user.userId, updateProfileDto);
     }
 
-    @Get(':id')
-    findOne(@Param('id') id: string) {
-        return this.usersService.findOne(+id);
+    /**
+     * Delete current user account (requires password confirmation)
+     * DELETE /users/me
+     */
+    @Delete('me')
+    @HttpCode(HttpStatus.OK)
+    deleteAccount(@Request() req, @Body() deleteAccountDto: DeleteAccountDto) {
+        return this.usersService.deleteAccount(req.user.userId, deleteAccountDto);
     }
 
-    @Patch(':id')
-    update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-        return this.usersService.update(+id, updateUserDto);
+    // ========== LOGOUT ==========
+
+    /**
+     * Logout (clear refresh token)
+     * POST /users/logout
+     */
+    @Post('logout')
+    @HttpCode(HttpStatus.OK)
+    logout(@Request() req) {
+        return this.usersService.logout(req.user.userId);
     }
 
-    @Delete(':id')
-    remove(@Param('id') id: string) {
-        return this.usersService.remove(+id);
+    // ========== SETTINGS ==========
+
+    /**
+     * Get user settings
+     * GET /users/settings
+     */
+    @Get('settings')
+    getSettings(@Request() req) {
+        return this.usersService.getSettings(req.user.userId);
+    }
+
+    /**
+     * Update user settings
+     * PATCH /users/settings
+     */
+    @Patch('settings')
+    updateSettings(@Request() req, @Body() updateSettingsDto: UpdateSettingsDto) {
+        return this.usersService.updateSettings(req.user.userId, updateSettingsDto);
+    }
+
+    // ========== SUBSCRIPTION ==========
+
+    /**
+     * Get subscription status and usage
+     * GET /users/subscription
+     */
+    @Get('subscription')
+    getSubscription(@Request() req) {
+        return this.usersService.getSubscription(req.user.userId);
+    }
+
+    // ========== TERMS & CONDITIONS ==========
+
+    /**
+     * Get current terms and conditions
+     * GET /users/terms
+     */
+    @Get('terms')
+    getTerms() {
+        return this.usersService.getTerms();
+    }
+
+    /**
+     * Accept terms and conditions
+     * POST /users/terms/accept
+     */
+    @Post('terms/accept')
+    @HttpCode(HttpStatus.OK)
+    acceptTerms(@Request() req, @Body() acceptTermsDto: AcceptTermsDto) {
+        return this.usersService.acceptTerms(req.user.userId, acceptTermsDto);
     }
 }

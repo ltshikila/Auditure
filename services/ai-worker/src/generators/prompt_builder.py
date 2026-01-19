@@ -459,8 +459,8 @@ Repetition is the enemy of engagement. Keep moving forward with fresh content.
 The only allowed TTS expression tags are:
 - [sigh], [laughing], [chuckling], [clearing throat], [uhm], [uh]
 - [short pause], [medium pause], [long pause]
-- [whispering], [excited]
-**DO NOT use tags like [nodding], [smiling], [thoughtful], [leaning in], [gesturing], or any visual/physical actions - these cannot be synthesized by TTS!**
+- [whispering]
+**DO NOT use tags like [nodding], [smiling], [thoughtful], [leaning in], [gesturing], [excited], or any visual/physical actions - these cannot be synthesized by TTS!**
 
 ## Book Content to Discuss (THIS IS THE ONLY CONTENT YOU CAN REFERENCE!)
 {request.book_content}

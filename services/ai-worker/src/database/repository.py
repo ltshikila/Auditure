@@ -118,6 +118,12 @@ class EpisodeRepository:
                     total_chars += len(chapter.extracted_text)
                     chapters_included += 1
 
+            # Build list of chapter info (number and title) for included chapters
+            chapter_info = [
+                {"number": ch.chapter_number, "title": ch.title}
+                for ch in chapters[:chapters_included]
+            ]
+
             return {
                 "content": "\n\n".join(content_parts),
                 "truncated": truncated,
@@ -125,6 +131,7 @@ class EpisodeRepository:
                 "returned_chars": total_chars,
                 "chapters_included": chapters_included,
                 "total_chapters": len(chapters),
+                "chapter_info": chapter_info,
             }
         finally:
             session.close()

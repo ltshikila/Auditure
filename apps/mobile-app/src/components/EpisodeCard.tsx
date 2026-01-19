@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { Episode } from '@/services/episode.service';
+import { resolveCoverUrl } from '@/services/api';
 
 interface EpisodeCardProps {
     episode: Episode;
@@ -16,9 +17,9 @@ export const EpisodeCard: React.FC<EpisodeCardProps> = ({ episode, onPress }) =>
         >
             {/* Book Cover */}
             <View className="w-[110px] h-[160px] rounded-lg overflow-hidden bg-brand-input mb-2 shadow-sm items-center justify-center">
-                {episode.book?.coverImageUrl ? (
+                {resolveCoverUrl(episode.book?.coverImageUrl) ? (
                     <Image
-                        source={{ uri: episode.book.coverImageUrl }}
+                        source={{ uri: resolveCoverUrl(episode.book?.coverImageUrl)! }}
                         style={{ width: 110, height: 160 }}
                         resizeMode="contain"
                     />

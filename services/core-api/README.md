@@ -37,6 +37,7 @@ services/core-api/
 │   ├── common/                  # Shared services
 │   │   ├── email.service.ts     # Email/OTP service
 │   │   ├── storage.service.ts   # File storage abstraction
+│   │   ├── storage.controller.ts# File serving endpoint (/api/storage/*)
 │   │   └── guards/              # Rate limiting guards
 │   ├── database/                # Prisma integration
 │   ├── redis/                   # Redis caching module
@@ -191,6 +192,15 @@ See [Books Service Documentation](src/books/README.md) for detailed API document
 - `GET /api/book/:id` - Get book for episode generation
 - `GET /api/search` - Search books
 - `GET /api/popular` - Get popular books
+
+### Storage Endpoints
+
+**Base URL:** `/api/storage`
+
+- `GET /*` - Serve files from storage (cover images, etc.)
+  - Example: `/api/storage/{userId}/{bookId}/cover.jpg`
+  - Returns: File content with appropriate Content-Type
+  - Supports: jpg, jpeg, png, gif, webp, pdf, txt, mp3, wav, ogg
 
 ## Testing
 

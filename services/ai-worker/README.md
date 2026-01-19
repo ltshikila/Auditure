@@ -27,6 +27,9 @@ ai-worker/
 ## Features
 
 - **Script Generation**: OpenAI GPT-4o mini with template fallback
+- **Chapter-Aware Scripts**: Episode introductions specify exact chapters being covered
+- **Chunked Generation**: Long scripts (>1800 words) split into multiple chunks with topic tracking
+- **Anti-Repetition**: Automatic extraction of covered topics and examples to prevent repetition
 - **Text-to-Speech**: Gemini 2.5 Flash TTS (premium) + Google Cloud Standard (free tier)
 - **Voice Tiers**: Standard ($4/1M chars) or Gemini (~$0.15/10-min episode)
 - **Episode Types**: MONOLOGUE, DUO, GROUP (multi-voice support)
@@ -119,8 +122,10 @@ Scripts include Gemini TTS markup tags for natural speech synthesis:
 | `[long pause]` | ~1s+ pause | "And then [long pause] everything changed." |
 | `[sigh]` | Sighing sound | "[sigh] This is frustrating." |
 | `[laughing]` | Laughter | "Wait, really? [laughing] That's hilarious!" |
-| `[uhm]` | Thinking hesitation | "[uhm] I'm not sure about that." |
-| `[excited]` | Excited delivery | "[excited] This is amazing!" |
+| `[chuckling]` | Light laughter | "[chuckling] That's a good point." |
+| `[uhm]` / `[uh]` | Thinking hesitation | "[uhm] I'm not sure about that." |
+| `[whispering]` | Quieter delivery | "[whispering] Here's the secret..." |
+| `[clearing throat]` | Throat clear | "[clearing throat] Anyway, moving on..." |
 
 **Reference:** [Gemini TTS Prompting Tips](https://docs.cloud.google.com/text-to-speech/docs/gemini-tts#prompting_tips)
 
@@ -172,6 +177,43 @@ Multi-speaker episodes (DUO, GROUP) include verbal cues for natural conversation
 
 #### LECTURE Episodes
 No interruptions (monologue format).
+
+### Script Generation
+
+#### Chapter-Aware Content Scope
+
+Scripts automatically include specific chapter information in the introduction based on user selection:
+
+| Content Coverage | Example Introduction |
+|------------------|---------------------|
+| Single Chapter | "Today we're covering **Chapter 3: The Power of Habit**" |
+| Multiple Chapters | "Today we're covering **Chapters 1-5** from..." |
+| Non-consecutive | "Today we're covering **Chapters 1, 3, and 7**..." |
+| Entire Book | "Today we're covering **the entire book**" |
+
+This ensures listeners know exactly what content is being discussed.
+
+#### Chunked Generation for Long Episodes
+
+For target scripts exceeding 1,800 words, the generator uses **chunked generation**:
+
+1. Script is split into multiple chunks (~1,300 words each)
+2. Each chunk has position-specific instructions (intro/middle/conclusion)
+3. Context from previous chunks is passed forward
+4. Topics and examples are tracked to prevent repetition
+
+#### Anti-Repetition System
+
+Between chunks, the system extracts and tracks:
+
+| Tracked Item | Example |
+|--------------|---------|
+| **Topics** | "the power of compound interest" |
+| **Examples** | "the restaurant scenario with the waiter" |
+| **Quotes** | "time is money" |
+| **References** | "Warren Buffett", "Apple Inc." |
+
+Subsequent chunks are explicitly instructed to avoid repeating these elements and use fresh examples.
 
 ## Environment Variables
 
