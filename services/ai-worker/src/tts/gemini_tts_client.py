@@ -256,16 +256,18 @@ def _analyze_pcm_chunk(chunk: bytes, chunk_index: int, sample_rate: int = 24000,
     import struct
 
     if not chunk:
-        return {"error": "empty chunk"}
+        return {"error": "empty chunk", "is_silent": True}
 
     num_samples = len(chunk) // sample_width
     duration_sec = num_samples / sample_rate
 
-    # Calculate RMS (volume indicator)
+    # Calculate RMS (volume indicator) - sample throughout the chunk
     samples = []
-    for i in range(min(num_samples, 10000)):  # Sample first 10k samples
-        sample = struct.unpack('<h', chunk[i*2:(i+1)*2])[0]
-        samples.append(sample)
+    step = max(1, num_samples // 10000)  # Sample ~10k points spread throughout
+    for i in range(0, num_samples, step):
+        if i * 2 + 2 <= len(chunk):
+            sample = struct.unpack('<h', chunk[i*2:(i+1)*2])[0]
+            samples.append(sample)
 
     if samples:
         rms = (sum(s*s for s in samples) / len(samples)) ** 0.5
@@ -276,6 +278,10 @@ def _analyze_pcm_chunk(chunk: bytes, chunk_index: int, sample_rate: int = 24000,
         max_amplitude = 0
         dc_offset = 0
 
+    # Audio is considered silent if RMS is below threshold
+    # Normal speech has RMS of 1000-5000+, silence is typically < 100
+    is_silent = rms < 100 and max_amplitude < 500
+
     return {
         "chunk_index": chunk_index,
         "duration_sec": round(duration_sec, 2),
@@ -283,6 +289,7 @@ def _analyze_pcm_chunk(chunk: bytes, chunk_index: int, sample_rate: int = 24000,
         "max_amplitude": max_amplitude,
         "dc_offset": round(dc_offset, 1),
         "size_bytes": len(chunk),
+        "is_silent": is_silent,
     }
 
 
@@ -750,64 +757,99 @@ class GeminiTTSClient:
             voice = voice_assignments.get(speaker, "Kore")
             logger.info(f"[Gemini TTS] Turn {i+1}/{len(turns)}: {speaker} ({voice}) - {len(dialogue)} chars")
 
-            # Single-speaker generation
-            speech_config = types.SpeechConfig(
-                voice_config=types.VoiceConfig(
-                    prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                        voice_name=voice,
-                    )
-                )
-            )
+            # Single-speaker generation with retry for silent audio
+            max_retries = 3
+            pcm_data = None
 
-            try:
-                response = self.client.models.generate_content(
-                    model=self.MODEL_NAME,
-                    contents=dialogue,
-                    config=types.GenerateContentConfig(
-                        response_modalities=["AUDIO"],
-                        speech_config=speech_config,
+            for attempt in range(max_retries):
+                speech_config = types.SpeechConfig(
+                    voice_config=types.VoiceConfig(
+                        prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                            voice_name=voice,
+                        )
                     )
                 )
 
-                # Extract PCM audio data
-                if response.candidates and len(response.candidates) > 0:
-                    candidate = response.candidates[0]
-                    if hasattr(candidate, 'content') and candidate.content.parts:
-                        for part in candidate.content.parts:
-                            if hasattr(part, 'inline_data') and part.inline_data:
-                                raw_data = part.inline_data.data
+                try:
+                    response = self.client.models.generate_content(
+                        model=self.MODEL_NAME,
+                        contents=dialogue,
+                        config=types.GenerateContentConfig(
+                            response_modalities=["AUDIO"],
+                            speech_config=speech_config,
+                        )
+                    )
 
-                                # Handle base64-encoded data
-                                if isinstance(raw_data, str):
-                                    pcm_data = base64.b64decode(raw_data)
-                                elif isinstance(raw_data, bytes):
-                                    sample = raw_data[:100]
-                                    is_likely_base64 = all(
-                                        (43 <= b <= 122) or b in (10, 13, 32, 61)
-                                        for b in sample
-                                    )
-                                    if is_likely_base64:
+                    # Extract PCM audio data
+                    if response.candidates and len(response.candidates) > 0:
+                        candidate = response.candidates[0]
+                        if hasattr(candidate, 'content') and candidate.content.parts:
+                            for part in candidate.content.parts:
+                                if hasattr(part, 'inline_data') and part.inline_data:
+                                    raw_data = part.inline_data.data
+
+                                    # Handle base64-encoded data
+                                    if isinstance(raw_data, str):
                                         pcm_data = base64.b64decode(raw_data)
+                                    elif isinstance(raw_data, bytes):
+                                        sample = raw_data[:100]
+                                        is_likely_base64 = all(
+                                            (43 <= b <= 122) or b in (10, 13, 32, 61)
+                                            for b in sample
+                                        )
+                                        if is_likely_base64:
+                                            pcm_data = base64.b64decode(raw_data)
+                                        else:
+                                            pcm_data = raw_data
                                     else:
                                         pcm_data = raw_data
-                                else:
-                                    pcm_data = raw_data
 
-                                all_pcm_data.append(pcm_data)
-                                duration = len(pcm_data) / (self.SAMPLE_RATE * self.SAMPLE_WIDTH)
-                                logger.info(f"[Gemini TTS] Turn {i+1} generated: {duration:.1f}s")
-                                break
+                                    # Validate audio is not silent
+                                    chunk_stats = _analyze_pcm_chunk(pcm_data, i, self.SAMPLE_RATE, self.SAMPLE_WIDTH)
+                                    duration = chunk_stats["duration_sec"]
+
+                                    if chunk_stats.get("is_silent", False):
+                                        logger.warning(
+                                            f"[Gemini TTS] Turn {i+1} audio is SILENT "
+                                            f"(attempt {attempt+1}/{max_retries}): "
+                                            f"RMS={chunk_stats['rms']}, max={chunk_stats['max_amplitude']}"
+                                        )
+                                        logger.warning(f"[Gemini TTS] Silent dialogue: {dialogue[:100]}...")
+                                        if attempt < max_retries - 1:
+                                            pcm_data = None  # Reset to trigger retry
+                                            continue  # Retry
+                                        else:
+                                            logger.error(f"[Gemini TTS] Turn {i+1} still silent after {max_retries} attempts")
+                                            # Use the silent audio as last resort
+                                    else:
+                                        logger.info(
+                                            f"[Gemini TTS] Turn {i+1} generated: {duration:.1f}s "
+                                            f"(RMS={chunk_stats['rms']}, max={chunk_stats['max_amplitude']})"
+                                        )
+                                    break
+                            else:
+                                raise GeminiTTSError(f"No audio data in turn {i+1} response")
                         else:
-                            raise GeminiTTSError(f"No audio data in turn {i+1} response")
+                            raise GeminiTTSError(f"No content in turn {i+1} response")
                     else:
-                        raise GeminiTTSError(f"No content in turn {i+1} response")
-                else:
-                    raise GeminiTTSError(f"No candidates in turn {i+1} response")
+                        raise GeminiTTSError(f"No candidates in turn {i+1} response")
 
-            except GeminiTTSError:
-                raise
-            except Exception as e:
-                raise GeminiTTSError(f"Failed to generate turn {i+1}: {str(e)}")
+                    # If we got valid audio, break out of retry loop
+                    if pcm_data is not None:
+                        break
+
+                except GeminiTTSError:
+                    raise
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        logger.warning(f"[Gemini TTS] Turn {i+1} failed (attempt {attempt+1}), retrying: {e}")
+                        continue
+                    raise GeminiTTSError(f"Failed to generate turn {i+1}: {str(e)}")
+
+            if pcm_data is None:
+                raise GeminiTTSError(f"Failed to generate audio for turn {i+1} after {max_retries} attempts")
+
+            all_pcm_data.append(pcm_data)
 
         # Crossfade all segments
         logger.info(f"[Gemini TTS] Crossfading {len(all_pcm_data)} segments...")
@@ -895,9 +937,34 @@ class GeminiTTSClient:
 
                 for i, chunk in enumerate(chunks):
                     logger.info(f"[Gemini TTS] Generating chunk {i+1}/{len(chunks)} ({len(chunk)} chars)...")
-                    pcm_data = self._generate_single_chunk(
-                        chunk, voice_assignments, episode_type, language_code
-                    )
+
+                    # Retry logic for silent audio detection
+                    max_chunk_retries = 2
+                    pcm_data = None
+
+                    for attempt in range(max_chunk_retries):
+                        pcm_data = self._generate_single_chunk(
+                            chunk, voice_assignments, episode_type, language_code
+                        )
+
+                        # Analyze chunk audio quality
+                        chunk_stats = _analyze_pcm_chunk(pcm_data, i, self.SAMPLE_RATE, self.SAMPLE_WIDTH)
+
+                        if chunk_stats.get("is_silent", False):
+                            logger.warning(
+                                f"[Gemini TTS] Chunk {i+1} audio is SILENT "
+                                f"(attempt {attempt+1}/{max_chunk_retries}): "
+                                f"RMS={chunk_stats['rms']}, max={chunk_stats['max_amplitude']}"
+                            )
+                            # Log first 200 chars of chunk to identify problematic content
+                            logger.warning(f"[Gemini TTS] Silent chunk content preview: {chunk[:200]}...")
+                            if attempt < max_chunk_retries - 1:
+                                continue  # Retry
+                            else:
+                                logger.error(f"[Gemini TTS] Chunk {i+1} still silent after {max_chunk_retries} attempts")
+                        else:
+                            break  # Audio is valid
+
                     all_pcm_data.append(pcm_data)
 
                     # Calculate cost for this chunk
@@ -908,8 +975,6 @@ class GeminiTTSClient:
                                  (audio_tokens / 1_000_000) * self.OUTPUT_PRICE_PER_M
                     total_cost += chunk_cost
 
-                    # Analyze chunk audio quality for diagnostics
-                    chunk_stats = _analyze_pcm_chunk(pcm_data, i, self.SAMPLE_RATE, self.SAMPLE_WIDTH)
                     logger.info(f"[Gemini TTS] Chunk {i+1} generated: {duration_sec:.1f}s, cost: ${chunk_cost:.4f}")
                     logger.info(f"[Gemini TTS] Chunk {i+1} audio stats: RMS={chunk_stats['rms']}, max={chunk_stats['max_amplitude']}, dc_offset={chunk_stats['dc_offset']}")
 

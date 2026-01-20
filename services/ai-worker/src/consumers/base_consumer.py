@@ -51,8 +51,8 @@ class BaseConsumer(ABC):
         logger.info(f"Connecting to RabbitMQ: {self.rabbitmq_url}")
 
         parameters = pika.URLParameters(self.rabbitmq_url)
-        parameters.heartbeat = 600
-        parameters.blocked_connection_timeout = 300
+        parameters.heartbeat = 1800  # 30 minutes - allows for long TTS generation
+        parameters.blocked_connection_timeout = 1800
 
         self.connection = pika.BlockingConnection(parameters)
         self.channel = self.connection.channel()

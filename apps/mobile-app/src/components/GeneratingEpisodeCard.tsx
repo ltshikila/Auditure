@@ -27,11 +27,16 @@ const statusProgress: Record<EpisodeStatus, number> = {
     FAILED: 0,
 };
 
-export const GeneratingEpisodeCard: React.FC<GeneratingEpisodeCardProps> = ({ episode, onPress }) => {
+export const GeneratingEpisodeCard: React.FC<GeneratingEpisodeCardProps> = ({
+    episode,
+    onPress,
+}) => {
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const progressAnim = useRef(new Animated.Value(0)).current;
 
-    const isProcessing = ['PENDING', 'SCRIPT_GENERATING', 'AUDIO_GENERATING'].includes(episode.generationStatus);
+    const isProcessing = ['PENDING', 'SCRIPT_GENERATING', 'AUDIO_GENERATING'].includes(
+        episode.generationStatus,
+    );
     const isFailed = episode.generationStatus === 'FAILED';
     const progress = statusProgress[episode.generationStatus];
 
@@ -60,7 +65,7 @@ export const GeneratingEpisodeCard: React.FC<GeneratingEpisodeCardProps> = ({ ep
                         easing: Easing.inOut(Easing.ease),
                         useNativeDriver: true,
                     }),
-                ])
+                ]),
             );
             pulse.start();
             return () => pulse.stop();
@@ -75,9 +80,14 @@ export const GeneratingEpisodeCard: React.FC<GeneratingEpisodeCardProps> = ({ ep
     return (
         <TouchableOpacity
             onPress={onPress}
-            className="mr-4 bg-white rounded-xl p-3 shadow-sm"
-            style={{ width: 200 }}
-        >
+            className=" bg-[#F5F5F0] rounded-2xl p-4 items-center mb-3  justify-center shadow-md"
+            style={{
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 10,
+                elevation: 8,
+            }}>
             <View className="flex-row">
                 {/* Book Cover Thumbnail */}
                 <View className="w-14 h-20 rounded-lg overflow-hidden bg-brand-input mr-3 items-center justify-center">
@@ -95,54 +105,58 @@ export const GeneratingEpisodeCard: React.FC<GeneratingEpisodeCardProps> = ({ ep
                 </View>
 
                 {/* Info */}
-                <View className="flex-1 justify-center">
-                    <Text className="font-inter-medium text-[#1A1C1E] text-sm" numberOfLines={2}>
+                <View className="flex-1 justify-start ">
+                    <Text className="font-inter-medium text-[#1A1C1E] text-lg" numberOfLines={2}>
                         {episode.title}
                     </Text>
                     <Text className="font-inter text-[#858585] text-xs mt-1" numberOfLines={1}>
                         {episode.book?.title}
                     </Text>
+                    {episode.podcaster?.name && (
+                        <Text className="font-inter text-[#858585] text-xs mt-0.5" numberOfLines={1}>
+                            by {episode.podcaster.name}
+                        </Text>
+                    )}
                 </View>
             </View>
 
             {/* Progress Section */}
-            <View className="mt-3">
+            <View className="mt-3 self-start">
                 {/* Status Text */}
-                <View className="flex-row items-center justify-between mb-2">
+                <View className="flex-row items-center justify-start mb-2">
                     <View className="flex-row items-center">
                         {isProcessing && (
                             <Animated.View style={{ opacity: pulseAnim }}>
                                 <Ionicons name="sync" size={12} color="#BF9A54" />
                             </Animated.View>
                         )}
-                        {isFailed && (
-                            <Ionicons name="alert-circle" size={12} color="#DC2626" />
-                        )}
+                        {isFailed && <Ionicons name="alert-circle" size={12} color="#DC2626" />}
                         {episode.generationStatus === 'COMPLETED' && (
                             <Ionicons name="checkmark-circle" size={12} color="#16A34A" />
                         )}
                         <Text
                             className={`font-inter text-xs ml-1 ${
-                                isFailed ? 'text-red-600' :
-                                episode.generationStatus === 'COMPLETED' ? 'text-green-600' :
-                                'text-brand-gold'
-                            }`}
-                        >
+                                isFailed
+                                    ? 'text-red-600'
+                                    : episode.generationStatus === 'COMPLETED'
+                                      ? 'text-green-600'
+                                      : 'text-brand-gold'
+                            }`}>
                             {statusMessages[episode.generationStatus]}
                         </Text>
                     </View>
-                    <Text className="font-inter text-xs text-[#858585]">
-                        {progress}%
-                    </Text>
+                    <Text className="font-inter text-xs text-[#858585]">{progress}%</Text>
                 </View>
 
                 {/* Progress Bar */}
                 <View className="h-1.5 bg-[#E8E3D6] rounded-full overflow-hidden">
                     <Animated.View
                         className={`h-full rounded-full ${
-                            isFailed ? 'bg-red-500' :
-                            episode.generationStatus === 'COMPLETED' ? 'bg-green-500' :
-                            'bg-brand-gold'
+                            isFailed
+                                ? 'bg-red-500'
+                                : episode.generationStatus === 'COMPLETED'
+                                  ? 'bg-green-500'
+                                  : 'bg-brand-gold'
                         }`}
                         style={{ width: progressWidth }}
                     />

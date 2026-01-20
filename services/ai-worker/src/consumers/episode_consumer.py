@@ -68,6 +68,15 @@ class EpisodeConsumer(BaseConsumer):
         episode_id = message["episodeId"]
         voice_tier = message.get("voiceTier", "STANDARD").lower()  # Default to standard
 
+        # Idempotency check: skip if episode is already completed
+        existing_episode = self.repository.get_episode(episode_id)
+        if existing_episode and existing_episode.generation_status == EpisodeStatus.COMPLETED.value:
+            logger.info("=" * 50)
+            logger.info(f"[EPISODE] SKIPPING: {episode_id} - already COMPLETED")
+            logger.info("[EPISODE] Message was likely redelivered after connection loss")
+            logger.info("=" * 50)
+            return  # Exit without processing - episode is already done
+
         logger.info("=" * 50)
         logger.info(f"[EPISODE] Starting generation for: {episode_id}")
         logger.info(f"[EPISODE] Title: {message.get('title', 'Unknown')}")

@@ -186,12 +186,12 @@ export const MiniPlayer: React.FC = () => {
                 {/* Main content row */}
                 <View className="flex-row items-center px-4 py-3">
                     {/* Book cover */}
-                    <View className="w-11 h-11 rounded-lg overflow-hidden bg-[#2A2C2E] mr-3 items-center justify-center">
+                    <View className="rounded-lg overflow-hidden bg-[#2A2C2E] mr-3 items-center justify-center" style={{ width: 36, height: 48 }}>
                         {resolveCoverUrl(episode.book?.coverImageUrl) ? (
                             <Image
                                 source={{ uri: resolveCoverUrl(episode.book?.coverImageUrl)! }}
-                                style={{ width: 44, height: 44 }}
-                                resizeMode="contain"
+                                style={{ width: 36, height: 48, borderRadius: 2}}
+                                resizeMode="cover"
                             />
                         ) : (
                             <View className="w-full h-full items-center justify-center">

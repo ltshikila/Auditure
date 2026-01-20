@@ -137,7 +137,7 @@ export default function EpisodesScreen() {
                 <View className="px-6 pt-4 pb-2">
                     <View className="flex-row items-center justify-between">
                         <View>
-                            <Text className="font-jakarta-bold text-2xl text-[#1A1C1E]">Episodes</Text>
+                            <Text className="font-jakarta-bold text-2xl text-brand-black">Episodes</Text>
                             <Text className="font-jakarta text-[#858585] text-sm">
                                 Manage and view your saved and generated episodes
                             </Text>
@@ -167,7 +167,7 @@ export default function EpisodesScreen() {
                         <View className="w-24 h-24 bg-brand-gold/20 rounded-full items-center justify-center mb-4">
                             <Ionicons name="headset" size={48} color="#BF9A54" />
                         </View>
-                        <Text className="font-inter-bold text-xl text-[#1A1C1E] mb-2">No episodes yet</Text>
+                        <Text className="font-inter-bold text-xl text-brand-black mb-2">No episodes yet</Text>
                         <Text className="font-inter text-[#858585] text-center mb-6">
                             Create your first episode to start listening to AI-generated podcasts from your books
                         </Text>
@@ -186,7 +186,7 @@ export default function EpisodesScreen() {
                         <View className="flex-row items-center justify-between mb-3 px-6">
                             <View className="flex-row items-center">
                                 <Ionicons name="sync" size={18} color="#BF9A54" />
-                                <Text className="font-inter-medium text-lg text-[#1A1C1E] ml-2">
+                                <Text className="font-inter-medium text-lg text-brand-black ml-2">
                                     Generating ({generatingEpisodes.length})
                                 </Text>
                             </View>

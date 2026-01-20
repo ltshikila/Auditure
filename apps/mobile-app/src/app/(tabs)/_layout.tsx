@@ -30,8 +30,8 @@ function TabIcon({ focused, icon, iconFilled }: TabIconProps) {
       <Image
         source={focused ? iconFilled : icon}
         style={{
-          width: 36,
-          height: 36,
+          width: 34,
+          height: 34,
           tintColor: focused ? '#2F2F2F' : '#848282',
         }}
         resizeMode="contain"
@@ -58,7 +58,7 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets();
 
   // Base tab bar height + bottom safe area inset (handles both gesture nav and 3-button nav)
-  const tabBarHeight = 75 + insets.bottom;
+  const tabBarHeight = 72 + insets.bottom;
 
   if (loading) {
     return (

@@ -15,6 +15,7 @@ module.exports = {
           gold: '#BF9A54',     // Gold/Tan Toggle & Accents
           beige: '#FBF8F2',    // Beige Background
           input: '#F1EEE3',    // Input Background
+          black: '#2F2F2F'
         }
       },
       fontFamily: {

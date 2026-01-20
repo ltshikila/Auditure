@@ -1,11 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-    View,
-    Text,
-    TouchableOpacity,
-    Image,
-    ActivityIndicator,
-} from 'react-native';
+import { View, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +8,12 @@ import { usePlayback } from '@/contexts/PlaybackContext';
 import { Episode, episodeService } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
 import { resolveCoverUrl } from '@/services/api';
+
+const icons = {
+    star: require('@/assets/icons/star.png'),
+    language: require('@/assets/icons/language.png'),
+    microphone: require('@/assets/icons/microphone.png'),
+};
 
 // Returns first few lines of transcript as a static preview
 // Note: Time-synced preview is disabled because TTS doesn't provide timing data
@@ -41,13 +41,7 @@ function getTranscriptPreview(scriptContent: string | null | undefined): string 
 
 export default function EpisodePlayScreen() {
     const { episode: episodeId } = useLocalSearchParams<{ episode: string }>();
-    const {
-        episode,
-        position,
-        duration,
-        play,
-        seekTo,
-    } = usePlayback();
+    const { episode, position, duration, play, seekTo } = usePlayback();
 
     const [localEpisode, setLocalEpisode] = useState<Episode | null>(null);
     const [isSeeking, setIsSeeking] = useState(false);
@@ -65,10 +59,7 @@ export default function EpisodePlayScreen() {
 
         try {
             const token = await storageService.getAccessToken();
-            const fetchedEpisode = await episodeService.getEpisode(
-                episodeId,
-                token || undefined
-            );
+            const fetchedEpisode = await episodeService.getEpisode(episodeId, token || undefined);
             setLocalEpisode(fetchedEpisode);
 
             // Auto-play if episode is ready
@@ -87,9 +78,7 @@ export default function EpisodePlayScreen() {
         const secs = totalSeconds % 60;
 
         if (hrs > 0) {
-            return `${hrs}:${mins.toString().padStart(2, '0')}:${secs
-                .toString()
-                .padStart(2, '0')}`;
+            return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         }
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
@@ -128,33 +117,31 @@ export default function EpisodePlayScreen() {
     return (
         <SafeAreaView edges={['top']} className="flex-1 bg-brand-beige">
             {/* Header */}
-            <View className="px-6 pt-4 flex-row items-center justify-between">
+            <View className="px-6 flex-row items-center justify-between">
                 <TouchableOpacity
                     onPress={() => router.back()}
-                    className="w-10 h-10 items-center justify-center"
-                >
+                    className="w-10 h-10 items-center justify-center">
                     <Ionicons name="chevron-down" size={28} color="#1A1C1E" />
                 </TouchableOpacity>
-                <Text className="font-inter-medium text-[#1A1C1E]">Now Playing</Text>
+                <Text className="font-inter-medium text-brand-black">Now Playing</Text>
                 <TouchableOpacity className="w-10 h-10 items-center justify-center">
                     <Ionicons name="ellipsis-horizontal" size={24} color="#1A1C1E" />
                 </TouchableOpacity>
             </View>
 
             {/* Cover Art */}
-            <View className="flex-1 items-center justify-center px-12">
+            <View className="items-center mt-4">
                 <View
-                    className="rounded-2xl overflow-hidden shadow-2xl bg-brand-input"
-                    style={{ maxHeight: 300, maxWidth: 300 }}
-                >
+                    className="rounded-2xl shadow-2xl bg-brand-input overflow-hidden"
+                    style={{ borderRadius: 16 }}>
                     {resolveCoverUrl(displayEpisode.book?.coverImageUrl) ? (
                         <Image
                             source={{ uri: resolveCoverUrl(displayEpisode.book?.coverImageUrl)! }}
-                            style={{ width: 300, height: 300 }}
-                            resizeMode="contain"
+                            style={{ width: 195, height: 292, borderRadius: 16 }}
+                            resizeMode="cover"
                         />
                     ) : (
-                        <View className="w-[300px] h-[300px] bg-brand-gold/20 items-center justify-center">
+                        <View className="w-[195px] h-[292px] bg-brand-gold/20 items-center justify-center">
                             <Ionicons name="book" size={80} color="#BF9A54" />
                         </View>
                     )}
@@ -162,16 +149,47 @@ export default function EpisodePlayScreen() {
             </View>
 
             {/* Info */}
-            <View className="px-6 mt-4">
+            <View className="mt-6">
                 <Text
-                    className="font-jakarta-bold text-xl text-[#1A1C1E] text-center"
-                    numberOfLines={2}
-                >
+                    className="font-inter text-2xl text-brand-black text-center"
+                    numberOfLines={2}>
                     {displayEpisode.title}
                 </Text>
-                <Text className="font-inter text-[#858585] text-center mt-1">
+                <Text className="font-jakarta text-[#858585] text-center mt-1">
                     {displayEpisode.book?.title}
                 </Text>
+            </View>
+
+            {/* Stats Row */}
+            <View className="flex-row items-center justify-center mt-4 gap-4">
+                <View className="flex-row items-center gap-1">
+                    <Image
+                        source={icons.star}
+                        style={{ width: 20, height: 20 }}
+                        resizeMode="contain"
+                    />
+                    <Text className="font-jakarta text-brand-black">4.5</Text>
+                </View>
+                <View className="flex-row items-center gap-1">
+                    <Image
+                        source={icons.language}
+                        style={{ width: 20, height: 20 }}
+                        resizeMode="contain"
+                    />
+                    <Text className="font-jakarta text-brand-black">English</Text>
+                </View>
+                <View className="flex-row items-center gap-1">
+                    <Image
+                        source={icons.microphone}
+                        style={{ width: 20, height: 20 }}
+                        resizeMode="contain"
+                    />
+                    <Text className="font-jakarta text-brand-black">
+                        {displayEpisode.duration
+                            ? `${Math.floor(displayEpisode.duration / 60)} min`
+                            : '--'}
+                    </Text>
+                </View>
             </View>
 
             {/* Progress Slider */}
@@ -197,21 +215,23 @@ export default function EpisodePlayScreen() {
                 </View>
             </View>
 
-
             {/* Transcript Preview Card - with bottom padding for mini player */}
             {displayEpisode.scriptContent && (
                 <TouchableOpacity
                     onPress={() => router.push(`/episodes/${episodeId}/transcript`)}
-                    className="mx-6 mt-4 mb-28 bg-[#F5F2EB] rounded-2xl p-4 border border-[#E8E3D6]"
-                    activeOpacity={0.9}
-                >
-                    <Text className="font-jakarta-bold text-[#1A1C1E] text-base mb-2">
+                    className="mx-6 mt-4 mb-28 bg-[#F5F5F0] rounded-2xl p-4 items-center justify-center shadow-md"
+                    style={{
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 10,
+                        elevation: 8,
+                    }}
+                    activeOpacity={0.9}>
+                    <Text className="font-inter-medium self-start text-brand-red text-base mb-2">
                         Transcripts
                     </Text>
-                    <Text
-                        className="font-inter text-[#858585] text-sm leading-5"
-                        numberOfLines={4}
-                    >
+                    <Text className="font-jakarta text-[#858585] text-sm leading-5" numberOfLines={4}>
                         {transcriptPreview || displayEpisode.scriptContent.substring(0, 150)}
                     </Text>
                 </TouchableOpacity>

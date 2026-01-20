@@ -17,6 +17,12 @@ import { usePlayback } from '@/contexts/PlaybackContext';
 import { playbackService, GenerationProgress } from '@/services/playback.service';
 import { resolveCoverUrl } from '@/services/api';
 
+const icons = {
+    star: require('@/assets/icons/star.png'),
+    language: require('@/assets/icons/language.png'),
+    microphone: require('@/assets/icons/microphone.png'),
+};
+
 export default function EpisodeInfoScreen() {
     const { episode: episodeId } = useLocalSearchParams<{ episode: string }>();
     const [episode, setEpisode] = useState<Episode | null>(null);
@@ -26,7 +32,10 @@ export default function EpisodeInfoScreen() {
     const [generationProgress, setGenerationProgress] = useState<GenerationProgress | null>(null);
     const { play, episode: currentEpisode, isPlaying } = usePlayback();
 
-    const isGenerating = episode && episode.generationStatus !== 'COMPLETED' && episode.generationStatus !== 'FAILED';
+    const isGenerating =
+        episode &&
+        episode.generationStatus !== 'COMPLETED' &&
+        episode.generationStatus !== 'FAILED';
 
     // Poll for generation progress when episode is generating
     useEffect(() => {
@@ -35,7 +44,10 @@ export default function EpisodeInfoScreen() {
         const pollProgress = async () => {
             try {
                 const token = await storageService.getAccessToken();
-                const progress = await playbackService.getGenerationProgress(episodeId, token || undefined);
+                const progress = await playbackService.getGenerationProgress(
+                    episodeId,
+                    token || undefined,
+                );
                 if (progress) {
                     setGenerationProgress(progress);
                     // If completed, refresh the episode data
@@ -167,8 +179,7 @@ export default function EpisodeInfoScreen() {
                 </Text>
                 <TouchableOpacity
                     onPress={() => router.back()}
-                    className="mt-6 bg-brand-gold px-6 py-3 rounded-full"
-                >
+                    className="mt-6 bg-brand-gold px-6 py-3 rounded-full">
                     <Text className="font-inter-medium text-white">Go Back</Text>
                 </TouchableOpacity>
             </SafeAreaView>
@@ -181,20 +192,16 @@ export default function EpisodeInfoScreen() {
         <SafeAreaView edges={['top']} className="flex-1 bg-brand-beige">
             <ScrollView showsVerticalScrollIndicator={false} className="pb-32">
                 {/* Header */}
-                <View className="px-6 pt-4 pb-2 flex-row items-center justify-between">
+                <View className="px-6 pb-2 flex-row items-center justify-between">
                     <TouchableOpacity
                         onPress={() => router.back()}
-                        className="w-10 h-10 items-center justify-center"
-                    >
+                        className="w-10 h-10 items-center justify-center">
                         <Ionicons name="arrow-back" size={24} color="#1A1C1E" />
                     </TouchableOpacity>
-                    <Text className="font-jakarta-bold text-lg text-[#1A1C1E]">
-                        About
-                    </Text>
+                    <Text className="font-jakarta-medium text-lg text-brand-black">About</Text>
                     <TouchableOpacity
                         onPress={handleLike}
-                        className="w-10 h-10 items-center justify-center"
-                    >
+                        className="w-10 h-10 items-center justify-center">
                         <Ionicons
                             name={isLiked ? 'heart' : 'heart-outline'}
                             size={24}
@@ -205,16 +212,16 @@ export default function EpisodeInfoScreen() {
 
                 {/* Book Cover */}
                 <View className="px-6 pt-4 items-center">
-                    <View className="h-72 rounded-xl overflow-hidden shadow-lg bg-brand-input">
+                    <View className="rounded-xl overflow-hidden  bg-brand-input" style={{ width: 154, height: 230 }}>
                         {resolveCoverUrl(episode.book?.coverImageUrl) ? (
                             <Image
                                 source={{ uri: resolveCoverUrl(episode.book?.coverImageUrl)! }}
-                                style={{ width: 192, height: 288 }}
-                                resizeMode="contain"
+                                style={{ width: 154, height: 230 }}
+                                resizeMode="cover"
                             />
                         ) : (
-                            <View className="w-48 h-72 bg-brand-gold/20 items-center justify-center">
-                                <Ionicons name="book" size={48} color="#BF9A54" />
+                            <View className="w-full h-full bg-brand-gold/20 items-center justify-center">
+                                <Ionicons name="book" size={40} color="#BF9A54" />
                             </View>
                         )}
                     </View>
@@ -224,12 +231,12 @@ export default function EpisodeInfoScreen() {
                 <View className="px-6 mt-6 flex-row items-start">
                     <View className="flex-1 pr-4">
                         {/* Episode Title */}
-                        <Text className="font-jakarta-bold text-2xl text-[#1A1C1E]">
+                        <Text className="font-inter text-2xl text-brand-black">
                             {episode.title}
                         </Text>
 
                         {/* Podcaster Name */}
-                        <Text className="font-inter text-[#858585] mt-1">
+                        <Text className="font-jakarta text-[#858585] mt-1">
                             By {episode.podcaster?.name || 'Virtual Podcaster'}
                         </Text>
                     </View>
@@ -238,8 +245,7 @@ export default function EpisodeInfoScreen() {
                     {!isGenerating && episode.generationStatus !== 'FAILED' && (
                         <TouchableOpacity
                             onPress={handlePlay}
-                            className="w-14 h-14 rounded-full bg-brand-red items-center justify-center shadow-lg"
-                        >
+                            className="w-14 h-14 rounded-full bg-brand-red items-center justify-center shadow-lg">
                             <Ionicons
                                 name={isCurrentlyPlaying ? 'pause' : 'play'}
                                 size={24}
@@ -250,23 +256,23 @@ export default function EpisodeInfoScreen() {
                 </View>
 
                 {/* Stats Row */}
-                <View className="flex-row items-center px-6 mt-4 space-x-6">
+                <View className="flex-row items-center px-6 mt-6 gap-4">
                     {/* Rating */}
-                    <View className="flex-row items-center">
-                        <Ionicons name="star" size={18} color="#E8847C" />
-                        <Text className="font-inter-medium text-[#1A1C1E] ml-1.5">4.5</Text>
+                    <View className="flex-row items-center gap-1">
+                        <Image source={icons.star} style={{ width: 20, height: 20 }} resizeMode="contain" />
+                        <Text className="font-jakarta text-brand-black">4.5</Text>
                     </View>
 
                     {/* Language */}
-                    <View className="flex-row items-center">
-                        <Text className="text-lg">🈯</Text>
-                        <Text className="font-inter-medium text-[#1A1C1E] ml-1.5">English</Text>
+                    <View className="flex-row items-center gap-1">
+                        <Image source={icons.language} style={{ width: 20, height: 20 }} resizeMode="contain" />
+                        <Text className="font-jakarta text-brand-black">English</Text>
                     </View>
 
                     {/* Duration */}
-                    <View className="flex-row items-center">
-                        <Ionicons name="mic" size={18} color="#E8847C" />
-                        <Text className="font-inter-medium text-[#1A1C1E] ml-1.5">
+                    <View className="flex-row items-center gap-1">
+                        <Image source={icons.microphone} style={{ width: 20, height: 20 }} resizeMode="contain" />
+                        <Text className="font-jakarta text-brand-black">
                             {formatDuration(episode.duration)}
                         </Text>
                     </View>
@@ -275,11 +281,19 @@ export default function EpisodeInfoScreen() {
                 {/* Generation Progress (if generating) */}
                 {isGenerating && (
                     <View className="px-6 mt-4">
-                        <View className="bg-brand-input rounded-2xl p-4">
+                        <View
+                            className=" bg-[#F5F5F0] rounded-2xl p-4 items-center mb-3  justify-center shadow-md"
+                            style={{
+                                shadowColor: '#000',
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.1,
+                                shadowRadius: 10,
+                                elevation: 8,
+                            }}>
                             <View className="flex-row items-center justify-between mb-2">
                                 <View className="flex-row items-center">
                                     <ActivityIndicator size="small" color="#BF9A54" />
-                                    <Text className="font-inter-medium text-[#1A1C1E] ml-2">
+                                    <Text className="font-inter-medium text-brand-black ml-2">
                                         Generating...
                                     </Text>
                                 </View>
@@ -287,7 +301,7 @@ export default function EpisodeInfoScreen() {
                                     {generationProgress?.progress ?? 0}%
                                 </Text>
                             </View>
-                            <View className="h-2 bg-[#E8E3D6] rounded-full overflow-hidden">
+                            <View className="w-full h-2 bg-[#E8E3D6] rounded-full overflow-hidden">
                                 <View
                                     className="h-full bg-brand-gold rounded-full"
                                     style={{ width: `${generationProgress?.progress ?? 0}%` }}
@@ -313,9 +327,9 @@ export default function EpisodeInfoScreen() {
                 )}
 
                 {/* Tabs */}
-                <View className="flex-row px-6 mt-6 border-b border-[#E8E3D6]">
-                    <TouchableOpacity className="pb-3 mr-8 border-b-2 border-brand-red">
-                        <Text className="font-inter-medium text-brand-red">Summary</Text>
+                <View className="flex-row justify-between mx-6 mt-6 border-b border-[#D7D7D7]">
+                    <TouchableOpacity className="pb-3 mr-8 border-b-2 border-[#E06065]">
+                        <Text className="font-inter-medium text-[#E06065] ml-1">Summary</Text>
                     </TouchableOpacity>
                     <TouchableOpacity className="pb-3 mr-8">
                         <Text className="font-inter text-[#858585]">Details</Text>
@@ -324,15 +338,20 @@ export default function EpisodeInfoScreen() {
                         <Text className="font-inter text-[#858585]">Author</Text>
                     </TouchableOpacity>
                     <TouchableOpacity className="pb-3">
-                        <Text className="font-inter text-[#858585]">Reviews</Text>
+                        <Text className="font-inter text-[#858585] mr-1">Reviews</Text>
                     </TouchableOpacity>
                 </View>
 
                 {/* Summary / Script Content */}
                 <View className="px-6 mt-4 mb-32">
-                    <Text className="font-inter text-[#666666] leading-6 text-base">
+                    <Text className="font-jakarta text-[#666666] leading-6 text-base">
                         {episode.scriptContent
-                            ? episode.scriptContent.substring(0, 800).replace(/^(HOST|GUEST|NARRATOR|HOST1|GUEST1|GUEST2):\s*/gim, '') + '...'
+                            ? episode.scriptContent
+                                  .substring(0, 800)
+                                  .replace(
+                                      /^(HOST|GUEST|NARRATOR|HOST1|GUEST1|GUEST2):\s*/gim,
+                                      '',
+                                  ) + '...'
                             : episode.description ||
                               `An engaging podcast episode about "${episode.book?.title || 'this book'}". Listen to discover insights and perspectives on this fascinating book.`}
                     </Text>
