@@ -1,7 +1,8 @@
 // apps/mobile-app/src/app/(tabs)/_layout.tsx
 import { Tabs, Redirect } from 'expo-router';
 import React from 'react';
-import { Platform, ActivityIndicator, View, Image } from 'react-native';
+import { ActivityIndicator, View, Image } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 
 // Import custom icons
@@ -25,20 +26,39 @@ type TabIconProps = {
 
 function TabIcon({ focused, icon, iconFilled }: TabIconProps) {
   return (
-    <Image
-      source={focused ? iconFilled : icon}
-      style={{
-        width: 24,
-        height: 24,
-        tintColor: focused ? '#1F1F1F' : '#858585',
-      }}
-      resizeMode="contain"
-    />
+    <View style={{ alignItems: 'center', justifyContent: 'center', width: 50, height: 65 }}>
+      <Image
+        source={focused ? iconFilled : icon}
+        style={{
+          width: 36,
+          height: 36,
+          tintColor: focused ? '#2F2F2F' : '#848282',
+        }}
+        resizeMode="contain"
+      />
+      {/* Red dot indicator for active tab */}
+      {focused && (
+        <View
+          style={{
+            position: 'absolute',
+            bottom: 2,
+            width: 5,
+            height: 5,
+            borderRadius: 2.5,
+            backgroundColor: '#FF4A4A',
+          }}
+        />
+      )}
+    </View>
   );
 }
 
 export default function TabLayout() {
   const { isAuthenticated, loading } = useAuth();
+  const insets = useSafeAreaInsets();
+
+  // Base tab bar height + bottom safe area inset (handles both gesture nav and 3-button nav)
+  const tabBarHeight = 75 + insets.bottom;
 
   if (loading) {
     return (
@@ -60,18 +80,14 @@ export default function TabLayout() {
         tabBarActiveTintColor: '#1F1F1F',
         tabBarInactiveTintColor: '#858585',
         tabBarStyle: {
-          backgroundColor: '#F5F5F0',
+          backgroundColor: '#FBF8F2',
           borderTopWidth: 0,
           elevation: 0,
           shadowOpacity: 0,
-          height: Platform.OS === 'ios' ? 85 : 65,
-          paddingTop: 10,
-          ...Platform.select({
-            ios: {
-              position: 'absolute',
-            },
-            default: {},
-          }),
+          height: tabBarHeight,
+          paddingTop: 15,
+          paddingBottom: insets.bottom,
+          paddingHorizontal: 16,
         },
       }}>
       <Tabs.Screen
@@ -88,7 +104,7 @@ export default function TabLayout() {
         options={{
           title: 'Episodes',
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon={icons.microphone} iconFilled={icons.microphone} />
+            <TabIcon focused={focused} icon={icons.episodes} iconFilled={icons.episodesFilled} />
           ),
         }}
       />
