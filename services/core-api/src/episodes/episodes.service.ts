@@ -18,6 +18,7 @@ import { CreateEpisodeDto, CreateEpisodeWithFileDto, ContentCoverage } from './d
 import { UpdateEpisodeDto } from './dto/update-episode.dto';
 import { QueryEpisodesDto, EpisodeSortBy } from './dto/query-episodes.dto';
 import { EpisodeResponseDto, EpisodeStatus } from './dto/episode-response.dto';
+import { CommentResponseDto } from './dto/comment.dto';
 
 @Injectable()
 export class EpisodesService {
@@ -1008,5 +1009,166 @@ export class EpisodesService {
         }
 
         return progress;
+    }
+
+    /**
+     * Get comments for an episode
+     */
+    async getComments(episodeId: string): Promise<CommentResponseDto[]> {
+        // Verify episode exists
+        const episode = await this.databaseService.episode.findUnique({
+            where: { id: episodeId },
+        });
+
+        if (!episode) {
+            throw new NotFoundException('Episode not found');
+        }
+
+        const comments = await this.databaseService.episodeComment.findMany({
+            where: { episodeId },
+            orderBy: { createdAt: 'desc' },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                    },
+                },
+            },
+        });
+
+        return comments as CommentResponseDto[];
+    }
+
+    /**
+     * Add a comment to an episode
+     */
+    async addComment(
+        episodeId: string,
+        userId: string,
+        content: string,
+    ): Promise<CommentResponseDto> {
+        // Verify episode exists
+        const episode = await this.databaseService.episode.findUnique({
+            where: { id: episodeId },
+        });
+
+        if (!episode) {
+            throw new NotFoundException('Episode not found');
+        }
+
+        const comment = await this.databaseService.episodeComment.create({
+            data: {
+                episodeId,
+                userId,
+                content,
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                    },
+                },
+            },
+        });
+
+        return comment as CommentResponseDto;
+    }
+
+    /**
+     * Delete a comment
+     */
+    async deleteComment(commentId: string, userId: string): Promise<void> {
+        const comment = await this.databaseService.episodeComment.findUnique({
+            where: { id: commentId },
+        });
+
+        if (!comment) {
+            throw new NotFoundException('Comment not found');
+        }
+
+        if (comment.userId !== userId) {
+            throw new ForbiddenException('You can only delete your own comments');
+        }
+
+        await this.databaseService.episodeComment.delete({
+            where: { id: commentId },
+        });
+    }
+
+    /**
+     * Get author info from Open Library API
+     */
+    async getAuthorInfo(authorName: string): Promise<{
+        name: string;
+        bio?: string;
+        birthDate?: string;
+        deathDate?: string;
+        photoUrl?: string;
+        wikipedia?: string;
+        works?: number;
+    } | null> {
+        if (!authorName) {
+            return null;
+        }
+
+        try {
+            // Search for author on Open Library
+            const searchUrl = `https://openlibrary.org/search/authors.json?q=${encodeURIComponent(authorName)}&limit=1`;
+            const searchResponse = await fetch(searchUrl);
+
+            if (!searchResponse.ok) {
+                this.logger.warn(`Open Library search failed for "${authorName}": ${searchResponse.status}`);
+                return null;
+            }
+
+            const searchData = await searchResponse.json();
+
+            if (!searchData.docs || searchData.docs.length === 0) {
+                this.logger.warn(`No author found on Open Library for "${authorName}"`);
+                return null;
+            }
+
+            const authorDoc = searchData.docs[0];
+            const authorKey = authorDoc.key;
+
+            // Fetch detailed author info
+            const authorUrl = `https://openlibrary.org/authors/${authorKey}.json`;
+            const authorResponse = await fetch(authorUrl);
+
+            if (!authorResponse.ok) {
+                this.logger.warn(`Open Library author fetch failed for "${authorKey}": ${authorResponse.status}`);
+                return {
+                    name: authorDoc.name || authorName,
+                    works: authorDoc.work_count,
+                };
+            }
+
+            const authorData = await authorResponse.json();
+
+            // Extract bio - can be a string or an object with 'value' key
+            let bio: string | undefined;
+            if (authorData.bio) {
+                bio = typeof authorData.bio === 'string'
+                    ? authorData.bio
+                    : authorData.bio.value;
+            }
+
+            return {
+                name: authorData.name || authorDoc.name || authorName,
+                bio,
+                birthDate: authorData.birth_date,
+                deathDate: authorData.death_date,
+                photoUrl: authorDoc.key ? `https://covers.openlibrary.org/a/olid/${authorKey}-M.jpg` : undefined,
+                wikipedia: authorData.wikipedia,
+                works: authorDoc.work_count,
+            };
+        } catch (error) {
+            this.logger.error(`Failed to fetch author info for "${authorName}": ${error.message}`);
+            return null;
+        }
     }
 }

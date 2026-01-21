@@ -33,6 +33,7 @@ model User {
   settings         UserSettings?
   subscription     Subscription?
   podcasterRatings PodcasterRating[]
+  episodeComments  EpisodeComment[]
 
   @@map("users")
 }
@@ -276,6 +277,7 @@ model Episode {
   // Core Content
   title                 String
   description           String?
+  summary               String?        @db.Text  // AI-generated episode synopsis
 
   // Content Configuration
   contentCoverage       ContentCoverage
@@ -314,6 +316,7 @@ model Episode {
   user                  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   podcaster             Podcaster      @relation(fields: [podcasterId], references: [id], onDelete: Cascade)
   book                  Book           @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  comments              EpisodeComment[]
 
   @@index([userId])
   @@index([podcasterId])
@@ -321,6 +324,26 @@ model Episode {
   @@index([isPublic])
   @@index([generationStatus])
   @@map("episodes")
+}
+
+model EpisodeComment {
+  id          String    @id @default(uuid())
+  episodeId   String
+  userId      String
+  content     String    @db.Text
+
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  episode     Episode   @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([episodeId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("episode_comments")
 }
 
 model UserSettings {

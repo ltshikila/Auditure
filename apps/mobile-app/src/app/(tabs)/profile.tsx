@@ -233,7 +233,7 @@ export default function Profile() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-brand-beige items-center justify-center">
+      <SafeAreaView className="flex-1 bg-brand-beige items-center justify-center" edges={['top', 'left', 'right']}>
         <ActivityIndicator size="large" color="#BF9A54" />
         <Text className="font-inter text-gray-500 mt-4">Loading your profile...</Text>
       </SafeAreaView>
@@ -241,7 +241,7 @@ export default function Profile() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-brand-beige">
+    <SafeAreaView className="flex-1 bg-brand-beige" edges={['top', 'left', 'right']}>
       <ScrollView
         contentContainerStyle={{ padding: 24, paddingBottom: 100 }}
         refreshControl={

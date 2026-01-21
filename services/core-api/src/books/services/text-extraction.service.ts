@@ -252,6 +252,10 @@ export class TextExtractionService {
                 return [];
             }
 
+            // Apply dynamic pattern detection to identify chapters
+            // This detects patterns like "RULE 1", "RULE 2", etc. even if "RULE" isn't in our known list
+            this.applyChapterPatternDetection(tocEntries);
+
             // Filter to only chapter entries for splitting
             const chapterEntries = tocEntries.filter(e => e.isChapter);
             this.logger.log(`Found ${tocEntries.length} TOC entries, ${chapterEntries.length} are chapters`);
@@ -288,6 +292,91 @@ export class TextExtractionService {
                 // Only log 2 levels deep to avoid spam
                 this.logOutlineStructure(item.items, depth + 1);
             }
+        }
+    }
+
+    /**
+     * Dynamically detect chapter naming patterns in TOC entries.
+     *
+     * Instead of relying solely on hardcoded patterns like "Chapter", "LAW", "RULE",
+     * this method analyzes the actual TOC structure to find sequential patterns.
+     *
+     * For example, if we see:
+     * - "RULE 1: Stand up straight..."
+     * - "RULE 2: Treat yourself..."
+     * - "RULE 3: Make friends..."
+     * - etc.
+     *
+     * We detect that "RULE" is the chapter prefix and mark all matching entries as chapters.
+     * This works for ANY naming convention, not just predefined ones.
+     */
+    private applyChapterPatternDetection(entries: TocEntry[]): void {
+        // Only look at level-0 entries (top-level TOC items)
+        const level0Entries = entries.filter(e => e.level === 0);
+
+        if (level0Entries.length < 3) {
+            // Not enough entries to detect a pattern
+            return;
+        }
+
+        // Extract prefix patterns from titles
+        // Pattern: "PREFIX NUMBER" where PREFIX is one or more words, NUMBER is a digit
+        // Examples: "RULE 1", "Chapter 1", "LAW 1", "Part 1", "HABIT 1", etc.
+        const prefixPattern = /^([A-Za-z\u200C]+)\s*(\d+)/i; // \u200C is zero-width non-joiner (found in some PDFs)
+
+        // Group entries by their prefix
+        const prefixGroups = new Map<string, { entry: TocEntry; number: number }[]>();
+
+        for (const entry of level0Entries) {
+            const match = entry.title.match(prefixPattern);
+            if (match) {
+                const prefix = match[1].toUpperCase(); // Normalize to uppercase
+                const num = parseInt(match[2]);
+
+                if (!prefixGroups.has(prefix)) {
+                    prefixGroups.set(prefix, []);
+                }
+                prefixGroups.get(prefix)!.push({ entry, number: num });
+            }
+        }
+
+        // Find groups with sequential patterns (at least 3 entries with sequential or near-sequential numbers)
+        for (const [prefix, items] of prefixGroups) {
+            if (items.length < 3) {
+                continue; // Need at least 3 to establish a pattern
+            }
+
+            // Sort by number
+            items.sort((a, b) => a.number - b.number);
+
+            // Check if numbers are sequential or near-sequential (allow small gaps)
+            // For "12 Rules for Life", we'd have 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
+            const numbers = items.map(i => i.number);
+            const minNum = numbers[0];
+            const maxNum = numbers[numbers.length - 1];
+            const expectedRange = maxNum - minNum + 1;
+
+            // Allow up to 20% missing entries (e.g., 10 entries for range of 12 is OK)
+            const coverageRatio = items.length / expectedRange;
+
+            if (coverageRatio >= 0.8 && items.length >= 3) {
+                // This looks like a valid chapter pattern!
+                this.logger.log(
+                    `Detected chapter pattern: "${prefix}" with ${items.length} sequential entries (${minNum}-${maxNum})`
+                );
+
+                // Mark all matching entries as chapters
+                for (const item of items) {
+                    item.entry.isChapter = true;
+                    item.entry.chapterNumber = item.number;
+                }
+            }
+        }
+
+        // Log summary
+        const detectedChapters = entries.filter(e => e.isChapter).length;
+        if (detectedChapters > 0) {
+            this.logger.log(`Pattern detection: ${detectedChapters} entries marked as chapters`);
         }
     }
 
@@ -362,7 +451,8 @@ export class TextExtractionService {
                     }
 
                     // Try to extract chapter number from title
-                    const chapterMatch = title.match(/^(?:Chapter|LAW|Law|Part|Section)?\s*(\d+)/i);
+                    // Supports: Chapter, Law, Rule, Principle, Lesson, Unit, Module, Step, Habit, Part, Section
+                    const chapterMatch = title.match(/^(?:Chapter|LAW|Law|Rule|Principle|Lesson|Unit|Module|Step|Habit|Secret|Key|Commandment|Part|Section)?\s*(\d+)/i);
                     const extractedChapterNum = isChapter
                         ? (chapterMatch ? parseInt(chapterMatch[1]) : chapterCounter++)
                         : undefined;
@@ -568,8 +658,10 @@ export class TextExtractionService {
         }
 
         // Check for chapter indicators (at ANY nesting level)
-        // Matches: "Chapter 1", "LAW 1", "Law1", "LESSON 5", etc.
-        const chapterPattern = /^(chapter|law|lesson|unit|module)\s*\d+/i;
+        // Matches: "Chapter 1", "LAW 1", "Law1", "LESSON 5", "RULE 1", "PRINCIPLE 3", etc.
+        // This covers common book structures: traditional chapters, laws (48 Laws of Power),
+        // rules (12 Rules for Life), lessons, principles, steps, habits, etc.
+        const chapterPattern = /^(chapter|law|rule|principle|lesson|unit|module|step|habit|secret|key|commandment)\s*\d+/i;
         if (chapterPattern.test(title)) {
             return true;
         }
@@ -745,7 +837,7 @@ export class TextExtractionService {
         chapterTitle: string,
     ): { found: boolean; beforeHeading: string; afterHeading: string } {
         // Create regex patterns to find the chapter heading
-        // Handle common formats: "Chapter X", "Chapter X: Title", "LAW X", "X. Title"
+        // Handle common formats: "Chapter X", "LAW X", "RULE X", "PRINCIPLE X", etc.
         const escapedTitle = chapterTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
         const patterns = [
@@ -755,6 +847,16 @@ export class TextExtractionService {
             new RegExp(`(.*?)(?=\\bChapter\\s+\\d+\\b)`, 'i'),
             // "LAW N" or "Law N" format (with or without space due to OCR)
             new RegExp(`(.*?)(?=\\bLAW\\s*\\d+\\b)`, 'i'),
+            // "RULE N" format (12 Rules for Life, etc.)
+            new RegExp(`(.*?)(?=\\bRULE\\s*\\d+\\b)`, 'i'),
+            // "PRINCIPLE N" format (Principles by Ray Dalio, etc.)
+            new RegExp(`(.*?)(?=\\bPRINCIPLE\\s*\\d+\\b)`, 'i'),
+            // "STEP N" format (how-to books)
+            new RegExp(`(.*?)(?=\\bSTEP\\s*\\d+\\b)`, 'i'),
+            // "LESSON N" format
+            new RegExp(`(.*?)(?=\\bLESSON\\s*\\d+\\b)`, 'i'),
+            // "HABIT N" format (7 Habits, etc.)
+            new RegExp(`(.*?)(?=\\bHABIT\\s*\\d+\\b)`, 'i'),
         ];
 
         for (const pattern of patterns) {
@@ -849,7 +951,8 @@ export class TextExtractionService {
         const tocSection = text.slice(tocStart, tocStart + 30000);
 
         // Patterns for TOC entries with page numbers
-        // Format: "Chapter X Title ... PageNum" or "LAW X Title PageNum"
+        // Format: "Chapter X Title ... PageNum", "LAW X Title PageNum", "RULE X Title PageNum", etc.
+        // Supports: Chapter, Law, Rule, Principle, Lesson, Step, Habit
         const patterns = [
             // "Chapter 1 Title 23" or "Chapter 1: Title 23" or "Chapter 1 Title ... 23"
             /^(Chapter\s+(\d+))[\s:\.]+([^\d\n]+?)\s+(\d{1,4})\s*$/gim,
@@ -858,6 +961,16 @@ export class TextExtractionService {
             // "LAW 1 Title 23" or "LAW1 Title 23" or "LAW1Title 23" (OCR may merge)
             // Title can contain digits (e.g., "LAW 48 ASSUME FORMLESSNESS 419")
             /^(LAW\s*(\d+))[\s:\.]*(.*?)\s+(\d{1,4})\s*$/gim,
+            // "RULE 1 Title 23" or "RULE1 Title 23" (12 Rules for Life, etc.)
+            /^(RULE\s*(\d+))[\s:\.]*(.*?)\s+(\d{1,4})\s*$/gim,
+            // "PRINCIPLE 1 Title 23" (Principles by Ray Dalio, etc.)
+            /^(PRINCIPLE\s*(\d+))[\s:\.]*(.*?)\s+(\d{1,4})\s*$/gim,
+            // "STEP 1 Title 23" (how-to books)
+            /^(STEP\s*(\d+))[\s:\.]*(.*?)\s+(\d{1,4})\s*$/gim,
+            // "LESSON 1 Title 23"
+            /^(LESSON\s*(\d+))[\s:\.]*(.*?)\s+(\d{1,4})\s*$/gim,
+            // "HABIT 1 Title 23" (7 Habits, etc.)
+            /^(HABIT\s*(\d+))[\s:\.]*(.*?)\s+(\d{1,4})\s*$/gim,
             // "1. Title 23" (only match if number is <= 100 to avoid page number confusion)
             /^(\d{1,2})\.[\s]+([A-Z][^\n]+?)\s+(\d{1,4})\s*$/gm,
         ];
@@ -1066,6 +1179,7 @@ export class TextExtractionService {
 
         // Patterns to find the chapter heading - ORDER MATTERS!
         // More specific patterns first, section numbers LAST
+        // Supports: Chapter, Law, Rule, Principle, Lesson, Step, Habit
         const patterns = [
             // "CHAPTER X / TITLE" format (common in textbooks)
             new RegExp(`CHAPTER\\s+${chapterNum}\\s*/\\s*`, 'i'),
@@ -1077,6 +1191,16 @@ export class TextExtractionService {
             new RegExp(`^Chapter\\s+${chapterNum}\\b`, 'im'),
             // LAW format
             new RegExp(`^LAW\\s*${chapterNum}\\b`, 'im'),
+            // RULE format (12 Rules for Life, etc.)
+            new RegExp(`^RULE\\s*${chapterNum}\\b`, 'im'),
+            // PRINCIPLE format (Principles by Ray Dalio, etc.)
+            new RegExp(`^PRINCIPLE\\s*${chapterNum}\\b`, 'im'),
+            // STEP format (how-to books)
+            new RegExp(`^STEP\\s*${chapterNum}\\b`, 'im'),
+            // LESSON format
+            new RegExp(`^LESSON\\s*${chapterNum}\\b`, 'im'),
+            // HABIT format (7 Habits, etc.)
+            new RegExp(`^HABIT\\s*${chapterNum}\\b`, 'im'),
             // Title alone at start of line (must be ALL CAPS or Title Case, not lowercase)
             new RegExp(`^${escapedTitle.slice(0, 30).toUpperCase()}`, 'm'),
             // DO NOT add section number pattern (e.g., "1.1") as it matches mid-chapter content
@@ -1247,12 +1371,23 @@ export class TextExtractionService {
     private detectChaptersInText(text: string, pageCount?: number): ChapterData[] {
         // Patterns for chapter detection - match at start of line
         // Captures: full match, chapter number, optional title
-        // Supports: "Chapter X", "CHAPTER X", "LAW X", "Law X", etc.
+        // Supports: "Chapter X", "CHAPTER X", "LAW X", "RULE X", "PRINCIPLE X", etc.
+        // Covers common book structures: traditional chapters, laws, rules, principles, lessons, steps, habits
         const chapterPatterns = [
             /^(Chapter\s+(\d+))(?:[:\.\s]+(.*))?$/gim,
             /^(CHAPTER\s+(\d+))(?:[:\.\s]+(.*))?$/gim,
             /^(LAW\s*(\d+))[:\.\s]*(.*)$/gim,  // "LAW 1", "LAW1", or "LAW1TITLE" (OCR often removes spaces)
             /^(Law\s*(\d+))[:\.\s]*(.*)$/gim,
+            /^(RULE\s*(\d+))[:\.\s]*(.*)$/gim,  // "RULE 1", "RULE1" (12 Rules for Life, etc.)
+            /^(Rule\s*(\d+))[:\.\s]*(.*)$/gim,
+            /^(PRINCIPLE\s*(\d+))[:\.\s]*(.*)$/gim,  // "PRINCIPLE 1" (Principles by Ray Dalio, etc.)
+            /^(Principle\s*(\d+))[:\.\s]*(.*)$/gim,
+            /^(STEP\s*(\d+))[:\.\s]*(.*)$/gim,  // "STEP 1" (how-to books)
+            /^(Step\s*(\d+))[:\.\s]*(.*)$/gim,
+            /^(LESSON\s*(\d+))[:\.\s]*(.*)$/gim,  // "LESSON 1"
+            /^(Lesson\s*(\d+))[:\.\s]*(.*)$/gim,
+            /^(HABIT\s*(\d+))[:\.\s]*(.*)$/gim,  // "HABIT 1" (7 Habits, etc.)
+            /^(Habit\s*(\d+))[:\.\s]*(.*)$/gim,
         ];
 
         interface ChapterMatch {
@@ -1449,8 +1584,8 @@ export class TextExtractionService {
 
         // Also check if the "title" ends with what looks like a page number
         // e.g., "Cryptographic Tools 52" where 52 is a page number
-        // Supports both "Chapter X" and "LAW X" formats
-        const titleMatch = chapterLine.match(/(?:chapter|law)\s*\d+[:\.\s]+(.+)/i);
+        // Supports: Chapter, Law, Rule, Principle, Lesson, Step, Habit
+        const titleMatch = chapterLine.match(/(?:chapter|law|rule|principle|lesson|step|habit)\s*\d+[:\.\s]+(.+)/i);
         if (titleMatch) {
             const title = titleMatch[1].trim();
             // If title ends with a standalone number (likely page number)
@@ -1473,8 +1608,9 @@ export class TextExtractionService {
         // Index entries typically have page numbers right after the chapter reference
         const afterMatch = context.slice(matchPositionInContext);
 
-        // Pattern like "Chapter 1, 45" or "Chapter 1: 45, 67, 89" or "LAW 1, 45"
-        if (/^(?:chapter|law)\s*\d+[,:\s]+\d+(?:\s*,\s*\d+)*\s*$/im.test(afterMatch.slice(0, 50))) {
+        // Pattern like "Chapter 1, 45" or "Chapter 1: 45, 67, 89" or "LAW 1, 45" or "RULE 1, 45"
+        // Supports: Chapter, Law, Rule, Principle, Lesson, Step, Habit
+        if (/^(?:chapter|law|rule|principle|lesson|step|habit)\s*\d+[,:\s]+\d+(?:\s*,\s*\d+)*\s*$/im.test(afterMatch.slice(0, 50))) {
             return true;
         }
 

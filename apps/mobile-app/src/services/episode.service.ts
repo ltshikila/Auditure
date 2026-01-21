@@ -13,6 +13,7 @@ export interface Episode {
     bookId: string;
     title: string;
     description?: string;
+    summary?: string;
     contentCoverage: ContentCoverage;
     chapters: number[];
     episodeType: EpisodeType;
@@ -46,7 +47,32 @@ export interface Episode {
         title: string;
         author?: string;
         coverImageUrl?: string;
+        language?: string;
     };
+}
+
+export interface EpisodeComment {
+    id: string;
+    episodeId: string;
+    userId: string;
+    content: string;
+    createdAt: string;
+    updatedAt: string;
+    user: {
+        id: string;
+        firstName: string;
+        lastName: string;
+    };
+}
+
+export interface AuthorInfo {
+    name: string;
+    bio?: string;
+    birthDate?: string;
+    deathDate?: string;
+    photoUrl?: string;
+    wikipedia?: string;
+    works?: number;
 }
 
 export interface CreateEpisodeDto {
@@ -248,6 +274,34 @@ class EpisodeService {
      */
     async share(id: string): Promise<void> {
         return apiClient.post<void>(`/episodes/${id}/share`, {});
+    }
+
+    /**
+     * Get comments for an episode
+     */
+    async getComments(id: string): Promise<EpisodeComment[]> {
+        return apiClient.get<EpisodeComment[]>(`/episodes/${id}/comments`);
+    }
+
+    /**
+     * Add a comment to an episode
+     */
+    async addComment(id: string, content: string, token: string): Promise<EpisodeComment> {
+        return apiClient.post<EpisodeComment>(`/episodes/${id}/comments`, { content }, token);
+    }
+
+    /**
+     * Delete a comment
+     */
+    async deleteComment(commentId: string, token: string): Promise<void> {
+        return apiClient.delete<void>(`/episodes/comments/${commentId}`, token);
+    }
+
+    /**
+     * Get author info for an episode's book
+     */
+    async getAuthorInfo(id: string, token?: string): Promise<AuthorInfo | null> {
+        return apiClient.get<AuthorInfo | null>(`/episodes/${id}/author-info`, token);
     }
 }
 

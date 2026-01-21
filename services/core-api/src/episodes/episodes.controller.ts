@@ -26,6 +26,7 @@ import { EpisodesService } from './episodes.service';
 import { CreateEpisodeDto, CreateEpisodeWithFileDto } from './dto/create-episode.dto';
 import { UpdateEpisodeDto } from './dto/update-episode.dto';
 import { QueryEpisodesDto } from './dto/query-episodes.dto';
+import { CreateCommentDto } from './dto/comment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 
@@ -304,5 +305,57 @@ export class EpisodesController {
     @UseGuards(OptionalJwtAuthGuard)
     async getGenerationProgress(@Param('id') id: string) {
         return this.episodesService.getGenerationProgress(id);
+    }
+
+    /**
+     * Get comments for an episode
+     * GET /episodes/:id/comments
+     */
+    @Get(':id/comments')
+    async getComments(@Param('id') id: string) {
+        return this.episodesService.getComments(id);
+    }
+
+    /**
+     * Add a comment to an episode (requires authentication)
+     * POST /episodes/:id/comments
+     */
+    @Post(':id/comments')
+    @UseGuards(JwtAuthGuard)
+    async addComment(
+        @Param('id') id: string,
+        @Request() req,
+        @Body() createCommentDto: CreateCommentDto,
+    ) {
+        return this.episodesService.addComment(id, req.user.userId, createCommentDto.content);
+    }
+
+    /**
+     * Delete a comment (requires authentication)
+     * DELETE /episodes/comments/:commentId
+     */
+    @Delete('comments/:commentId')
+    @UseGuards(JwtAuthGuard)
+    @HttpCode(HttpStatus.NO_CONTENT)
+    async deleteComment(@Param('commentId') commentId: string, @Request() req) {
+        await this.episodesService.deleteComment(commentId, req.user.userId);
+    }
+
+    /**
+     * Get author info from Open Library API
+     * GET /episodes/:id/author-info
+     */
+    @Get(':id/author-info')
+    @UseGuards(OptionalJwtAuthGuard)
+    async getAuthorInfo(@Param('id') id: string, @Request() req) {
+        // Get episode to get book author (pass userId for access check)
+        const episode = await this.episodesService.findOne(id, req.user?.userId);
+        const authorName = episode.book?.author;
+
+        if (!authorName) {
+            return null;
+        }
+
+        return this.episodesService.getAuthorInfo(authorName);
     }
 }

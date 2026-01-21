@@ -372,12 +372,13 @@ Handles text extraction from files:
 - `extractFromPdf()` - Extract text from PDF files (with OCR fallback)
 - `extractFromEpub()` - Extract text from EPUB files
 - `extractChaptersFromToc()` - Extract chapters using PDF outline/TOC with page numbers
+- `applyChapterPatternDetection()` - Dynamically detect chapter naming conventions (RULE, LAW, etc.)
 - `extractFromScannedPdf()` - OCR extraction for scanned PDFs
 - `detectChaptersInText()` - Regex-based chapter detection (fallback)
 - `extractEnhancedMetadata()` - Extract comprehensive metadata (title, author, subject, keywords, dates)
 - `extractPageLabels()` - Extract page labels (Roman numerals, custom prefixes)
 - `isChapterContent()` - Intelligent front/back matter filtering
-- Hybrid approach: TOC-based (primary) + regex (fallback) for maximum accuracy
+- Three-tier approach: TOC-based (primary) + dynamic pattern detection + regex (fallback)
 - Coordinate-based same-page chapter splitting for precise boundaries
 
 #### CoverExtractionService
@@ -480,7 +481,7 @@ model Chapter {
 
 ### Chapter Detection
 
-Two-tier chapter detection system for maximum accuracy:
+Three-tier chapter detection system for maximum accuracy:
 
 #### 1. TOC-Based Detection (Primary - Most Accurate)
 
@@ -528,7 +529,44 @@ Automatically identifies and filters non-chapter content:
 
 **Reference:** [PDF.js API - getOutline](https://mozilla.github.io/pdf.js/api/draft/module-pdfjsLib-PDFDocumentProxy.html#getOutline)
 
-#### 2. Regex-Based Detection (Fallback)
+#### 2. Dynamic Pattern Detection (Automatic)
+
+Automatically detects chapter naming conventions from TOC structure without hardcoding patterns. This enables support for books using non-standard chapter names like "RULE 1", "MEDITATION 1", "COMMANDMENT 1", etc.
+
+**Algorithm:**
+1. Group all level-0 (top-level) TOC entries by their prefix
+2. Extract the prefix and number from each entry (e.g., "RULE 1" → prefix: "RULE", number: 1)
+3. Check if entries form a sequential pattern
+4. Mark entries as chapters if:
+   - At least 3 entries share the same prefix
+   - Numbers are roughly sequential (80%+ coverage ratio)
+
+**Example Detection:**
+```
+TOC Entries:                    Result:
+├── RULE 1: Stand up straight   → Chapter 1 (prefix: "RULE")
+├── RULE 2: Treat yourself...   → Chapter 2 (prefix: "RULE")
+├── RULE 3: Make friends...     → Chapter 3 (prefix: "RULE")
+├── ...                         → ...
+└── RULE 12: Pet a cat          → Chapter 12 (prefix: "RULE")
+```
+
+**Benefits:**
+- Works with any naming convention automatically
+- No code changes needed for new patterns
+- Detects patterns like: LAW, RULE, PRINCIPLE, STEP, MEDITATION, HABIT, SECRET, COMMANDMENT
+- Falls back to hardcoded patterns if dynamic detection doesn't find matches
+
+**Coverage Ratio Calculation:**
+```
+coverageRatio = actualEntries / expectedRange
+expectedRange = maxNumber - minNumber + 1
+
+Example: RULE 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12 (missing 4)
+actualEntries = 11, expectedRange = 12, coverageRatio = 91.6% ✓
+```
+
+#### 3. Regex-Based Detection (Fallback)
 
 When no TOC exists, falls back to pattern matching:
 
@@ -538,6 +576,8 @@ When no TOC exists, falls back to pattern matching:
 "CHAPTER 1"
 "Part I - The Beginning"
 "1. First Chapter"
+"RULE 1: Stand up straight"
+"LAW 1: Never outshine the master"
 ```
 
 **Filtering Logic:**
@@ -548,11 +588,12 @@ When no TOC exists, falls back to pattern matching:
 
 **Detection Strategy:**
 1. Try TOC-based extraction first (most accurate)
-2. Fall back to regex if no TOC or TOC extraction fails
-3. Search for chapter markers in text
-4. Split text at chapter boundaries
-5. Filter out TOC/index entries
-6. Store individual chapter text
+2. Apply dynamic pattern detection to identify chapter naming convention
+3. Fall back to regex if no TOC or TOC extraction fails
+4. Search for chapter markers in text
+5. Split text at chapter boundaries
+6. Filter out TOC/index entries
+7. Store individual chapter text
 
 ### OCR for Scanned PDFs
 
@@ -841,6 +882,7 @@ const popular = await booksService.getPopularBooks(10);
 - [ ] Multiple file upload support
 - [x] OCR for scanned PDFs (implemented with tesseract.js)
 - [x] TOC-based chapter detection with page numbers
+- [x] Dynamic pattern detection for non-standard chapter names (RULE, LAW, MEDITATION, etc.)
 - [x] Enhanced metadata extraction (subject, keywords, creation/modification dates)
 - [x] Page label support (Roman numerals, custom prefixes)
 - [x] Coordinate-based same-page chapter splitting

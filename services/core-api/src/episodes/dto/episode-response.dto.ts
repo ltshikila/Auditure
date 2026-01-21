@@ -18,6 +18,7 @@ export class EpisodeResponseDto {
     // Core Content
     title: string;
     description?: string;
+    summary?: string;
 
     // Content Configuration
     contentCoverage: ContentCoverage;
@@ -69,5 +70,7 @@ export class EpisodeResponseDto {
         id: string;
         title: string;
         author?: string;
+        coverImageUrl?: string;
+        language?: string;
     };
 }
