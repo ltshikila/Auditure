@@ -554,4 +554,100 @@ export class PodcastersService {
             throw error;
         }
     }
+
+    /**
+     * Rate a podcaster (1-5 stars)
+     * Creates or updates the user's rating for this podcaster
+     */
+    async ratePodcaster(
+        podcasterId: string,
+        userId: string,
+        rating: number,
+    ): Promise<{ averageRating: number; ratingCount: number }> {
+        this.logger.log(
+            `ratePodcaster() called: podcaster=${podcasterId}, user=${userId}, rating=${rating}`,
+        );
+
+        if (rating < 1 || rating > 5) {
+            throw new BadRequestException('Rating must be between 1 and 5');
+        }
+
+        try {
+            // Upsert the rating
+            await this.databaseService.podcasterRating.upsert({
+                where: {
+                    podcasterId_userId: {
+                        podcasterId,
+                        userId,
+                    },
+                },
+                create: {
+                    podcasterId,
+                    userId,
+                    rating,
+                },
+                update: {
+                    rating,
+                },
+            });
+
+            // Recalculate average rating
+            const aggregation = await this.databaseService.podcasterRating.aggregate({
+                where: { podcasterId },
+                _avg: { rating: true },
+                _count: { rating: true },
+            });
+
+            const averageRating = aggregation._avg.rating || 0;
+            const ratingCount = aggregation._count.rating || 0;
+
+            // Update podcaster with new averages
+            await this.databaseService.podcaster.update({
+                where: { id: podcasterId },
+                data: {
+                    averageRating,
+                    ratingCount,
+                },
+            });
+
+            this.logger.log(
+                `Podcaster ${podcasterId} rated: avg=${averageRating}, count=${ratingCount}`,
+            );
+
+            return { averageRating, ratingCount };
+        } catch (error) {
+            this.logger.error(`Error in ratePodcaster(): ${error.message}`);
+            this.logger.error(`Stack: ${error.stack}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Get user's rating for a podcaster
+     */
+    async getUserRating(
+        podcasterId: string,
+        userId: string,
+    ): Promise<number | null> {
+        this.logger.log(
+            `getUserRating() called: podcaster=${podcasterId}, user=${userId}`,
+        );
+
+        try {
+            const rating = await this.databaseService.podcasterRating.findUnique({
+                where: {
+                    podcasterId_userId: {
+                        podcasterId,
+                        userId,
+                    },
+                },
+            });
+
+            return rating?.rating || null;
+        } catch (error) {
+            this.logger.error(`Error in getUserRating(): ${error.message}`);
+            this.logger.error(`Stack: ${error.stack}`);
+            throw error;
+        }
+    }
 }

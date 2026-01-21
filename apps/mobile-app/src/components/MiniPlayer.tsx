@@ -9,7 +9,7 @@ import { resolveCoverUrl } from '@/services/api';
 
 export const MINI_PLAYER_HEIGHT = 80;
 export const SIMPLIFIED_PLAYER_HEIGHT = 64;
-export const TAB_BAR_HEIGHT = 96;
+export const TAB_BAR_HEIGHT = 108;
 
 const PLAYBACK_SPEEDS = [1, 1.25, 1.5, 1.75, 2];
 
@@ -168,7 +168,7 @@ export const MiniPlayer: React.FC = () => {
             exiting={FadeOutDown.duration(300)}
             className="absolute left-4 right-4"
             style={{
-                bottom: isInTabsLayout ? TAB_BAR_HEIGHT + 8 : insets.bottom + 8,
+                bottom: isInTabsLayout ? TAB_BAR_HEIGHT + 16 : insets.bottom + 8,
             }}
         >
             <TouchableOpacity

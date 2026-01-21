@@ -115,6 +115,18 @@ export default function EpisodesScreen() {
         }
     };
 
+    const handleCancelEpisode = async (episode: Episode) => {
+        try {
+            const token = await storageService.getAccessToken();
+            if (!token) return;
+
+            await episodeService.delete(episode.id, token);
+            fetchEpisodes(true);
+        } catch (err: any) {
+            console.error('Error cancelling episode:', err);
+        }
+    };
+
     if (loading) {
         return (
             <SafeAreaView className="flex-1 bg-brand-beige items-center justify-center">
@@ -202,6 +214,8 @@ export default function EpisodesScreen() {
                                     key={episode.id}
                                     episode={episode}
                                     onPress={() => handleEpisodePress(episode)}
+                                    onRetry={() => handleRetryEpisode(episode)}
+                                    onCancel={() => handleCancelEpisode(episode)}
                                 />
                             ))}
                         </ScrollView>

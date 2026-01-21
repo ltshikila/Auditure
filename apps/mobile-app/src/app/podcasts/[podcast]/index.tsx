@@ -1,20 +1,83 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Image, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Image, ActivityIndicator, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { podcasterService, Podcaster } from '@/services/podcaster.service';
+import { episodeService, Episode } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
+import { EpisodeCard } from '@/components/EpisodeCard';
+import { GeneratingEpisodeCard } from '@/components/GeneratingEpisodeCard';
 
 export default function PodcastDetailsScreen() {
   const { podcast: podcastId } = useLocalSearchParams();
   const [podcaster, setPodcaster] = useState<Podcaster | null>(null);
+  const [episodes, setEpisodes] = useState<Episode[]>([]);
+  const [generatingEpisodes, setGeneratingEpisodes] = useState<Episode[]>([]);
+  const [completedEpisodes, setCompletedEpisodes] = useState<Episode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userRating, setUserRating] = useState<number | null>(null);
+  const [isRating, setIsRating] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [selectedRating, setSelectedRating] = useState<number>(0);
 
   useEffect(() => {
     fetchPodcaster();
+    fetchEpisodes();
+    fetchUserRating();
   }, [podcastId]);
+
+  const fetchUserRating = async () => {
+    if (!podcastId) return;
+    try {
+      const token = await storageService.getAccessToken();
+      if (!token) return;
+      const rating = await podcasterService.getUserRating(podcastId as string, token);
+      setUserRating(rating);
+    } catch (err) {
+      console.error('Error fetching user rating:', err);
+    }
+  };
+
+  const openRatingModal = () => {
+    setSelectedRating(userRating || 0);
+    setShowRatingModal(true);
+  };
+
+  const handleSubmitRating = async () => {
+    if (!podcastId || isRating || selectedRating === 0) return;
+    try {
+      setIsRating(true);
+      const token = await storageService.getAccessToken();
+      if (!token) return;
+      const result = await podcasterService.rate(podcastId as string, selectedRating, token);
+      setUserRating(selectedRating);
+      // Update podcaster with new rating
+      if (podcaster) {
+        setPodcaster({
+          ...podcaster,
+          averageRating: result.averageRating,
+          ratingCount: result.ratingCount,
+        });
+      }
+      setShowRatingModal(false);
+    } catch (err) {
+      console.error('Error rating podcaster:', err);
+    } finally {
+      setIsRating(false);
+    }
+  };
+
+  // Poll for updates on generating episodes
+  useEffect(() => {
+    if (generatingEpisodes.length > 0) {
+      const interval = setInterval(() => {
+        fetchEpisodes();
+      }, 10000); // Poll every 10 seconds
+      return () => clearInterval(interval);
+    }
+  }, [generatingEpisodes.length]);
 
   const fetchPodcaster = async () => {
     try {
@@ -34,6 +97,57 @@ export default function PodcastDetailsScreen() {
       setError(err.message || 'Failed to load podcaster');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchEpisodes = async () => {
+    if (!podcastId) return;
+    try {
+      const token = await storageService.getAccessToken();
+      if (!token) return;
+
+      // Fetch user's episodes and filter by this podcaster
+      const allEpisodes = await episodeService.getMyEpisodes(token);
+      const podcasterEpisodes = allEpisodes.filter(
+        (ep) => ep.podcasterId === podcastId
+      );
+      setEpisodes(podcasterEpisodes);
+
+      // Categorize episodes
+      const generating = podcasterEpisodes.filter((ep) =>
+        ['PENDING', 'SCRIPT_GENERATING', 'SCRIPT_GENERATED', 'AUDIO_GENERATING', 'FAILED'].includes(
+          ep.generationStatus
+        )
+      );
+      const completed = podcasterEpisodes.filter(
+        (ep) => ep.generationStatus === 'COMPLETED'
+      );
+      setGeneratingEpisodes(generating);
+      setCompletedEpisodes(completed);
+    } catch (err) {
+      console.error('Error fetching episodes:', err);
+    }
+  };
+
+  const handleRetryEpisode = async (episode: Episode) => {
+    try {
+      const token = await storageService.getAccessToken();
+      if (!token) return;
+      await episodeService.retry(episode.id, token);
+      fetchEpisodes();
+    } catch (err) {
+      console.error('Error retrying episode:', err);
+    }
+  };
+
+  const handleCancelEpisode = async (episode: Episode) => {
+    try {
+      const token = await storageService.getAccessToken();
+      if (!token) return;
+      await episodeService.delete(episode.id, token);
+      fetchEpisodes();
+    } catch (err) {
+      console.error('Error canceling episode:', err);
     }
   };
 
@@ -110,19 +224,39 @@ export default function PodcastDetailsScreen() {
             </View>
 
             {/* Stats Row */}
-            <View className="flex-row w-full justify-between px-8 mb-8">
+            <View className="flex-row w-full justify-around px-4 mb-8">
               <View className="items-center">
-                <Text className="font-jakarta-bold text-lg text-gray-900">0</Text>
+                <View className="flex-row items-center gap-1">
+                  <Ionicons name="mic-outline" size={16} color="#BF9A54" />
+                  <Text className="font-jakarta-bold text-lg text-gray-900">{episodes.length}</Text>
+                </View>
                 <Text className="font-inter text-xs text-gray-500">Episodes</Text>
               </View>
               <View className="items-center">
-                <Text className="font-jakarta-bold text-lg text-gray-900">{podcaster.likeCount}</Text>
+                <View className="flex-row items-center gap-1">
+                  <Ionicons name="heart" size={16} color="#E8847C" />
+                  <Text className="font-jakarta-bold text-lg text-gray-900">{podcaster.likeCount}</Text>
+                </View>
                 <Text className="font-inter text-xs text-gray-500">Likes</Text>
               </View>
               <View className="items-center">
-                <Text className="font-jakarta-bold text-lg text-gray-900">{podcaster.playCount}</Text>
+                <View className="flex-row items-center gap-1">
+                  <Ionicons name="play-circle" size={16} color="#4CAF50" />
+                  <Text className="font-jakarta-bold text-lg text-gray-900">{podcaster.playCount}</Text>
+                </View>
                 <Text className="font-inter text-xs text-gray-500">Plays</Text>
               </View>
+              <TouchableOpacity onPress={openRatingModal} className="items-center">
+                <View className="flex-row items-center gap-1">
+                  <Ionicons name="star" size={16} color="#FFD700" />
+                  <Text className="font-jakarta-bold text-lg text-gray-900">
+                    {podcaster.averageRating > 0 ? podcaster.averageRating.toFixed(1) : '-'}
+                  </Text>
+                </View>
+                <Text className="font-inter text-xs text-gray-500">
+                  {podcaster.ratingCount > 0 ? `${podcaster.ratingCount} ratings` : 'Rating'}
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {/* Manage Button */}
@@ -139,7 +273,7 @@ export default function PodcastDetailsScreen() {
         <View className="mb-8">
           <View className="flex-row justify-between items-center px-6 mb-4">
             <Text className="font-jakarta-bold text-xl text-gray-900">Episodes</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => router.push('/episodes/create')}
               className="w-6 h-6 rounded-full border border-brand-gold items-center justify-center"
             >
@@ -147,16 +281,47 @@ export default function PodcastDetailsScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Empty State for Episodes */}
-          <View className="px-6 py-8 items-center">
-            <View className="w-16 h-16 bg-brand-gold/20 rounded-full items-center justify-center mb-3">
-              <Ionicons name="headset" size={32} color="#BF9A54" />
+          {/* Generating Episodes */}
+          {generatingEpisodes.length > 0 && (
+            <View className="px-6 mb-4">
+              {generatingEpisodes.map((episode) => (
+                <GeneratingEpisodeCard
+                  key={episode.id}
+                  episode={episode}
+                  onPress={() => router.push(`/episodes/${episode.id}`)}
+                  onRetry={() => handleRetryEpisode(episode)}
+                  onCancel={() => handleCancelEpisode(episode)}
+                />
+              ))}
             </View>
-            <Text className="font-inter-bold text-gray-900 mb-2">No episodes yet</Text>
-            <Text className="font-inter text-gray-500 text-center text-sm">
-              Create your first episode with this podcaster
-            </Text>
-          </View>
+          )}
+
+          {/* Completed Episodes */}
+          {completedEpisodes.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingLeft: 24, paddingRight: 8 }}
+            >
+              {completedEpisodes.map((episode) => (
+                <EpisodeCard
+                  key={episode.id}
+                  episode={episode}
+                  onPress={() => router.push(`/episodes/${episode.id}`)}
+                />
+              ))}
+            </ScrollView>
+          ) : generatingEpisodes.length === 0 ? (
+            <View className="px-6 py-8 items-center">
+              <View className="w-16 h-16 bg-brand-gold/20 rounded-full items-center justify-center mb-3">
+                <Ionicons name="headset" size={32} color="#BF9A54" />
+              </View>
+              <Text className="font-inter-bold text-gray-900 mb-2">No episodes yet</Text>
+              <Text className="font-inter text-gray-500 text-center text-sm">
+                Create your first episode with this podcaster
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         {/* Analytics Section (Empty as requested) */}
@@ -168,6 +333,79 @@ export default function PodcastDetailsScreen() {
         </View>
 
       </ScrollView>
+
+      {/* Rating Modal */}
+      <Modal
+        visible={showRatingModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowRatingModal(false)}
+      >
+        <View className="flex-1 bg-black/60 items-center justify-center px-8">
+          <View className="bg-[#F5F0E8] rounded-3xl w-full max-w-sm p-6">
+            {/* Header */}
+            <View className="flex-row justify-between items-center mb-6">
+              <Text className="font-jakarta-bold text-xl text-gray-900">Rate podcaster</Text>
+              <TouchableOpacity onPress={() => setShowRatingModal(false)}>
+                <Ionicons name="close" size={24} color="#1A1C1E" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Podcaster Avatar */}
+            <View className="items-center mb-6">
+              {podcaster.profilePictureUrl ? (
+                <Image
+                  source={{ uri: podcaster.profilePictureUrl }}
+                  className="w-28 h-28 rounded-2xl"
+                  resizeMode="cover"
+                />
+              ) : (
+                <View className="w-28 h-28 bg-brand-gold rounded-2xl items-center justify-center">
+                  <Text className="font-jakarta-bold text-white text-3xl">
+                    {podcaster.name.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Star Rating */}
+            <View className="flex-row justify-center gap-3 mb-6">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <TouchableOpacity
+                  key={star}
+                  onPress={() => setSelectedRating(star)}
+                  className="p-1"
+                >
+                  <Ionicons
+                    name={selectedRating >= star ? 'star' : 'star-outline'}
+                    size={36}
+                    color={selectedRating >= star ? '#FFD700' : '#9CA3AF'}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Submit Button */}
+            <TouchableOpacity
+              onPress={handleSubmitRating}
+              disabled={isRating || selectedRating === 0}
+              className={`py-3 px-6 rounded-full items-center ${
+                selectedRating > 0 ? 'bg-brand-gold' : 'bg-gray-300'
+              }`}
+            >
+              {isRating ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <Text className={`font-jakarta-bold text-base ${
+                  selectedRating > 0 ? 'text-white' : 'text-gray-500'
+                }`}>
+                  Submit
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

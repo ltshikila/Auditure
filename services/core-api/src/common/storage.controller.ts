@@ -1,5 +1,5 @@
-import { Controller, Get, Req, Res, NotFoundException, Logger } from '@nestjs/common';
-import type { Request, Response } from 'express';
+import { Controller, Get, Param, Res, NotFoundException, Logger } from '@nestjs/common';
+import type { Response } from 'express';
 import { StorageService } from './storage.service';
 
 @Controller('api/storage')
@@ -13,10 +13,10 @@ export class StorageController {
      * URL format: /api/storage/:userId/:bookId/cover.jpg
      * The key is everything after /api/storage/
      */
-    @Get('*')
-    async serveFile(@Req() req: Request, @Res() res: Response) {
-        // Extract the file path from the URL (everything after /api/storage/)
-        const key = req.path.replace(/^\/api\/storage\//, '');
+    @Get('*path')
+    async serveFile(@Param('path') path: string[], @Res() res: Response) {
+        // Extract the file path from the named wildcard parameter
+        const key = Array.isArray(path) ? path.join('/') : path;
 
         if (!key) {
             throw new NotFoundException('File path required');

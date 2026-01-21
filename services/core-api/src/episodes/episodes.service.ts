@@ -834,6 +834,7 @@ export class EpisodesService {
     async retryGeneration(id: string, userId: string): Promise<EpisodeResponseDto> {
         const episode = await this.databaseService.episode.findUnique({
             where: { id },
+            include: { book: true },
         });
 
         if (!episode) {
@@ -848,7 +849,7 @@ export class EpisodesService {
             throw new BadRequestException('Only failed episodes can be retried');
         }
 
-        // Reset status and clear error
+        // Reset episode status and clear error
         await this.databaseService.episode.update({
             where: { id },
             data: {
@@ -857,23 +858,47 @@ export class EpisodesService {
             },
         });
 
-        // Re-queue for generation
-        await this.rabbitMQService.publishEpisodeGenerationJob({
-            episodeId: episode.id,
-            userId: episode.userId,
-            podcasterId: episode.podcasterId,
-            bookId: episode.bookId,
-            title: episode.title,
-            contentCoverage: episode.contentCoverage as any,
-            chapters: episode.chapters,
-            episodeType: episode.episodeType as any,
-            episodeTheme: episode.episodeTheme as any,
-            targetLengthMin: episode.targetLengthMin,
-            targetLengthMax: episode.targetLengthMax,
-            voiceTier: episode.voiceTier as any || 'STANDARD',
-        });
+        // Check if the book extraction also failed - if so, retry that too
+        if (episode.book?.extractionStatus === 'FAILED') {
+            this.logger.log(`Book ${episode.bookId} extraction also failed, re-triggering extraction`);
 
-        this.logger.log(`Retrying episode generation for ${episode.id}`);
+            // Reset book status
+            await this.databaseService.book.update({
+                where: { id: episode.bookId },
+                data: {
+                    extractionStatus: 'PENDING',
+                    extractionError: null,
+                },
+            });
+
+            // Re-queue book extraction (which will then queue the episode when done)
+            await this.rabbitMQService.publishBookExtractionJob({
+                bookId: episode.bookId,
+                userId: episode.userId,
+                fileStorageKey: episode.book.fileStorageKey,
+                sourceType: episode.book.sourceType as 'PDF' | 'EPUB',
+            });
+
+            this.logger.log(`Retrying book extraction for ${episode.bookId}, episode ${episode.id} will be queued after extraction`);
+        } else {
+            // Book is fine, just re-queue the episode generation
+            await this.rabbitMQService.publishEpisodeGenerationJob({
+                episodeId: episode.id,
+                userId: episode.userId,
+                podcasterId: episode.podcasterId,
+                bookId: episode.bookId,
+                title: episode.title,
+                contentCoverage: episode.contentCoverage as any,
+                chapters: episode.chapters,
+                episodeType: episode.episodeType as any,
+                episodeTheme: episode.episodeTheme as any,
+                targetLengthMin: episode.targetLengthMin,
+                targetLengthMax: episode.targetLengthMax,
+                voiceTier: episode.voiceTier as any || 'STANDARD',
+            });
+
+            this.logger.log(`Retrying episode generation for ${episode.id}`);
+        }
 
         return episode as EpisodeResponseDto;
     }

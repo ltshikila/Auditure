@@ -1204,15 +1204,15 @@ export class TextExtractionService {
     }
 
     async extractFromEpub(buffer: Buffer): Promise<ExtractedContent> {
-        // Dynamic import for epub-parser
-        const epubModule = await import('epub-parser');
-        const EPub = epubModule.default || epubModule;
-        const epub = await EPub.parse(buffer);
+        // Dynamic import for @gxl/epub-parser (supports buffer input)
+        const { parseEpub } = await import('@gxl/epub-parser');
+
+        // Parse the epub buffer
+        const epub = await parseEpub(buffer, { type: 'buffer' });
 
         const metadata = {
-            title: epub.metadata?.title,
-            author: epub.metadata?.creator,
-            language: epub.metadata?.language,
+            title: epub.info?.title,
+            author: epub.info?.author,
         };
 
         const chapters: ChapterData[] = [];
@@ -1220,18 +1220,19 @@ export class TextExtractionService {
 
         if (epub.sections && Array.isArray(epub.sections)) {
             for (let i = 0; i < epub.sections.length; i++) {
-                const section = epub.sections[i];
-                const text = this.cleanText(
-                    this.stripHtml(section.htmlString || section.content || ''),
-                );
+                const section = epub.sections[i] as { id?: string; htmlString?: string };
+                const htmlContent = section.htmlString || '';
+                const text = this.cleanText(this.stripHtml(htmlContent));
 
-                chapters.push({
-                    chapterNumber: i + 1,
-                    title: section.title || `Chapter ${i + 1}`,
-                    text,
-                });
+                if (text.trim().length > 0) {
+                    chapters.push({
+                        chapterNumber: chapters.length + 1,
+                        title: section.id || `Chapter ${chapters.length + 1}`,
+                        text,
+                    });
 
-                fullText += text + '\n\n';
+                    fullText += text + '\n\n';
+                }
             }
         }
 

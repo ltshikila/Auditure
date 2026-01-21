@@ -152,4 +152,33 @@ export class PodcastersController {
     async share(@Param('id') id: string) {
         await this.podcastersService.incrementShareCount(id);
     }
+
+    /**
+     * Rate a podcaster (requires authentication)
+     * POST /podcasters/:id/rate
+     * Body: { rating: 1-5 }
+     */
+    @Post(':id/rate')
+    @UseGuards(JwtAuthGuard)
+    async rate(
+        @Param('id') id: string,
+        @Request() req,
+        @Body('rating') rating: number,
+    ) {
+        return this.podcastersService.ratePodcaster(id, req.user.userId, rating);
+    }
+
+    /**
+     * Get user's rating for a podcaster (requires authentication)
+     * GET /podcasters/:id/rating
+     */
+    @Get(':id/rating')
+    @UseGuards(JwtAuthGuard)
+    async getUserRating(@Param('id') id: string, @Request() req) {
+        const rating = await this.podcastersService.getUserRating(
+            id,
+            req.user.userId,
+        );
+        return { rating };
+    }
 }

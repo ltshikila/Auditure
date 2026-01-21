@@ -7,6 +7,8 @@ import { resolveCoverUrl } from '@/services/api';
 interface GeneratingEpisodeCardProps {
     episode: Episode;
     onPress: () => void;
+    onRetry?: () => void;
+    onCancel?: () => void;
 }
 
 const statusMessages: Record<EpisodeStatus, string> = {
@@ -18,11 +20,12 @@ const statusMessages: Record<EpisodeStatus, string> = {
     FAILED: 'Failed',
 };
 
+// Progress values aligned with ai-worker/src/consumers/episode_consumer.py
 const statusProgress: Record<EpisodeStatus, number> = {
     PENDING: 10,
-    SCRIPT_GENERATING: 35,
-    SCRIPT_GENERATED: 50,
-    AUDIO_GENERATING: 75,
+    SCRIPT_GENERATING: 40,
+    SCRIPT_GENERATED: 60,
+    AUDIO_GENERATING: 80,
     COMPLETED: 100,
     FAILED: 0,
 };
@@ -30,6 +33,8 @@ const statusProgress: Record<EpisodeStatus, number> = {
 export const GeneratingEpisodeCard: React.FC<GeneratingEpisodeCardProps> = ({
     episode,
     onPress,
+    onRetry,
+    onCancel,
 }) => {
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const progressAnim = useRef(new Animated.Value(0)).current;
@@ -121,9 +126,9 @@ export const GeneratingEpisodeCard: React.FC<GeneratingEpisodeCardProps> = ({
             </View>
 
             {/* Progress Section */}
-            <View className="mt-3 self-start">
+            <View className="mt-3 w-full">
                 {/* Status Text */}
-                <View className="flex-row items-center justify-start mb-2">
+                <View className="flex-row items-center justify-between mb-2">
                     <View className="flex-row items-center">
                         {isProcessing && (
                             <Animated.View style={{ opacity: pulseAnim }}>
@@ -149,7 +154,7 @@ export const GeneratingEpisodeCard: React.FC<GeneratingEpisodeCardProps> = ({
                 </View>
 
                 {/* Progress Bar */}
-                <View className="h-1.5 bg-[#E8E3D6] rounded-full overflow-hidden">
+                <View className="w-full h-1.5 bg-[#E8E3D6] rounded-full overflow-hidden">
                     <Animated.View
                         className={`h-full rounded-full ${
                             isFailed
@@ -162,12 +167,29 @@ export const GeneratingEpisodeCard: React.FC<GeneratingEpisodeCardProps> = ({
                     />
                 </View>
 
-                {/* Retry button for failed */}
+                {/* Error message and action buttons for failed */}
                 {isFailed && (
-                    <TouchableOpacity className="mt-2 flex-row items-center justify-center bg-red-50 rounded-lg py-1.5">
-                        <Ionicons name="refresh" size={12} color="#DC2626" />
-                        <Text className="font-inter-medium text-xs text-red-600 ml-1">Retry</Text>
-                    </TouchableOpacity>
+                    <>
+                        {episode.generationError && (
+                            <Text className="font-inter text-xs text-red-500 mt-1" numberOfLines={2}>
+                                {episode.generationError}
+                            </Text>
+                        )}
+                        <View className="flex-row mt-2 gap-2">
+                            <TouchableOpacity
+                                onPress={onRetry}
+                                className="flex-1 flex-row items-center justify-center bg-red-50 rounded-lg py-1.5">
+                                <Ionicons name="refresh" size={12} color="#DC2626" />
+                                <Text className="font-inter-medium text-xs text-red-600 ml-1">Retry</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={onCancel}
+                                className="flex-1 flex-row items-center justify-center bg-gray-100 rounded-lg py-1.5">
+                                <Ionicons name="close" size={12} color="#6B7280" />
+                                <Text className="font-inter-medium text-xs text-gray-500 ml-1">Cancel</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </>
                 )}
             </View>
         </TouchableOpacity>

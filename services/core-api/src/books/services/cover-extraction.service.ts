@@ -389,36 +389,15 @@ export class CoverExtractionService {
 
     /**
      * Extract cover image from EPUB.
-     * EPUBs typically have cover image in metadata or as first image.
+     * Note: @gxl/epub-parser doesn't directly expose cover images,
+     * so we rely on Google Books API for EPUB covers.
      */
-    private async extractEpubCover(buffer: Buffer): Promise<Buffer | null> {
-        try {
-            const epubModule = await import('epub-parser');
-            const EPub = epubModule.default || epubModule;
-            const epub = await EPub.parse(buffer);
-
-            // Check for cover in metadata
-            if (epub.metadata?.cover) {
-                const coverPath = epub.metadata.cover;
-                // Try to find the cover image in manifest
-                if (epub.manifest) {
-                    for (const item of Object.values(epub.manifest) as any[]) {
-                        if (item.href === coverPath || item.id === 'cover-image') {
-                            // Found cover, would need to extract it
-                            // This depends on epub-parser implementation
-                            this.logger.debug(`Found EPUB cover reference: ${item.href}`);
-                        }
-                    }
-                }
-            }
-
-            // For now, return null - EPUB cover extraction is more complex
-            // and may require a different library
-            this.logger.debug('EPUB cover extraction not fully implemented');
-            return null;
-        } catch (error) {
-            this.logger.error(`EPUB cover extraction failed: ${error.message}`);
-            return null;
-        }
+    private async extractEpubCover(_buffer: Buffer): Promise<Buffer | null> {
+        // EPUB cover extraction requires parsing the OPF manifest and extracting
+        // the referenced image file from the ZIP archive. The @gxl/epub-parser
+        // library doesn't expose this functionality directly.
+        // For EPUBs, we rely on Google Books API for cover images instead.
+        this.logger.debug('EPUB cover extraction deferred to Google Books API');
+        return null;
     }
 }

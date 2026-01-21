@@ -37,6 +37,10 @@ export class PodcasterResponseDto {
     likeCount: number;
     shareCount: number;
 
+    // Rating
+    averageRating: number;
+    ratingCount: number;
+
     // Timestamps
     createdAt: Date;
     updatedAt: Date;

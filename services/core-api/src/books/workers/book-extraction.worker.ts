@@ -218,8 +218,10 @@ export class BookExtractionWorker implements OnModuleInit {
                 this.logger.log(`Queued pending episode ${episode.id} for generation`);
             }
         } catch (error) {
-            this.logger.error(`Failed to extract book ${job.bookId}`, error);
+            this.logger.error(`Failed to extract book ${job.bookId}`);
+            this.logger.error(error);
 
+            // Store technical error in book for debugging
             await this.databaseService.book.update({
                 where: { id: job.bookId },
                 data: {
@@ -227,6 +229,28 @@ export class BookExtractionWorker implements OnModuleInit {
                     extractionError: error.message,
                 },
             });
+
+            // Mark all pending episodes for this book as FAILED
+            // so they don't remain stuck in "Queued" state indefinitely
+            // Use user-friendly error message (not technical details)
+            const userFriendlyError = this.getUserFriendlyError(error, job.sourceType);
+
+            const failedEpisodes = await this.databaseService.episode.updateMany({
+                where: {
+                    bookId: job.bookId,
+                    generationStatus: 'PENDING',
+                },
+                data: {
+                    generationStatus: 'FAILED',
+                    generationError: userFriendlyError,
+                },
+            });
+
+            if (failedEpisodes.count > 0) {
+                this.logger.warn(
+                    `Marked ${failedEpisodes.count} pending episode(s) as FAILED due to book extraction failure`,
+                );
+            }
 
             throw error; // Re-throw for RabbitMQ retry logic
         }
@@ -303,5 +327,58 @@ export class BookExtractionWorker implements OnModuleInit {
         }
 
         return null;
+    }
+
+    /**
+     * Convert technical error messages to user-friendly messages.
+     * Keep messages SHORT for mobile UI display.
+     * Technical details are still logged and stored in book.extractionError for debugging.
+     */
+    private getUserFriendlyError(error: Error, sourceType: string): string {
+        const errorMessage = error.message?.toLowerCase() || '';
+
+        // File format/parsing errors
+        if (
+            errorMessage.includes('is not a function') ||
+            errorMessage.includes('cannot read') ||
+            errorMessage.includes('undefined')
+        ) {
+            return `Unsupported ${sourceType} format. Try a different file.`;
+        }
+
+        // File corruption
+        if (
+            errorMessage.includes('invalid') ||
+            errorMessage.includes('malformed') ||
+            errorMessage.includes('corrupt')
+        ) {
+            return `File appears corrupted. Try a different copy.`;
+        }
+
+        // DRM/encryption
+        if (
+            errorMessage.includes('encrypted') ||
+            errorMessage.includes('drm') ||
+            errorMessage.includes('protected')
+        ) {
+            return `File is DRM protected. Use a DRM-free version.`;
+        }
+
+        // Empty/no content
+        if (
+            errorMessage.includes('empty') ||
+            errorMessage.includes('no content') ||
+            errorMessage.includes('no text')
+        ) {
+            return `No readable text found in this file.`;
+        }
+
+        // Timeout/resource
+        if (errorMessage.includes('timeout') || errorMessage.includes('memory')) {
+            return `File too large or complex. Try a smaller file.`;
+        }
+
+        // Generic fallback - don't expose technical details
+        return `Could not process this file. Please try again.`;
     }
 }

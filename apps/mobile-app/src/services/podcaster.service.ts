@@ -38,6 +38,10 @@ export interface Podcaster {
   likeCount: number;
   shareCount: number;
 
+  // Rating
+  averageRating: number;
+  ratingCount: number;
+
   // Timestamps
   createdAt: string;
   updatedAt: string;
@@ -172,6 +176,25 @@ class PodcasterService {
    */
   async share(id: string): Promise<void> {
     return apiClient.post<void>(`/podcasters/${id}/share`, {});
+  }
+
+  /**
+   * Rate a podcaster (1-5 stars)
+   */
+  async rate(id: string, rating: number, token: string): Promise<{ averageRating: number; ratingCount: number }> {
+    return apiClient.post<{ averageRating: number; ratingCount: number }>(
+      `/podcasters/${id}/rate`,
+      { rating },
+      token
+    );
+  }
+
+  /**
+   * Get user's rating for a podcaster
+   */
+  async getUserRating(id: string, token: string): Promise<number | null> {
+    const result = await apiClient.get<{ rating: number | null }>(`/podcasters/${id}/rating`, token);
+    return result.rating;
   }
 }
 

@@ -263,7 +263,16 @@ export default function Profile() {
         )}
 
         {/* Profile Section */}
-        <View className="bg-white rounded-2xl p-5 mb-6 shadow-sm">
+        <View
+          className="bg-[#F5F5F0] rounded-2xl p-5 mb-6"
+          style={{
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 10,
+            elevation: 8,
+          }}
+        >
           <View className="flex-row justify-between items-center mb-4">
             <Text className="font-inter-bold text-lg text-gray-900">Personal Information</Text>
             {!isEditing ? (
@@ -388,7 +397,16 @@ export default function Profile() {
 
         {/* Subscription Section */}
         {subscription && (
-          <View className="bg-white rounded-2xl p-5 mb-6 shadow-sm">
+          <View
+            className="bg-[#F5F5F0] rounded-2xl p-5 mb-6"
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 10,
+              elevation: 8,
+            }}
+          >
             <Text className="font-inter-bold text-lg text-gray-900 mb-4">Subscription</Text>
 
             <View className="flex-row items-center mb-4">
@@ -490,7 +508,16 @@ export default function Profile() {
 
         {/* Notification Settings */}
         {settings && (
-          <View className="bg-white rounded-2xl p-5 mb-6 shadow-sm">
+          <View
+            className="bg-[#F5F5F0] rounded-2xl p-5 mb-6"
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 10,
+              elevation: 8,
+            }}
+          >
             <Text className="font-inter-bold text-lg text-gray-900 mb-2">Notifications</Text>
 
             <SettingItem
@@ -516,7 +543,16 @@ export default function Profile() {
 
         {/* Privacy Settings */}
         {settings && (
-          <View className="bg-white rounded-2xl p-5 mb-6 shadow-sm">
+          <View
+            className="bg-[#F5F5F0] rounded-2xl p-5 mb-6"
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 10,
+              elevation: 8,
+            }}
+          >
             <Text className="font-inter-bold text-lg text-gray-900 mb-2">Privacy</Text>
 
             <SettingItem
@@ -536,7 +572,16 @@ export default function Profile() {
 
         {/* Playback Settings */}
         {settings && (
-          <View className="bg-white rounded-2xl p-5 mb-6 shadow-sm">
+          <View
+            className="bg-[#F5F5F0] rounded-2xl p-5 mb-6"
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 10,
+              elevation: 8,
+            }}
+          >
             <Text className="font-inter-bold text-lg text-gray-900 mb-2">Playback</Text>
 
             <SettingItem
@@ -584,7 +629,16 @@ export default function Profile() {
         )}
 
         {/* Account Actions */}
-        <View className="bg-white rounded-2xl p-5 mb-6 shadow-sm">
+        <View
+          className="bg-[#F5F5F0] rounded-2xl p-5 mb-6"
+          style={{
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 10,
+            elevation: 8,
+          }}
+        >
           <Text className="font-inter-bold text-lg text-gray-900 mb-4">Account</Text>
 
           <TouchableOpacity

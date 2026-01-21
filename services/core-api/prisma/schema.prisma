@@ -32,6 +32,7 @@ model User {
   episodes         Episode[]
   settings         UserSettings?
   subscription     Subscription?
+  podcasterRatings PodcasterRating[]
 
   @@map("users")
 }
@@ -148,6 +149,10 @@ model Podcaster {
   likeCount               Int       @default(0)
   shareCount              Int       @default(0)
 
+  // Rating
+  averageRating           Float     @default(0)
+  ratingCount             Int       @default(0)
+
   // Timestamps
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
@@ -155,11 +160,33 @@ model Podcaster {
   // Relations
   user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   episodes                Episode[]
+  ratings                 PodcasterRating[]
 
   @@index([userId])
   @@index([isPublic])
   @@index([playCount])
+  @@index([averageRating])
   @@map("podcasters")
+}
+
+model PodcasterRating {
+  id          String    @id @default(uuid())
+  podcasterId String
+  userId      String
+  rating      Int       // 1-5 stars
+
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  podcaster   Podcaster @relation(fields: [podcasterId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([podcasterId, userId]) // One rating per user per podcaster
+  @@index([podcasterId])
+  @@index([userId])
+  @@map("podcaster_ratings")
 }
 
 enum VoiceModel {
