@@ -6,7 +6,7 @@ from typing import Optional, List
 
 from src.config import get_settings
 from .llm_client import HuggingFaceClient, HuggingFaceAPIError
-from .prompt_builder import PromptBuilder, ScriptRequest, PodcasterPersonality
+from .prompt_builder import PromptBuilder, ScriptRequest, PodcasterPersonality, DebateConfig
 from .templates.fallback_generator import FallbackGenerator, FallbackRequest
 
 logger = logging.getLogger(__name__)
@@ -369,6 +369,7 @@ class ScriptGenerator:
         target_words: int,
         expansion_ratio: float,
         content_scope: str = "the book",
+        debate_config: Optional[DebateConfig] = None,
     ) -> str:
         """Generate a long script in multiple chunks and combine them.
 
@@ -415,6 +416,7 @@ class ScriptGenerator:
                 expansion_ratio=expansion_ratio,
                 topics_covered=topics_covered if chunk_num > 0 else None,
                 content_scope=content_scope,
+                debate_config=debate_config,
             )
 
             logger.info(f"Generating chunk {chunk_num + 1}/{num_chunks}...")
@@ -462,12 +464,18 @@ class ScriptGenerator:
         expansion_ratio: float,
         topics_covered: Optional[List[str]] = None,
         content_scope: str = "the book",
+        debate_config: Optional[DebateConfig] = None,
     ) -> str:
         """Build a prompt for generating a specific chunk of the script."""
         author_line = f" by {book_author}" if book_author else ""
 
         # Personality description
         personality_desc = self.prompt_builder.build_personality_description(personality)
+
+        # Build debate instructions if this is a debate episode
+        debate_section = ""
+        if episode_theme == "DEBATE" and debate_config and episode_type != "MONOLOGUE":
+            debate_section = self.prompt_builder.build_debate_instructions(debate_config, episode_type)
 
         # Build topics covered section if any
         topics_section = ""
@@ -559,7 +567,7 @@ HOST: Let's dive right in..."""
 {personality_desc}
 
 {position_instruction}
-
+{debate_section}
 ## CRITICAL FORMAT REQUIREMENTS
 {format_instruction}
 {format_example}
@@ -640,6 +648,19 @@ Now write Part {chunk_num}:
         retry_info = f" (RETRY #{retry_count} with enhanced prompt)" if retry_count > 0 else ""
         logger.info(f"Generating script with LLM for: {episode_title}{retry_info}")
 
+        # Generate debate config for DEBATE theme episodes (used by both chunked and single-call generation)
+        debate_config = None
+        if episode_theme == "DEBATE" and episode_type != "MONOLOGUE":
+            debate_config = DebateConfig.generate(
+                episode_type=episode_type,
+                host_chaos_factor=personality.chaos_factor,
+            )
+            logger.info(
+                f"Generated debate config: host={debate_config.host_position.value}, "
+                f"guests={[(g.name, g.position.value, g.chaos_factor) for g in debate_config.guest_personalities]}, "
+                f"outcome={debate_config.outcome.value}, formality={debate_config.formality_level}"
+            )
+
         # Use chunked generation for long scripts (gpt-4o-mini can't reliably generate >1500 words)
         if self._needs_chunked_generation(target_words):
             logger.info(f"Target {target_words} words exceeds threshold, using chunked generation")
@@ -655,6 +676,7 @@ Now write Part {chunk_num}:
                 target_words=target_words,
                 expansion_ratio=expansion_ratio,
                 content_scope=content_scope,
+                debate_config=debate_config,
             )
             logger.info(f"Chunked generation produced {len(script.split())} words")
             return script
@@ -677,6 +699,7 @@ Now write Part {chunk_num}:
             expansion_ratio=expansion_ratio,
             content_scope=content_scope,
             chapter_title=chapter_title,
+            debate_config=debate_config,
         )
 
         # Request more words on retries (increasingly aggressive)

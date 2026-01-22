@@ -174,14 +174,6 @@ This ensures that faster-speaking podcasters get more words in their scripts, wh
 
 Multi-speaker episodes (DUO, GROUP) include verbal cues for natural conversation flow. The frequency and intensity are controlled by the podcaster's **chaos factor** setting.
 
-#### DEBATE Episodes
-
-| Chaos Factor | Style | Frequency | Examples |
-|--------------|-------|-----------|----------|
-| 1-3 | Polite | 2-3 times | "Actually, I see your point, but—" |
-| 4-6 | Engaged | 4-6 times | "Wait, wait—I have to push back—" |
-| 7-10 | Passionate | 7+ times | "—I completely disagree—", "[laughing] Oh come on—" |
-
 #### DISCUSSION Episodes
 
 | Chaos Factor | Style | Frequency | Examples |
@@ -192,6 +184,80 @@ Multi-speaker episodes (DUO, GROUP) include verbal cues for natural conversation
 
 #### LECTURE Episodes
 No interruptions (monologue format).
+
+### DEBATE Episodes (Enhanced Format)
+
+Debate episodes use a comprehensive **DebateConfig** system that randomizes speaker positions, outcomes, and dynamics to create entertaining debates where listeners question both sides.
+
+#### Randomized Elements
+
+| Element | Description | Options |
+|---------|-------------|---------|
+| **Host Position** | Randomly assigned stance | ADVOCATE (40%), CRITIC (25%), MODERATE (25%), DEVILS_ADVOCATE (10%) |
+| **Guest Positions** | Contrasts with host | If host advocates → guests likely critics (and vice versa) |
+| **Guest Chaos Factors** | Random 1-10 per guest | Independent of host's chaos factor |
+| **Debate Outcome** | How the debate resolves | ADVOCATE_WINS, CRITIC_WINS, SYNTHESIS, AGREE_TO_DISAGREE, UNEXPECTED_ALLIANCE |
+| **Formality Level** | Based on host chaos ±1 | 1-3 formal, 4-6 conversational, 7-10 heated |
+
+#### Position Types
+
+| Position | Role | Behavior |
+|----------|------|----------|
+| **ADVOCATE** | Supports book's ideas | Finds value, practical applications, defends thesis |
+| **CRITIC** | Challenges book's ideas | Questions assumptions, points out flaws, demands evidence |
+| **MODERATE** | Balanced perspective | Sees merit in both sides, seeks nuance and middle ground |
+| **DEVILS_ADVOCATE** | Provocateur | Intentionally argues against to test ideas |
+
+#### Formality Spectrum
+
+| Formality | Style | Structure | Techniques |
+|-----------|-------|-----------|------------|
+| **1-3 (Formal)** | Oxford-style debate | Opening statements → Evidence → Rebuttals → Resolution | Steel-manning, evidence-based arguments, graceful concessions |
+| **4-6 (Conversational)** | Friends who disagree | Opening hook → Back-and-forth → Peak tension → Landing | Quick acknowledgments, real-world examples, strategic concessions |
+| **7-10 (Heated)** | Entertainment-first | Explosive opening → Escalating clash → Climax → Resolution | Visceral examples, strategic provocations, humor as weapon |
+
+#### Interaction Style by Combined Chaos
+
+The interaction intensity is determined by averaging the host's formality level with guest chaos factors:
+
+| Combined Chaos | Interruptions | Style |
+|----------------|---------------|-------|
+| 1-3 | 2-3 times | Measured, polite interjections |
+| 4-6 | 4-6 times | Engaged, "Sorry to interrupt, but—" |
+| 7-10 | 7+ times | Heated, rapid-fire exchanges |
+
+#### Debate Outcomes
+
+| Outcome | Description |
+|---------|-------------|
+| **ADVOCATE_WINS** | Pro-book position emerges more convincing, but critic's concerns acknowledged |
+| **CRITIC_WINS** | Skepticism proves well-founded, advocates concede key points |
+| **SYNTHESIS** | Both sides find unexpected common ground |
+| **AGREE_TO_DISAGREE** | Mutual respect but fundamental disagreement remains |
+| **UNEXPECTED_ALLIANCE** | A critic is genuinely won over by a compelling argument |
+
+#### Entertainment Goal
+
+The primary goal of debates is to make listeners **question both positions**:
+- Both sides must present strong, convincing arguments
+- Listeners should change their mind multiple times during the debate
+- Neither side should be obviously "right"
+- Passion and entertainment value are prioritized
+
+#### Guest Personality Flavors
+
+Each guest receives a randomized personality flavor based on their position:
+
+| Position | Possible Flavors |
+|----------|------------------|
+| ADVOCATE | "enthusiastic supporter", "thoughtful believer", "practical implementer", "passionate advocate" |
+| CRITIC | "skeptical academic", "pragmatic questioner", "contrarian thinker", "analytical doubter" |
+| MODERATE | "balanced mediator", "nuanced observer", "diplomatic bridge-builder", "open-minded explorer" |
+
+**Example Log Output:**
+```
+Generated debate config: host=advocate, guests=[('GUEST', 'critic', 7)], outcome=synthesis, formality=8
+```
 
 ### Script Generation
 

@@ -28,10 +28,225 @@ Reference: https://docs.cloud.google.com/text-to-speech/docs/gemini-tts#markup_t
 """
 
 import logging
-from dataclasses import dataclass
+import random
+from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional
+from enum import Enum
 
 logger = logging.getLogger(__name__)
+
+
+class DebatePosition(str, Enum):
+    """Position a speaker takes in a debate."""
+    ADVOCATE = "advocate"  # Supports the book's main thesis/ideas
+    CRITIC = "critic"  # Challenges or questions the book's ideas
+    MODERATE = "moderate"  # Takes a balanced middle-ground position
+    DEVILS_ADVOCATE = "devils_advocate"  # Intentionally argues against for discussion
+
+
+class DebateOutcome(str, Enum):
+    """How the debate resolves."""
+    ADVOCATE_WINS = "advocate_wins"  # Pro-book position is more convincing
+    CRITIC_WINS = "critic_wins"  # Critical position gains ground
+    SYNTHESIS = "synthesis"  # Both sides find common ground
+    AGREE_TO_DISAGREE = "agree_to_disagree"  # Respectful disagreement remains
+    UNEXPECTED_ALLIANCE = "unexpected_alliance"  # Critic comes around to advocate's view
+
+
+@dataclass
+class GuestPersonality:
+    """Individual guest personality for debates/discussions."""
+    name: str  # GUEST, GUEST1, GUEST2, etc.
+    chaos_factor: int  # 1-10, randomly generated
+    position: Optional[DebatePosition] = None  # For debates
+    personality_flavor: Optional[str] = None  # Brief descriptor
+
+
+@dataclass
+class DebateConfig:
+    """Configuration for debate-style episodes with randomized elements."""
+    host_position: DebatePosition
+    guest_personalities: List[GuestPersonality]
+    outcome: DebateOutcome
+    formality_level: int  # 1-10: 1-3=formal, 4-6=conversational, 7-10=heated
+    tension_arc: str  # Description of how tension evolves
+
+    @classmethod
+    def generate(
+        cls,
+        episode_type: str,
+        host_chaos_factor: int,
+    ) -> "DebateConfig":
+        """Generate a randomized debate configuration."""
+        # Formality level driven by host's chaos factor with variance
+        variance = random.randint(-1, 1)
+        formality_level = max(1, min(10, host_chaos_factor + variance))
+
+        # Randomly assign host position
+        host_position_weights = [
+            (DebatePosition.ADVOCATE, 0.4),
+            (DebatePosition.CRITIC, 0.25),
+            (DebatePosition.MODERATE, 0.25),
+            (DebatePosition.DEVILS_ADVOCATE, 0.1),
+        ]
+        host_position = random.choices(
+            [p for p, _ in host_position_weights],
+            weights=[w for _, w in host_position_weights]
+        )[0]
+
+        # Generate guest personalities
+        guest_personalities = []
+        num_guests = 1 if episode_type == "DUO" else 2
+
+        advocate_flavors = [
+            "enthusiastic supporter", "thoughtful believer", "practical implementer",
+            "passionate advocate", "experiential endorser", "optimistic applier"
+        ]
+        critic_flavors = [
+            "skeptical academic", "pragmatic questioner", "contrarian thinker",
+            "analytical doubter", "seasoned cynic", "devil's advocate"
+        ]
+        moderate_flavors = [
+            "balanced mediator", "nuanced observer", "diplomatic bridge-builder",
+            "open-minded explorer", "fair assessor"
+        ]
+
+        for i in range(num_guests):
+            guest_name = "GUEST" if num_guests == 1 else f"GUEST{i + 1}"
+            guest_chaos = random.randint(1, 10)
+
+            # Assign contrasting positions for interesting dynamics
+            if host_position == DebatePosition.ADVOCATE:
+                guest_position_weights = [
+                    (DebatePosition.CRITIC, 0.45),
+                    (DebatePosition.MODERATE, 0.3),
+                    (DebatePosition.ADVOCATE, 0.15),
+                    (DebatePosition.DEVILS_ADVOCATE, 0.1),
+                ]
+            elif host_position == DebatePosition.CRITIC:
+                guest_position_weights = [
+                    (DebatePosition.ADVOCATE, 0.45),
+                    (DebatePosition.MODERATE, 0.3),
+                    (DebatePosition.CRITIC, 0.15),
+                    (DebatePosition.DEVILS_ADVOCATE, 0.1),
+                ]
+            else:
+                guest_position_weights = [
+                    (DebatePosition.ADVOCATE, 0.35),
+                    (DebatePosition.CRITIC, 0.35),
+                    (DebatePosition.MODERATE, 0.2),
+                    (DebatePosition.DEVILS_ADVOCATE, 0.1),
+                ]
+
+            # Ensure variety in GROUP debates
+            if num_guests == 2 and i == 1 and guest_personalities:
+                first_pos = guest_personalities[0].position
+                if first_pos == DebatePosition.ADVOCATE:
+                    guest_position_weights = [
+                        (DebatePosition.CRITIC, 0.5),
+                        (DebatePosition.MODERATE, 0.35),
+                        (DebatePosition.DEVILS_ADVOCATE, 0.15),
+                    ]
+                elif first_pos == DebatePosition.CRITIC:
+                    guest_position_weights = [
+                        (DebatePosition.ADVOCATE, 0.5),
+                        (DebatePosition.MODERATE, 0.35),
+                        (DebatePosition.DEVILS_ADVOCATE, 0.15),
+                    ]
+
+            guest_position = random.choices(
+                [p for p, _ in guest_position_weights],
+                weights=[w for _, w in guest_position_weights]
+            )[0]
+
+            if guest_position == DebatePosition.ADVOCATE:
+                flavor = random.choice(advocate_flavors)
+            elif guest_position in [DebatePosition.CRITIC, DebatePosition.DEVILS_ADVOCATE]:
+                flavor = random.choice(critic_flavors)
+            else:
+                flavor = random.choice(moderate_flavors)
+
+            guest_personalities.append(GuestPersonality(
+                name=guest_name,
+                chaos_factor=guest_chaos,
+                position=guest_position,
+                personality_flavor=flavor,
+            ))
+
+        outcome = cls._determine_outcome(host_position, guest_personalities)
+        tension_arc = cls._generate_tension_arc(formality_level, outcome)
+
+        return cls(
+            host_position=host_position,
+            guest_personalities=guest_personalities,
+            outcome=outcome,
+            formality_level=formality_level,
+            tension_arc=tension_arc,
+        )
+
+    @staticmethod
+    def _determine_outcome(
+        host_position: DebatePosition,
+        guest_personalities: List[GuestPersonality],
+    ) -> DebateOutcome:
+        """Randomly determine debate outcome."""
+        positions = [host_position] + [g.position for g in guest_personalities]
+        advocate_count = sum(1 for p in positions if p == DebatePosition.ADVOCATE)
+        critic_count = sum(1 for p in positions if p in [DebatePosition.CRITIC, DebatePosition.DEVILS_ADVOCATE])
+
+        if advocate_count > critic_count:
+            outcome_weights = [
+                (DebateOutcome.ADVOCATE_WINS, 0.3),
+                (DebateOutcome.CRITIC_WINS, 0.15),
+                (DebateOutcome.SYNTHESIS, 0.35),
+                (DebateOutcome.AGREE_TO_DISAGREE, 0.15),
+                (DebateOutcome.UNEXPECTED_ALLIANCE, 0.05),
+            ]
+        elif critic_count > advocate_count:
+            outcome_weights = [
+                (DebateOutcome.ADVOCATE_WINS, 0.15),
+                (DebateOutcome.CRITIC_WINS, 0.3),
+                (DebateOutcome.SYNTHESIS, 0.3),
+                (DebateOutcome.AGREE_TO_DISAGREE, 0.15),
+                (DebateOutcome.UNEXPECTED_ALLIANCE, 0.1),
+            ]
+        else:
+            outcome_weights = [
+                (DebateOutcome.ADVOCATE_WINS, 0.2),
+                (DebateOutcome.CRITIC_WINS, 0.2),
+                (DebateOutcome.SYNTHESIS, 0.35),
+                (DebateOutcome.AGREE_TO_DISAGREE, 0.2),
+                (DebateOutcome.UNEXPECTED_ALLIANCE, 0.05),
+            ]
+
+        return random.choices(
+            [o for o, _ in outcome_weights],
+            weights=[w for _, w in outcome_weights]
+        )[0]
+
+    @staticmethod
+    def _generate_tension_arc(formality_level: int, outcome: DebateOutcome) -> str:
+        """Generate tension arc description."""
+        if formality_level <= 3:
+            arcs = [
+                "Start with measured opening statements, build through structured rebuttals, resolve with dignified conclusions",
+                "Begin cordially, exchange increasingly pointed counterarguments, conclude with mutual respect",
+                "Open with thesis statements, develop through evidence-based challenges, end with scholarly synthesis",
+            ]
+        elif formality_level <= 6:
+            arcs = [
+                "Start friendly, tension builds as disagreements surface, cool down toward resolution",
+                "Begin casually, heat up during key points of contention, find common ground at the end",
+                "Open warmly, get more animated during debates, settle into thoughtful conclusion",
+            ]
+        else:
+            arcs = [
+                "Jump in hot, escalate through passionate exchanges, reach explosive climax before unexpected resolution",
+                "Start with immediate friction, build to heated confrontation, resolve through breakthrough moment",
+                "Begin with provocative statements, spiral into intense back-and-forth, end with hard-won understanding",
+                "Open with bold challenges, escalate with personal conviction, conclude with grudging respect",
+            ]
+        return random.choice(arcs)
 
 
 @dataclass
@@ -68,6 +283,8 @@ class ScriptRequest:
     # Content scope info for the intro
     content_scope: str = "the book"  # e.g., "Chapter 2", "the entire book", "Chapters 1-3"
     chapter_title: Optional[str] = None  # Title of the chapter if single chapter
+    # Debate configuration (generated for DEBATE theme episodes)
+    debate_config: Optional[DebateConfig] = None
 
 
 class PromptBuilder:
@@ -203,12 +420,20 @@ Style: Dynamic conversation with multiple viewpoints. Allow for interruptions an
 Include reactions, agreements, and natural conversational sounds.
 {tts_markup_guide}"""
 
-    def build_theme_instructions(self, episode_theme: str, chaos_factor: int = 5) -> str:
+    def build_theme_instructions(
+        self,
+        episode_theme: str,
+        chaos_factor: int = 5,
+        debate_config: Optional[DebateConfig] = None,
+        episode_type: str = "DUO",
+    ) -> str:
         """Get instructions based on episode theme and chaos factor.
 
         Args:
             episode_theme: LECTURE, DISCUSSION, or DEBATE
             chaos_factor: 1-10 scale affecting interruption frequency
+            debate_config: Configuration for debate episodes (required for DEBATE theme)
+            episode_type: DUO or GROUP (used for debate speaker instructions)
         """
         if episode_theme == "LECTURE":
             return """
@@ -224,12 +449,406 @@ Goal: Have a genuine conversation about the book's themes and impact.
 {backchannel_guidance}"""
 
         else:  # DEBATE
-            # Debates have more interruptions based on chaos factor
-            backchannel_guidance = self._build_backchannel_guidance(chaos_factor, is_debate=True)
-            return f"""
+            if debate_config:
+                return self.build_debate_instructions(debate_config, episode_type)
+            else:
+                # Fallback to old behavior if no config provided
+                backchannel_guidance = self._build_backchannel_guidance(chaos_factor, is_debate=True)
+                return f"""
 Tone: Argumentative (friendly). Present different perspectives and challenge ideas.
 Goal: Explore the book through contrasting viewpoints and critical analysis.
 {backchannel_guidance}"""
+
+    def build_debate_instructions(self, config: DebateConfig, episode_type: str) -> str:
+        """Build comprehensive debate instructions with position assignments, structure, and techniques.
+
+        The goal is to create entertaining debates that make listeners question both positions.
+        """
+        formality = config.formality_level
+
+        # Build position descriptions for each speaker
+        position_instructions = self._build_position_assignments(config, episode_type)
+
+        # Build debate structure based on formality
+        structure_instructions = self._build_debate_structure(formality, config.outcome)
+
+        # Build argumentative techniques guidance
+        techniques_instructions = self._build_argumentation_techniques(formality)
+
+        # Build tension/entertainment dynamics
+        dynamics_instructions = self._build_tension_dynamics(config)
+
+        # Build interruption/backchannel guidance based on formality
+        interaction_instructions = self._build_debate_interactions(config)
+
+        return f"""
+## DEBATE FORMAT - MAKE BOTH SIDES COMPELLING!
+
+**Primary Goal:** Create an entertaining debate where listeners genuinely question both positions.
+Neither side should be obviously "right" - both must present strong, convincing arguments.
+
+{position_instructions}
+
+{structure_instructions}
+
+{techniques_instructions}
+
+{dynamics_instructions}
+
+{interaction_instructions}
+"""
+
+    def _build_position_assignments(self, config: DebateConfig, episode_type: str) -> str:
+        """Build clear position assignments for each speaker."""
+        position_descriptions = {
+            DebatePosition.ADVOCATE: "SUPPORTS the book's ideas - finds them valuable, practical, and worth applying",
+            DebatePosition.CRITIC: "CHALLENGES the book's ideas - questions assumptions, points out flaws, demands evidence",
+            DebatePosition.MODERATE: "BALANCED perspective - sees merit in both sides, seeks nuance and middle ground",
+            DebatePosition.DEVILS_ADVOCATE: "PROVOCATEUR - intentionally argues against to test ideas, plays devil's advocate",
+        }
+
+        chaos_descriptors = {
+            (1, 3): "measured and thoughtful",
+            (4, 6): "engaged and animated",
+            (7, 10): "passionate and fiery",
+        }
+
+        def get_chaos_descriptor(chaos: int) -> str:
+            for (low, high), desc in chaos_descriptors.items():
+                if low <= chaos <= high:
+                    return desc
+            return "engaged"
+
+        lines = ["## SPEAKER POSITIONS (CRITICAL - Each speaker MUST maintain their assigned stance!)"]
+
+        # Host position
+        host_desc = position_descriptions[config.host_position]
+        lines.append(f"\n**HOST:** {host_desc}")
+
+        # Guest positions with their random chaos factors
+        for guest in config.guest_personalities:
+            guest_desc = position_descriptions[guest.position]
+            chaos_desc = get_chaos_descriptor(guest.chaos_factor)
+            flavor = f" ({guest.personality_flavor})" if guest.personality_flavor else ""
+            lines.append(f"\n**{guest.name}:** {guest_desc}")
+            lines.append(f"   - Speaking style: {chaos_desc}{flavor}")
+
+        lines.append("""
+**IMPORTANT:** Speakers must COMMIT to their positions throughout the debate.
+- Don't have speakers agree too easily or abandon their stance
+- Each position should sound genuinely convincing when argued
+- Listeners should find themselves nodding along with BOTH sides at different moments
+""")
+
+        return "\n".join(lines)
+
+    def _build_debate_structure(self, formality: int, outcome: DebateOutcome) -> str:
+        """Build debate structure instructions based on formality level."""
+
+        outcome_instructions = {
+            DebateOutcome.ADVOCATE_WINS: "The advocate's position emerges as more convincing by the end, though the critic raises valid concerns that are acknowledged.",
+            DebateOutcome.CRITIC_WINS: "The critic's skepticism proves well-founded; advocates concede some key points while defending core merits.",
+            DebateOutcome.SYNTHESIS: "Both sides find unexpected common ground, creating a richer understanding than either started with.",
+            DebateOutcome.AGREE_TO_DISAGREE: "The debate ends with mutual respect but fundamental disagreement - both positions remain valid.",
+            DebateOutcome.UNEXPECTED_ALLIANCE: "A critic or skeptic is genuinely won over by a compelling argument, shifting their position.",
+        }
+
+        if formality <= 3:
+            # Formal/Oxford-style debate
+            structure = """## DEBATE STRUCTURE (Formal Style)
+
+**Opening Phase (~20% of debate):**
+- Each speaker presents their opening position clearly and formally
+- State thesis, preview main arguments, establish credibility
+- Minimal interruptions - let each speaker complete their opening
+
+**Evidence & Arguments Phase (~50% of debate):**
+- Present evidence, examples, and reasoning systematically
+- Respond to opposing arguments with structured rebuttals
+- Use phrases like "I'd like to address that point...", "The evidence suggests..."
+- Polite but firm disagreements: "I respectfully disagree because..."
+
+**Rebuttal & Challenge Phase (~20% of debate):**
+- Direct responses to each other's strongest points
+- Steel-man opposing arguments before refuting them
+- Acknowledge valid points: "You raise a fair point, however..."
+
+**Resolution Phase (~10% of debate):**
+- Summarize key areas of agreement and disagreement
+- Offer final thoughts on the core question"""
+
+        elif formality <= 6:
+            # Conversational debate
+            structure = """## DEBATE STRUCTURE (Conversational Style)
+
+**Opening Hook (~15% of debate):**
+- Jump into the topic with genuine reactions to the book's ideas
+- Speakers naturally reveal their differing takes early
+- Set up the tension: "See, this is where we disagree..."
+
+**Back-and-Forth Exploration (~55% of debate):**
+- Natural conversation flow with building disagreements
+- Mix of agreement moments and challenging each other
+- Use real examples and personal experiences to argue points
+- Interruptions are fine: "Wait, but what about...", "Hold on—"
+
+**Peak Tension (~20% of debate):**
+- The core disagreement comes to a head
+- Most animated exchange of the debate
+- Both sides make their strongest case
+
+**Landing (~10% of debate):**
+- Find resolution or acknowledge the impasse
+- Natural wind-down with key takeaways"""
+
+        else:
+            # Heated/entertaining debate
+            structure = """## DEBATE STRUCTURE (Heated/Entertaining Style)
+
+**Explosive Opening (~10% of debate):**
+- Start with a provocative statement or strong disagreement
+- Immediately establish tension: "Look, I think this book gets it completely wrong..."
+- Speakers jump in with passion from the start
+
+**Escalating Clash (~60% of debate):**
+- Rapid back-and-forth with frequent interruptions
+- Personal stakes: "This matters because...", "In my experience..."
+- Build momentum - each exchange more intense than the last
+- Use humor, exasperation, disbelief: "[laughing] You can't be serious!", "[sigh] Here we go again..."
+- Challenge each other directly: "That's exactly the problem with your thinking!"
+
+**Climax (~20% of debate):**
+- The most heated moment - voices raised, passionate arguments
+- Core philosophical disagreement fully exposed
+- This should be the most entertaining part
+
+**Resolution (~10% of debate):**
+- Unexpected moment of connection OR stubborn disagreement
+- Either grudging respect or agreeing to disagree
+- Leave listeners with something to think about"""
+
+        outcome_text = outcome_instructions.get(outcome, outcome_instructions[DebateOutcome.SYNTHESIS])
+
+        return f"""{structure}
+
+**DEBATE OUTCOME:** {outcome_text}
+
+Build toward this naturally - don't telegraph it, but guide the conversation there."""
+
+    def _build_argumentation_techniques(self, formality: int) -> str:
+        """Build guidance on argumentative techniques."""
+
+        if formality <= 3:
+            techniques = """## ARGUMENTATION TECHNIQUES (Use These!)
+
+**Steel-Manning (REQUIRED):**
+Before disagreeing, genuinely represent the opposing view at its strongest:
+- "I understand why you'd think that, and it's a strong argument because..."
+- "The best version of that argument would be..."
+- Then offer your rebuttal
+
+**Evidence-Based Arguments:**
+- Cite examples from the book
+- Reference real-world applications
+- Use logical reasoning chains
+
+**Conceding Points Gracefully:**
+- "You're right about X, but that doesn't change Y..."
+- "I'll grant you that point, however..."
+- Shows intellectual honesty
+
+**Pivoting Skillfully:**
+- "That's true in some cases, but the larger point is..."
+- "Even if we accept that, we still have to address..."
+
+**Reframing:**
+- "I think you're asking the wrong question. The real issue is..."
+- "Let's step back and look at this from a different angle..." """
+
+        elif formality <= 6:
+            techniques = """## ARGUMENTATION TECHNIQUES (Keep It Natural!)
+
+**Quick Steel-Manning:**
+- Acknowledge the other person's point before countering
+- "Okay, I get why you see it that way, but..."
+- Don't spend too long on it - just show you're listening
+
+**Real-World Examples:**
+- "Think about it like this..." + relatable scenario
+- Personal anecdotes: "I've seen this play out when..."
+- Pop culture references work great
+
+**Strategic Concessions:**
+- Give ground on small points to strengthen your main argument
+- "Fine, maybe that part is overstated, but the core idea..."
+
+**Redirecting:**
+- "Sure, but here's what really matters..."
+- "That's a side issue. The main thing is..."
+
+**Building Coalitions:**
+- Find moments of unexpected agreement
+- "Actually, we both agree on this part—it's the next step where we differ" """
+
+        else:
+            techniques = """## ARGUMENTATION TECHNIQUES (Go For Impact!)
+
+**Quick Acknowledgments Then Attack:**
+- "Yeah yeah, I hear you, BUT—"
+- Don't dwell on their points, pivot to your counterattack
+
+**Visceral Examples:**
+- Make it personal and immediate
+- "Imagine YOUR boss did this to you..."
+- Stories > statistics in heated debate
+
+**Strategic Provocations:**
+- Challenge their assumptions directly
+- "That's such a [naive/cynical/idealistic] way to see it!"
+- Push their buttons (respectfully)
+
+**Concede to Conquer:**
+- Give up a point dramatically to set up your knockout argument
+- "FINE. Let's say you're right about that. Then explain THIS..."
+
+**Humor as Weapon:**
+- Well-timed jokes defuse AND sharpen tension
+- Exaggeration for effect: "Oh sure, and next you'll tell me..."
+- [laughing] reactions that show genuine engagement
+
+**Emotional Appeals:**
+- "This isn't just theory—this affects real people!"
+- Show genuine passion for your position
+- Let frustration and excitement come through"""
+
+        return techniques
+
+    def _build_tension_dynamics(self, config: DebateConfig) -> str:
+        """Build instructions for tension and entertainment dynamics."""
+
+        formality = config.formality_level
+
+        entertainment_core = """## ENTERTAINMENT & ENGAGEMENT
+
+**The Golden Rule:** Both positions must be argued so well that listeners change their mind MULTIPLE times during the debate.
+
+**Create Doubt:**
+- When the advocate makes a point, listeners should think "Hmm, that's true..."
+- When the critic responds, listeners should think "Oh wait, that's also valid..."
+- Keep them ping-ponging between positions
+
+**Make It Personal (But Keep It Friendly):**
+- Why does each speaker CARE about their position?
+- What's at stake for them personally or professionally?
+- Passion is entertaining—indifference is boring
+
+**Surprise Moments:**
+- An unexpected concession
+- A new angle no one considered
+- A moment of genuine connection amid disagreement
+- [laughing] at a well-made point against you"""
+
+        tension_arc = f"""
+**Tension Arc:** {config.tension_arc}
+
+Follow this emotional journey - don't stay at the same intensity throughout.
+The debate should breathe: build tension, release some, build higher, release, climax, resolve."""
+
+        if formality <= 3:
+            style_note = """
+**Style Note:** Formal doesn't mean boring! The entertainment comes from:
+- Intellectual jousting and clever rebuttals
+- The satisfaction of a well-constructed argument
+- Watching two smart people genuinely grapple with ideas
+- "Oh, that's a good point" moments"""
+
+        elif formality <= 6:
+            style_note = """
+**Style Note:** This is a conversation between friends who disagree:
+- Genuine warmth underlying the disagreement
+- Playful jabs mixed with serious points
+- Natural laughter and reactions
+- The fun of a good argument with someone you respect"""
+
+        else:
+            style_note = """
+**Style Note:** This is entertainment first, education second:
+- High energy from start to finish
+- Don't be afraid of dramatic moments
+- Let speakers get genuinely worked up
+- [laughing], [sigh], exclamations - use them!
+- The goal is listeners saying "Wow, that got intense!" """
+
+        return f"{entertainment_core}\n{tension_arc}\n{style_note}"
+
+    def _build_debate_interactions(self, config: DebateConfig) -> str:
+        """Build interaction/interruption guidance based on formality and guest chaos."""
+
+        formality = config.formality_level
+
+        # Calculate average guest chaos for interaction frequency
+        avg_guest_chaos = sum(g.chaos_factor for g in config.guest_personalities) / len(config.guest_personalities)
+        combined_chaos = (formality + avg_guest_chaos) / 2
+
+        if combined_chaos <= 3:
+            return """## INTERACTION STYLE (Measured)
+
+**Interruption Frequency:** Rare (2-3 times total)
+- Let speakers complete their thoughts
+- Use polite interjections: "If I may...", "To add to that..."
+- Interruptions should feel purposeful, not chaotic
+
+**Verbal Cues:**
+- Thoughtful acknowledgments: "I see...", "Interesting point..."
+- Measured disagreement: "I'm not sure I agree..."
+- Occasional "[uhm]" for thoughtfulness
+
+**Physical Rhythm:**
+- Longer speaking turns
+- Natural pauses between speakers
+- [medium pause] and [long pause] for emphasis"""
+
+        elif combined_chaos <= 6:
+            return """## INTERACTION STYLE (Engaged)
+
+**Interruption Frequency:** Regular (4-6 times)
+- Jump in when you have something important
+- Mix of completing thoughts and cutting in
+- "Sorry to interrupt, but—", "Wait, I have to say—"
+
+**Verbal Cues:**
+- Active listening: "Mm-hmm", "Right", "Okay okay"
+- Reactive: "Ooh!", "Hmm...", "See, that's the thing—"
+- Show you're processing: "[uhm]", "[short pause]"
+
+**Energy:**
+- Building momentum
+- Voices get more animated as debate heats up
+- Natural [laughing] at good points or absurdities"""
+
+        else:
+            return """## INTERACTION STYLE (Heated)
+
+**Interruption Frequency:** Frequent (7+ times)
+- Don't wait for the other person to finish
+- "Hold on hold on—", "No no no, wait—", "See, THIS is—"
+- Overlap is natural and expected
+
+**Verbal Cues:**
+- Rapid-fire: "Right right right", "Yeah but—", "Exactly! And—"
+- Exasperation: "[sigh]", "Oh come ON", "[laughing] That's ridiculous!"
+- Emphasis: "THIS is what I'm talking about!", "THAT'S the problem!"
+
+**Energy:**
+- Start energetic, keep building
+- Let voices rise during key moments
+- Genuine reactions: [laughing], [sigh], exclamations
+- Passionate delivery throughout
+
+**Entertainment Factor:**
+- This should be FUN to listen to
+- Think podcast hosts who genuinely disagree but respect each other
+- Memorable moments > polished delivery"""
 
     def _build_backchannel_guidance(self, chaos_factor: int, is_debate: bool) -> str:
         """Build guidance for backchannels and interruptions based on chaos factor.
@@ -404,7 +1023,12 @@ Repetition is the enemy of engagement. Keep moving forward with fresh content.
         personality_desc = self.build_personality_description(request.podcaster_personality)
         type_instructions = self.build_episode_type_instructions(request.episode_type)
         chaos_factor = request.podcaster_personality.chaos_factor
-        theme_instructions = self.build_theme_instructions(request.episode_theme, chaos_factor)
+        theme_instructions = self.build_theme_instructions(
+            episode_theme=request.episode_theme,
+            chaos_factor=chaos_factor,
+            debate_config=request.debate_config,
+            episode_type=request.episode_type,
+        )
         target_words = self.calculate_target_words(
             request.target_length_min,
             request.target_length_max,
