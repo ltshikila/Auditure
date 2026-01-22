@@ -193,6 +193,8 @@ class EpisodeConsumer(BaseConsumer):
                 accent=podcaster.accent,
                 speaking_speed=podcaster.speaking_speed,
                 vocal_pitch=podcaster.vocal_pitch,
+                voice_model=podcaster.voice_model,
+                gemini_voice_name=podcaster.gemini_voice_name,  # Use stored voice
             )
 
             tts_result = self.tts_engine.generate(

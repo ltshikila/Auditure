@@ -19,6 +19,9 @@ export class PodcasterResponseDto {
     sentenceStructure: number;
     emotionalExpression: number;
 
+    // Computed TTS Voice (Gemini voice name)
+    geminiVoiceName?: string;
+
     // Core Personality Model
     tone: number;
     communicationStyle: number;

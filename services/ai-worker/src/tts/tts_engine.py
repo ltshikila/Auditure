@@ -59,15 +59,17 @@ class PodcasterVoice:
     - vocal_pitch → pitch in semitones (-20 to 20)
 
     Gemini TTS:
-    - gender → filters available voices
+    - gemini_voice_name → directly uses stored voice (e.g., "Zephyr", "Aoede")
     - accent → language_code (en-US, en-GB, en-AU, en-IN)
-    - speaking_speed + vocal_pitch → selects best matching voice
+    - Falls back to voice selection if gemini_voice_name is not set
     """
 
     gender: str  # MALE, FEMALE
     accent: str  # e.g., "United States", "United Kingdom", "Australia", "India"
     speaking_speed: int  # 1-10
     vocal_pitch: int  # 1-10
+    voice_model: str = "CUSTOM"  # CUSTOM, CONVERSATIONAL, ENERGETIC, CALM, SARCASTIC, ACADEMIC
+    gemini_voice_name: Optional[str] = None  # Pre-computed Gemini voice (e.g., "Zephyr", "Aoede")
 
 
 class TTSEngine:
@@ -260,9 +262,9 @@ class TTSEngine:
     ) -> Dict[str, "GeminiVoiceConfig"]:
         """Assign Gemini voices to speakers using podcaster settings.
 
-        Uses the new voice selection algorithm:
-        - Host: Best matching voice for gender + speaking_speed + vocal_pitch
-        - Guests: Alternating genders with slight speed/pitch variations
+        Voice assignment strategy:
+        - Host: Uses stored gemini_voice_name if available, otherwise computes it
+        - Guests: Computed based on alternating genders with slight variations
 
         Args:
             speakers: List of speaker labels from script
@@ -271,7 +273,7 @@ class TTSEngine:
         Returns:
             Dict mapping speaker labels to GeminiVoiceConfig objects
         """
-        from .gemini_tts_client import GeminiVoiceConfig
+        from .gemini_tts_client import GeminiVoiceConfig, GEMINI_VOICES
 
         assignments: Dict[str, GeminiVoiceConfig] = {}
         guest_index = 0
@@ -280,14 +282,28 @@ class TTSEngine:
             speaker_upper = speaker.upper()
 
             if speaker_upper in ["HOST", "HOST1", "NARRATOR"]:
-                # Use voice matching main podcaster's settings
-                voice_config = self.gemini_client.get_voice_for_speaker(
-                    speaker_type="HOST",
-                    gender=main_podcaster.gender,
-                    speaking_speed=main_podcaster.speaking_speed,
-                    vocal_pitch=main_podcaster.vocal_pitch,
-                    speaker_index=0,
-                )
+                # Use stored voice if available (permanent voice assignment)
+                if main_podcaster.gemini_voice_name and main_podcaster.gemini_voice_name in GEMINI_VOICES:
+                    voice_name = main_podcaster.gemini_voice_name
+                    voice_info = GEMINI_VOICES[voice_name]
+                    logger.info(f"Using stored Gemini voice for HOST: {voice_name} ({voice_info['style']})")
+
+                    voice_config = GeminiVoiceConfig(
+                        speaker_id=voice_name,
+                        style=voice_info["style"],
+                        style_prompt=f"Speak in a {voice_info['style'].lower()} manner",
+                    )
+                else:
+                    # Fallback: compute voice (for legacy podcasters without stored voice)
+                    logger.info("No stored Gemini voice, computing voice for HOST...")
+                    voice_config = self.gemini_client.get_voice_for_speaker(
+                        speaker_type="HOST",
+                        gender=main_podcaster.gender,
+                        speaking_speed=main_podcaster.speaking_speed,
+                        vocal_pitch=main_podcaster.vocal_pitch,
+                        speaker_index=0,
+                        voice_model=main_podcaster.voice_model,
+                    )
                 assignments[speaker] = voice_config
             else:
                 # Alternate genders for variety
@@ -303,6 +319,7 @@ class TTSEngine:
                     speaking_speed=main_podcaster.speaking_speed,
                     vocal_pitch=main_podcaster.vocal_pitch,
                     speaker_index=guest_index,
+                    voice_model=main_podcaster.voice_model,
                 )
                 assignments[speaker] = voice_config
                 guest_index += 1

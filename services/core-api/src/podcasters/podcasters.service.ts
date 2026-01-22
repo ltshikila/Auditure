@@ -10,6 +10,7 @@ import { CreatePodcasterDto } from './dto/create-podcaster.dto';
 import { UpdatePodcasterDto } from './dto/update-podcaster.dto';
 import { QueryPodcastersDto, PodcasterSortBy } from './dto/query-podcasters.dto';
 import { PodcasterResponseDto } from './dto/podcaster-response.dto';
+import { selectGeminiVoice } from './utils/gemini-voice-selector';
 
 @Injectable()
 export class PodcastersService {
@@ -70,10 +71,20 @@ export class PodcastersService {
                 );
             }
 
+            // Compute the Gemini voice name based on podcaster settings
+            const geminiVoiceName = selectGeminiVoice({
+                gender: createPodcasterDto.gender as 'MALE' | 'FEMALE',
+                voiceModel: createPodcasterDto.voiceModel,
+                speakingSpeed: createPodcasterDto.speakingSpeed ?? 5,
+                vocalPitch: createPodcasterDto.vocalPitch ?? 5,
+            });
+            this.logger.log(`Computed Gemini voice: ${geminiVoiceName}`);
+
             const podcaster = await this.databaseService.podcaster.create({
                 data: {
                     userId,
                     ...createPodcasterDto,
+                    geminiVoiceName,
                 },
             });
 
@@ -410,9 +421,31 @@ export class PodcastersService {
                 }
             }
 
+            // Check if voice-related fields are being updated
+            const voiceFieldsUpdated =
+                updatePodcasterDto.gender !== undefined ||
+                updatePodcasterDto.voiceModel !== undefined ||
+                updatePodcasterDto.speakingSpeed !== undefined ||
+                updatePodcasterDto.vocalPitch !== undefined;
+
+            // Prepare update data
+            const updateData: any = { ...updatePodcasterDto };
+
+            // Recompute Gemini voice if voice-related fields changed
+            if (voiceFieldsUpdated) {
+                const geminiVoiceName = selectGeminiVoice({
+                    gender: (updatePodcasterDto.gender ?? podcaster.gender) as 'MALE' | 'FEMALE',
+                    voiceModel: updatePodcasterDto.voiceModel ?? podcaster.voiceModel,
+                    speakingSpeed: updatePodcasterDto.speakingSpeed ?? podcaster.speakingSpeed,
+                    vocalPitch: updatePodcasterDto.vocalPitch ?? podcaster.vocalPitch,
+                });
+                updateData.geminiVoiceName = geminiVoiceName;
+                this.logger.log(`Recomputed Gemini voice: ${geminiVoiceName}`);
+            }
+
             const updated = await this.databaseService.podcaster.update({
                 where: { id },
-                data: updatePodcasterDto,
+                data: updateData,
             });
 
             this.logger.log(`Podcaster ${id} updated successfully`);

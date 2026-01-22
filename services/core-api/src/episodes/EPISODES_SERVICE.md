@@ -203,7 +203,34 @@ Multi-speaker episodes (DUO, GROUP) include verbal cues controlled by **chaos fa
 - **DISCUSSION episodes:** Friendly backchannels scale with chaos factor
 - **LECTURE episodes:** No interruptions (monologue format)
 
-### Voice Mapping (Standard Tier)
+### Voice Mapping
+
+#### Permanent Voice Assignment
+Each podcaster has a permanently assigned Gemini voice stored in `geminiVoiceName`. This voice is:
+- **Computed once** when the podcaster is created
+- **Recomputed automatically** when voice-related fields change (gender, voiceModel, speakingSpeed, vocalPitch)
+- **Used directly** by the ai-worker during TTS generation
+
+This ensures the same podcaster always uses the same voice across all episodes.
+
+#### Gemini TTS (30 Prebuilt Voices)
+The voice selection algorithm uses podcaster settings to select the best matching voice:
+
+| Setting | Mapping |
+|---------|---------|
+| **gender** | Filters to MALE (16 voices) or FEMALE (14 voices) |
+| **accent** | Sets `language_code` in SpeechConfig: en-US, en-GB, en-AU, en-IN |
+| **speakingSpeed** | Euclidean distance matching to voice's natural speed |
+| **vocalPitch** | Euclidean distance matching to voice's natural pitch |
+| **voiceModel** | Style preference bonus (CONVERSATIONAL→Easy-going, ENERGETIC→Bright, etc.) |
+
+**Example voice selection:**
+- Podcaster: gender=MALE, accent="United Kingdom", speed=6, pitch=5, voiceModel=CALM
+- Computed voice: `geminiVoiceName="Algieba"` (Smooth style, speed=4, pitch=5)
+- API receives: `language_code="en-GB"`, `voice_name="Algieba"`
+- Result: Consistent voice with British accent across all episodes
+
+#### Standard Tier (Regional Voice IDs)
 ```typescript
 MALE: {
     'United States': 'en-US-Standard-A',
@@ -220,6 +247,9 @@ FEMALE: {
 
 ### Multi-Voice Episodes (DUO/GROUP)
 - **Gemini TTS:** Native multi-speaker - handles speaker labels automatically
+  - HOST uses main podcaster's exact settings
+  - GUESTs alternate genders with slight speed/pitch variations
+  - Language code (accent) applies to all speakers
 - **Standard:** Parses script for speaker labels (HOST:, GUEST1:, etc.)
 - Assigns contrasting voices to different speakers
 - Concatenates audio segments using ffmpeg (Standard tier only)

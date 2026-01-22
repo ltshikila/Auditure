@@ -11,12 +11,15 @@ The Core API is built with NestJS and provides authentication, book management, 
 - 🔐 **JWT Authentication** - Secure user authentication with refresh tokens
 - 📧 **Email Verification** - OTP-based email verification system
 - 📚 **Book Management** - Upload and manage PDF/EPUB books
-- 🎧 **Audio Streaming** - Range-request audio streaming for episode playback
-- 🤖 **Async Text Extraction** - Background processing with RabbitMQ
-- 📖 **Chapter Detection** - Automatic chapter extraction from books
+- 🎙️ **Virtual Podcasters** - Create and customize AI podcasters with 17 configurable traits and permanent voice assignment
+- 🎧 **Episode Generation** - Create podcast episodes from books with multiple formats (monologue, duo, group)
+- 🔊 **Audio Streaming** - Range-request audio streaming for episode playback
+- 🤖 **Async Processing** - Background processing with RabbitMQ for extraction and generation
+- 📖 **Smart Chapter Detection** - Three-tier detection: TOC-based, dynamic pattern, and regex fallback
 - 💾 **Flexible Storage** - Local storage with S3-ready abstraction
-- 🔍 **Search & Discovery** - Full-text search for books
+- 🔍 **Search & Discovery** - Full-text search, trending content, and filtering
 - 🔴 **Redis Caching** - Job progress tracking, playback progress, rate limiting
+- 💬 **Social Features** - Comments, likes, shares, ratings, and engagement tracking
 - ✅ **Comprehensive Testing** - 83 tests with 90%+ coverage
 
 ## Project Structure
@@ -192,6 +195,39 @@ See [Books Service Documentation](src/books/README.md) for detailed API document
 - `GET /api/book/:id` - Get book for episode generation
 - `GET /api/search` - Search books
 - `GET /api/popular` - Get popular books
+
+### Podcasters Endpoints
+
+See [Podcasters Service Documentation](src/podcasters/PODCASTERS_SERVICE.md) for detailed API documentation.
+
+**Base URL:** `/podcasters`
+
+- `POST /` - Create podcaster (17 configurable traits)
+- `GET /my` - Get user's podcasters
+- `GET /public` - Browse public podcasters (paginated, filtered)
+- `GET /trending` - Get trending podcasters
+- `GET /:id` - Get single podcaster
+- `PATCH /:id` - Update podcaster
+- `DELETE /:id` - Delete podcaster
+- `POST /:id/like` - Like podcaster
+- `POST /:id/rate` - Rate podcaster (1-5 stars)
+
+### Episodes Endpoints
+
+See [Episodes Service Documentation](src/episodes/EPISODES_SERVICE.md) for detailed API documentation.
+
+**Base URL:** `/episodes`
+
+- `POST /` - Create episode from book + podcaster
+- `POST /with-file` - Upload book and create episode in one request
+- `GET /my` - Get user's episodes
+- `GET /public` - Browse public episodes
+- `GET /:id` - Get episode with book/podcaster details
+- `GET /:id/stream` - Stream audio (range request support)
+- `GET /:id/progress` - Get playback position
+- `POST /:id/progress` - Save playback position
+- `POST /:id/like` - Like episode
+- `POST /:id/comments` - Add comment
 
 ### Storage Endpoints
 
@@ -546,13 +582,22 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Roadmap
 
+**Completed:**
+- [x] OCR for scanned PDFs (tesseract.js)
+- [x] TOC-based chapter detection with page numbers
+- [x] Dynamic pattern detection for non-standard chapter names (RULE, LAW, etc.)
+- [x] Cover image extraction (Google Books API + PDF fallback)
+- [x] Social features (likes, shares, play counts)
+- [x] Podcaster ratings and engagement
+- [x] Episode comments system
+
+**In Progress / Planned:**
 - [ ] GraphQL API support
 - [ ] WebSocket support for real-time updates
-- [ ] OCR for scanned PDFs
 - [ ] Multi-language support
 - [ ] Audio book support
 - [ ] AI-powered summaries
-- [ ] Social features (sharing, following)
+- [ ] User following/followers
 - [ ] Reading analytics
 
 ## Acknowledgments

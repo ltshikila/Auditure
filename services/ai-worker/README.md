@@ -34,7 +34,8 @@ ai-worker/
 - **Voice Tiers**: Standard ($4/1M chars) or Gemini (~$0.15/10-min episode)
 - **Episode Types**: MONOLOGUE, DUO, GROUP (multi-voice support)
 - **Episode Length**: 5-10 minutes (MVP), up to 30 minutes (chunked)
-- **Voice Customization**: Gender, accent, speaking speed, vocal pitch
+- **Voice Customization**: Gender, accent, speaking speed, vocal pitch, voice model
+- **Permanent Voice Assignment**: Each podcaster has a stored Gemini voice for consistency
 - **Multi-Speaker**: Native support (up to 9 speakers per episode)
 - **Dynamic WPM**: Script length adjusts based on podcaster speaking speed
 - **Natural Interruptions**: Backchannels and interjections based on chaos factor
@@ -49,9 +50,11 @@ ai-worker/
 |-----------|-------|-----------------|------------|
 | Gender | MALE/FEMALE | Voice selection | Voice selection |
 | Accent | 6 regions | Voice ID mapping | language_code |
-| Speaking Speed | 1-10 | Rate: 0.7-1.3 | Best-match voice |
-| Vocal Pitch | 1-10 | Pitch: ±10 semitones | Best-match voice |
+| Speaking Speed | 1-10 | Rate: 0.7-1.3 | Voice selection score |
+| Vocal Pitch | 1-10 | Pitch: ±10 semitones | Voice selection score |
+| Voice Model | 6 presets | — | Style preference bonus |
 | Voice Tier | standard/gemini | — | — |
+| **geminiVoiceName** | 30 voices | — | **Stored voice (permanent)** |
 
 ### Supported Accents
 
@@ -89,11 +92,23 @@ ai-worker/
 
 ### Gemini TTS Voice Selection
 
-Gemini TTS uses **30 distinct voices** with unique characteristics. Voice selection algorithm:
+Gemini TTS uses **30 distinct voices** with unique characteristics.
 
+#### Permanent Voice Assignment
+Each podcaster has a **permanently assigned** Gemini voice stored in the database (`geminiVoiceName`). This ensures:
+- **Consistency**: Same podcaster always uses the same voice
+- **Determinism**: Voice doesn't vary between episodes
+- **Performance**: No recalculation needed at generation time
+
+The voice is computed by the core-api when a podcaster is created or when voice-related fields are updated.
+
+#### Voice Selection Algorithm (used at podcaster creation)
 1. **Filter by gender** (MALE/FEMALE from podcaster config)
 2. **Map accent to language_code** (en-US, en-GB, en-AU, en-IN)
-3. **Select best-match voice** based on speakingSpeed + vocalPitch
+3. **Calculate score** for each voice:
+   - Base: Euclidean distance for speakingSpeed + vocalPitch
+   - Bonus: Style preference from voiceModel (CONVERSATIONAL→Easy-going, ENERGETIC→Bright, etc.)
+4. **Select voice** with lowest score → stored as `geminiVoiceName`
 
 | Voice | Gender | Style | Speed | Pitch |
 |-------|--------|-------|-------|-------|

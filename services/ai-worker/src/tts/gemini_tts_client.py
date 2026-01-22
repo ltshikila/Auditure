@@ -114,6 +114,17 @@ ACCENT_TO_LANGUAGE_CODE: Dict[str, str] = {
     "default": "en-US",
 }
 
+# Voice model to preferred Gemini voice styles mapping
+# Each voice model maps to a list of preferred styles (in order of preference)
+VOICE_MODEL_TO_STYLES: Dict[str, List[str]] = {
+    "CONVERSATIONAL": ["Easy-going", "Friendly", "Casual", "Warm", "Breezy"],
+    "ENERGETIC": ["Bright", "Upbeat", "Excitable", "Lively", "Forward"],
+    "CALM": ["Smooth", "Gentle", "Soft", "Even", "Mature"],
+    "SARCASTIC": ["Firm", "Gravelly", "Clear", "Forward"],
+    "ACADEMIC": ["Informative", "Knowledgeable", "Clear", "Firm", "Even"],
+    "CUSTOM": [],  # No style preference, use speed/pitch only
+}
+
 
 def _pcm_to_wav(
     pcm_data: bytes,
@@ -375,17 +386,19 @@ class GeminiTTSClient:
         gender: str,
         speaking_speed: int = 5,
         vocal_pitch: int = 5,
+        voice_model: str = "CUSTOM",
     ) -> str:
         """
         Select the Gemini voice that best matches desired characteristics.
 
-        Maps frontend speakingSpeed (1-10) and vocalPitch (1-10) to the
-        voice with the closest natural characteristics.
+        Maps frontend speakingSpeed (1-10), vocalPitch (1-10), and voiceModel
+        to the voice with the closest natural characteristics and style.
 
         Args:
             gender: "MALE" or "FEMALE"
             speaking_speed: 1-10 scale (1=slow, 10=fast)
             vocal_pitch: 1-10 scale (1=low, 10=high)
+            voice_model: CUSTOM, CONVERSATIONAL, ENERGETIC, CALM, SARCASTIC, ACADEMIC
 
         Returns:
             Voice name (e.g., "Kore", "Charon")
@@ -404,19 +417,38 @@ class GeminiTTSClient:
         speed = max(1, min(10, speaking_speed))
         pitch = max(1, min(10, vocal_pitch))
 
-        # Find voice with minimum Euclidean distance
-        def distance(voice_info: Dict) -> float:
+        # Get preferred styles for this voice model
+        preferred_styles = VOICE_MODEL_TO_STYLES.get(voice_model.upper(), [])
+
+        # Calculate score for each voice (lower is better)
+        # Style matching gives a significant bonus (reduces score)
+        def voice_score(voice_info: Dict) -> float:
+            # Base: Euclidean distance for speed/pitch
             speed_diff = abs(voice_info["speed"] - speed)
             pitch_diff = abs(voice_info["pitch"] - pitch)
-            return (speed_diff ** 2 + pitch_diff ** 2) ** 0.5
+            base_distance = (speed_diff ** 2 + pitch_diff ** 2) ** 0.5
 
-        best_voice = min(candidates, key=lambda v: distance(v[1]))
+            # Style bonus: reduce score if voice style matches preferred styles
+            style_bonus = 0.0
+            voice_style = voice_info.get("style", "")
+            if voice_style in preferred_styles:
+                # Higher bonus for earlier (more preferred) styles
+                style_rank = preferred_styles.index(voice_style)
+                # First preferred style gets -3.0 bonus, decreasing for later styles
+                style_bonus = -3.0 + (style_rank * 0.5)
+                logger.debug(f"Style '{voice_style}' matches voice_model '{voice_model}', bonus: {style_bonus}")
+
+            return base_distance + style_bonus
+
+        best_voice = min(candidates, key=lambda v: voice_score(v[1]))
         voice_name = best_voice[0]
         voice_info = best_voice[1]
 
+        style_match = "✓" if voice_info.get("style", "") in preferred_styles else ""
         logger.info(
-            f"Selected voice '{voice_name}' ({voice_info['style']}) for "
-            f"speed={speed}, pitch={pitch} (voice: speed={voice_info['speed']}, pitch={voice_info['pitch']})"
+            f"Selected voice '{voice_name}' ({voice_info['style']}{style_match}) for "
+            f"voice_model={voice_model}, speed={speed}, pitch={pitch} "
+            f"(voice: speed={voice_info['speed']}, pitch={voice_info['pitch']})"
         )
 
         return voice_name
@@ -464,6 +496,7 @@ class GeminiTTSClient:
         speaking_speed: int = 5,
         vocal_pitch: int = 5,
         speaker_index: int = 0,
+        voice_model: str = "CUSTOM",
     ) -> GeminiVoiceConfig:
         """
         Get appropriate Gemini voice configuration for a speaker.
@@ -474,12 +507,13 @@ class GeminiTTSClient:
             speaking_speed: 1-10 scale from frontend
             vocal_pitch: 1-10 scale from frontend
             speaker_index: Index for variety selection (guests)
+            voice_model: CUSTOM, CONVERSATIONAL, ENERGETIC, CALM, SARCASTIC, ACADEMIC
 
         Returns:
             GeminiVoiceConfig with voice settings
         """
         if speaker_type.upper() in ["HOST", "HOST1", "NARRATOR"]:
-            voice_name = self.select_best_voice(gender, speaking_speed, vocal_pitch)
+            voice_name = self.select_best_voice(gender, speaking_speed, vocal_pitch, voice_model)
         else:
             # For guests, shift speed/pitch slightly for variety
             speed_offset = (speaker_index % 3) - 1
@@ -488,7 +522,8 @@ class GeminiTTSClient:
             adjusted_speed = max(1, min(10, speaking_speed + speed_offset * 2))
             adjusted_pitch = max(1, min(10, vocal_pitch + pitch_offset * 2))
 
-            voice_name = self.select_best_voice(gender, adjusted_speed, adjusted_pitch)
+            # Guests use same voice_model as host for consistency
+            voice_name = self.select_best_voice(gender, adjusted_speed, adjusted_pitch, voice_model)
 
         voice_info = GEMINI_VOICES[voice_name]
 
@@ -644,6 +679,7 @@ class GeminiTTSClient:
             }
             speaker_configs = self._build_speaker_configs(filtered_assignments)
             speech_config = types.SpeechConfig(
+                language_code=language_code,
                 multi_speaker_voice_config=types.MultiSpeakerVoiceConfig(
                     speaker_voice_configs=speaker_configs
                 )
@@ -652,6 +688,7 @@ class GeminiTTSClient:
         else:
             main_voice = voice_assignments.get("HOST", voice_assignments.get("NARRATOR", "Kore"))
             speech_config = types.SpeechConfig(
+                language_code=language_code,
                 voice_config=types.VoiceConfig(
                     prebuilt_voice_config=types.PrebuiltVoiceConfig(
                         voice_name=main_voice,
@@ -674,7 +711,7 @@ class GeminiTTSClient:
         # Extract PCM audio data
         if response.candidates and len(response.candidates) > 0:
             candidate = response.candidates[0]
-            if hasattr(candidate, 'content') and candidate.content.parts:
+            if hasattr(candidate, 'content') and candidate.content and candidate.content.parts:
                 for part in candidate.content.parts:
                     if hasattr(part, 'inline_data') and part.inline_data:
                         raw_data = part.inline_data.data
@@ -692,6 +729,21 @@ class GeminiTTSClient:
                                 return base64.b64decode(raw_data)
                             return raw_data
                         return raw_data
+
+        # Log detailed error info for debugging
+        if not response.candidates:
+            logger.error("[Gemini TTS] Empty response: no candidates returned")
+        elif response.candidates:
+            candidate = response.candidates[0]
+            if not hasattr(candidate, 'content'):
+                logger.error("[Gemini TTS] Candidate has no content attribute")
+            elif candidate.content is None:
+                logger.error("[Gemini TTS] Candidate content is None (possible API issue or content filtering)")
+                # Check for finish_reason which might explain why
+                if hasattr(candidate, 'finish_reason'):
+                    logger.error(f"[Gemini TTS] Finish reason: {candidate.finish_reason}")
+            elif not candidate.content.parts:
+                logger.error("[Gemini TTS] Candidate content has no parts")
 
         raise GeminiTTSError("No audio data in chunk response")
 
@@ -763,6 +815,7 @@ class GeminiTTSClient:
 
             for attempt in range(max_retries):
                 speech_config = types.SpeechConfig(
+                    language_code=language_code,
                     voice_config=types.VoiceConfig(
                         prebuilt_voice_config=types.PrebuiltVoiceConfig(
                             voice_name=voice,
@@ -783,7 +836,7 @@ class GeminiTTSClient:
                     # Extract PCM audio data
                     if response.candidates and len(response.candidates) > 0:
                         candidate = response.candidates[0]
-                        if hasattr(candidate, 'content') and candidate.content.parts:
+                        if hasattr(candidate, 'content') and candidate.content and candidate.content.parts:
                             for part in candidate.content.parts:
                                 if hasattr(part, 'inline_data') and part.inline_data:
                                     raw_data = part.inline_data.data
@@ -1033,6 +1086,7 @@ class GeminiTTSClient:
                 }
                 speaker_configs = self._build_speaker_configs(filtered_assignments)
                 speech_config = types.SpeechConfig(
+                    language_code=language_code,
                     multi_speaker_voice_config=types.MultiSpeakerVoiceConfig(
                         speaker_voice_configs=speaker_configs
                     )
@@ -1043,6 +1097,7 @@ class GeminiTTSClient:
                 # Single-speaker configuration
                 main_voice = voice_assignments.get("HOST", voice_assignments.get("NARRATOR", "Kore"))
                 speech_config = types.SpeechConfig(
+                    language_code=language_code,
                     voice_config=types.VoiceConfig(
                         prebuilt_voice_config=types.PrebuiltVoiceConfig(
                             voice_name=main_voice,
@@ -1067,7 +1122,7 @@ class GeminiTTSClient:
             # Extract audio data
             if response.candidates and len(response.candidates) > 0:
                 candidate = response.candidates[0]
-                if hasattr(candidate, 'content') and candidate.content.parts:
+                if hasattr(candidate, 'content') and candidate.content and candidate.content.parts:
                     for part in candidate.content.parts:
                         if hasattr(part, 'inline_data') and part.inline_data:
                             raw_data = part.inline_data.data

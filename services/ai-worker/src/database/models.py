@@ -74,6 +74,9 @@ class Podcaster(Base):
     sentence_structure = Column("sentenceStructure", Integer, default=5)  # 1-10
     emotional_expression = Column("emotionalExpression", Integer, default=5)  # 1-10
 
+    # Computed TTS Voice (set by core-api on create/update)
+    gemini_voice_name = Column("geminiVoiceName", String, nullable=True)  # e.g., "Zephyr", "Aoede"
+
     # Personality traits
     tone = Column(Integer, default=5)  # 1-10
     communication_style = Column("communicationStyle", Integer, default=5)  # 1-10

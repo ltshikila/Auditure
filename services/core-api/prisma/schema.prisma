@@ -132,6 +132,9 @@ model Podcaster {
   sentenceStructure       Int       @default(5)    // 1-10, Concise to Elaborate
   emotionalExpression     Int       @default(5)    // 1-10, Monotone to Expressive
 
+  // Computed TTS Voice (set on create/update, used by ai-worker)
+  geminiVoiceName         String?                  // Gemini voice name (e.g., "Zephyr", "Aoede")
+
   // Core Personality Model
   tone                    Int       @default(5)    // 1-10, Calm to Energetic
   communicationStyle      Int       @default(5)    // 1-10, Storytelling to Analytical

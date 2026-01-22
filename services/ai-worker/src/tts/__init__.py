@@ -8,7 +8,7 @@ Providers:
 from .tts_engine import TTSEngine, TTSResult, PodcasterVoice, VoiceTier
 from .voice_mapper import VoiceMapper, VoiceConfig
 from .google_tts_client import GoogleTTSClient
-from .gemini_tts_client import GeminiTTSClient, GeminiVoiceConfig, GeminiTTSError
+from .gemini_tts_client import GeminiTTSClient, GeminiVoiceConfig, GeminiTTSError, GEMINI_VOICES
 from .script_parser import ScriptParser, SpeakerSegment
 from .audio_processor import AudioProcessor
 
@@ -26,6 +26,7 @@ __all__ = [
     "GeminiTTSClient",
     "GeminiVoiceConfig",
     "GeminiTTSError",
+    "GEMINI_VOICES",
     # Script parsing
     "ScriptParser",
     "SpeakerSegment",

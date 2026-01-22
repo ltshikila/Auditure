@@ -28,6 +28,9 @@ model Podcaster {
   sentenceStructure       Int       @default(5)    // Concise to Elaborate
   emotionalExpression     Int       @default(5)    // Monotone to Expressive
 
+  // Computed TTS Voice (permanent assignment)
+  geminiVoiceName         String?                  // e.g., "Zephyr", "Aoede"
+
   // Core Personality Model (values 1-10)
   tone                    Int       @default(5)    // Calm to Energetic
   communicationStyle      Int       @default(5)    // Storytelling to Analytical
@@ -423,12 +426,99 @@ The mobile app includes smart autofill templates for each voice model. When a us
 
 **Total: 17 configurable fields**
 
+## TTS Voice Mapping
+
+### Overview
+Podcaster voice settings are mapped to Text-to-Speech providers differently based on the selected voice tier.
+
+### Permanent Voice Assignment
+When a podcaster is created or updated, the system computes and stores a `geminiVoiceName` in the database. This ensures:
+- **Consistency**: The same podcaster always uses the same Gemini voice
+- **Determinism**: Voice selection doesn't vary between episodes
+- **Performance**: No need to recalculate voice on each episode generation
+
+The voice is recomputed automatically when voice-related fields are changed (gender, voiceModel, speakingSpeed, vocalPitch).
+
+### Gemini TTS (Premium)
+Gemini 2.5 TTS uses 30 prebuilt voices with natural characteristics. Voice selection uses podcaster settings:
+
+| Podcaster Setting | How It's Used |
+|-------------------|---------------|
+| **gender** | Filters voices to MALE (16) or FEMALE (14) options |
+| **accent** | Maps to `language_code` in API (en-US, en-GB, en-AU, en-IN) |
+| **speakingSpeed** | Euclidean distance matching to voice's natural speed (1-10) |
+| **vocalPitch** | Euclidean distance matching to voice's natural pitch (1-10) |
+| **voiceModel** | Style preference bonus for matching Gemini voice styles |
+
+**Voice Model → Style Mapping:**
+| Voice Model | Preferred Gemini Styles |
+|-------------|------------------------|
+| CONVERSATIONAL | Easy-going, Friendly, Casual, Warm, Breezy |
+| ENERGETIC | Bright, Upbeat, Excitable, Lively, Forward |
+| CALM | Smooth, Gentle, Soft, Even, Mature |
+| SARCASTIC | Firm, Gravelly, Clear, Forward |
+| ACADEMIC | Informative, Knowledgeable, Clear, Firm, Even |
+| CUSTOM | No style preference (speed/pitch only) |
+
+**Voice Selection Algorithm:**
+```
+1. Filter voices by gender (MALE/FEMALE)
+2. Map accent to language_code:
+   - "United States" → "en-US"
+   - "United Kingdom" → "en-GB"
+   - "Australia" → "en-AU"
+   - "India" → "en-IN"
+   - Others fall back to closest match
+3. Calculate score for each voice:
+   base_distance = √[(voice_speed - speaking_speed)² + (voice_pitch - vocal_pitch)²]
+   style_bonus = -3.0 if voice style matches voiceModel's preferred styles
+   score = base_distance + style_bonus
+4. Select voice with minimum score
+```
+
+**Example Gemini Voices:**
+| Voice | Gender | Style | Speed | Pitch |
+|-------|--------|-------|-------|-------|
+| Kore | FEMALE | Firm | 5 | 5 |
+| Zephyr | FEMALE | Bright | 6 | 8 |
+| Charon | MALE | Informative | 5 | 3 |
+| Fenrir | MALE | Excitable | 8 | 6 |
+
+### Google Cloud Standard TTS (Free Tier Fallback)
+Standard TTS uses regional voice IDs with configurable speaking rate and pitch:
+
+| Podcaster Setting | How It's Used |
+|-------------------|---------------|
+| **gender** | Selects voice variant (e.g., Standard-A vs Standard-C) |
+| **accent** | Selects language code (e.g., en-GB-Standard-B) |
+| **speakingSpeed** | Maps 1-10 → 0.25x to 2.0x speaking rate |
+| **vocalPitch** | Maps 1-10 → -20 to +20 semitones |
+
+### Fields Not Yet Used for Voice Selection
+These fields influence script generation but not voice selection:
+
+| Field | Current Use | Potential TTS Use |
+|-------|-------------|-------------------|
+| **ageTone** | Script generation | Could refine voice selection |
+| **emotionalExpression** | Script generation | Could be Gemini style prompt |
+| **sentenceStructure** | Script generation | N/A (text-level) |
+
+### Multi-Speaker Voice Assignment
+For DUO and GROUP episodes:
+- **HOST**: Uses main podcaster's voice settings
+- **GUESTS**: Alternate genders with slight speed/pitch variations
+  - Guest 1: Opposite gender, slight speed offset
+  - Guest 2: Same gender, slight pitch offset
+  - Additional guests continue alternating pattern
+
 ## Future Enhancements
 
-1. **AI Voice Generation**: Integrate with TTS services using voice configuration
-2. **Cloud Storage Integration**: Upload profile pictures to S3/Cloudinary
-3. **Collaboration**: Allow sharing and remixing public podcasters
-4. **Analytics Dashboard**: Track performance metrics per podcaster
-5. **Recommendations**: Suggest podcasters based on user preferences
-6. **Voice Samples**: Generate sample clips to preview voice settings
-7. **Advanced Templates**: More specialized voice model templates for specific genres
+1. ~~**AI Voice Generation**: Integrate with TTS services using voice configuration~~ ✅ Implemented (Gemini + Google Cloud)
+2. ~~**voiceModel → TTS Style Mapping**: Use voiceModel enum to influence Gemini voice style selection~~ ✅ Implemented
+3. ~~**Permanent Voice Assignment**: Store computed Gemini voice in database for consistency~~ ✅ Implemented
+4. **Cloud Storage Integration**: Upload profile pictures to S3/Cloudinary
+5. **Collaboration**: Allow sharing and remixing public podcasters
+6. **Analytics Dashboard**: Track performance metrics per podcaster
+7. **Recommendations**: Suggest podcasters based on user preferences
+8. **Voice Samples**: Generate sample clips to preview voice settings
+9. **Advanced Templates**: More specialized voice model templates for specific genres

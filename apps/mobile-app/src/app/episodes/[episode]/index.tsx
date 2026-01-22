@@ -757,9 +757,17 @@ export default function EpisodeInfoScreen() {
                             <Text className="font-inter text-2xl text-brand-black">
                                 {episode.title}
                             </Text>
-                            <Text className="font-jakarta text-[#858585] mt-1">
-                                By {episode.podcaster?.name || 'Virtual Podcaster'}
-                            </Text>
+                            <TouchableOpacity
+                                onPress={() => {
+                                    if (episode.podcaster?.id) {
+                                        router.push(`/podcasts/${episode.podcaster.id}`);
+                                    }
+                                }}
+                                disabled={!episode.podcaster?.id}>
+                                <Text className="font-jakarta text-[#858585] mt-1">
+                                    By {episode.podcaster?.name || 'Virtual Podcaster'}
+                                </Text>
+                            </TouchableOpacity>
                         </View>
 
                         {!isGenerating && episode.generationStatus !== 'FAILED' && (
