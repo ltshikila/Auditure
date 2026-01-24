@@ -101,6 +101,13 @@ GEMINI_VOICES: Dict[str, Dict[str, Any]] = {
 }
 
 # Supported English language codes for regional accents
+# Map language codes to Director's Notes accent descriptions
+LANGUAGE_CODE_TO_ACCENT_DESCRIPTION = {
+    "en-US": None,  # No notes needed - voices are American by default
+    "en-GB": "British English accent",
+    "en-AU": "Australian English accent",
+    "en-IN": "Indian English accent",
+}
 ACCENT_TO_LANGUAGE_CODE: Dict[str, str] = {
     "United States": "en-US",
     "United Kingdom": "en-GB",
@@ -558,6 +565,7 @@ class GeminiTTSClient:
         self,
         script: str,
         voice_assignments: Dict[str, str],
+        language_code: str = "en-US",
     ) -> str:
         """
         Format script with speaker labels for multi-speaker TTS.
@@ -567,10 +575,23 @@ class GeminiTTSClient:
             GUEST: Great to be here!
 
         To format expected by Gemini multi-speaker:
+            [Director's Notes: All speakers should use a British English accent.]
             Host: Hello everyone!
             Guest: Great to be here!
+
+        Args:
+            script: The raw script with speaker labels
+            voice_assignments: Map of speaker labels to voice names
+            language_code: Language code for accent (en-US, en-GB, en-AU, en-IN)
         """
         formatted_lines = []
+
+        # Add Director's Notes for non-US accents
+        # Prebuilt voices are American by default, so we need to guide them via prompt
+        accent_description = LANGUAGE_CODE_TO_ACCENT_DESCRIPTION.get(language_code)
+        if accent_description:
+            formatted_lines.append(f"[Director's Notes: All speakers should use a {accent_description}.]")
+            formatted_lines.append("")  # Empty line after notes
 
         for line in script.split('\n'):
             line = line.strip()
@@ -652,7 +673,7 @@ class GeminiTTSClient:
         """
         from google.genai import types
 
-        formatted_script = self._format_script_for_gemini(script, voice_assignments)
+        formatted_script = self._format_script_for_gemini(script, voice_assignments, language_code)
 
         # Count actual unique speakers in the chunk
         actual_speakers = set()
@@ -805,9 +826,18 @@ class GeminiTTSClient:
         # Generate audio for each turn
         all_pcm_data = []
 
+        # Get accent guidance for non-US accents
+        accent_description = LANGUAGE_CODE_TO_ACCENT_DESCRIPTION.get(language_code)
+
         for i, (speaker, dialogue) in enumerate(turns):
             voice = voice_assignments.get(speaker, "Kore")
             logger.info(f"[Gemini TTS] Turn {i+1}/{len(turns)}: {speaker} ({voice}) - {len(dialogue)} chars")
+
+            # Add Director's Notes for accent if needed
+            if accent_description:
+                prompt_text = f"[Director's Notes: Speak with a {accent_description}.]\n\n{dialogue}"
+            else:
+                prompt_text = dialogue
 
             # Single-speaker generation with retry for silent audio
             max_retries = 3
@@ -826,7 +856,7 @@ class GeminiTTSClient:
                 try:
                     response = self.client.models.generate_content(
                         model=self.MODEL_NAME,
-                        contents=dialogue,
+                        contents=prompt_text,
                         config=types.GenerateContentConfig(
                             response_modalities=["AUDIO"],
                             speech_config=speech_config,
@@ -1051,7 +1081,7 @@ class GeminiTTSClient:
 
             # Single-call generation for shorter scripts
             # Format script
-            formatted_script = self._format_script_for_gemini(script, voice_assignments)
+            formatted_script = self._format_script_for_gemini(script, voice_assignments, language_code)
 
             # Count actual unique speakers in the script
             actual_speakers = set()

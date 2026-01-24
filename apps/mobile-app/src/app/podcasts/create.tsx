@@ -54,12 +54,11 @@ const Create = () => {
     const [intellectualAngle, setIntellectualAngle] = useState('Skeptical');
     const [viewpointBehavior, setViewpointBehavior] = useState(5);
 
+    // Accents supported by Gemini TTS (en-US, en-GB, en-AU, en-IN)
     const accentOptions = [
         { label: 'United States', value: 'United States' },
         { label: 'United Kingdom', value: 'United Kingdom' },
         { label: 'Australia', value: 'Australia' },
-        { label: 'Canada', value: 'Canada' },
-        { label: 'Ireland', value: 'Ireland' },
         { label: 'India', value: 'India' },
     ];
 

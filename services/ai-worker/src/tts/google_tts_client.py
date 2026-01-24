@@ -32,6 +32,27 @@ logger = logging.getLogger(__name__)
 # Use 4500 to leave buffer for multi-byte characters
 MAX_CHUNK_BYTES = 4500
 
+# Gemini-specific tags that should be stripped for Standard TTS
+# These are action/effect tags that Gemini interprets but Standard TTS reads aloud
+GEMINI_TAGS_PATTERN = re.compile(
+    r'\[(?:'
+    r'short pause|long pause|pause|'
+    r'laughing|chuckling|giggling|'
+    r'sighing|sighs|'
+    r'clearing throat|clears throat|'
+    r'whispering|whispers|'
+    r'excited|excitedly|'
+    r'thoughtfully|pensively|'
+    r'sarcastically|'
+    r'softly|quietly|loudly|'
+    r'gasps|gasping|'
+    r'coughs|coughing|'
+    r'hmm|um|uh|'
+    r'beat|dramatic pause'
+    r')\]',
+    re.IGNORECASE
+)
+
 
 class GoogleTTSClient:
     """Client for Google Cloud Text-to-Speech API.
@@ -116,6 +137,32 @@ class GoogleTTSClient:
 
         return chunks
 
+    def _strip_gemini_tags(self, text: str) -> str:
+        """
+        Strip Gemini-specific action tags from text.
+
+        Gemini TTS interprets tags like [short pause], [laughing], etc. as effects,
+        but Standard TTS will read them aloud literally. This removes them.
+
+        Args:
+            text: Text that may contain Gemini-specific tags
+
+        Returns:
+            Text with Gemini tags removed
+        """
+        # Remove known Gemini tags
+        cleaned = GEMINI_TAGS_PATTERN.sub('', text)
+
+        # Also catch any remaining bracketed single/double words that look like actions
+        # Pattern: [word] or [word word] where words are lowercase (action indicators)
+        cleaned = re.sub(r'\[(?:[a-z]+(?:\s+[a-z]+)?)\]', '', cleaned, flags=re.IGNORECASE)
+
+        # Clean up any double spaces left behind
+        cleaned = re.sub(r'\s{2,}', ' ', cleaned)
+
+        # Strip leading/trailing whitespace
+        return cleaned.strip()
+
     def _synthesize_chunk(
         self,
         text: str,
@@ -150,6 +197,9 @@ class GoogleTTSClient:
         """
         if not self.is_available:
             raise RuntimeError("Google Cloud TTS client not configured")
+
+        # Strip Gemini-specific tags that Standard TTS would read aloud
+        text = self._strip_gemini_tags(text)
 
         logger.info(f"Generating audio with Google Cloud Standard TTS")
         logger.info(f"Voice: {voice_config.voice_id}")
