@@ -26,6 +26,8 @@ import {
   UpdateProfileData,
   UpdateSettingsData,
 } from '@/services/user.service';
+import { TopBar } from '@/components';
+import { notificationService } from '@/services/notification.service';
 
 type SettingItemProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -185,6 +187,12 @@ export default function Profile() {
           try {
             const token = await storageService.getAccessToken();
             if (token) {
+              // Clear push token before logout
+              try {
+                await notificationService.clearPushToken(token);
+              } catch (e) {
+                console.log('Failed to clear push token:', e);
+              }
               await userService.logout(token);
             }
             await logout();
@@ -242,6 +250,7 @@ export default function Profile() {
 
   return (
     <SafeAreaView className="flex-1 bg-brand-beige" edges={['top', 'left', 'right']}>
+      <TopBar />
       <ScrollView
         contentContainerStyle={{ padding: 24, paddingBottom: 100 }}
         refreshControl={

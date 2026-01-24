@@ -236,4 +236,263 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
             return { remaining: limit, resetIn: 0 };
         }
     }
+
+    // ============================================
+    // Redis Streams (Notification Queue)
+    // ============================================
+
+    private readonly NOTIFICATION_STREAM = 'notifications:stream';
+    private readonly NOTIFICATION_CONSUMER_GROUP = 'notifications:consumers';
+
+    /**
+     * Initialize the notification stream consumer group.
+     * Should be called on application startup.
+     */
+    async initNotificationStream(): Promise<void> {
+        if (!this.isConnected()) {
+            this.logger.warn('Redis not connected, skipping stream initialization');
+            return;
+        }
+
+        try {
+            // Create consumer group if it doesn't exist
+            // MKSTREAM creates the stream if it doesn't exist
+            await this.client.xgroup(
+                'CREATE',
+                this.NOTIFICATION_STREAM,
+                this.NOTIFICATION_CONSUMER_GROUP,
+                '0',
+                'MKSTREAM',
+            );
+            this.logger.log(`Created notification stream consumer group: ${this.NOTIFICATION_CONSUMER_GROUP}`);
+        } catch (error) {
+            // BUSYGROUP error means the group already exists, which is fine
+            if (error.message?.includes('BUSYGROUP')) {
+                this.logger.log(`Notification stream consumer group already exists: ${this.NOTIFICATION_CONSUMER_GROUP}`);
+            } else {
+                this.logger.error(`Error creating notification stream consumer group: ${error.message}`);
+                throw error;
+            }
+        }
+    }
+
+    /**
+     * Add a notification to the stream for async processing.
+     * @param notification - The notification data to add
+     * @returns The stream message ID
+     */
+    async addNotificationToStream(notification: {
+        notificationId: string;
+        userId: string;
+        type: string;
+        title: string;
+        body: string;
+        data?: string;
+    }): Promise<string | null> {
+        if (!this.isConnected()) {
+            this.logger.warn('Redis not connected, cannot add notification to stream');
+            return null;
+        }
+
+        try {
+            const messageId = await this.client.xadd(
+                this.NOTIFICATION_STREAM,
+                '*', // Auto-generate message ID
+                'notificationId', notification.notificationId,
+                'userId', notification.userId,
+                'type', notification.type,
+                'title', notification.title,
+                'body', notification.body,
+                'data', notification.data || '',
+                'createdAt', new Date().toISOString(),
+            );
+            this.logger.log(`Added notification ${notification.notificationId} to stream with ID: ${messageId}`);
+            return messageId;
+        } catch (error) {
+            this.logger.error(`Error adding notification to stream: ${error.message}`);
+            return null;
+        }
+    }
+
+    /**
+     * Read pending notifications from the stream.
+     * Uses consumer groups for reliable processing.
+     * @param consumerName - Unique name for this consumer instance
+     * @param count - Maximum number of messages to read
+     * @param blockMs - How long to block waiting for messages (0 = no blocking)
+     * @returns Array of notification messages
+     */
+    async readNotificationsFromStream(
+        consumerName: string,
+        count: number = 10,
+        blockMs: number = 5000,
+    ): Promise<Array<{
+        id: string;
+        notificationId: string;
+        userId: string;
+        type: string;
+        title: string;
+        body: string;
+        data?: string;
+        createdAt: string;
+    }>> {
+        if (!this.isConnected()) return [];
+
+        try {
+            const results = await this.client.xreadgroup(
+                'GROUP',
+                this.NOTIFICATION_CONSUMER_GROUP,
+                consumerName,
+                'COUNT',
+                count,
+                'BLOCK',
+                blockMs,
+                'STREAMS',
+                this.NOTIFICATION_STREAM,
+                '>', // Read only new messages
+            );
+
+            if (!results || results.length === 0) {
+                return [];
+            }
+
+            const messages: Array<{
+                id: string;
+                notificationId: string;
+                userId: string;
+                type: string;
+                title: string;
+                body: string;
+                data?: string;
+                createdAt: string;
+            }> = [];
+
+            // Parse the stream results
+            // Format: [[streamName, [[messageId, [field, value, field, value, ...]], ...]]]
+            for (const [, streamMessages] of results) {
+                for (const [messageId, fields] of streamMessages) {
+                    const message: any = { id: messageId };
+                    for (let i = 0; i < fields.length; i += 2) {
+                        message[fields[i]] = fields[i + 1];
+                    }
+                    messages.push(message);
+                }
+            }
+
+            return messages;
+        } catch (error) {
+            this.logger.error(`Error reading from notification stream: ${error.message}`);
+            return [];
+        }
+    }
+
+    /**
+     * Acknowledge that a notification has been processed.
+     * @param messageId - The stream message ID to acknowledge
+     */
+    async ackNotification(messageId: string): Promise<boolean> {
+        if (!this.isConnected()) return false;
+
+        try {
+            const result = await this.client.xack(
+                this.NOTIFICATION_STREAM,
+                this.NOTIFICATION_CONSUMER_GROUP,
+                messageId,
+            );
+            return result === 1;
+        } catch (error) {
+            this.logger.error(`Error acknowledging notification ${messageId}: ${error.message}`);
+            return false;
+        }
+    }
+
+    /**
+     * Get pending notifications that haven't been acknowledged.
+     * Useful for handling failed/stuck notifications.
+     * @param count - Maximum number of pending messages to return
+     */
+    async getPendingNotifications(count: number = 100): Promise<Array<{
+        id: string;
+        consumer: string;
+        idleTime: number;
+        deliveryCount: number;
+    }>> {
+        if (!this.isConnected()) return [];
+
+        try {
+            const pending = await this.client.xpending(
+                this.NOTIFICATION_STREAM,
+                this.NOTIFICATION_CONSUMER_GROUP,
+                '-',
+                '+',
+                count,
+            );
+
+            if (!pending || pending.length === 0) {
+                return [];
+            }
+
+            return pending.map((item: any) => ({
+                id: item[0],
+                consumer: item[1],
+                idleTime: item[2],
+                deliveryCount: item[3],
+            }));
+        } catch (error) {
+            this.logger.error(`Error getting pending notifications: ${error.message}`);
+            return [];
+        }
+    }
+
+    /**
+     * Claim stale pending notifications for reprocessing.
+     * @param consumerName - The consumer claiming the messages
+     * @param minIdleTimeMs - Minimum idle time before a message can be claimed
+     * @param messageIds - Message IDs to claim
+     */
+    async claimNotifications(
+        consumerName: string,
+        minIdleTimeMs: number,
+        messageIds: string[],
+    ): Promise<number> {
+        if (!this.isConnected() || messageIds.length === 0) return 0;
+
+        try {
+            const result = await this.client.xclaim(
+                this.NOTIFICATION_STREAM,
+                this.NOTIFICATION_CONSUMER_GROUP,
+                consumerName,
+                minIdleTimeMs,
+                ...messageIds,
+            );
+            return result?.length || 0;
+        } catch (error) {
+            this.logger.error(`Error claiming notifications: ${error.message}`);
+            return 0;
+        }
+    }
+
+    /**
+     * Trim old messages from the stream to prevent unbounded growth.
+     * @param maxLength - Maximum number of messages to keep
+     */
+    async trimNotificationStream(maxLength: number = 10000): Promise<number> {
+        if (!this.isConnected()) return 0;
+
+        try {
+            const trimmed = await this.client.xtrim(
+                this.NOTIFICATION_STREAM,
+                'MAXLEN',
+                '~', // Approximate trimming for better performance
+                maxLength,
+            );
+            if (trimmed > 0) {
+                this.logger.log(`Trimmed ${trimmed} old notifications from stream`);
+            }
+            return trimmed;
+        } catch (error) {
+            this.logger.error(`Error trimming notification stream: ${error.message}`);
+            return 0;
+        }
+    }
 }

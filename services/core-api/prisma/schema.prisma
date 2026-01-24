@@ -34,6 +34,7 @@ model User {
   subscription     Subscription?
   podcasterRatings PodcasterRating[]
   episodeComments  EpisodeComment[]
+  notifications    Notification[]
 
   @@map("users")
 }
@@ -360,6 +361,7 @@ model UserSettings {
   pushNotificationsEnabled  Boolean         @default(true)
   emailNotificationsEnabled Boolean         @default(true)
   marketingEmailsEnabled    Boolean         @default(false)
+  expoPushToken             String?         // Expo Push Notification token
 
   // Privacy
   profilePublic             Boolean         @default(false)
@@ -432,4 +434,31 @@ model TermsAndConditions {
   updatedAt     DateTime @updatedAt
 
   @@map("terms_and_conditions")
+}
+
+// Notification type enum
+enum NotificationType {
+  EPISODE_READY
+  EPISODE_FAILED
+  NEW_COMMENT
+  NEW_RATING
+  SUBSCRIPTION_WARNING
+  SYSTEM
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?            // Payload for deep linking (episodeId, bookId, route, etc.)
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  // Relations
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read, createdAt(sort: Desc)])
+  @@map("notifications")
 }

@@ -24,6 +24,7 @@ import {
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { PlaybackProvider } from '@/contexts/PlaybackContext';
+import { NotificationsProvider } from '@/contexts/NotificationsContext';
 import { MiniPlayer } from '@/components/MiniPlayer';
 
 SplashScreen.preventAutoHideAsync();
@@ -54,24 +55,26 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>
-        <PlaybackProvider>
-          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-            <View style={{ flex: 1 }}>
-              <Stack>
-                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen name="podcasts" options={{ headerShown: false }} />
-                <Stack.Screen name="episodes" options={{ headerShown: false }} />
-                <Stack.Screen name="notifications" options={{ headerShown: false }} />
-                <Stack.Screen name="search" options={{ headerShown: false }} />
-                <Stack.Screen name="[book]" options={{ headerShown: false }} />
-                <Stack.Screen name="+not-found" />
-              </Stack>
-              <MiniPlayer />
-            </View>
-            <StatusBar style="auto" />
-          </ThemeProvider>
-        </PlaybackProvider>
+        <NotificationsProvider>
+          <PlaybackProvider>
+            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+              <View style={{ flex: 1 }}>
+                <Stack>
+                  <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  <Stack.Screen name="podcasts" options={{ headerShown: false }} />
+                  <Stack.Screen name="episodes" options={{ headerShown: false }} />
+                  <Stack.Screen name="notifications" options={{ headerShown: false }} />
+                  <Stack.Screen name="search" options={{ headerShown: false }} />
+                  <Stack.Screen name="[book]" options={{ headerShown: false }} />
+                  <Stack.Screen name="+not-found" />
+                </Stack>
+                <MiniPlayer />
+              </View>
+              <StatusBar style="auto" />
+            </ThemeProvider>
+          </PlaybackProvider>
+        </NotificationsProvider>
       </AuthProvider>
     </GestureHandlerRootView>
   );

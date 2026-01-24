@@ -14,6 +14,7 @@ import { Episode, episodeService } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
 import { EpisodeSection } from '@/components/EpisodeSection';
 import { GeneratingEpisodeCard } from '@/components/GeneratingEpisodeCard';
+import { TopBar } from '@/components';
 
 export default function EpisodesScreen() {
     const [episodes, setEpisodes] = useState<Episode[]>([]);
@@ -140,6 +141,7 @@ export default function EpisodesScreen() {
 
     return (
         <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-brand-beige">
+            <TopBar />
             <ScrollView
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#BF9A54" />

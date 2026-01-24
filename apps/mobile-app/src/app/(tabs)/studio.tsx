@@ -5,6 +5,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { podcasterService, Podcaster } from '@/services/podcaster.service';
 import { storageService } from '@/services/storage.service';
+import { TopBar } from '@/components';
 
 export default function Studio() {
   const [podcasters, setPodcasters] = useState<Podcaster[]>([]);
@@ -63,6 +64,7 @@ export default function Studio() {
   }
   return (
     <SafeAreaView className="flex-1 bg-brand-beige" edges={['top', 'left', 'right']}>
+      <TopBar />
       <ScrollView
         contentContainerStyle={{ padding: 24 }}
         refreshControl={
