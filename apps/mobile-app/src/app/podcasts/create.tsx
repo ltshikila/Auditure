@@ -2,7 +2,6 @@ import {
     StyleSheet,
     Text,
     View,
-    ScrollView,
     TextInput,
     TouchableOpacity,
     ActivityIndicator,
@@ -10,6 +9,7 @@ import {
 } from 'react-native';
 import React, { useState } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { CustomSlider } from '@/components/CustomSlider';
@@ -228,7 +228,12 @@ const Create = () => {
 
     return (
         <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-brand-beige">
-            <ScrollView contentContainerStyle={{ padding: 24}}>
+            <KeyboardAwareScrollView
+                contentContainerStyle={{ padding: 24 }}
+                keyboardShouldPersistTaps="handled"
+                enableOnAndroid={true}
+                extraScrollHeight={20}
+            >
                 {/* Title */}
                 <View className="mb-6">
                     <Text className="font-jakarta-bold text-2xl text-[#1A1C1E] mb-1">
@@ -547,7 +552,7 @@ const Create = () => {
                         </View>
                     </>
                 )}
-            </ScrollView>
+            </KeyboardAwareScrollView>
 
             {/* Navigation Buttons - Fixed at bottom */}
             <View

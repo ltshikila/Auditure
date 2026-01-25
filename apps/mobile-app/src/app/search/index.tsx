@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -36,16 +36,44 @@ const TABS: { key: TabType; label: string }[] = [
     { key: 'podcasters', label: 'Podcasters' },
 ];
 
+// Asset icons
+const starIcon = require('../../assets/icons/star.png');
+const searchIcon = require('../../assets/icons/search-normal.png');
+const profileIcon = require('../../assets/icons/profile.png');
+
+// Helper to render star ratings
+const StarRating = ({ rating, count }: { rating: number; count?: number }) => {
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+
+    return (
+        <View className="flex-row items-center">
+            {[...Array(fullStars)].map((_, i) => (
+                <Image key={`full-${i}`} source={starIcon} style={{ width: 12, height: 12, tintColor: '#1A1C1E' }} />
+            ))}
+            {hasHalfStar && <Image source={starIcon} style={{ width: 12, height: 12, tintColor: '#1A1C1E', opacity: 0.5 }} />}
+            {[...Array(emptyStars)].map((_, i) => (
+                <Image key={`empty-${i}`} source={starIcon} style={{ width: 12, height: 12, tintColor: '#D1D5DB' }} />
+            ))}
+            {count !== undefined && (
+                <Text className="font-inter text-xs text-gray-500 ml-1">{count} Ratings</Text>
+            )}
+        </View>
+    );
+};
+
 export default function SearchScreen() {
-    const { token } = useAuth();
+    const { getAccessToken } = useAuth();
     const [query, setQuery] = useState('');
     const [activeTab, setActiveTab] = useState<TabType>('all');
     const [loading, setLoading] = useState(false);
     const [searchResults, setSearchResults] = useState<SearchAllResponse | null>(null);
     const [recentSearches, setRecentSearches] = useState<string[]>([]);
     const [hasSearched, setHasSearched] = useState(false);
+    const [likedEpisodes, setLikedEpisodes] = useState<Set<string>>(new Set());
     const searchInputRef = useRef<TextInput>(null);
-    const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
+    const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Load recent searches on mount
     useEffect(() => {
@@ -127,6 +155,7 @@ export default function SearchScreen() {
         setLoading(true);
         setHasSearched(true);
         try {
+            const token = await getAccessToken();
             const results = await searchService.searchAll(searchQuery, token || undefined);
             setSearchResults(results);
             saveRecentSearch(searchQuery);
@@ -150,10 +179,16 @@ export default function SearchScreen() {
         searchInputRef.current?.focus();
     };
 
-    const formatDuration = (seconds: number | null): string => {
-        if (!seconds) return '';
-        const mins = Math.floor(seconds / 60);
-        return `${mins} min`;
+    const toggleLike = (episodeId: string) => {
+        setLikedEpisodes((prev) => {
+            const newSet = new Set(prev);
+            if (newSet.has(episodeId)) {
+                newSet.delete(episodeId);
+            } else {
+                newSet.add(episodeId);
+            }
+            return newSet;
+        });
     };
 
     // Navigation handlers
@@ -170,33 +205,51 @@ export default function SearchScreen() {
     };
 
     // Render functions
-    const renderEpisodeItem = (episode: EpisodeSearchResult) => (
-        <TouchableOpacity
-            key={episode.id}
-            onPress={() => handleEpisodePress(episode)}
-            className="flex-row items-center py-3 px-4"
-        >
-            {episode.book.coverImageUrl ? (
-                <Image
-                    source={{ uri: episode.book.coverImageUrl }}
-                    className="w-12 h-12 rounded-lg bg-gray-200"
-                />
-            ) : (
-                <View className="w-12 h-12 rounded-lg bg-gray-200 items-center justify-center">
-                    <Ionicons name="musical-notes" size={24} color="#9CA3AF" />
+    const renderEpisodeItem = (episode: EpisodeSearchResult) => {
+        const isLiked = likedEpisodes.has(episode.id);
+        // Mock rating data - replace with actual data when available
+        const rating = 4;
+        const ratingCount = 50;
+
+        return (
+            <TouchableOpacity
+                key={episode.id}
+                onPress={() => handleEpisodePress(episode)}
+                className="flex-row items-center py-3 px-4"
+            >
+                {episode.book.coverImageUrl ? (
+                    <Image
+                        source={{ uri: episode.book.coverImageUrl }}
+                        className="w-14 h-20 rounded bg-gray-200"
+                        resizeMode="cover"
+                    />
+                ) : (
+                    <View className="w-14 h-20 rounded bg-gray-200 items-center justify-center">
+                        <Ionicons name="musical-notes" size={24} color="#9CA3AF" />
+                    </View>
+                )}
+                <View className="flex-1 ml-3">
+                    <Text className="font-jakarta-semibold text-base text-gray-900" numberOfLines={1}>
+                        {episode.title}
+                    </Text>
+                    <Text className="font-inter text-sm text-gray-500 mb-1" numberOfLines={1}>
+                        {episode.podcaster.name}
+                    </Text>
+                    <StarRating rating={rating} count={ratingCount} />
                 </View>
-            )}
-            <View className="flex-1 ml-3">
-                <Text className="font-jakarta-semibold text-base text-gray-900" numberOfLines={1}>
-                    {episode.title}
-                </Text>
-                <Text className="font-inter text-sm text-gray-500" numberOfLines={1}>
-                    {episode.podcaster.name} {episode.duration ? `• ${formatDuration(episode.duration)}` : ''}
-                </Text>
-            </View>
-            <Ionicons name="play-circle-outline" size={24} color="#BF9A54" />
-        </TouchableOpacity>
-    );
+                <TouchableOpacity
+                    onPress={() => toggleLike(episode.id)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                    <Ionicons
+                        name={isLiked ? 'heart' : 'heart-outline'}
+                        size={24}
+                        color={isLiked ? '#EF4444' : '#9CA3AF'}
+                    />
+                </TouchableOpacity>
+            </TouchableOpacity>
+        );
+    };
 
     const renderBookItem = (book: BookSearchResult) => (
         <TouchableOpacity
@@ -207,10 +260,11 @@ export default function SearchScreen() {
             {book.coverImageUrl ? (
                 <Image
                     source={{ uri: book.coverImageUrl }}
-                    className="w-12 h-16 rounded-lg bg-gray-200"
+                    className="w-14 h-20 rounded bg-gray-200"
+                    resizeMode="cover"
                 />
             ) : (
-                <View className="w-12 h-16 rounded-lg bg-gray-200 items-center justify-center">
+                <View className="w-14 h-20 rounded bg-gray-200 items-center justify-center">
                     <Ionicons name="book" size={24} color="#9CA3AF" />
                 </View>
             )}
@@ -219,52 +273,50 @@ export default function SearchScreen() {
                     {book.title}
                 </Text>
                 <Text className="font-inter text-sm text-gray-500" numberOfLines={1}>
-                    {book.author || 'Unknown Author'}
+                    {book.author || 'Author Name'}
                 </Text>
             </View>
-            <Ionicons name="book-outline" size={20} color="#6B7280" />
         </TouchableOpacity>
     );
 
-    const renderPodcasterItem = (podcaster: PodcasterSearchResult) => (
-        <TouchableOpacity
-            key={podcaster.id}
-            onPress={() => handlePodcasterPress(podcaster)}
-            className="flex-row items-center py-3 px-4"
-        >
-            {podcaster.profilePictureUrl ? (
-                <Image
-                    source={{ uri: podcaster.profilePictureUrl }}
-                    className="w-12 h-12 rounded-full bg-gray-200"
-                />
-            ) : (
-                <View className="w-12 h-12 rounded-full bg-gray-200 items-center justify-center">
-                    <Ionicons name="person" size={24} color="#9CA3AF" />
+    const renderPodcasterItem = (podcaster: PodcasterSearchResult) => {
+        // Mock rating data - replace with actual data when available
+        const ratingCount = 50;
+
+        return (
+            <TouchableOpacity
+                key={podcaster.id}
+                onPress={() => handlePodcasterPress(podcaster)}
+                className="flex-row items-center py-3 px-4"
+            >
+                {podcaster.profilePictureUrl ? (
+                    <Image
+                        source={{ uri: podcaster.profilePictureUrl }}
+                        className="w-14 h-20 rounded bg-gray-200"
+                        resizeMode="cover"
+                    />
+                ) : (
+                    <View className="w-14 h-20 rounded bg-gray-200 items-center justify-center">
+                        <Image source={profileIcon} style={{ width: 24, height: 24, tintColor: '#9CA3AF' }} />
+                    </View>
+                )}
+                <View className="flex-1 ml-3">
+                    <Text className="font-jakarta-semibold text-base text-gray-900" numberOfLines={1}>
+                        {podcaster.name}
+                    </Text>
+                    <Text className="font-inter text-sm text-gray-500 mb-1" numberOfLines={1}>
+                        {podcaster.expertiseTags.length > 0
+                            ? podcaster.expertiseTags.slice(0, 2).join(', ')
+                            : 'Genre(s)'}
+                    </Text>
+                    <StarRating
+                        rating={podcaster.averageRating || 4}
+                        count={ratingCount}
+                    />
                 </View>
-            )}
-            <View className="flex-1 ml-3">
-                <Text className="font-jakarta-semibold text-base text-gray-900" numberOfLines={1}>
-                    {podcaster.name}
-                </Text>
-                <View className="flex-row items-center">
-                    {podcaster.averageRating > 0 && (
-                        <>
-                            <Ionicons name="star" size={12} color="#BF9A54" />
-                            <Text className="font-inter text-sm text-gray-500 ml-1">
-                                {podcaster.averageRating.toFixed(1)}
-                            </Text>
-                        </>
-                    )}
-                    {podcaster.expertiseTags.length > 0 && (
-                        <Text className="font-inter text-sm text-gray-500 ml-2" numberOfLines={1}>
-                            {podcaster.expertiseTags.slice(0, 2).join(', ')}
-                        </Text>
-                    )}
-                </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-        </TouchableOpacity>
-    );
+            </TouchableOpacity>
+        );
+    };
 
     const renderSection = (
         title: string,
@@ -276,12 +328,12 @@ export default function SearchScreen() {
         if (items.length === 0) return null;
 
         return (
-            <View className="mb-6">
+            <View className="mb-4">
                 <View className="flex-row items-center justify-between px-4 mb-2">
                     <Text className="font-jakarta-bold text-lg text-gray-900">{title}</Text>
                     {hasMore && (
                         <TouchableOpacity onPress={() => setActiveTab(scope as TabType)}>
-                            <Text className="font-inter-medium text-sm text-brand-gold">See all</Text>
+                            <Text className="font-inter-medium text-sm text-red-500">View all</Text>
                         </TouchableOpacity>
                     )}
                 </View>
@@ -296,9 +348,9 @@ export default function SearchScreen() {
         return (
             <View className="px-4 pt-4">
                 <View className="flex-row items-center justify-between mb-3">
-                    <Text className="font-jakarta-bold text-lg text-gray-900">Recent Searches</Text>
+                    <Text className="font-inter-medium text-lg text-gray-900">Recent Searches</Text>
                     <TouchableOpacity onPress={clearRecentSearches}>
-                        <Text className="font-inter-medium text-sm text-brand-gold">Clear</Text>
+                        <Text className="font-inter-medium text-sm text-brand-red">Clear</Text>
                     </TouchableOpacity>
                 </View>
                 {recentSearches.map((search, index) => (
@@ -331,7 +383,7 @@ export default function SearchScreen() {
         return (
             <View className="flex-1 items-center justify-center py-20">
                 <View className="w-24 h-24 bg-gray-100 rounded-full items-center justify-center mb-4">
-                    <Ionicons name="search-outline" size={48} color="#9CA3AF" />
+                    <Image source={searchIcon} style={{ width: 48, height: 48, tintColor: '#9CA3AF' }} />
                 </View>
                 <Text className="font-jakarta-bold text-xl text-gray-900 mb-2">No results found</Text>
                 <Text className="font-inter text-gray-500 text-center px-8">
@@ -356,23 +408,23 @@ export default function SearchScreen() {
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
                 {renderSection(
                     'Episodes',
-                    episodes.results.slice(0, 3),
+                    episodes.results.slice(0, 4),
                     renderEpisodeItem,
-                    episodes.hasMore || episodes.results.length > 3,
+                    episodes.hasMore || episodes.results.length > 4,
                     'episodes'
                 )}
                 {renderSection(
                     'Books',
-                    books.results.slice(0, 3),
+                    books.results.slice(0, 2),
                     renderBookItem,
-                    books.hasMore || books.results.length > 3,
+                    books.hasMore || books.results.length > 2,
                     'books'
                 )}
                 {renderSection(
                     'Virtual Podcasters',
-                    podcasters.results.slice(0, 3),
+                    podcasters.results.slice(0, 2),
                     renderPodcasterItem,
-                    podcasters.hasMore || podcasters.results.length > 3,
+                    podcasters.hasMore || podcasters.results.length > 2,
                     'podcasters'
                 )}
             </ScrollView>
@@ -408,7 +460,7 @@ export default function SearchScreen() {
             <FlatList
                 data={items}
                 keyExtractor={(item) => item.id}
-                renderItem={({ item }) => renderItem(item)}
+                renderItem={({ item }) => renderItem(item) as React.ReactElement}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: 20 }}
             />
@@ -416,23 +468,27 @@ export default function SearchScreen() {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-white" edges={['top', 'left', 'right']}>
-            {/* Header with Search Bar */}
-            <View className="flex-row items-center px-4 py-3 border-b border-gray-100">
+        <SafeAreaView className="flex-1 bg-brand-beige" edges={['top', 'left', 'right']}>
+            {/* Header with Title */}
+            <View className="flex-row items-center justify-center px-4 py-3 relative">
                 <TouchableOpacity
                     onPress={() => router.back()}
-                    className="w-10 h-10 items-center justify-center -ml-2"
+                    className="absolute left-4 w-10 h-10 items-center justify-center"
                 >
-                    <Ionicons name="chevron-back" size={24} color="#1A1C1E" />
+                    <Ionicons name="arrow-back" size={24} color="#1A1C1E" />
                 </TouchableOpacity>
+                <Text className="font-jakarta text-lg text-gray-900">Search</Text>
+            </View>
 
-                <View className="flex-1 flex-row items-center bg-gray-100 rounded-xl px-4 py-2 ml-2">
-                    <Ionicons name="search-outline" size={20} color="#9CA3AF" />
+            {/* Search Bar */}
+            <View className="px-4 pb-4">
+                <View className="flex-row items-center bg-[#E7E0CB] rounded-full px-4 py-2">
+                    <Image source={searchIcon} style={{ width: 20, height: 20, tintColor: '#2F2F2F' }} />
                     <TextInput
                         ref={searchInputRef}
-                        className="flex-1 font-inter text-base text-gray-900 ml-2"
+                        className="flex-1 font-jakarta text-base text-gray-900 ml-3"
                         placeholder="Search episodes, books, podcasters..."
-                        placeholderTextColor="#9CA3AF"
+                        placeholderTextColor="#2F2F2F"
                         value={query}
                         onChangeText={setQuery}
                         autoFocus
@@ -454,7 +510,7 @@ export default function SearchScreen() {
 
             {/* Category Tabs */}
             {hasSearched && searchResults && (
-                <View className="border-b border-gray-100">
+                <View>
                     <ScrollView
                         horizontal
                         showsHorizontalScrollIndicator={false}
@@ -465,7 +521,7 @@ export default function SearchScreen() {
                                 key={tab.key}
                                 onPress={() => setActiveTab(tab.key)}
                                 className={`px-4 py-2 rounded-full mr-2 ${
-                                    activeTab === tab.key ? 'bg-brand-gold' : 'bg-gray-100'
+                                    activeTab === tab.key ? 'bg-brand-red' : 'bg-[#E7E0CB]'
                                 }`}
                             >
                                 <Text

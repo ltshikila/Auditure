@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import React, { useState, useEffect, useCallback } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
@@ -408,7 +409,12 @@ const Create = () => {
 
     return (
         <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-brand-beige">
-            <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
+            <KeyboardAwareScrollView
+                contentContainerStyle={{ padding: 24, paddingBottom: 100 }}
+                keyboardShouldPersistTaps="handled"
+                enableOnAndroid={true}
+                extraScrollHeight={20}
+            >
                 {/* Title */}
                 <View className="mb-6">
                     <Text className="font-jakarta-bold text-2xl text-[#1A1C1E] mb-1">
@@ -879,7 +885,7 @@ const Create = () => {
                         <Text className="text-white font-inter-medium text-base">Create</Text>
                     )}
                 </TouchableOpacity>
-            </ScrollView>
+            </KeyboardAwareScrollView>
 
             {/* Upload Progress Modal */}
             <Modal

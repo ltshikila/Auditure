@@ -3,12 +3,12 @@ import {
   View,
   Text,
   TouchableOpacity,
-  ScrollView,
   TextInput,
   Alert,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { podcasterService, Podcaster } from '@/services/podcaster.service';
@@ -144,7 +144,12 @@ export default function ManagePodcaster() {
 
   return (
     <SafeAreaView className="flex-1 bg-brand-beige">
-      <ScrollView contentContainerStyle={{ padding: 24 }}>
+      <KeyboardAwareScrollView
+        contentContainerStyle={{ padding: 24 }}
+        keyboardShouldPersistTaps="handled"
+        enableOnAndroid={true}
+        extraScrollHeight={20}
+      >
         {/* Header */}
         <View className="flex-row items-center justify-between mb-6">
           <TouchableOpacity onPress={() => router.back()}>
@@ -257,7 +262,7 @@ export default function ManagePodcaster() {
             <Text className="text-red-500 font-jakarta-bold text-center">Delete Podcaster</Text>
           )}
         </TouchableOpacity>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

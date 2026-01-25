@@ -67,7 +67,8 @@
       "Bash(python:*)",
       "Bash(cmd /c \"del nul\")",
       "Bash(cmd /c \"del \\\\.\\\\c:\\\\Users\\\\ltshi\\\\OneDrive\\\\Documents\\\\GitHub\\\\Auditure\\\\nul\")",
-      "Bash(powershell -Command:*)"
+      "Bash(powershell -Command:*)",
+      "Bash(type:*)"
     ]
   }
 }

@@ -4,7 +4,9 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useNotifications } from '@/contexts/NotificationsContext';
 
-const logoIcon = require('@/assets/images/icon.png');
+const logoIcon = require('@/assets/icons/logo.png');
+const notificationIcon = require('@/assets/icons/notification.png');
+const searchIcon = require('@/assets/icons/search-normal.png');
 
 interface TopBarProps {
     showBackButton?: boolean;
@@ -51,7 +53,7 @@ export const TopBar: React.FC<TopBarProps> = ({ showBackButton = false, title })
                     onPress={handleNotificationsPress}
                     style={styles.iconButton}
                 >
-                    <Ionicons name="notifications-outline" size={24} color="#1A1C1E" />
+                    <Image source={notificationIcon} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
                     {unreadCount > 0 && (
                         <View style={styles.badge}>
                             <Text style={styles.badgeText}>
@@ -61,7 +63,7 @@ export const TopBar: React.FC<TopBarProps> = ({ showBackButton = false, title })
                     )}
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleSearchPress} style={styles.iconButton}>
-                    <Ionicons name="search-outline" size={24} color="#1A1C1E" />
+                    <Image source={searchIcon} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
                 </TouchableOpacity>
             </View>
         </View>
@@ -74,8 +76,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 16,
-        paddingVertical: 12,
-        backgroundColor: '#FDFBF7',
+        backgroundColor: '#FBF8F2',
     },
     leftSection: {
         flexDirection: 'row',

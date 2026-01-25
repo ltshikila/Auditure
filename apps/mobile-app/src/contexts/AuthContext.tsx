@@ -6,6 +6,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAuthenticated: boolean;
+  getAccessToken: () => Promise<string | null>;
   register: (data: RegisterData) => Promise<{ email: string }>;
   login: (data: LoginData) => Promise<{ requiresVerification?: boolean; email?: string }>;
   verify: (data: VerifyData) => Promise<void>;
@@ -106,12 +107,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     await authService.resendOTP(email);
   };
 
+  const getAccessToken = async (): Promise<string | null> => {
+    return storageService.getAccessToken();
+  };
+
   return (
     <AuthContext.Provider
       value={{
         user,
         loading,
         isAuthenticated: !!user,
+        getAccessToken,
         register,
         login,
         verify,

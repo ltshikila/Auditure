@@ -148,11 +148,11 @@ export default function EpisodesScreen() {
                 }
             >
                 {/* Header */}
-                <View className="px-6 pt-4 pb-2">
+                <View className="px-6 pt-6 pb-6">
                     <View className="flex-row items-center justify-between">
                         <View>
-                            <Text className="font-jakarta-bold text-2xl text-brand-black">Episodes</Text>
-                            <Text className="font-jakarta text-[#858585] text-sm">
+                            <Text className="font-inter-bold text-2xl text-brand-black">Episodes</Text>
+                            <Text className="font-jakarta text-brand-black text-sm">
                                 Manage and view your saved and generated episodes
                             </Text>
                         </View>

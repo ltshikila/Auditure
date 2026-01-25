@@ -104,45 +104,52 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                     ]
                 );
             }}
-            className={`flex-row p-4 border-b border-gray-100 ${
-                !notification.read ? 'bg-[#FBF8F2]' : 'bg-white'
+            className={`flex-row p-4 mx-4 mb-3 rounded-2xl ${
+                !notification.read ? 'bg-white' : 'bg-[#F5F5F0]'
             }`}
+            style={{
+                shadowColor: !notification.read ? '#000' : 'transparent',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: !notification.read ? 0.08 : 0,
+                shadowRadius: 8,
+                elevation: !notification.read ? 4 : 0,
+            }}
         >
+            {/* Unread indicator */}
+            {!notification.read && (
+                <View className="absolute left-0 top-4 bottom-4 w-1 bg-brand-gold rounded-r-full" />
+            )}
+
             {/* Icon */}
             <View
-                className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                style={{ backgroundColor: `${iconColor}20` }}
+                className="w-12 h-12 rounded-xl items-center justify-center mr-4"
+                style={{ backgroundColor: `${iconColor}15` }}
             >
-                <Ionicons name={icon} size={20} color={iconColor} />
+                <Ionicons name={icon} size={24} color={iconColor} />
             </View>
 
             {/* Content */}
             <View className="flex-1">
-                <View className="flex-row items-center justify-between mb-1">
+                <View className="flex-row items-start justify-between mb-1">
                     <Text
-                        className={`font-jakarta-medium text-base ${
-                            !notification.read ? 'text-gray-900' : 'text-gray-700'
+                        className={`font-inter-bold text-base flex-1 mr-2 ${
+                            !notification.read ? 'text-brand-black' : 'text-gray-600'
                         }`}
                         numberOfLines={1}
                     >
                         {notification.title}
                     </Text>
-                    <Text className="font-inter text-xs text-gray-400">
+                    <Text className="font-inter text-xs text-brand-gold">
                         {formatTimeAgo(notification.createdAt)}
                     </Text>
                 </View>
                 <Text
-                    className="font-inter text-sm text-gray-500"
+                    className={`font-inter text-sm ${!notification.read ? 'text-gray-600' : 'text-gray-400'}`}
                     numberOfLines={2}
                 >
                     {notification.body}
                 </Text>
             </View>
-
-            {/* Unread indicator */}
-            {!notification.read && (
-                <View className="w-2 h-2 bg-brand-red rounded-full ml-2 mt-2" />
-            )}
         </TouchableOpacity>
     );
 };
@@ -221,15 +228,17 @@ export default function NotificationsScreen() {
     const renderEmpty = () => {
         if (loading) return null;
         return (
-            <View className="flex-1 items-center justify-center py-20">
-                <View className="w-24 h-24 bg-gray-100 rounded-full items-center justify-center mb-4">
-                    <Ionicons name="notifications-off-outline" size={48} color="#9CA3AF" />
+            <View className="flex-1 items-center justify-center px-8">
+                <View className="w-28 h-28 bg-brand-gold/10 rounded-full items-center justify-center mb-6">
+                    <View className="w-20 h-20 bg-brand-gold/20 rounded-full items-center justify-center">
+                        <Ionicons name="notifications-outline" size={40} color="#BF9A54" />
+                    </View>
                 </View>
-                <Text className="font-jakarta-bold text-xl text-gray-900 mb-2">
-                    No notifications
+                <Text className="font-inter-bold text-2xl text-brand-black mb-3">
+                    All caught up!
                 </Text>
-                <Text className="font-inter text-gray-500 text-center px-8">
-                    You're all caught up! New notifications will appear here.
+                <Text className="font-jakarta text-gray-500 text-center text-base leading-6">
+                    You have no new notifications.{'\n'}We'll let you know when something arrives.
                 </Text>
             </View>
         );
@@ -245,7 +254,7 @@ export default function NotificationsScreen() {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-white" edges={['top', 'left', 'right']}>
+        <SafeAreaView className="flex-1 bg-brand-beige" edges={['top', 'left', 'right']}>
             {/* Header */}
             <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100">
                 <View className="flex-row items-center">

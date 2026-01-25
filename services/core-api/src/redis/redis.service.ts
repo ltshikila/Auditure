@@ -369,7 +369,8 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
             // Parse the stream results
             // Format: [[streamName, [[messageId, [field, value, field, value, ...]], ...]]]
-            for (const [, streamMessages] of results) {
+            const streamResults = results as Array<[string, Array<[string, string[]]>]>;
+            for (const [, streamMessages] of streamResults) {
                 for (const [messageId, fields] of streamMessages) {
                     const message: any = { id: messageId };
                     for (let i = 0; i < fields.length; i += 2) {

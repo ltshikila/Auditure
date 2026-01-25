@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { router } from 'expo-router';
 
 import AuthInput from '../../components/AuthInput';
@@ -178,11 +179,16 @@ export default function AuthScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-brand-beige">
-      <ScrollView contentContainerStyle={{ padding: 24 }}>
+      <KeyboardAwareScrollView
+        contentContainerStyle={{ padding: 24 }}
+        keyboardShouldPersistTaps="handled"
+        enableOnAndroid={true}
+        extraScrollHeight={20}
+      >
 
         {/* Header Icon */}
         <View className="items-center mt-8 mb-6">
-          <View className="w-12 h-12 bg-brand-red rounded-lg rotate-45" />
+          <Image source={require('../../assets/icons/logo.png')} className="w-16 h-16" resizeMode="contain" />
         </View>
 
         <Text className="font-inter-medium text-4xl text-center text-gray-900 mb-2">
@@ -310,7 +316,7 @@ export default function AuthScreen() {
           </View>
         )}
 
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }
