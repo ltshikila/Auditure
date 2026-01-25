@@ -10,6 +10,7 @@ import { FeedModule } from './feed/feed.module';
 import { SocialModule } from './social/social.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { SearchModule } from './search/search.module';
 import { DatabaseModule } from './database/database.module';
 import { RabbitmqModule } from './rabbitmq/rabbitmq.module';
 import { CommonModule } from './common/common.module';
@@ -28,6 +29,7 @@ import { RequestLoggingMiddleware } from './common/middleware/request-logging.mi
         SocialModule,
         SubscriptionsModule,
         NotificationsModule,
+        SearchModule,
         DatabaseModule,
         RabbitmqModule,
         CommonModule,

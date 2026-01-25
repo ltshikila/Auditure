@@ -121,3 +121,21 @@ export const mockNotificationsService = {
     notifySubscriptionWarning: jest.fn().mockResolvedValue(null),
     notifySystem: jest.fn().mockResolvedValue(null),
 };
+
+// ============================================
+// Search Service Mocks
+// ============================================
+
+export const mockSearchService = {
+    search: jest.fn().mockResolvedValue({
+        query: 'test',
+        episodes: { results: [], total: 0, hasMore: false },
+        books: { results: [], total: 0, hasMore: false },
+        podcasters: { results: [], total: 0, hasMore: false },
+    }),
+    getSuggestions: jest.fn().mockResolvedValue({
+        episodes: [],
+        books: [],
+        podcasters: [],
+    }),
+};

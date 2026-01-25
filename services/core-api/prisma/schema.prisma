@@ -83,6 +83,9 @@ model Book {
 
   @@index([userId])
   @@index([extractionStatus])
+  @@index([title])                          // Search index
+  @@index([author])                         // Search index
+  @@index([userId, extractionStatus])       // Composite for user's completed books search
   @@map("books")
 }
 
@@ -171,6 +174,8 @@ model Podcaster {
   @@index([isPublic])
   @@index([playCount])
   @@index([averageRating])
+  @@index([name])                           // Search index
+  @@index([isPublic, playCount])            // Composite for public podcasters sorted by popularity
   @@map("podcasters")
 }
 
@@ -327,6 +332,9 @@ model Episode {
   @@index([bookId])
   @@index([isPublic])
   @@index([generationStatus])
+  @@index([title])                                    // Search index
+  @@index([isPublic, generationStatus, playCount])    // Composite for public completed episodes sorted by popularity
+  @@index([userId, generationStatus])                 // Composite for user's episodes by status
   @@map("episodes")
 }
 
