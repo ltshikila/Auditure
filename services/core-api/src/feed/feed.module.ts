@@ -1,9 +1,12 @@
 import { Module } from '@nestjs/common';
 import { FeedService } from './feed.service';
 import { FeedController } from './feed.controller';
+import { DatabaseModule } from '../database/database.module';
 
 @Module({
+    imports: [DatabaseModule],
     controllers: [FeedController],
     providers: [FeedService],
+    exports: [FeedService],
 })
 export class FeedModule {}

@@ -68,7 +68,9 @@
       "Bash(cmd /c \"del nul\")",
       "Bash(cmd /c \"del \\\\.\\\\c:\\\\Users\\\\ltshi\\\\OneDrive\\\\Documents\\\\GitHub\\\\Auditure\\\\nul\")",
       "Bash(powershell -Command:*)",
-      "Bash(type:*)"
+      "Bash(type:*)",
+      "Bash(del /f \"c:\\\\Users\\\\ltshi\\\\OneDrive\\\\Documents\\\\GitHub\\\\Auditure\\\\services\\\\core-api\\\\src\\\\feed\\\\dto\\\\create-feed.dto.ts\" \"c:\\\\Users\\\\ltshi\\\\OneDrive\\\\Documents\\\\GitHub\\\\Auditure\\\\services\\\\core-api\\\\src\\\\feed\\\\dto\\\\update-feed.dto.ts\")",
+      "Bash(npm run test:*)"
     ]
   }
 }
