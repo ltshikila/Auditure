@@ -11,6 +11,83 @@ Complete authentication system with email verification, JWT tokens, and refresh 
 - ✅ Protected routes with JWT guards
 - ✅ OTP resend functionality
 
+---
+
+## Understanding the Architecture
+
+### Why JWT over Sessions?
+
+There are two main approaches to authentication. Understanding the trade-offs helps you make informed decisions.
+
+```
+SESSION-BASED                          TOKEN-BASED (JWT)
+─────────────                          ─────────────────
+User logs in                           User logs in
+     │                                      │
+     ▼                                      ▼
+Server creates session                 Server creates JWT
+Server stores in Redis/DB              Server sends to client
+Server sends session ID cookie         Client stores token
+     │                                      │
+     ▼                                      ▼
+Each request sends cookie              Each request sends token
+Server looks up session                Server validates token signature
+Server checks if valid                 Token contains all needed data
+```
+
+| Aspect | Sessions | JWT |
+|--------|----------|-----|
+| **Server memory** | Grows with active users | None (stateless) |
+| **Horizontal scaling** | Requires shared session store (Redis) | Any server can validate |
+| **Token revocation** | Easy - delete session from store | Hard - need blocklist or wait for expiry |
+| **Token size** | Small (~32 bytes session ID) | Larger (~500+ bytes with claims) |
+| **Database hits** | Every request checks session store | None (signature validation only) |
+
+**We chose JWT because:**
+1. We expect to scale horizontally (multiple API servers)
+2. Stateless = simpler infrastructure (no session store to manage)
+3. Mobile apps handle tokens better than cookies
+
+**The trade-off:** We can't instantly revoke tokens. If a user's account is compromised, we can't "log them out" immediately. Hence:
+- Short access token expiry (15 minutes)
+- Refresh tokens for seamless re-authentication
+- Refresh token rotation on each use
+
+### Refresh Token Rotation
+
+```
+Initial Login:
+  → Access Token (15 min) + Refresh Token A
+
+After 15 minutes:
+  → Client sends Refresh Token A
+  → Server validates, issues new Access Token + Refresh Token B
+  → Refresh Token A is now invalid
+
+Why rotation?
+  If Token A is stolen, attacker can only use it once.
+  Next time legitimate user refreshes, Token A fails → we know it was compromised.
+```
+
+### Why Email Verification?
+
+Email verification serves multiple purposes:
+1. **Spam prevention**: Bots can't create thousands of accounts without valid emails
+2. **Account recovery**: We can send password reset emails
+3. **Communication**: We can notify users about their episodes
+4. **Ownership proof**: User proves they own the email address
+
+### Rate Limiting Considerations
+
+The `/resend-otp` endpoint is vulnerable to abuse:
+- Attacker could trigger thousands of emails to a victim
+- Each email costs money (Resend charges per email)
+- Could be used for email bombing harassment
+
+**Current protection:** None in auth service (handled at API gateway level)
+
+**Recommended:** Add rate limiting - max 3 OTP requests per email per hour
+
 ## API Endpoints
 
 ### Public Endpoints
@@ -363,6 +440,41 @@ const refreshResponse = await fetch('/auth/refresh', {
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ refreshToken })
 });
+```
+
+## Common Mistakes to Avoid
+
+```typescript
+// ❌ BAD: Comparing passwords directly
+if (user.password === inputPassword) { ... }
+
+// ✅ GOOD: Use bcrypt.compare (handles timing attacks)
+if (await bcrypt.compare(inputPassword, user.password)) { ... }
+
+// ❌ BAD: Storing JWT secret in code
+const secret = 'my-secret-key';
+
+// ✅ GOOD: Use environment variables
+const secret = process.env.JWT_SECRET;
+
+// ❌ BAD: Not validating token expiry
+const decoded = jwt.decode(token); // decode doesn't verify!
+
+// ✅ GOOD: Always use verify
+const decoded = jwt.verify(token, secret); // throws if expired/invalid
+
+// ❌ BAD: Sending password in response
+return { user: { ...user } }; // Includes hashed password!
+
+// ✅ GOOD: Exclude sensitive fields
+const { password, ...safeUser } = user;
+return { user: safeUser };
+
+// ❌ BAD: Logging sensitive data
+console.log('Login attempt:', { email, password });
+
+// ✅ GOOD: Never log passwords
+console.log('Login attempt:', { email });
 ```
 
 ## Future Enhancements

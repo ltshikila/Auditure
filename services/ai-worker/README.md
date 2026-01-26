@@ -4,6 +4,71 @@ Python microservice for AI-powered podcast generation. Handles script generation
 
 **SDK:** Uses the official `google-genai` SDK for Gemini TTS integration.
 
+---
+
+## Understanding the Architecture
+
+### Why Python (Not Node.js)?
+
+The core-api is Node.js. Why not keep the AI worker in the same language?
+
+| Factor | Node.js | Python |
+|--------|---------|--------|
+| **AI/ML ecosystem** | Growing (OpenAI SDK exists) | Mature (OpenAI, Google AI, all Python-first) |
+| **Audio processing** | Limited options | pydub, librosa, soundfile (battle-tested) |
+| **TTS SDKs** | Available but often ports | Native, well-documented, up-to-date |
+| **Type safety** | TypeScript (excellent) | Type hints (optional, improving) |
+| **Team familiarity** | Web devs know JS | AI/ML engineers know Python |
+
+**We chose Python because:**
+1. **First-class AI support** - OpenAI, Google Gemini SDKs are Python-native
+2. **Audio libraries** - pydub for audio manipulation is simple and reliable
+3. **Examples/documentation** - Most AI tutorials and samples are Python
+4. **Hiring** - ML engineers expect Python
+
+**Trade-off:** Two languages means:
+- Two deployment pipelines (Docker works for both)
+- Two sets of dependencies to audit
+- Context switching when debugging across services
+
+This is an acceptable trade-off for specialized AI workloads.
+
+### Why Chunked Generation?
+
+OpenAI has token limits and quality degrades for very long outputs:
+
+```
+SINGLE GENERATION (problematic)        CHUNKED GENERATION (our approach)
+──────────────────────────────         ────────────────────────────────
+"Generate a 5,000-word script"         Chunk 1: "Generate intro (1,300 words)"
+           │                                   │
+           ▼                                   ▼
+Model struggles with coherence         Clean intro, tracked topics
+Quality drops in later sections                │
+May hit token limits                   Chunk 2: "Generate middle, avoid: [topics]"
+                                               │
+                                               ▼
+                                       Fresh examples, builds on intro
+                                               │
+                                       Chunk 3: "Generate conclusion"
+                                               │
+                                               ▼
+                                       Strong ending, no repetition
+```
+
+**Why chunk at 1,800 words?**
+- OpenAI output limits: ~4K tokens ≈ 3,000 words max
+- Quality sweet spot: Models produce better content under 1,500 words
+- Buffer for variance: Target 1,300 words/chunk, allows some overflow
+
+**Anti-repetition tracking:**
+Between chunks, we extract and pass forward:
+- Topics already covered ("compound interest", "time value of money")
+- Examples used ("the restaurant scenario with the waiter")
+- Quotes cited ("Warren Buffett's famous quote")
+
+This prevents the model from repeating itself across chunks.
+
 ## Architecture
 
 ```

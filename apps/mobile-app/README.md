@@ -2,6 +2,130 @@
 
 The client-facing mobile application built with **React Native** and **Expo**. It provides a seamless cross-platform experience for iOS and Android, handling user authentication, book uploads, virtual podcaster management, episode generation, and audio playback.
 
+---
+
+## Understanding the Architecture
+
+### Why Expo (Not Plain React Native)?
+
+Expo is a framework built on top of React Native. Here's why we use it:
+
+| Aspect | Plain React Native | Expo |
+|--------|-------------------|------|
+| **Setup complexity** | Configure Xcode, Android Studio, native modules | `npx create-expo-app` and run |
+| **Native code** | Full access, you manage it | Managed (Expo handles native) |
+| **OTA updates** | Implement yourself (CodePush, etc.) | Built-in with `expo-updates` |
+| **Build servers** | Set up CI/CD with native SDKs | EAS Build (cloud-based) |
+| **Push notifications** | Configure FCM/APNs yourself | `expo-notifications` handles both |
+
+**We chose Expo because:**
+1. **Faster development** - No native build setup for most features
+2. **OTA updates** - Push JS updates without App Store review
+3. **EAS Build** - Cloud builds without maintaining Mac/Windows machines
+4. **Expo SDK** - Pre-built modules for camera, notifications, auth, etc.
+
+**Trade-off:** Some native modules require "ejecting" or using Expo's config plugins. For our use case (audio playback, notifications), Expo's managed workflow works.
+
+### Expo Router: File-Based Routing
+
+Expo Router uses **file-system based routing** like Next.js. The folder structure IS the route structure:
+
+```
+app/
+├── index.tsx           → /              (home)
+├── (auth)/             → Group (doesn't affect URL)
+│   ├── Auth.tsx        → /Auth          (login screen)
+│   └── _layout.tsx     → Auth layout wrapper
+├── (tabs)/             → Group with tab navigation
+│   ├── _layout.tsx     → Tab bar definition
+│   ├── home.tsx        → /home          (first tab)
+│   ├── library.tsx     → /library       (second tab)
+│   └── create.tsx      → /create        (third tab)
+├── episodes/
+│   └── [id].tsx        → /episodes/123  (dynamic route)
+├── feed/
+│   ├── _layout.tsx     → Feed layout
+│   └── see-all.tsx     → /feed/see-all
+└── _layout.tsx         → Root layout (wraps everything)
+```
+
+**Key concepts:**
+
+1. **`_layout.tsx`** - Wraps child routes. Used for navigation containers, providers, headers.
+
+2. **`(groupName)/`** - Parentheses create a "group". Groups share a layout but DON'T add to the URL path. `/home` not `/(tabs)/home`.
+
+3. **`[param].tsx`** - Square brackets create dynamic routes. `[id].tsx` matches `/episodes/123` and provides `id = "123"` via `useLocalSearchParams()`.
+
+4. **`+not-found.tsx`** - Plus sign prefix for special routes like 404 pages.
+
+### State Management: Context API vs Redux
+
+We use React Context instead of Redux. Understanding when each is appropriate:
+
+```
+REDUX                                  CONTEXT API
+─────                                  ───────────
+┌─────────────────────┐               ┌─────────────────────┐
+│ Single global store │               │ Multiple contexts   │
+│   (one source)      │               │   (auth, playback)  │
+└──────────┬──────────┘               └──────────┬──────────┘
+           │                                     │
+    ┌──────┴──────┐                    ┌────────┴────────┐
+    ▼             ▼                    ▼                 ▼
+ Reducers    Middleware            AuthContext    PlaybackContext
+ (actions)   (thunks, sagas)       (simple)       (simple)
+```
+
+| Aspect | Redux | Context API |
+|--------|-------|-------------|
+| **Boilerplate** | High (actions, reducers, selectors) | Low (just provider + hook) |
+| **DevTools** | Excellent (time travel debugging) | Limited |
+| **Re-renders** | Optimized with selectors | Every consumer re-renders |
+| **Learning curve** | Steep | Gentle |
+| **Bundle size** | ~10KB gzipped | 0KB (built-in) |
+
+**We chose Context API because:**
+1. **Simple global state** - We only have auth + playback
+2. **No complex state logic** - No undo/redo, no derived state
+3. **Team familiarity** - Context is standard React
+4. **Performance is fine** - Our contexts don't update frequently
+
+**When to consider Redux/Zustand:**
+- Many components update same state frequently
+- Complex state derivations (memoized selectors)
+- Need time-travel debugging
+- State logic is complex (undo/redo, optimistic updates)
+
+### PlaybackContext: Why Global Audio State?
+
+Audio playback MUST persist across screen navigation:
+
+```
+User flow:
+1. Tap episode on Home screen → starts playing
+2. Navigate to Library → music keeps playing
+3. Navigate to Settings → music keeps playing
+4. Open full player from MiniPlayer → same audio continues
+
+Without global context:
+❌ Each screen would have its own audio instance
+❌ Navigation would stop playback
+❌ No way to show MiniPlayer across screens
+
+With PlaybackContext:
+✅ Single audio instance shared everywhere
+✅ MiniPlayer reads from context (knows what's playing)
+✅ Any screen can control playback (play/pause/seek)
+```
+
+**What PlaybackContext manages:**
+- Current episode (id, title, artwork)
+- Playback state (playing, paused, buffering)
+- Position and duration
+- Queue (if implemented)
+- Audio player instance (expo-av)
+
 ## Features
 
 ### Authentication (FR-1, FR-2, FR-3)
@@ -323,6 +447,61 @@ Notifications.setNotificationHandler({
 - Offline playback support planned for future releases
 - OAuth requires platform-specific configuration in Expo app.json
 - 2FA setup requires backend SMS/authenticator service integration
+
+## Common Mistakes to Avoid
+
+```typescript
+// ❌ BAD: Fetching data without cleanup
+useEffect(() => {
+  fetch('/api/episodes').then(res => setEpisodes(res));
+}, []);
+// If component unmounts before fetch completes: memory leak + setState warning
+
+// ✅ GOOD: Cleanup with AbortController
+useEffect(() => {
+  const controller = new AbortController();
+  fetch('/api/episodes', { signal: controller.signal })
+    .then(res => setEpisodes(res))
+    .catch(err => {
+      if (err.name !== 'AbortError') throw err;
+    });
+  return () => controller.abort();
+}, []);
+
+// ❌ BAD: Hardcoded API URLs
+const response = await fetch('http://localhost:3000/api/episodes');
+// Won't work on real devices!
+
+// ✅ GOOD: Use environment-based config
+import { API_BASE_URL } from '@/constants/config';
+const response = await fetch(`${API_BASE_URL}/api/episodes`);
+
+// ❌ BAD: Not handling token expiry
+const response = await fetch(url, {
+  headers: { Authorization: `Bearer ${token}` }
+});
+// Token might be expired!
+
+// ✅ GOOD: Use getAccessToken() which handles refresh
+const token = await getAccessToken(); // Automatically refreshes if needed
+const response = await fetch(url, {
+  headers: { Authorization: `Bearer ${token}` }
+});
+
+// ❌ BAD: Inline styles everywhere
+<View style={{ flex: 1, padding: 16, backgroundColor: '#FEFCF7' }}>
+
+// ✅ GOOD: Use Nativewind/Tailwind classes
+<View className="flex-1 p-4 bg-brand-beige">
+
+// ❌ BAD: Navigation with string concatenation
+router.push('/episodes/' + episode.id);
+
+// ✅ GOOD: Use template literals or params
+router.push(`/episodes/${episode.id}`);
+// Or with typed params:
+router.push({ pathname: '/episodes/[id]', params: { id: episode.id } });
+```
 
 ## Troubleshooting
 

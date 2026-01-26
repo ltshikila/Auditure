@@ -38,6 +38,96 @@ A comprehensive search system for the Auditure mobile app, providing unified sea
 - **Access control**: Respects public/private visibility and user ownership
 - **Query sanitization**: Prevents XSS and injection attacks
 
+---
+
+## Understanding the Architecture
+
+### Why ILIKE (Not PostgreSQL Full-Text Search)?
+
+PostgreSQL offers two main approaches to text search. Understanding when to use each is crucial.
+
+```
+ILIKE (Pattern Matching)              FULL-TEXT SEARCH (FTS)
+────────────────────────              ──────────────────────
+WHERE title ILIKE '%run%'             WHERE to_tsvector(title) @@ to_tsquery('run')
+     │                                      │
+     ▼                                      ▼
+Finds: "running", "runner"            Finds: "running", "runner", "ran", "runs"
+       "rerun", "outrun"                     (stemming: run → run, running → run)
+```
+
+| Feature | ILIKE + pg_trgm | Full-Text Search |
+|---------|-----------------|------------------|
+| **"running" matches "run"** | No (exact substring) | Yes (stemming) |
+| **Typo tolerance** | Yes (trigram similarity) | No |
+| **Result ranking** | No (all matches equal) | Yes (relevance scoring) |
+| **Phrase search** | Yes (simple) | Yes (advanced operators) |
+| **Index type** | GIN trigram | GIN tsvector |
+| **Implementation** | Simple (Prisma `contains`) | Complex (tsvector columns, triggers) |
+| **Performance at scale** | Good to 500K rows | Better at 1M+ rows |
+
+**We chose ILIKE + pg_trgm because:**
+1. **Simpler to implement** - Works with Prisma out of the box
+2. **Typo tolerance** - "philsophy" still finds "philosophy"
+3. **Good enough for MVP** - We're not at 500K+ records yet
+4. **Easier debugging** - ILIKE behavior is intuitive
+
+**When to migrate to FTS:**
+- Dataset exceeds 500K-1M records
+- Need result ranking/relevance scoring
+- Need linguistic features (stemming, synonyms)
+- Search becomes a core competitive feature
+
+### What is a GIN Index?
+
+GIN stands for **Generalized Inverted Index**. It's designed for values that contain multiple elements (arrays, JSON, text tokens).
+
+```
+REGULAR B-TREE INDEX                  GIN TRIGRAM INDEX
+────────────────────                  ─────────────────
+Index on "title"                      Index on "title" trigrams
+
+"Philosophy"  → Row 1                 "phi" → [Row 1]
+"Psychology"  → Row 2                 "hil" → [Row 1]
+"Physics"     → Row 3                 "ilo" → [Row 1]
+                                      "los" → [Row 1, Row 2]
+                                      "psy" → [Row 2]
+                                      "phy" → [Row 1, Row 3]
+                                      ...
+
+Query: ILIKE '%phil%'                 Query: ILIKE '%phil%'
+B-tree: Full table scan! 😱           GIN: Look up "phi" → Row 1 ✓
+```
+
+**Why trigrams (3-letter chunks)?**
+- "philosophy" → ["phi", "hil", "ilo", "los", "oso", "sop", "oph", "phy"]
+- Search for "phil" → intersect results for "phi" and "hil"
+- Faster than scanning every row for substring match
+
+### Query Sanitization: Why?
+
+User input can contain malicious content:
+
+```typescript
+// User searches for: <script>alert('xss')</script>
+
+// Without sanitization:
+const results = await search(userQuery);
+// If displayed in UI: JavaScript executes! 🚨
+
+// With sanitization:
+const safeQuery = sanitize(userQuery); // Removes < > etc.
+const results = await search(safeQuery);
+// Safe to display
+```
+
+**Our sanitization:**
+1. Trim whitespace
+2. Limit to 100 characters (prevent regex DoS)
+3. Remove dangerous characters: `< > { } [ ] \`
+
+This is **defense in depth** - even if frontend doesn't sanitize, backend does.
+
 ## Search Scopes
 
 | Scope | Description | Authenticated Required |

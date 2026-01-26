@@ -45,6 +45,91 @@ A comprehensive notification system for the Auditure mobile app, providing in-ap
 - **Automatic token cleanup**: Removes invalid push tokens automatically
 - **Batch processing**: Efficiently sends multiple notifications
 
+---
+
+## Understanding the Architecture
+
+### Why Redis Streams (Not Pub/Sub or RabbitMQ)?
+
+We already use RabbitMQ for book extraction. Why Redis Streams for notifications?
+
+| Approach | Pros | Cons | Best For |
+|----------|------|------|----------|
+| **Redis Pub/Sub** | Simple, fast, built-in | Messages lost if no subscriber | Real-time chat, ephemeral events |
+| **RabbitMQ** | Durable, rich features, routing | Another service to manage | Complex workflows, multiple consumers |
+| **Redis Streams** | Durable, consumer groups, already have Redis | Newer, less documentation | Ordered events, competing consumers |
+
+**We chose Redis Streams because:**
+1. **Already running Redis** for caching - no new infrastructure
+2. **Consumer groups** let multiple workers share the load
+3. **Message acknowledgment** prevents lost notifications
+4. **Simpler than RabbitMQ** for this specific use case
+5. **Ordered delivery** preserves notification sequence
+
+### Consumer Groups Explained
+
+The problem: What if we have 10,000 notifications to send?
+
+```
+WITHOUT CONSUMER GROUPS              WITH CONSUMER GROUPS
+───────────────────────              ────────────────────
+Stream: [1] [2] [3] [4] [5]          Stream: [1] [2] [3] [4] [5]
+              │                                    │
+              ▼                        ┌───────────┼───────────┐
+        Single Worker                  ▼           ▼           ▼
+      Processes 1,2,3,4,5          Worker A    Worker B    Worker C
+         sequentially              gets [1,4]  gets [2,5]  gets [3]
+
+Time: 5 × 50ms = 250ms             Time: ~100ms (parallel!)
+```
+
+**Consumer groups solve:**
+1. **Parallel processing**: Multiple workers divide the work
+2. **Competing consumers**: Each message goes to ONE worker only
+3. **Fault tolerance**: If Worker A crashes, Worker B gets its pending messages
+4. **Scalability**: Add more workers to increase throughput
+
+### Message Acknowledgment Flow
+
+```
+1. Worker reads message from stream (XREADGROUP)
+   └── Message marked as "pending" for this consumer
+
+2. Worker processes notification
+   └── Sends push notification via Expo
+
+3. Worker acknowledges message (XACK)
+   └── Message removed from pending list
+
+4. If worker crashes before XACK?
+   └── Message stays pending
+   └── After 60 seconds, another worker can claim it (XCLAIM)
+   └── Ensures no notifications are lost
+```
+
+### Why Not Just Send Push Directly?
+
+```typescript
+// ❌ BAD: Blocking the API request
+async createNotification(dto) {
+  const notification = await this.prisma.notification.create(dto);
+  await this.sendPushNotification(notification); // User waits for this!
+  return notification;
+}
+
+// ✅ GOOD: Non-blocking with Redis Stream
+async createNotification(dto) {
+  const notification = await this.prisma.notification.create(dto);
+  await this.redis.xadd('notifications:stream', notification); // Fast!
+  return notification; // User gets response immediately
+}
+```
+
+**Benefits of the queue:**
+- API response in ~50ms instead of ~200ms
+- If Expo is slow/down, notifications queue up (not lost)
+- Retry logic happens in background, not blocking users
+
 ## Notification Types
 
 | Type | Description | Use Case |

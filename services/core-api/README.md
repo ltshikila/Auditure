@@ -328,17 +328,111 @@ npx prisma migrate reset
 
 ## Architecture
 
+### Understanding NestJS Module Architecture
+
+NestJS organizes code into **modules** - self-contained units that group related functionality. This isn't just for organization; it enables powerful patterns:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              AppModule (Root)                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
+│  │  AuthModule  │  │ BooksModule  │  │ FeedModule   │  │ SearchModule │    │
+│  │  - Controller│  │  - Controller│  │  - Controller│  │  - Controller│    │
+│  │  - Service   │  │  - Service   │  │  - Service   │  │  - Service   │    │
+│  │  - Guards    │  │  - Workers   │  │  - Cache     │  │  - DTOs      │    │
+│  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘    │
+│                                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │                      Shared Modules (Global)                          │   │
+│  │  DatabaseModule │ RedisModule │ RabbitMQModule │ StorageModule        │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Why modules matter:**
+- **Lazy loading**: Modules load only when needed, improving startup time
+- **Testing isolation**: Mock dependencies per-module without affecting others
+- **Feature flags**: Enable/disable entire features by including/excluding modules
+- **Team scaling**: Different teams can own different modules
+
+### Request Flow (Layered Architecture)
+
+Every request follows the same pattern through layers. Understanding this helps you debug issues and know where to add code:
+
+```
+HTTP Request
+     │
+     ▼
+┌─────────────┐     Validates input, handles HTTP concerns
+│ Controller  │     (routes, status codes, headers)
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐     Business logic lives here
+│  Service    │     (rules, calculations, orchestration)
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐     Data access (Prisma queries)
+│ Repository  │     We use Prisma directly in services
+└──────┬──────┘     (no separate repository layer for simplicity)
+       │
+       ▼
+┌─────────────┐
+│  Database   │
+└─────────────┘
+```
+
+**Why layered architecture?**
+- **Separation of concerns**: Each layer has one job
+- **Testability**: Mock the layer below to test in isolation
+- **Flexibility**: Swap database without changing business logic
+
 ### Service Layer
 
-- **AuthService** - User authentication and authorization
-- **BooksService** - Book management and text extraction
-- **EmailService** - Email delivery and OTP generation
-- **StorageService** - File storage abstraction
-- **RabbitMQService** - Async job processing
-- **TextExtractionService** - PDF/EPUB text extraction
-- **DatabaseService** - Prisma client wrapper
+| Service | Responsibility | Key Dependencies |
+|---------|---------------|------------------|
+| **AuthService** | User authentication, JWT tokens, OTP verification | JwtService, EmailService |
+| **BooksService** | Book CRUD, triggers extraction jobs | StorageService, RabbitMQService |
+| **FeedService** | Home feed aggregation, caching | RedisService, DatabaseService |
+| **SearchService** | Full-text search across entities | DatabaseService |
+| **NotificationsService** | In-app + push notifications | RedisService, ExpoPushService |
+| **EpisodesService** | Episode CRUD, playback progress | RedisService, StorageService |
+| **PodcastersService** | Podcaster management, voice assignment | DatabaseService |
+| **EmailService** | Email delivery and OTP generation | Resend API |
+| **StorageService** | File storage abstraction | Local/S3 backends |
+| **RabbitMQService** | Async job processing | amqplib |
+| **TextExtractionService** | PDF/EPUB text extraction | pdf-parse, pdfjs-dist |
+| **DatabaseService** | Prisma client wrapper | @prisma/client |
 
 ### Background Workers
+
+**Why background workers?**
+
+Some operations are too slow for HTTP request/response:
+- PDF extraction: 5-60 seconds depending on file size
+- Episode generation: 30-120 seconds for AI processing
+
+If we did these synchronously:
+1. HTTP request would timeout (browsers timeout at ~30s)
+2. Server thread blocked, can't serve other users
+3. User stares at loading spinner
+
+Instead, we use the **task offloading pattern**:
+```
+User uploads book → API returns immediately with "PENDING" status
+                         ↓
+                    RabbitMQ queue
+                         ↓
+                  Worker picks up job
+                         ↓
+                  Processes in background
+                         ↓
+                  Updates status to "COMPLETED"
+                         ↓
+                  Client polls or gets push notification
+```
 
 - **BookExtractionWorker** - Processes book text extraction jobs
   - Downloads file from storage
@@ -349,9 +443,18 @@ npx prisma migrate reset
 ### Message Queue
 
 RabbitMQ integration for async processing:
-- Job retry with exponential backoff
-- Dead letter queue for failed jobs
-- Persistent messages
+- Job retry with exponential backoff (5s, 10s, 20s)
+- Dead letter queue (DLQ) for failed jobs after max retries
+- Persistent messages (survive broker restart)
+- Acknowledgments (jobs aren't lost if worker crashes)
+
+**When to use RabbitMQ vs direct processing:**
+| Scenario | Approach |
+|----------|----------|
+| < 500ms operation | Direct (synchronous) |
+| User doesn't need immediate result | Queue it |
+| Operation might fail and needs retry | Queue it |
+| Need to scale processing independently | Queue it |
 
 ## Development
 
@@ -453,24 +556,48 @@ logger.warn('Warning message');
 
 ### Implemented Security Measures
 
-- ✅ Password hashing with bcrypt
-- ✅ JWT token authentication
-- ✅ Email verification required
-- ✅ OTP expiration
-- ✅ Input validation with class-validator
-- ✅ SQL injection protection (Prisma)
-- ✅ File type validation
-- ✅ File size limits
+| Measure | Why It Matters |
+|---------|---------------|
+| **Password hashing (bcrypt)** | Bcrypt uses adaptive hashing with salt rounds. As computers get faster, increase rounds. Unlike SHA256, bcrypt is intentionally slow, making brute-force attacks impractical. |
+| **JWT token authentication** | Stateless auth enables horizontal scaling - any server can validate the token without session storage. Trade-off: can't instantly revoke tokens (hence short 15m expiry). |
+| **Email verification required** | Prevents fake account spam, ensures we can contact users, and verifies email ownership before granting access. |
+| **OTP expiration (10 min)** | Time-limited codes reduce the attack window if an email is compromised. Balance between security and user convenience. |
+| **Input validation (class-validator)** | Validates data shape and constraints at the API boundary. Rejects malformed requests before they reach business logic. |
+| **SQL injection protection (Prisma)** | Prisma uses parameterized queries by default. Never concatenate user input into SQL strings - Prisma handles escaping. |
+| **File type validation** | MIME type + extension checking prevents upload of executable files disguised as PDFs. Defense in depth with storage scanning. |
+| **File size limits (50MB)** | Prevents denial-of-service via large uploads that exhaust disk/memory. Balance between usability and protection. |
+
+### Security Anti-Patterns to Avoid
+
+```typescript
+// BAD: String concatenation (SQL injection risk)
+const query = `SELECT * FROM users WHERE email = '${email}'`;
+
+// GOOD: Prisma's parameterized queries
+const user = await prisma.user.findUnique({ where: { email } });
+
+// BAD: Storing passwords in plain text
+user.password = req.body.password;
+
+// GOOD: Hash before storing
+user.password = await bcrypt.hash(req.body.password, 10);
+
+// BAD: Trusting client-provided file types
+const type = req.body.fileType; // User can lie!
+
+// GOOD: Validate file magic bytes
+const type = await fileTypeFromBuffer(buffer);
+```
 
 ### Recommended Additional Security
 
-- [ ] Rate limiting (express-rate-limit)
-- [ ] Helmet.js for security headers
-- [ ] CORS configuration
-- [ ] Request size limits
-- [ ] API key authentication for service-to-service
-- [ ] Audit logging
-- [ ] IP whitelisting for admin endpoints
+- [ ] Rate limiting (express-rate-limit) - Prevent brute-force attacks
+- [ ] Helmet.js for security headers - XSS, clickjacking protection
+- [ ] CORS configuration - Restrict which domains can call the API
+- [ ] Request size limits - Prevent memory exhaustion attacks
+- [ ] API key authentication for service-to-service - Don't rely only on network isolation
+- [ ] Audit logging - Track who did what for compliance and debugging
+- [ ] IP whitelisting for admin endpoints - Defense in depth
 
 ## Performance Optimization
 
