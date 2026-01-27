@@ -112,7 +112,7 @@ export const createMockEpisodeWithRelations = (overrides = {}) => ({
         name: 'Test Podcaster',
         profilePictureUrl: 'https://example.com/avatar.jpg',
     },
-    creator: {
+    user: {
         id: randomUUID(),
         firstName: 'John',
         lastName: 'Doe',
@@ -162,7 +162,7 @@ export const createMockPodcasterWithCreator = (overrides = {}) => ({
     ratingCount: 50,
     createdAt: new Date(),
     updatedAt: new Date(),
-    creator: {
+    user: {
         id: randomUUID(),
         firstName: 'Jane',
         lastName: 'Smith',

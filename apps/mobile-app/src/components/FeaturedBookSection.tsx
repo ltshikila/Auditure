@@ -1,24 +1,24 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { PodcasterFeedItem } from '@/services/feed.service';
-import { PodcasterCard } from './PodcasterCard';
+import { BookFeedItem } from '@/services/feed.service';
+import { FeaturedBookCard } from './FeaturedBookCard';
 
-interface PodcasterSectionProps {
+interface FeaturedBookSectionProps {
     title: string;
-    podcasters: PodcasterFeedItem[];
-    onPodcasterPress: (podcaster: PodcasterFeedItem) => void;
+    books: BookFeedItem[];
+    onBookPress: (book: BookFeedItem) => void;
     onSeeAll?: () => void;
     showSeeAll?: boolean;
 }
 
-export const PodcasterSection: React.FC<PodcasterSectionProps> = ({
+export const FeaturedBookSection: React.FC<FeaturedBookSectionProps> = ({
     title,
-    podcasters,
-    onPodcasterPress,
+    books,
+    onBookPress,
     onSeeAll,
     showSeeAll = false,
 }) => {
-    if (podcasters.length === 0) {
+    if (books.length === 0) {
         return null;
     }
 
@@ -40,11 +40,11 @@ export const PodcasterSection: React.FC<PodcasterSectionProps> = ({
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ paddingHorizontal: 24 }}
             >
-                {podcasters.map((podcaster) => (
-                    <PodcasterCard
-                        key={podcaster.id}
-                        podcaster={podcaster}
-                        onPress={() => onPodcasterPress(podcaster)}
+                {books.map((book) => (
+                    <FeaturedBookCard
+                        key={book.id}
+                        book={book}
+                        onPress={() => onBookPress(book)}
                     />
                 ))}
             </ScrollView>

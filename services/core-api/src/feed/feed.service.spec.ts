@@ -4,7 +4,7 @@ import { FeedService } from './feed.service';
 import { DatabaseService } from '../database/database.service';
 import { RedisService } from '../redis/redis.service';
 import { FeedTab, EpisodeSectionId, BookSectionId, PodcasterSectionId } from './dto/feed-query.dto';
-import { FEED_CONFIG } from './dto/feed-response.dto';
+import { FEED_CONFIG, EpisodeFeedItem } from './dto/feed-response.dto';
 import { mockPrismaClient } from '../../test/mocks/database.mock';
 import {
     createMockEpisodeWithRelations,
@@ -142,13 +142,14 @@ describe('FeedService', () => {
                 );
                 expect(continueSection).toBeDefined();
                 expect(continueSection!.items).toHaveLength(1);
-                expect(continueSection!.items[0].progressMs).toBe(progressMs);
-                expect(continueSection!.items[0].progressPercent).toBe(50);
+                const episodeItem = continueSection!.items[0] as EpisodeFeedItem;
+                expect(episodeItem.progressMs).toBe(progressMs);
+                expect(episodeItem.progressPercent).toBe(50);
             });
 
             it('should limit continue listening to max 7 items', async () => {
                 const playbackProgress: Record<string, number> = {};
-                const episodes = [];
+                const episodes: ReturnType<typeof createMockEpisodeWithRelations>[] = [];
 
                 // Create 10 episodes with progress
                 for (let i = 0; i < 10; i++) {

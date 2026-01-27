@@ -154,6 +154,7 @@ async function main() {
       fileStorageKey: 'books/sample-book-1.pdf',
       fileSize: 2048000,
       fileMimeType: 'application/pdf',
+      coverImageUrl: 'https://covers.openlibrary.org/b/id/8225261-L.jpg',
       extractionStatus: 'COMPLETED',
       extractedAt: new Date(),
       fullTextKey: 'books/sample-book-1-text.txt',
@@ -200,7 +201,30 @@ async function main() {
       fileStorageKey: 'books/sample-book-2.epub',
       fileSize: 1024000,
       fileMimeType: 'application/epub+zip',
-      extractionStatus: 'PROCESSING',
+      coverImageUrl: 'https://covers.openlibrary.org/b/id/8091016-L.jpg',
+      extractionStatus: 'COMPLETED',
+      extractedAt: new Date(),
+      fullTextKey: 'books/sample-book-2-text.txt',
+      chapters: {
+        create: [
+          {
+            chapterNumber: 1,
+            title: 'The Art of Being Present',
+            startPage: 1,
+            endPage: 30,
+            textLength: 15000,
+            extractedText: 'Mindfulness begins with awareness of the present moment...',
+          },
+          {
+            chapterNumber: 2,
+            title: 'Breathing and Meditation',
+            startPage: 31,
+            endPage: 60,
+            textLength: 14000,
+            extractedText: 'The breath is our anchor to the present...',
+          },
+        ],
+      },
     },
   });
 
@@ -208,6 +232,27 @@ async function main() {
     book1: book1.title,
     book2: book2.title,
   });
+
+  // Make all existing episodes public and give them some engagement metrics
+  const updatedEpisodes = await prisma.episode.updateMany({
+    where: {
+      generationStatus: 'COMPLETED',
+    },
+    data: {
+      isPublic: true,
+    },
+  });
+
+  console.log(`Made ${updatedEpisodes.count} completed episodes public`);
+
+  // Make all podcasters public
+  const updatedPodcasters = await prisma.podcaster.updateMany({
+    data: {
+      isPublic: true,
+    },
+  });
+
+  console.log(`Made ${updatedPodcasters.count} podcasters public`);
 
   console.log('Database seeded successfully!');
 }

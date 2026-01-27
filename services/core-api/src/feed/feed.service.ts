@@ -178,7 +178,7 @@ export class FeedService {
                             profilePictureUrl: true,
                         },
                     },
-                    creator: {
+                    user: {
                         select: {
                             id: true,
                             firstName: true,
@@ -216,7 +216,7 @@ export class FeedService {
                         progressPercent: Math.round(progressPercent),
                         book: episode.book,
                         podcaster: episode.podcaster,
-                        creator: episode.creator,
+                        creator: episode.user,
                     } as EpisodeFeedItem;
                 })
                 .filter((item): item is EpisodeFeedItem => item !== null)
@@ -278,7 +278,7 @@ export class FeedService {
                             profilePictureUrl: true,
                         },
                     },
-                    creator: {
+                    user: {
                         select: {
                             id: true,
                             firstName: true,
@@ -336,7 +336,7 @@ export class FeedService {
                             profilePictureUrl: true,
                         },
                     },
-                    creator: {
+                    user: {
                         select: {
                             id: true,
                             firstName: true,
@@ -398,7 +398,7 @@ export class FeedService {
                             profilePictureUrl: true,
                         },
                     },
-                    creator: {
+                    user: {
                         select: {
                             id: true,
                             firstName: true,
@@ -483,13 +483,13 @@ export class FeedService {
                 .sort((a, b) => b._count.episodes - a._count.episodes)
                 .slice(0, FEED_CONFIG.DEFAULT_SECTION_LIMIT);
 
-            const items = sortedBooks.map((book) => ({
+            const items: BookFeedItem[] = sortedBooks.map((book) => ({
                 id: book.id,
                 title: book.title,
-                author: book.author,
-                coverImageUrl: book.coverImageUrl,
+                author: book.author ?? undefined,
+                coverImageUrl: book.coverImageUrl ?? undefined,
                 language: book.language,
-                pageCount: book.pageCount,
+                pageCount: book.pageCount ?? undefined,
                 createdAt: book.createdAt,
                 episodeCount: book._count.episodes,
             }));
@@ -556,10 +556,10 @@ export class FeedService {
             const items: BookFeedItem[] = sortedBooks.map((book) => ({
                 id: book.id,
                 title: book.title,
-                author: book.author,
-                coverImageUrl: book.coverImageUrl,
+                author: book.author ?? undefined,
+                coverImageUrl: book.coverImageUrl ?? undefined,
                 language: book.language,
-                pageCount: book.pageCount,
+                pageCount: book.pageCount ?? undefined,
                 createdAt: book.createdAt,
                 episodeCount: book.episodes.length,
                 totalPlayCount: book.totalPlayCount,
@@ -612,10 +612,10 @@ export class FeedService {
             const items: BookFeedItem[] = books.map((book) => ({
                 id: book.id,
                 title: book.title,
-                author: book.author,
-                coverImageUrl: book.coverImageUrl,
+                author: book.author ?? undefined,
+                coverImageUrl: book.coverImageUrl ?? undefined,
                 language: book.language,
-                pageCount: book.pageCount,
+                pageCount: book.pageCount ?? undefined,
                 createdAt: book.createdAt,
                 episodeCount: book._count.episodes,
             }));
@@ -664,10 +664,10 @@ export class FeedService {
             const items: BookFeedItem[] = books.map((book) => ({
                 id: book.id,
                 title: book.title,
-                author: book.author,
-                coverImageUrl: book.coverImageUrl,
+                author: book.author ?? undefined,
+                coverImageUrl: book.coverImageUrl ?? undefined,
                 language: book.language,
-                pageCount: book.pageCount,
+                pageCount: book.pageCount ?? undefined,
                 createdAt: book.createdAt,
                 episodeCount: book._count.episodes,
             }));
@@ -723,7 +723,7 @@ export class FeedService {
                 ],
                 take: FEED_CONFIG.DEFAULT_SECTION_LIMIT,
                 include: {
-                    creator: {
+                    user: {
                         select: {
                             id: true,
                             firstName: true,
@@ -769,7 +769,7 @@ export class FeedService {
                 ],
                 take: FEED_CONFIG.DEFAULT_SECTION_LIMIT,
                 include: {
-                    creator: {
+                    user: {
                         select: {
                             id: true,
                             firstName: true,
@@ -809,7 +809,7 @@ export class FeedService {
                 orderBy: { createdAt: 'desc' },
                 take: FEED_CONFIG.DEFAULT_SECTION_LIMIT,
                 include: {
-                    creator: {
+                    user: {
                         select: {
                             id: true,
                             firstName: true,
@@ -891,7 +891,7 @@ export class FeedService {
                             profilePictureUrl: true,
                         },
                     },
-                    creator: {
+                    user: {
                         select: {
                             id: true,
                             firstName: true,
@@ -957,10 +957,10 @@ export class FeedService {
         const items: BookFeedItem[] = books.map((book) => ({
             id: book.id,
             title: book.title,
-            author: book.author,
-            coverImageUrl: book.coverImageUrl,
+            author: book.author ?? undefined,
+            coverImageUrl: book.coverImageUrl ?? undefined,
             language: book.language,
-            pageCount: book.pageCount,
+            pageCount: book.pageCount ?? undefined,
             createdAt: book.createdAt,
             episodeCount: book._count.episodes,
         }));
@@ -1008,7 +1008,7 @@ export class FeedService {
                 skip: offset,
                 take: limit,
                 include: {
-                    creator: {
+                    user: {
                         select: {
                             id: true,
                             firstName: true,
@@ -1065,7 +1065,7 @@ export class FeedService {
             createdAt: episode.createdAt,
             book: episode.book,
             podcaster: episode.podcaster,
-            creator: episode.creator,
+            creator: episode.user,
         }));
     }
 
@@ -1082,7 +1082,7 @@ export class FeedService {
             averageRating: podcaster.averageRating,
             ratingCount: podcaster.ratingCount,
             createdAt: podcaster.createdAt,
-            creator: podcaster.creator,
+            creator: podcaster.user,
         }));
     }
 

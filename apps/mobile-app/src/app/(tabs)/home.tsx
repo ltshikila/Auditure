@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, RefreshControl, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
-import { TopBar, EpisodeSection, BookSection, PodcasterSection, ContinueListeningSection } from '@/components';
+import { TopBar, EpisodeSection, BookSection, PodcasterSection, FeaturedEpisodeSection, FeaturedBookSection } from '@/components';
 import { useAuth } from '@/contexts/AuthContext';
 import {
     feedService,
@@ -123,18 +123,34 @@ export default function HomeScreen() {
         router.push(`/feed/see-all?section=${sectionId}&tab=${activeTab}`);
     };
 
+    // Render Discover header
+    const renderDiscoverHeader = () => (
+        <View className="px-6 pt-4 pb-2">
+            <Text className="font-jakarta-bold text-2xl text-brand-black">Discover</Text>
+            <Text className="font-inter text-sm text-[#858585] mt-1">Podcast feed catered to you.</Text>
+        </View>
+    );
+
     // Render tab selector
     const renderTabSelector = () => (
-        <View className="flex-row px-6 pt-4 pb-2">
+        <View style={{ flexDirection: 'row', paddingHorizontal: 24, paddingVertical: 12 }}>
             {TABS.map((tab) => (
                 <TouchableOpacity
                     key={tab.key}
                     onPress={() => handleTabChange(tab.key)}
-                    className={`mr-4 pb-2 ${activeTab === tab.key ? 'border-b-2 border-brand-red' : ''}`}
+                    style={{
+                        marginRight: 12,
+                        paddingHorizontal: 20,
+                        paddingVertical: 10,
+                        borderRadius: 20,
+                        backgroundColor: activeTab === tab.key ? '#920002' : 'transparent',
+                        borderWidth: activeTab === tab.key ? 0 : 1,
+                        borderColor: '#E0E0E0',
+                    }}
                 >
                     <Text
-                        className={`font-inter-medium text-base ${
-                            activeTab === tab.key ? 'text-brand-red' : 'text-[#858585]'
+                        className={`font-inter-medium text-sm ${
+                            activeTab === tab.key ? 'text-white' : 'text-brand-black'
                         }`}
                     >
                         {tab.label}
@@ -156,9 +172,9 @@ export default function HomeScreen() {
 
         return (
             <>
-                {/* Continue Listening */}
+                {/* Pick up where you left off - Featured Cards */}
                 {continueSection && continueSection.items.length > 0 && (
-                    <ContinueListeningSection
+                    <FeaturedEpisodeSection
                         title={continueSection.title}
                         episodes={continueSection.items}
                         onEpisodePress={handleEpisodePress}
@@ -263,9 +279,9 @@ export default function HomeScreen() {
 
         return (
             <>
-                {/* Popular Inspirations */}
+                {/* Popular podcast inspirations - Featured Cards */}
                 {inspirationsSection && inspirationsSection.items.length > 0 && (
-                    <BookSection
+                    <FeaturedBookSection
                         title={inspirationsSection.title}
                         books={inspirationsSection.items}
                         onBookPress={handleBookPress}
@@ -414,6 +430,9 @@ export default function HomeScreen() {
     return (
         <SafeAreaView className="flex-1 bg-brand-beige" edges={['top', 'left', 'right']}>
             <TopBar />
+
+            {/* Discover Header */}
+            {renderDiscoverHeader()}
 
             {/* Tab Selector */}
             {renderTabSelector()}

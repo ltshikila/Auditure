@@ -1,24 +1,24 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { PodcasterFeedItem } from '@/services/feed.service';
-import { PodcasterCard } from './PodcasterCard';
+import { EpisodeFeedItem } from '@/services/feed.service';
+import { FeaturedEpisodeCard } from './FeaturedEpisodeCard';
 
-interface PodcasterSectionProps {
+interface FeaturedEpisodeSectionProps {
     title: string;
-    podcasters: PodcasterFeedItem[];
-    onPodcasterPress: (podcaster: PodcasterFeedItem) => void;
+    episodes: EpisodeFeedItem[];
+    onEpisodePress: (episode: EpisodeFeedItem) => void;
     onSeeAll?: () => void;
     showSeeAll?: boolean;
 }
 
-export const PodcasterSection: React.FC<PodcasterSectionProps> = ({
+export const FeaturedEpisodeSection: React.FC<FeaturedEpisodeSectionProps> = ({
     title,
-    podcasters,
-    onPodcasterPress,
+    episodes,
+    onEpisodePress,
     onSeeAll,
     showSeeAll = false,
 }) => {
-    if (podcasters.length === 0) {
+    if (episodes.length === 0) {
         return null;
     }
 
@@ -40,11 +40,11 @@ export const PodcasterSection: React.FC<PodcasterSectionProps> = ({
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ paddingHorizontal: 24 }}
             >
-                {podcasters.map((podcaster) => (
-                    <PodcasterCard
-                        key={podcaster.id}
-                        podcaster={podcaster}
-                        onPress={() => onPodcasterPress(podcaster)}
+                {episodes.map((episode) => (
+                    <FeaturedEpisodeCard
+                        key={episode.id}
+                        episode={episode}
+                        onPress={() => onEpisodePress(episode)}
                     />
                 ))}
             </ScrollView>

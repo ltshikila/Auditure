@@ -14,3 +14,7 @@ export { PodcasterCard } from './PodcasterCard';
 export { PodcasterSection } from './PodcasterSection';
 export { ContinueListeningCard } from './ContinueListeningCard';
 export { ContinueListeningSection } from './ContinueListeningSection';
+export { FeaturedEpisodeCard } from './FeaturedEpisodeCard';
+export { FeaturedBookCard } from './FeaturedBookCard';
+export { FeaturedEpisodeSection } from './FeaturedEpisodeSection';
+export { FeaturedBookSection } from './FeaturedBookSection';

@@ -174,7 +174,7 @@ describe('Integration: Feed Service', () => {
 
             it('should limit continue listening to 7 items maximum', async () => {
                 const playbackProgress: Record<string, number> = {};
-                const episodes = [];
+                const episodes: ReturnType<typeof createMockEpisodeWithRelations>[] = [];
 
                 // Create 10 episodes with progress
                 for (let i = 0; i < 10; i++) {
