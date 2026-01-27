@@ -120,8 +120,8 @@ describe('FeedService', () => {
 
             it('should return continue listening items with correct progress', async () => {
                 const episodeId = 'episode-123';
-                const progressMs = 600000; // 10 minutes
-                const duration = 1200000; // 20 minutes
+                const duration = 1200; // 20 minutes in seconds (matches schema)
+                const progressMs = 600000; // 10 minutes in ms = 50% of 1200s
 
                 mockRedisService.getAllPlaybackProgress.mockResolvedValue({
                     [episodeId]: progressMs,
@@ -152,13 +152,14 @@ describe('FeedService', () => {
                 const episodes: ReturnType<typeof createMockEpisodeWithRelations>[] = [];
 
                 // Create 10 episodes with progress
+                // Duration: 1200 seconds, Progress: 600000ms = 50%
                 for (let i = 0; i < 10; i++) {
                     const id = `episode-${i}`;
-                    playbackProgress[id] = 600000; // 50% progress
+                    playbackProgress[id] = 600000; // 50% progress (10 min of 20 min episode)
                     episodes.push(
                         createMockEpisodeWithRelations({
                             id,
-                            duration: 1200000,
+                            duration: 1200, // 20 minutes in seconds
                             updatedAt: new Date(),
                         }),
                     );
@@ -185,7 +186,7 @@ describe('FeedService', () => {
 
                 const mockEpisode = createMockEpisodeWithRelations({
                     id: episodeId,
-                    duration: 1200000,
+                    duration: 1200, // 20 minutes in seconds
                     updatedAt: new Date(),
                 });
 
@@ -201,8 +202,9 @@ describe('FeedService', () => {
 
             it('should exclude episodes with >= 95% progress', async () => {
                 const episodeId = 'episode-123';
-                const duration = 1200000;
-                const progressMs = duration * 0.96; // 96% progress
+                const duration = 1200; // 20 minutes in seconds
+                const durationMs = duration * 1000;
+                const progressMs = durationMs * 0.96; // 96% progress
 
                 mockRedisService.getAllPlaybackProgress.mockResolvedValue({
                     [episodeId]: progressMs,

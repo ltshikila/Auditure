@@ -16,6 +16,7 @@ import {
 import { Episode } from '@/services/episode.service';
 import { playbackService } from '@/services/playback.service';
 import { storageService } from '@/services/storage.service';
+import { useAuth } from './AuthContext';
 
 interface PlaybackState {
     episode: Episode | null;
@@ -52,10 +53,12 @@ interface PlaybackProviderProps {
 }
 
 export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) => {
+    const { isAuthenticated } = useAuth();
     const soundRef = useRef<Audio.Sound | null>(null);
     const saveProgressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const hasIncrementedPlayCount = useRef<boolean>(false);
     const positionRef = useRef<number>(0);
+    const wasAuthenticatedRef = useRef<boolean>(isAuthenticated);
 
     const [state, setState] = useState<PlaybackState>({
         episode: null,
@@ -73,6 +76,23 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
             cleanup();
         };
     }, []);
+
+    // Stop playback when user logs out
+    useEffect(() => {
+        // If user was authenticated but is no longer, stop playback
+        if (wasAuthenticatedRef.current && !isAuthenticated) {
+            cleanup();
+            setState({
+                episode: null,
+                isPlaying: false,
+                isLoading: false,
+                position: 0,
+                duration: 0,
+                playbackRate: 1.0,
+            });
+        }
+        wasAuthenticatedRef.current = isAuthenticated;
+    }, [isAuthenticated]);
 
     const setupAudioMode = async () => {
         try {

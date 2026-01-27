@@ -12,7 +12,7 @@ export const createMockEpisodeFeedItem = (overrides: Partial<EpisodeFeedItem> = 
     title: 'Test Episode',
     description: 'Test episode description',
     coverImageUrl: 'https://example.com/cover.jpg',
-    duration: 1200000, // 20 minutes in ms
+    duration: 1200, // 20 minutes in seconds (matches schema)
     playCount: 100,
     likeCount: 25,
     createdAt: new Date(),
@@ -95,7 +95,7 @@ export const createMockEpisodeWithRelations = (overrides = {}) => ({
     description: 'Test description',
     generationStatus: 'COMPLETED',
     isPublic: true,
-    duration: 1200000,
+    duration: 1200, // 20 minutes in seconds (matches schema)
     playCount: 100,
     likeCount: 25,
     shareCount: 10,
@@ -249,13 +249,15 @@ export const createMockPlaybackProgress = (episodeIds: string[]): Record<string,
     const progress: Record<string, number> = {};
     episodeIds.forEach((id, index) => {
         // Create varying progress percentages (in milliseconds)
-        // For a 20 min (1200000ms) episode:
+        // For a 20 min episode (1200 seconds = 1200000ms):
         // - 50% = 600000ms
         // - 30% = 360000ms
         // - 70% = 840000ms
         const percentages = [50, 30, 70, 20, 80, 40, 60];
         const percent = percentages[index % percentages.length];
-        progress[id] = Math.round(1200000 * (percent / 100));
+        // Duration is 1200 seconds, convert to ms for progress calculation
+        const durationMs = 1200 * 1000;
+        progress[id] = Math.round(durationMs * (percent / 100));
     });
     return progress;
 };

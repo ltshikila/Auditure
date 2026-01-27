@@ -192,8 +192,9 @@ export class FeedService {
             const items: EpisodeFeedItem[] = episodes
                 .map((episode) => {
                     const progressMs = playbackProgress[episode.id] || 0;
-                    const duration = episode.duration || 1; // Avoid division by zero
-                    const progressPercent = (progressMs / duration) * 100;
+                    // Duration is stored in seconds, convert to milliseconds for comparison
+                    const durationMs = (episode.duration || 1) * 1000;
+                    const progressPercent = (progressMs / durationMs) * 100;
 
                     // Skip if progress is outside valid range
                     if (

@@ -31,7 +31,9 @@ export const MiniPlayer: React.FC = () => {
     // Use segments to detect current route - more reliable than usePathname
     const segments = useSegments();
 
-    if (!episode) return null;
+    // Hide player when no episode or on auth pages (logged out)
+    const isOnAuthPage = (segments as string[])[0] === '(auth)';
+    if (!episode || isOnAuthPage) return null;
 
     // Check if on play or transcript page - show simplified version
     const isPlayerPage = (segments as string[]).includes('play') || (segments as string[]).includes('transcript');

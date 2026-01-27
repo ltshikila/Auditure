@@ -23,6 +23,7 @@ import {
     PodcasterSearchResult,
     SearchScope,
 } from '@/services/search.service';
+import { resolveCoverUrl } from '@/services/api';
 
 const RECENT_SEARCHES_KEY = 'recent_searches';
 const MAX_RECENT_SEARCHES = 10;
@@ -217,9 +218,9 @@ export default function SearchScreen() {
                 onPress={() => handleEpisodePress(episode)}
                 className="flex-row items-center py-3 px-4"
             >
-                {episode.book.coverImageUrl ? (
+                {resolveCoverUrl(episode.book.coverImageUrl) ? (
                     <Image
-                        source={{ uri: episode.book.coverImageUrl }}
+                        source={{ uri: resolveCoverUrl(episode.book.coverImageUrl)! }}
                         className="w-14 h-20 rounded bg-gray-200"
                         resizeMode="cover"
                     />
@@ -257,9 +258,9 @@ export default function SearchScreen() {
             onPress={() => handleBookPress(book)}
             className="flex-row items-center py-3 px-4"
         >
-            {book.coverImageUrl ? (
+            {resolveCoverUrl(book.coverImageUrl) ? (
                 <Image
-                    source={{ uri: book.coverImageUrl }}
+                    source={{ uri: resolveCoverUrl(book.coverImageUrl)! }}
                     className="w-14 h-20 rounded bg-gray-200"
                     resizeMode="cover"
                 />
@@ -289,9 +290,9 @@ export default function SearchScreen() {
                 onPress={() => handlePodcasterPress(podcaster)}
                 className="flex-row items-center py-3 px-4"
             >
-                {podcaster.profilePictureUrl ? (
+                {resolveCoverUrl(podcaster.profilePictureUrl) ? (
                     <Image
-                        source={{ uri: podcaster.profilePictureUrl }}
+                        source={{ uri: resolveCoverUrl(podcaster.profilePictureUrl)! }}
                         className="w-14 h-20 rounded bg-gray-200"
                         resizeMode="cover"
                     />

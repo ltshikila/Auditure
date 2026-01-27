@@ -71,20 +71,23 @@ export const FeaturedEpisodeCard: React.FC<FeaturedEpisodeCardProps> = ({
                                 {episode.book?.title || 'Unknown Book'}
                             </Text>
                             <View className="flex-row items-center">
-                                <Ionicons name="star" size={14} color="#FFD700" />
-                                <Text className="font-inter-medium text-white text-sm ml-1">{rating}</Text>
+                                <Ionicons name="star-outline" size={14} color="rgba(255,255,255,0.7)" />
+                                <Text className="font-inter-medium text-white/70 text-sm ml-1">{rating}</Text>
                             </View>
                         </View>
+
+                        {/* Progress Bar - only show if there's progress */}
+                        {episode.progressPercent !== undefined && episode.progressPercent > 0 && (
+                            <View className="mt-2 h-1 bg-white/30 rounded-full overflow-hidden">
+                                <View
+                                    className="h-full bg-white rounded-full"
+                                    style={{ width: `${Math.min(episode.progressPercent, 100)}%` }}
+                                />
+                            </View>
+                        )}
                     </LinearGradient>
                 </View>
             </TouchableOpacity>
-
-            {/* Attribution text below card */}
-            {episode.book?.author && (
-                <Text className="font-inter text-[#858585] text-xs mt-2 text-center" numberOfLines={1}>
-                    and {episode.book.author.toUpperCase()}
-                </Text>
-            )}
         </View>
     );
 };
