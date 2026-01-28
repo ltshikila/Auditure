@@ -7,6 +7,8 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 async function bootstrap() {
     const app = await NestFactory.create(AppModule, {
         logger: ['log', 'error', 'warn', 'debug', 'verbose'],
+        // Enable raw body for Stripe webhook signature verification
+        rawBody: true,
     });
 
     // Increase server timeouts for large file uploads

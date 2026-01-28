@@ -267,7 +267,8 @@ enum VoiceTier {
 // Subscription tier
 enum SubscriptionTier {
   FREE
-  PREMIUM
+  STARTER
+  PRO
 }
 
 // Theme preference for app settings

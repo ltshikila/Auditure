@@ -334,25 +334,21 @@ Last updated: January 2025`,
             });
         }
 
-        const isPremium = subscription.tier === 'PREMIUM';
+        const isPaid = subscription.tier === 'STARTER' || subscription.tier === 'PRO';
 
         return {
             tier: subscription.tier,
-            isPremium,
+            isPaid,
             usage: {
                 geminiEpisodes: {
                     used: subscription.geminiEpisodesUsed,
-                    limit: isPremium ? null : subscription.geminiEpisodeLimit,
-                    remaining: isPremium
-                        ? null
-                        : Math.max(0, subscription.geminiEpisodeLimit - subscription.geminiEpisodesUsed),
+                    limit: subscription.geminiEpisodeLimit,
+                    remaining: Math.max(0, subscription.geminiEpisodeLimit - subscription.geminiEpisodesUsed),
                 },
                 standardEpisodes: {
                     used: subscription.standardEpisodesUsed,
-                    limit: isPremium ? null : subscription.standardEpisodeLimit,
-                    remaining: isPremium
-                        ? null
-                        : Math.max(0, subscription.standardEpisodeLimit - subscription.standardEpisodesUsed),
+                    limit: subscription.standardEpisodeLimit,
+                    remaining: Math.max(0, subscription.standardEpisodeLimit - subscription.standardEpisodesUsed),
                 },
             },
             periodStart: subscription.usagePeriodStart,
@@ -368,16 +364,10 @@ Last updated: January 2025`,
     async checkAndConsumeQuota(userId: string, voiceTier: 'GEMINI' | 'STANDARD'): Promise<boolean> {
         const subscription = await this.getSubscription(userId);
 
-        if (subscription.isPremium) {
-            // Track usage but don't limit
-            await this.incrementUsage(userId, voiceTier);
-            return true;
-        }
-
         const usage =
             voiceTier === 'GEMINI' ? subscription.usage.geminiEpisodes : subscription.usage.standardEpisodes;
 
-        if (usage.remaining !== null && usage.remaining <= 0) {
+        if (usage.remaining <= 0) {
             this.logger.warn(`User ${userId} has exceeded ${voiceTier} quota`);
             return false;
         }

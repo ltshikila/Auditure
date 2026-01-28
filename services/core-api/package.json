@@ -55,6 +55,7 @@
         "reflect-metadata": "^0.2.2",
         "resend": "^6.6.0",
         "rxjs": "^7.8.1",
+        "stripe": "^20.2.0",
         "tesseract.js": "^7.0.0"
     },
     "devDependencies": {

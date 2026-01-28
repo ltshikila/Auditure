@@ -67,6 +67,7 @@ export default function RootLayout() {
                   <Stack.Screen name="feed" options={{ headerShown: false }} />
                   <Stack.Screen name="notifications" options={{ headerShown: false }} />
                   <Stack.Screen name="search" options={{ headerShown: false }} />
+                  <Stack.Screen name="subscription" options={{ headerShown: false }} />
                   <Stack.Screen name="[book]" options={{ headerShown: false }} />
                   <Stack.Screen name="+not-found" />
                 </Stack>

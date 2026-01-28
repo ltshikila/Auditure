@@ -543,6 +543,15 @@ export default function Profile() {
                                 </Text>
                             )}
                         </View>
+
+                        {/* Manage Subscription Button */}
+                        <TouchableOpacity
+                            onPress={() => router.push('/subscription')}
+                            className="mt-4 bg-brand-gold py-3 rounded-xl items-center">
+                            <Text className="font-inter-medium text-white">
+                                {subscription.isPremium ? 'Manage Subscription' : 'Upgrade to Premium'}
+                            </Text>
+                        </TouchableOpacity>
                     </View>
                 )}
 

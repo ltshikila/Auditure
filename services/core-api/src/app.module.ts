@@ -20,6 +20,7 @@ import { RequestLoggingMiddleware } from './common/middleware/request-logging.mi
 @Module({
     imports: [
         RedisModule, // Global module - must be imported early
+        DatabaseModule, // Global module - provides Prisma client
         AuthModule,
         UsersModule,
         PodcastersModule,
@@ -27,10 +28,9 @@ import { RequestLoggingMiddleware } from './common/middleware/request-logging.mi
         EpisodesModule,
         FeedModule,
         SocialModule,
-        SubscriptionsModule,
+        SubscriptionsModule, // Includes Stripe payment processing
         NotificationsModule,
         SearchModule,
-        DatabaseModule,
         RabbitmqModule,
         CommonModule,
     ],

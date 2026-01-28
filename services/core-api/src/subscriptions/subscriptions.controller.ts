@@ -1,34 +1,90 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+    Controller,
+    Get,
+    Post,
+    Body,
+    UseGuards,
+    Request,
+    Logger,
+} from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SubscriptionsService } from './subscriptions.service';
-import { CreateSubscriptionDto } from './dto/create-subscription.dto';
-import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
+import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
+import { CreatePortalSessionDto } from './dto/create-portal-session.dto';
+import { StripeService } from './stripe.service';
 
 @Controller('subscriptions')
 export class SubscriptionsController {
-    constructor(private readonly subscriptionsService: SubscriptionsService) {}
+    private readonly logger = new Logger(SubscriptionsController.name);
 
-    @Post()
-    create(@Body() createSubscriptionDto: CreateSubscriptionDto) {
-        return this.subscriptionsService.create(createSubscriptionDto);
+    constructor(
+        private readonly subscriptionsService: SubscriptionsService,
+        private readonly stripeService: StripeService,
+    ) {}
+
+    /**
+     * Get current subscription status
+     * GET /subscriptions/status
+     */
+    @Get('status')
+    @UseGuards(JwtAuthGuard)
+    async getSubscriptionStatus(@Request() req) {
+        const userId = req.user.userId;
+        this.logger.debug(`Fetching subscription status for user ${userId}`);
+        return this.subscriptionsService.getSubscriptionStatus(userId);
     }
 
-    @Get()
-    findAll() {
-        return this.subscriptionsService.findAll();
+    /**
+     * Create a Stripe Checkout session for subscription purchase
+     * POST /subscriptions/checkout
+     */
+    @Post('checkout')
+    @UseGuards(JwtAuthGuard)
+    async createCheckoutSession(
+        @Request() req,
+        @Body() dto: CreateCheckoutSessionDto,
+    ) {
+        const userId = req.user.userId;
+        return this.subscriptionsService.createCheckoutSession(userId, dto.tier);
     }
 
-    @Get(':id')
-    findOne(@Param('id') id: string) {
-        return this.subscriptionsService.findOne(+id);
+    /**
+     * Create a Stripe Customer Portal session for subscription management
+     * POST /subscriptions/portal
+     */
+    @Post('portal')
+    @UseGuards(JwtAuthGuard)
+    async createPortalSession(
+        @Request() req,
+        @Body() dto: CreatePortalSessionDto,
+    ) {
+        const userId = req.user.userId;
+        return this.subscriptionsService.createPortalSession(userId, dto.returnUrl);
     }
 
-    @Patch(':id')
-    update(@Param('id') id: string, @Body() updateSubscriptionDto: UpdateSubscriptionDto) {
-        return this.subscriptionsService.update(+id, updateSubscriptionDto);
+    /**
+     * Redirect handler for successful checkout
+     * GET /subscriptions/success
+     */
+    @Get('success')
+    async handleSuccess() {
+        const mobileScheme = this.stripeService.getMobileAppScheme();
+        return {
+            message: 'Subscription successful!',
+            redirect: `${mobileScheme}://subscription/success`,
+        };
     }
 
-    @Delete(':id')
-    remove(@Param('id') id: string) {
-        return this.subscriptionsService.remove(+id);
+    /**
+     * Redirect handler for cancelled checkout
+     * GET /subscriptions/cancel
+     */
+    @Get('cancel')
+    async handleCancel() {
+        const mobileScheme = this.stripeService.getMobileAppScheme();
+        return {
+            message: 'Checkout cancelled',
+            redirect: `${mobileScheme}://subscription/cancel`,
+        };
     }
 }
