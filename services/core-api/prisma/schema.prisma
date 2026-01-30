@@ -398,36 +398,38 @@ model UserSettings {
 }
 
 model Subscription {
-  id                    String           @id @default(uuid())
-  userId                String           @unique
+  id                        String           @id @default(uuid())
+  userId                    String           @unique
 
   // Subscription Info
-  tier                  SubscriptionTier @default(FREE)
+  tier                      SubscriptionTier @default(FREE)
 
   // Usage Tracking (reset monthly)
-  geminiEpisodesUsed    Int              @default(0)
-  standardEpisodesUsed  Int              @default(0)
-  usagePeriodStart      DateTime         @default(now())
+  geminiEpisodesUsed        Int              @default(0)
+  standardEpisodesUsed      Int              @default(0)
+  usagePeriodStart          DateTime         @default(now())
 
   // Limits (configurable per tier)
-  geminiEpisodeLimit    Int              @default(1)
-  standardEpisodeLimit  Int              @default(2)
+  geminiEpisodeLimit        Int              @default(1)
+  standardEpisodeLimit      Int              @default(2)
 
-  // Premium subscription details (for future payment integration)
-  stripeCustomerId      String?
-  stripeSubscriptionId  String?
-  premiumStartedAt      DateTime?
-  premiumExpiresAt      DateTime?
+  // Paystack integration
+  paystackCustomerCode      String?          // Paystack customer code (CUS_xxx)
+  paystackSubscriptionCode  String?          // Paystack subscription code (SUB_xxx)
+  paystackEmailToken        String?          // Token for subscription management
+  premiumStartedAt          DateTime?
+  premiumExpiresAt          DateTime?
 
   // Timestamps
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
+  createdAt                 DateTime         @default(now())
+  updatedAt                 DateTime         @updatedAt
 
   // Relations
-  user                  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([tier])
   @@index([usagePeriodStart])
+  @@index([paystackCustomerCode])
   @@map("subscriptions")
 }
 

@@ -143,7 +143,7 @@ export default function HomeScreen() {
                         paddingHorizontal: 20,
                         paddingVertical: 10,
                         borderRadius: 20,
-                        backgroundColor: activeTab === tab.key ? '#920002' : 'transparent',
+                        backgroundColor: activeTab === tab.key ? '#920002' : '#E7E0CB',
                         borderWidth: activeTab === tab.key ? 0 : 1,
                         borderColor: '#E0E0E0',
                     }}

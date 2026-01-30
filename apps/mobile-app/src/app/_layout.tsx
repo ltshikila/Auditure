@@ -20,6 +20,9 @@ import {
   PlusJakartaSans_500Medium,
   PlusJakartaSans_700Bold
 } from '@expo-google-fonts/plus-jakarta-sans';
+import {
+  DMSerifDisplay_400Regular
+} from '@expo-google-fonts/dm-serif-display';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -40,6 +43,7 @@ export default function RootLayout() {
     PlusJakartaSans_400Regular,
     PlusJakartaSans_500Medium,
     PlusJakartaSans_700Bold,
+    DMSerifDisplay_400Regular,
   });
 
   useEffect(() => {

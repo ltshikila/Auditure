@@ -186,9 +186,10 @@ export default function AuthScreen() {
         extraScrollHeight={20}
       >
 
-        {/* Header Icon */}
-        <View className="items-center mt-8 mb-6">
-          <Image source={require('../../assets/icons/logo.png')} className="w-16 h-16" resizeMode="contain" />
+        {/* Header Logo */}
+        <View className="flex-row items-center justify-center mt-8 mb-6">
+          <Image source={require('../../assets/icons/logo_1.png')} className="w-32 h-32" resizeMode="contain" />
+          {/* <Text className="font-dm-serif text-4xl text-brand-black">Auditure</Text> */}
         </View>
 
         <Text className="font-inter-medium text-4xl text-center text-gray-900 mb-2">

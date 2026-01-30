@@ -81,9 +81,14 @@ OPENAI_API_KEY=your_openai_api_key_here
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
-6. **Run the AI Worker (via Docker Compose):**
+6. **Run the AI Worker:**
 
-The AI Worker is included in docker-compose. Alternatively, run standalone:
+**Option A: Via Docker (Recommended)**
+```bash
+docker-compose -f infra/docker-compose.yml up -d ai-worker
+```
+
+**Option B: Standalone (for development)**
 ```bash
 cd services/ai-worker
 python -m venv venv

@@ -6,26 +6,22 @@ import * as Linking from 'expo-linking';
 export type SubscriptionTier = 'starter' | 'pro';
 
 export interface CheckoutSession {
-    sessionId: string;
+    reference: string;
+    accessCode: string;
     url: string;
 }
 
-export interface PortalSession {
-    url: string;
-}
-
-export interface StripeSubscriptionDetails {
+export interface PaystackSubscriptionDetails {
     status: string;
-    currentPeriodEnd: string;
-    cancelAtPeriodEnd: boolean;
+    nextPaymentDate: string | null;
 }
 
-export interface StripeSubscriptionStatus {
+export interface SubscriptionStatus {
     tier: 'FREE' | 'STARTER' | 'PRO';
     isPaid: boolean;
     premiumStartedAt: string | null;
     premiumExpiresAt: string | null;
-    stripeSubscription: StripeSubscriptionDetails | null;
+    paystackSubscription: PaystackSubscriptionDetails | null;
     usage: {
         geminiEpisodesUsed: number;
         standardEpisodesUsed: number;
@@ -52,9 +48,19 @@ export interface Pricing {
     pro: PricingPlan;
 }
 
+export interface ManageSubscriptionResult {
+    message: string;
+    subscriptionCode?: string;
+}
+
+export interface CancelSubscriptionResult {
+    success: boolean;
+    message: string;
+}
+
 class SubscriptionService {
     /**
-     * Create a checkout session and open Stripe Checkout in browser
+     * Create a checkout session and open Paystack Checkout in browser
      * @param token - Auth token
      * @param tier - 'starter' or 'pro'
      */
@@ -87,8 +93,8 @@ class SubscriptionService {
                 if (url.includes('success')) {
                     console.log('[Subscription] Checkout completed successfully');
                     return { success: true };
-                } else if (url.includes('cancel')) {
-                    console.log('[Subscription] Checkout was cancelled');
+                } else if (url.includes('cancel') || url.includes('failed')) {
+                    console.log('[Subscription] Checkout was cancelled or failed');
                     return { success: false, cancelled: true };
                 }
             }
@@ -108,39 +114,46 @@ class SubscriptionService {
     }
 
     /**
-     * Open Stripe Customer Portal for subscription management
+     * Get subscription management info
+     * Note: Paystack doesn't have a built-in portal like Stripe
+     * Users manage subscriptions via email links
      */
-    async openCustomerPortal(token: string): Promise<boolean> {
+    async getManageSubscriptionInfo(token: string): Promise<ManageSubscriptionResult> {
         try {
-            console.log('[Subscription] Opening customer portal');
-
-            const returnUrl = Linking.createURL('subscription');
-            const session = await apiClient.post<PortalSession>(
-                '/subscriptions/portal',
-                { returnUrl },
+            console.log('[Subscription] Getting subscription management info');
+            return await apiClient.post<ManageSubscriptionResult>(
+                '/subscriptions/manage',
+                {},
                 token,
             );
-
-            if (!session.url) {
-                console.error('[Subscription] No portal URL received');
-                return false;
-            }
-
-            console.log(`[Subscription] Opening portal URL: ${session.url}`);
-            await WebBrowser.openBrowserAsync(session.url);
-
-            return true;
         } catch (error: any) {
-            console.error('[Subscription] Portal error:', error);
+            console.error('[Subscription] Manage subscription error:', error);
             throw error;
         }
     }
 
     /**
-     * Get current subscription status from Stripe endpoint
+     * Cancel subscription
      */
-    async getStripeSubscriptionStatus(token: string): Promise<StripeSubscriptionStatus> {
-        return apiClient.get<StripeSubscriptionStatus>('/subscriptions/status', token);
+    async cancelSubscription(token: string): Promise<CancelSubscriptionResult> {
+        try {
+            console.log('[Subscription] Cancelling subscription');
+            return await apiClient.post<CancelSubscriptionResult>(
+                '/subscriptions/cancel',
+                {},
+                token,
+            );
+        } catch (error: any) {
+            console.error('[Subscription] Cancel subscription error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get current subscription status
+     */
+    async getSubscriptionStatus(token: string): Promise<SubscriptionStatus> {
+        return apiClient.get<SubscriptionStatus>('/subscriptions/status', token);
     }
 
     /**

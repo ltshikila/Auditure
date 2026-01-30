@@ -28,6 +28,9 @@ module.exports = {
         jakarta: ["PlusJakartaSans_400Regular"],         // Default: className="font-jakarta"
         "jakarta-medium": ["PlusJakartaSans_500Medium"], // Medium: className="font-jakarta-medium"
         "jakarta-bold": ["PlusJakartaSans_700Bold"],     // Bold: className="font-jakarta-bold"
+
+        // DM Serif Display (Brand/Logo)
+        "dm-serif": ["DMSerifDisplay_400Regular"],       // Brand: className="font-dm-serif"
       }
     },
   },

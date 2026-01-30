@@ -72,7 +72,13 @@
       "Bash(del /f \"c:\\\\Users\\\\ltshi\\\\OneDrive\\\\Documents\\\\GitHub\\\\Auditure\\\\services\\\\core-api\\\\src\\\\feed\\\\dto\\\\create-feed.dto.ts\" \"c:\\\\Users\\\\ltshi\\\\OneDrive\\\\Documents\\\\GitHub\\\\Auditure\\\\services\\\\core-api\\\\src\\\\feed\\\\dto\\\\update-feed.dto.ts\")",
       "Bash(npm run test:*)",
       "Bash(npm run db:seed:*)",
-      "Bash(npx jest:*)"
+      "Bash(npx jest:*)",
+      "WebFetch(domain:docs.stripe.com)",
+      "WebFetch(domain:paystack.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(del \"c:\\\\Users\\\\ltshi\\\\OneDrive\\\\Documents\\\\GitHub\\\\Auditure\\\\services\\\\core-api\\\\src\\\\subscriptions\\\\stripe.service.ts\")",
+      "Bash(del \"c:\\\\Users\\\\ltshi\\\\OneDrive\\\\Documents\\\\GitHub\\\\Auditure\\\\services\\\\core-api\\\\src\\\\subscriptions\\\\dto\\\\create-portal-session.dto.ts\")",
+      "Bash(ipconfig:*)"
     ]
   }
 }
