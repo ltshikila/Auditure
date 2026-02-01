@@ -8,19 +8,19 @@ The Core API is built with NestJS and provides authentication, book management, 
 
 ### Key Features
 
-- 🔐 **JWT Authentication** - Secure user authentication with refresh tokens
-- 📧 **Email Verification** - OTP-based email verification system
-- 📚 **Book Management** - Upload and manage PDF/EPUB books
-- 🎙️ **Virtual Podcasters** - Create and customize AI podcasters with 17 configurable traits and permanent voice assignment
-- 🎧 **Episode Generation** - Create podcast episodes from books with multiple formats (monologue, duo, group)
-- 🔊 **Audio Streaming** - Range-request audio streaming for episode playback
-- 🤖 **Async Processing** - Background processing with RabbitMQ for extraction and generation
-- 📖 **Smart Chapter Detection** - Three-tier detection: TOC-based, dynamic pattern, and regex fallback
-- 💾 **Flexible Storage** - Local storage with S3-ready abstraction
-- 🔍 **Search & Discovery** - Full-text search, trending content, and filtering
-- 🔴 **Redis Caching** - Job progress tracking, playback progress, rate limiting
-- 💬 **Social Features** - Comments, likes, shares, ratings, and engagement tracking
-- ✅ **Comprehensive Testing** - 83 tests with 90%+ coverage
+- **JWT Authentication** - Secure user authentication with refresh tokens
+- **Email Verification** - OTP-based email verification system
+- **Book Management** - Upload and manage PDF/EPUB books
+- **Virtual Podcasters** - Create and customize AI podcasters with 17 configurable traits and permanent voice assignment
+- **Episode Generation** - Create podcast episodes from books with multiple formats (monologue, duo, group)
+- **Audio Streaming** - Range-request audio streaming for episode playback
+- **Async Processing** - Background processing with RabbitMQ for extraction and generation
+- **Smart Chapter Detection** - Three-tier detection: TOC-based, dynamic pattern, and regex fallback
+- **Flexible Storage** - Local storage with S3-ready abstraction
+- **Search & Discovery** - Full-text search, trending content, and filtering
+- **Redis Caching** - Job progress tracking, playback progress, rate limiting
+- **Social Features** - Comments, likes, shares, ratings, and engagement tracking
+- **Comprehensive Testing** - 83 tests with 90%+ coverage
 
 ## Project Structure
 
@@ -702,10 +702,10 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Support
 
-- 📧 Email: support@auditure.app
-- 💬 Discord: [Auditure Community](https://discord.gg/auditure)
-- 📚 Documentation: [docs.auditure.app](https://docs.auditure.app)
-- 🐛 Issues: [GitHub Issues](https://github.com/auditure/issues)
+- Email: support@auditure.app
+- Discord: [Auditure Community](https://discord.gg/auditure)
+- Documentation: [docs.auditure.app](https://docs.auditure.app)
+- Issues: [GitHub Issues](https://github.com/auditure/issues)
 
 ## Roadmap
 
@@ -735,4 +735,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-Built with ❤️ by the Auditure Team
+Built by the Auditure Team

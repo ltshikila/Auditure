@@ -2,12 +2,12 @@ name: Deploy to GCP
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
-    branches: [main]
+    branches: [master]
 
 env:
-  PROJECT_ID: auditure-prod
+  PROJECT_ID: auditure-483611
   REGION: us-central1
   REGISTRY: us-central1-docker.pkg.dev
 
@@ -47,7 +47,7 @@ jobs:
   # Build and deploy Core API
   deploy-core-api:
     needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -83,7 +83,8 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --set-env-vars "NODE_ENV=production" \
-            --set-secrets "DATABASE_URL=DATABASE_URL:latest,JWT_ACCESS_SECRET=JWT_ACCESS_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,PAYSTACK_SECRET_KEY=PAYSTACK_SECRET_KEY:latest,RESEND_API_KEY=RESEND_API_KEY:latest,RABBITMQ_URL=RABBITMQ_URL:latest,REDIS_HOST=REDIS_HOST:latest" \
+            --set-secrets "DATABASE_URL=DATABASE_URL:latest,JWT_ACCESS_SECRET=JWT_ACCESS_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,PAYSTACK_SECRET_KEY=PAYSTACK_SECRET_KEY:latest,RESEND_API_KEY=RESEND_API_KEY:latest,RABBITMQ_URL=RABBITMQ_URL:latest" \
+            --add-cloudsql-instances ${{ env.PROJECT_ID }}:${{ env.REGION }}:auditure-db \
             --min-instances 0 \
             --max-instances 10 \
             --memory 1Gi \
@@ -93,7 +94,7 @@ jobs:
   # Build and deploy AI Worker
   deploy-ai-worker:
     needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -128,7 +129,8 @@ jobs:
             --region ${{ env.REGION }} \
             --platform managed \
             --no-allow-unauthenticated \
-            --set-secrets "DATABASE_URL=DATABASE_URL:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,RABBITMQ_URL=RABBITMQ_URL:latest,REDIS_HOST=REDIS_HOST:latest" \
+            --set-secrets "DATABASE_URL=DATABASE_URL:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,RABBITMQ_URL=RABBITMQ_URL:latest" \
+            --add-cloudsql-instances ${{ env.PROJECT_ID }}:${{ env.REGION }}:auditure-db \
             --min-instances 0 \
             --max-instances 5 \
             --memory 2Gi \
@@ -138,7 +140,7 @@ jobs:
   # Run database migrations after deployment
   migrate:
     needs: deploy-core-api
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
 
     steps:
@@ -157,11 +159,25 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Install Cloud SQL Auth Proxy
+        run: |
+          curl -o cloud-sql-proxy https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.8.2/cloud-sql-proxy.linux.amd64
+          chmod +x cloud-sql-proxy
+
       - name: Run Prisma migrations
         working-directory: services/core-api
         run: |
           npm ci
           npx prisma generate
-          # Get database URL from Secret Manager
-          export DATABASE_URL=$(gcloud secrets versions access latest --secret=DATABASE_URL)
+
+          # Start Cloud SQL Auth Proxy in background
+          ../../../cloud-sql-proxy --port 5432 ${{ env.PROJECT_ID }}:${{ env.REGION }}:auditure-db &
+          sleep 5
+
+          # Get database credentials from Secret Manager and construct direct connection URL
+          DB_URL=$(gcloud secrets versions access latest --secret=DATABASE_URL)
+          # Extract password from the URL and construct localhost connection
+          DB_PASS=$(echo "$DB_URL" | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
+          export DATABASE_URL="postgresql://auditure_user:${DB_PASS}@localhost:5432/auditure_prod"
+
           npx prisma migrate deploy

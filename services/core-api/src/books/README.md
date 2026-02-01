@@ -4,14 +4,14 @@ Complete book management system with file upload, text extraction, and async pro
 
 ## Features
 
-- ✅ PDF and EPUB file upload (up to 50MB)
-- ✅ Async text extraction with RabbitMQ
-- ✅ Automatic chapter detection
-- ✅ Cover image extraction (Google Books API + PDF/EPUB fallback)
-- ✅ Local file storage with S3-ready abstraction
-- ✅ Full-text search capabilities
-- ✅ Extraction retry mechanism
-- ✅ Public API for Episodes and Feed services
+- PDF and EPUB file upload (up to 50MB)
+- Async text extraction with RabbitMQ
+- Automatic chapter detection
+- Cover image extraction (Google Books API + PDF/EPUB fallback)
+- Local file storage with S3-ready abstraction
+- Full-text search capabilities
+- Extraction retry mechanism
+- Public API for Episodes and Feed services
 
 ---
 
@@ -842,23 +842,23 @@ npm test -- books --watch
 ### Test Cases
 
 **Positive Tests:**
-- ✅ Successful file upload and job queuing
-- ✅ Retrieve all books for user
-- ✅ Get single book with chapters
-- ✅ Extract full text and specific chapters
-- ✅ Delete book and files
-- ✅ Retry failed extraction
+- Successful file upload and job queuing
+- Retrieve all books for user
+- Get single book with chapters
+- Extract full text and specific chapters
+- Delete book and files
+- Retry failed extraction
 
 **Negative Tests:**
-- ✅ Upload without file (400)
-- ✅ Invalid file type (400)
-- ✅ File too large (413)
-- ✅ Access non-existent book (404)
-- ✅ Access another user's book (403)
-- ✅ Get text before extraction completes (400)
-- ✅ Retry non-failed extraction (400)
-- ✅ Storage service failures
-- ✅ RabbitMQ connection failures
+- Upload without file (400)
+- Invalid file type (400)
+- File too large (413)
+- Access non-existent book (404)
+- Access another user's book (403)
+- Get text before extraction completes (400)
+- Retry non-failed extraction (400)
+- Storage service failures
+- RabbitMQ connection failures
 
 ## Configuration
 

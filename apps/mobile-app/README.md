@@ -109,14 +109,14 @@ User flow:
 4. Open full player from MiniPlayer → same audio continues
 
 Without global context:
-❌ Each screen would have its own audio instance
-❌ Navigation would stop playback
-❌ No way to show MiniPlayer across screens
+- Each screen would have its own audio instance
+- Navigation would stop playback
+- No way to show MiniPlayer across screens
 
 With PlaybackContext:
-✅ Single audio instance shared everywhere
-✅ MiniPlayer reads from context (knows what's playing)
-✅ Any screen can control playback (play/pause/seek)
+- Single audio instance shared everywhere
+- MiniPlayer reads from context (knows what's playing)
+- Any screen can control playback (play/pause/seek)
 ```
 
 **What PlaybackContext manages:**
@@ -451,13 +451,13 @@ Notifications.setNotificationHandler({
 ## Common Mistakes to Avoid
 
 ```typescript
-// ❌ BAD: Fetching data without cleanup
+// BAD: Fetching data without cleanup
 useEffect(() => {
   fetch('/api/episodes').then(res => setEpisodes(res));
 }, []);
 // If component unmounts before fetch completes: memory leak + setState warning
 
-// ✅ GOOD: Cleanup with AbortController
+// GOOD: Cleanup with AbortController
 useEffect(() => {
   const controller = new AbortController();
   fetch('/api/episodes', { signal: controller.signal })
@@ -468,36 +468,36 @@ useEffect(() => {
   return () => controller.abort();
 }, []);
 
-// ❌ BAD: Hardcoded API URLs
+// BAD: Hardcoded API URLs
 const response = await fetch('http://localhost:3000/api/episodes');
 // Won't work on real devices!
 
-// ✅ GOOD: Use environment-based config
+// GOOD: Use environment-based config
 import { API_BASE_URL } from '@/constants/config';
 const response = await fetch(`${API_BASE_URL}/api/episodes`);
 
-// ❌ BAD: Not handling token expiry
+// BAD: Not handling token expiry
 const response = await fetch(url, {
   headers: { Authorization: `Bearer ${token}` }
 });
 // Token might be expired!
 
-// ✅ GOOD: Use getAccessToken() which handles refresh
+// GOOD: Use getAccessToken() which handles refresh
 const token = await getAccessToken(); // Automatically refreshes if needed
 const response = await fetch(url, {
   headers: { Authorization: `Bearer ${token}` }
 });
 
-// ❌ BAD: Inline styles everywhere
+// BAD: Inline styles everywhere
 <View style={{ flex: 1, padding: 16, backgroundColor: '#FEFCF7' }}>
 
-// ✅ GOOD: Use Nativewind/Tailwind classes
+// GOOD: Use Nativewind/Tailwind classes
 <View className="flex-1 p-4 bg-brand-beige">
 
-// ❌ BAD: Navigation with string concatenation
+// BAD: Navigation with string concatenation
 router.push('/episodes/' + episode.id);
 
-// ✅ GOOD: Use template literals or params
+// GOOD: Use template literals or params
 router.push(`/episodes/${episode.id}`);
 // Or with typed params:
 router.push({ pathname: '/episodes/[id]', params: { id: episode.id } });

@@ -4,12 +4,12 @@ Complete authentication system with email verification, JWT tokens, and refresh 
 
 ## Features
 
-- ✅ User registration with email verification
-- ✅ OTP-based email verification
-- ✅ JWT access tokens and refresh tokens
-- ✅ Password hashing with bcrypt
-- ✅ Protected routes with JWT guards
-- ✅ OTP resend functionality
+- User registration with email verification
+- OTP-based email verification
+- JWT access tokens and refresh tokens
+- Password hashing with bcrypt
+- Protected routes with JWT guards
+- OTP resend functionality
 
 ---
 
@@ -339,18 +339,18 @@ src/auth/
 ### Example Test Cases
 
 **Positive Tests:**
-- ✅ Successful user registration
-- ✅ Successful email verification
-- ✅ Successful login with valid credentials
-- ✅ Token refresh with valid refresh token
+- Successful user registration
+- Successful email verification
+- Successful login with valid credentials
+- Token refresh with valid refresh token
 
 **Negative Tests:**
-- ✅ Registration with existing email (409)
-- ✅ Login with invalid credentials (401)
-- ✅ Verification with wrong OTP (401)
-- ✅ Verification with expired OTP (400)
-- ✅ Token refresh with invalid token (401)
-- ✅ Resend OTP to already verified email (400)
+- Registration with existing email (409)
+- Login with invalid credentials (401)
+- Verification with wrong OTP (401)
+- Verification with expired OTP (400)
+- Token refresh with invalid token (401)
+- Resend OTP to already verified email (400)
 
 ## Configuration
 
