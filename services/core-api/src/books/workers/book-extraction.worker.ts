@@ -43,7 +43,7 @@ export class BookExtractionWorker implements OnModuleInit {
             } else if (job.sourceType === 'EPUB') {
                 extracted = await this.textExtractionService.extractFromEpub(fileBuffer);
             } else {
-                throw new Error(`Unsupported source type: ${job.sourceType}`);
+                throw new Error(`Unsupported source type: ${String(job.sourceType)}`);
             }
 
             // 3.5. Get current book from database to access original title (from filename)
@@ -63,7 +63,7 @@ export class BookExtractionWorker implements OnModuleInit {
             const storageKey = `${job.userId}/${job.bookId}`;
             const coverResult = await this.coverExtractionService.extractCover(
                 fileBuffer,
-                job.sourceType as 'PDF' | 'EPUB',
+                job.sourceType,
                 {
                     title: coverSearchTitle,
                     author: extracted.metadata.author,
@@ -76,7 +76,9 @@ export class BookExtractionWorker implements OnModuleInit {
             );
 
             if (coverResult.coverImageUrl) {
-                this.logger.log(`Cover extracted for book ${job.bookId} (source: ${coverResult.source})`);
+                this.logger.log(
+                    `Cover extracted for book ${job.bookId} (source: ${coverResult.source})`,
+                );
             }
 
             // 5. Store full text in storage
@@ -94,13 +96,15 @@ export class BookExtractionWorker implements OnModuleInit {
             this.logger.log(`Deleted existing chapters for book ${job.bookId}`);
 
             // Deduplicate chapters by chapterNumber (extraction might produce duplicates)
-            const uniqueChapters = new Map<number, typeof extracted.chapters[0]>();
+            const uniqueChapters = new Map<number, (typeof extracted.chapters)[0]>();
             for (const chapter of extracted.chapters) {
                 if (!uniqueChapters.has(chapter.chapterNumber)) {
                     uniqueChapters.set(chapter.chapterNumber, chapter);
                 }
             }
-            this.logger.log(`Creating ${uniqueChapters.size} unique chapters (from ${extracted.chapters.length} detected)`);
+            this.logger.log(
+                `Creating ${uniqueChapters.size} unique chapters (from ${extracted.chapters.length} detected)`,
+            );
 
             // Track extraction quality
             let emptyChapters = 0;
@@ -190,7 +194,9 @@ export class BookExtractionWorker implements OnModuleInit {
                 );
             }
 
-            this.logger.log(`Successfully extracted book ${job.bookId} (status: ${extractionStatus})`);
+            this.logger.log(
+                `Successfully extracted book ${job.bookId} (status: ${extractionStatus})`,
+            );
 
             // 7. Queue any pending episodes for this book
             const pendingEpisodes = await this.databaseService.episode.findMany({

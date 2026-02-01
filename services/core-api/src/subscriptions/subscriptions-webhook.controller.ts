@@ -1,11 +1,4 @@
-import {
-    Controller,
-    Post,
-    Headers,
-    Req,
-    BadRequestException,
-    Logger,
-} from '@nestjs/common';
+import { Controller, Post, Headers, Req, BadRequestException, Logger } from '@nestjs/common';
 import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
 import { PaystackService } from './paystack.service';

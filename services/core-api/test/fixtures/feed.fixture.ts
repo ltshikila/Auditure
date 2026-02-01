@@ -1,13 +1,24 @@
 // Test fixtures for feed data
 import { randomUUID } from 'crypto';
-import { EpisodeFeedItem, BookFeedItem, PodcasterFeedItem } from '../../src/feed/dto/feed-response.dto';
-import { FeedTab, EpisodeSectionId, BookSectionId, PodcasterSectionId } from '../../src/feed/dto/feed-query.dto';
+import {
+    EpisodeFeedItem,
+    BookFeedItem,
+    PodcasterFeedItem,
+} from '../../src/feed/dto/feed-response.dto';
+import {
+    FeedTab,
+    EpisodeSectionId,
+    BookSectionId,
+    PodcasterSectionId,
+} from '../../src/feed/dto/feed-query.dto';
 
 // ============================================
 // Episode Feed Items
 // ============================================
 
-export const createMockEpisodeFeedItem = (overrides: Partial<EpisodeFeedItem> = {}): EpisodeFeedItem => ({
+export const createMockEpisodeFeedItem = (
+    overrides: Partial<EpisodeFeedItem> = {},
+): EpisodeFeedItem => ({
     id: randomUUID(),
     title: 'Test Episode',
     description: 'Test episode description',
@@ -35,7 +46,9 @@ export const createMockEpisodeFeedItem = (overrides: Partial<EpisodeFeedItem> = 
     ...overrides,
 });
 
-export const createMockContinueListeningItem = (overrides: Partial<EpisodeFeedItem> = {}): EpisodeFeedItem => ({
+export const createMockContinueListeningItem = (
+    overrides: Partial<EpisodeFeedItem> = {},
+): EpisodeFeedItem => ({
     ...createMockEpisodeFeedItem(),
     progressMs: 600000, // 10 minutes
     progressPercent: 50,
@@ -64,7 +77,9 @@ export const createMockBookFeedItem = (overrides: Partial<BookFeedItem> = {}): B
 // Podcaster Feed Items
 // ============================================
 
-export const createMockPodcasterFeedItem = (overrides: Partial<PodcasterFeedItem> = {}): PodcasterFeedItem => ({
+export const createMockPodcasterFeedItem = (
+    overrides: Partial<PodcasterFeedItem> = {},
+): PodcasterFeedItem => ({
     id: randomUUID(),
     name: 'Test Podcaster',
     bio: 'A test podcaster bio',
@@ -139,11 +154,7 @@ export const createMockBookWithCount = (overrides = {}) => ({
 
 export const createMockBookWithEpisodes = (overrides = {}) => ({
     ...createMockBookWithCount(),
-    episodes: [
-        { playCount: 100 },
-        { playCount: 200 },
-        { playCount: 150 },
-    ],
+    episodes: [{ playCount: 100 }, { playCount: 200 }, { playCount: 150 }],
     ...overrides,
 });
 
@@ -188,14 +199,18 @@ export const createMockEpisodesFeedResponse = () => ({
             id: EpisodeSectionId.POPULAR,
             title: 'Popular Episodes',
             type: EpisodeSectionId.POPULAR,
-            items: Array(10).fill(null).map(() => createMockEpisodeFeedItem()),
+            items: Array(10)
+                .fill(null)
+                .map(() => createMockEpisodeFeedItem()),
             hasMore: true,
         },
         {
             id: EpisodeSectionId.LATEST,
             title: 'Latest Releases',
             type: EpisodeSectionId.LATEST,
-            items: Array(10).fill(null).map(() => createMockEpisodeFeedItem()),
+            items: Array(10)
+                .fill(null)
+                .map(() => createMockEpisodeFeedItem()),
             hasMore: true,
         },
     ],
@@ -208,14 +223,18 @@ export const createMockBooksFeedResponse = () => ({
             id: BookSectionId.POPULAR_INSPIRATIONS,
             title: 'Popular podcast inspirations',
             type: BookSectionId.POPULAR_INSPIRATIONS,
-            items: Array(10).fill(null).map(() => createMockBookFeedItem()),
+            items: Array(10)
+                .fill(null)
+                .map(() => createMockBookFeedItem()),
             hasMore: true,
         },
         {
             id: BookSectionId.POPULAR_BOOKS,
             title: 'Popular Books',
             type: BookSectionId.POPULAR_BOOKS,
-            items: Array(10).fill(null).map(() => createMockBookFeedItem()),
+            items: Array(10)
+                .fill(null)
+                .map(() => createMockBookFeedItem()),
             hasMore: true,
         },
     ],
@@ -228,14 +247,18 @@ export const createMockPodcastersFeedResponse = () => ({
             id: PodcasterSectionId.TRENDING,
             title: 'Trending',
             type: PodcasterSectionId.TRENDING,
-            items: Array(10).fill(null).map(() => createMockPodcasterFeedItem()),
+            items: Array(10)
+                .fill(null)
+                .map(() => createMockPodcasterFeedItem()),
             hasMore: true,
         },
         {
             id: PodcasterSectionId.TOP_RATED,
             title: 'Top Rated',
             type: PodcasterSectionId.TOP_RATED,
-            items: Array(10).fill(null).map(() => createMockPodcasterFeedItem()),
+            items: Array(10)
+                .fill(null)
+                .map(() => createMockPodcasterFeedItem()),
             hasMore: true,
         },
     ],

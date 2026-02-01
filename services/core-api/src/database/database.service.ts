@@ -8,7 +8,8 @@ export class DatabaseService extends PrismaClient implements OnModuleInit, OnMod
     constructor() {
         // Prisma v7 requires an adapter for PostgreSQL
         // Parse DATABASE_URL or use defaults
-        const dbUrl = process.env.DATABASE_URL || 'postgresql://admin:password@localhost:5432/auditure_db';
+        const dbUrl =
+            process.env.DATABASE_URL || 'postgresql://admin:password@localhost:5432/auditure_db';
         const url = new URL(dbUrl);
 
         const pool = new Pool({

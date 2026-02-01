@@ -13,8 +13,6 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { podcasterService, Podcaster } from '@/services/podcaster.service';
 import { storageService } from '@/services/storage.service';
-import { CustomSlider } from '@/components/CustomSlider';
-import { CustomDropdown } from '@/components/CustomDropdown';
 import { ProfilePictureInput } from '@/components/ProfilePictureInput';
 
 export default function ManagePodcaster() {

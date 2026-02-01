@@ -1,6 +1,6 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
-import { PaystackService, PaystackSubscription, PaystackWebhookEvent } from './paystack.service';
+import { PaystackService, PaystackSubscription } from './paystack.service';
 
 @Injectable()
 export class SubscriptionsService {
@@ -233,7 +233,10 @@ export class SubscriptionsService {
 
         this.logger.log(`Subscription cancelled for user ${userId}`);
 
-        return { success: true, message: 'Subscription will be cancelled at the end of the billing period.' };
+        return {
+            success: true,
+            message: 'Subscription will be cancelled at the end of the billing period.',
+        };
     }
 
     // Webhook handlers
@@ -242,8 +245,12 @@ export class SubscriptionsService {
         this.logger.log(`Processing charge.success for reference: ${data.reference}`);
 
         const metadata = data.metadata || {};
-        const userId = metadata.userId || metadata.custom_fields?.find((f: any) => f.variable_name === 'user_id')?.value;
-        const tier = metadata.tier || metadata.custom_fields?.find((f: any) => f.variable_name === 'tier')?.value;
+        const userId =
+            metadata.userId ||
+            metadata.custom_fields?.find((f: any) => f.variable_name === 'user_id')?.value;
+        const _tier =
+            metadata.tier ||
+            metadata.custom_fields?.find((f: any) => f.variable_name === 'tier')?.value;
 
         if (!userId) {
             this.logger.warn(`No userId found in charge metadata for reference ${data.reference}`);
@@ -272,7 +279,8 @@ export class SubscriptionsService {
                     premiumExpiresAt: this.calculateNextBillingDate(),
                     geminiEpisodeLimit: limits.geminiEpisodeLimit,
                     standardEpisodeLimit: limits.standardEpisodeLimit,
-                    paystackCustomerCode: data.customer?.customer_code || subscription.paystackCustomerCode,
+                    paystackCustomerCode:
+                        data.customer?.customer_code || subscription.paystackCustomerCode,
                 },
             });
 
@@ -315,7 +323,9 @@ export class SubscriptionsService {
         }
 
         if (!subscription) {
-            this.logger.error(`No subscription record found for customer ${data.customer.customer_code}`);
+            this.logger.error(
+                `No subscription record found for customer ${data.customer.customer_code}`,
+            );
             return;
         }
 
@@ -330,7 +340,9 @@ export class SubscriptionsService {
                 paystackCustomerCode: data.customer.customer_code,
                 tier,
                 premiumStartedAt: new Date(),
-                premiumExpiresAt: data.next_payment_date ? new Date(data.next_payment_date) : this.calculateNextBillingDate(),
+                premiumExpiresAt: data.next_payment_date
+                    ? new Date(data.next_payment_date)
+                    : this.calculateNextBillingDate(),
                 geminiEpisodeLimit: limits.geminiEpisodeLimit,
                 standardEpisodeLimit: limits.standardEpisodeLimit,
             },

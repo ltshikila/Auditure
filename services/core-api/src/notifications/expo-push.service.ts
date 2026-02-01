@@ -89,9 +89,7 @@ export class ExpoPushService {
      * @param notifications - Array of notifications to send
      * @returns Array of push tickets
      */
-    async sendPushNotificationsBatch(
-        messages: ExpoPushMessage[],
-    ): Promise<ExpoPushTicket[]> {
+    async sendPushNotificationsBatch(messages: ExpoPushMessage[]): Promise<ExpoPushTicket[]> {
         this.logger.log(`sendPushNotificationsBatch() called with ${messages.length} messages`);
 
         if (messages.length === 0) {
@@ -99,7 +97,7 @@ export class ExpoPushService {
         }
 
         // Filter out invalid tokens
-        const validMessages = messages.filter((msg) => this.isValidExpoPushToken(msg.to));
+        const validMessages = messages.filter(msg => this.isValidExpoPushToken(msg.to));
         const invalidCount = messages.length - validMessages.length;
 
         if (invalidCount > 0) {
@@ -121,8 +119,8 @@ export class ExpoPushService {
         }
 
         // Log summary
-        const successCount = allTickets.filter((t) => t.status === 'ok').length;
-        const errorCount = allTickets.filter((t) => t.status === 'error').length;
+        const successCount = allTickets.filter(t => t.status === 'ok').length;
+        const errorCount = allTickets.filter(t => t.status === 'error').length;
         this.logger.log(
             `Push notification batch complete: ${successCount} succeeded, ${errorCount} failed`,
         );
@@ -141,7 +139,7 @@ export class ExpoPushService {
             const response = await fetch(this.EXPO_PUSH_URL, {
                 method: 'POST',
                 headers: {
-                    'Accept': 'application/json',
+                    Accept: 'application/json',
                     'Accept-Encoding': 'gzip, deflate',
                     'Content-Type': 'application/json',
                 },
@@ -150,9 +148,7 @@ export class ExpoPushService {
 
             if (!response.ok) {
                 const errorText = await response.text();
-                this.logger.error(
-                    `Expo Push API error (HTTP ${response.status}): ${errorText}`,
-                );
+                this.logger.error(`Expo Push API error (HTTP ${response.status}): ${errorText}`);
 
                 // Retry on server errors
                 if (response.status >= 500 && attempt < this.MAX_RETRIES) {
@@ -176,7 +172,7 @@ export class ExpoPushService {
                 if (ticket.status === 'error') {
                     this.logger.error(
                         `Push notification failed for ${this.maskToken(messages[index].to)}: ` +
-                        `${ticket.message} (${ticket.details?.error || 'unknown error'})`,
+                            `${ticket.message} (${ticket.details?.error || 'unknown error'})`,
                     );
                 }
             });
@@ -206,9 +202,7 @@ export class ExpoPushService {
      * @param ticketIds - Array of ticket IDs from send responses
      * @returns Map of ticket ID to receipt
      */
-    async getPushReceipts(
-        ticketIds: string[],
-    ): Promise<Map<string, ExpoPushReceipt>> {
+    async getPushReceipts(ticketIds: string[]): Promise<Map<string, ExpoPushReceipt>> {
         this.logger.log(`getPushReceipts() called for ${ticketIds.length} tickets`);
 
         if (ticketIds.length === 0) {
@@ -226,7 +220,7 @@ export class ExpoPushService {
                 const response = await fetch(this.EXPO_RECEIPTS_URL, {
                     method: 'POST',
                     headers: {
-                        'Accept': 'application/json',
+                        Accept: 'application/json',
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({ ids: batch }),
@@ -267,10 +261,7 @@ export class ExpoPushService {
      * @returns The token if it should be removed, null otherwise
      */
     getInvalidTokenFromTicket(ticket: ExpoPushTicket, token: string): string | null {
-        if (
-            ticket.status === 'error' &&
-            ticket.details?.error === 'DeviceNotRegistered'
-        ) {
+        if (ticket.status === 'error' && ticket.details?.error === 'DeviceNotRegistered') {
             this.logger.warn(
                 `Device not registered, token should be removed: ${this.maskToken(token)}`,
             );
@@ -293,6 +284,6 @@ export class ExpoPushService {
      * Delay helper for retries.
      */
     private delay(ms: number): Promise<void> {
-        return new Promise((resolve) => setTimeout(resolve, ms));
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 }

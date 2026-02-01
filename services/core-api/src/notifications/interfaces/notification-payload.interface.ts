@@ -24,7 +24,11 @@ export interface ExpoPushTicket {
     id?: string;
     message?: string;
     details?: {
-        error?: 'DeviceNotRegistered' | 'InvalidCredentials' | 'MessageTooBig' | 'MessageRateExceeded';
+        error?:
+            | 'DeviceNotRegistered'
+            | 'InvalidCredentials'
+            | 'MessageTooBig'
+            | 'MessageRateExceeded';
     };
 }
 

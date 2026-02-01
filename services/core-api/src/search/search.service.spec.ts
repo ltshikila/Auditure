@@ -62,9 +62,12 @@ describe('SearchService', () => {
             mockPrismaClient.podcaster.findMany.mockResolvedValue([]);
             mockPrismaClient.podcaster.count.mockResolvedValue(0);
 
-            const result = await service.search(
-                { q: '<script>alert("test")</script>', scope: SearchScope.ALL, page: 1, limit: 10 },
-            );
+            const result = await service.search({
+                q: '<script>alert("test")</script>',
+                scope: SearchScope.ALL,
+                page: 1,
+                limit: 10,
+            });
 
             // Should complete without error (sanitized query)
             expect(result).toBeDefined();
@@ -79,9 +82,12 @@ describe('SearchService', () => {
             mockPrismaClient.podcaster.findMany.mockResolvedValue([]);
             mockPrismaClient.podcaster.count.mockResolvedValue(0);
 
-            const result = await service.search(
-                { q: longQuery, scope: SearchScope.ALL, page: 1, limit: 10 },
-            );
+            const result = await service.search({
+                q: longQuery,
+                scope: SearchScope.ALL,
+                page: 1,
+                limit: 10,
+            });
 
             expect(result).toBeDefined();
         });
@@ -200,7 +206,7 @@ describe('SearchService', () => {
             );
         });
 
-        it('should include public episodes and user\'s own episodes', async () => {
+        it("should include public episodes and user's own episodes", async () => {
             mockPrismaClient.episode.findMany.mockResolvedValue([]);
             mockPrismaClient.episode.count.mockResolvedValue(0);
 
@@ -238,7 +244,7 @@ describe('SearchService', () => {
             expect(mockPrismaClient.book.findMany).not.toHaveBeenCalled();
         });
 
-        it('should only search user\'s own books', async () => {
+        it("should only search user's own books", async () => {
             mockPrismaClient.book.findMany.mockResolvedValue([]);
             mockPrismaClient.book.count.mockResolvedValue(0);
 
@@ -270,8 +276,12 @@ describe('SearchService', () => {
                 expect.objectContaining({
                     where: expect.objectContaining({
                         OR: expect.arrayContaining([
-                            expect.objectContaining({ title: { contains: 'philosophy', mode: 'insensitive' } }),
-                            expect.objectContaining({ author: { contains: 'philosophy', mode: 'insensitive' } }),
+                            expect.objectContaining({
+                                title: { contains: 'philosophy', mode: 'insensitive' },
+                            }),
+                            expect.objectContaining({
+                                author: { contains: 'philosophy', mode: 'insensitive' },
+                            }),
                         ]),
                     }),
                 }),
@@ -310,8 +320,12 @@ describe('SearchService', () => {
                 expect.objectContaining({
                     where: expect.objectContaining({
                         OR: expect.arrayContaining([
-                            expect.objectContaining({ name: { contains: 'philosophy', mode: 'insensitive' } }),
-                            expect.objectContaining({ description: { contains: 'philosophy', mode: 'insensitive' } }),
+                            expect.objectContaining({
+                                name: { contains: 'philosophy', mode: 'insensitive' },
+                            }),
+                            expect.objectContaining({
+                                description: { contains: 'philosophy', mode: 'insensitive' },
+                            }),
                             expect.objectContaining({ expertiseTags: { hasSome: ['philosophy'] } }),
                         ]),
                     }),
@@ -415,9 +429,7 @@ describe('SearchService', () => {
 
         it('should log errors when they occur', async () => {
             const loggerSpy = jest.spyOn((service as any).logger, 'error');
-            mockPrismaClient.episode.findMany.mockRejectedValue(
-                new Error('Test error'),
-            );
+            mockPrismaClient.episode.findMany.mockRejectedValue(new Error('Test error'));
 
             await expect(
                 service.search(

@@ -1,12 +1,7 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { RedisService } from '../redis/redis.service';
-import {
-    FeedTab,
-    EpisodeSectionId,
-    BookSectionId,
-    PodcasterSectionId,
-} from './dto/feed-query.dto';
+import { FeedTab, EpisodeSectionId, BookSectionId, PodcasterSectionId } from './dto/feed-query.dto';
 import {
     EpisodeFeedItem,
     BookFeedItem,
@@ -49,8 +44,8 @@ export class FeedService {
                 case FeedTab.PODCASTERS:
                     return this.getPodcastersFeed(userId);
                 default:
-                    this.logger.error(`Invalid tab: ${tab}`);
-                    throw new BadRequestException(`Invalid tab: ${tab}`);
+                    this.logger.error(`Invalid tab: ${String(tab)}`);
+                    throw new BadRequestException(`Invalid tab: ${String(tab)}`);
             }
         } catch (error) {
             this.logger.error(`Error in getFeed(): ${error.message}`);
@@ -68,24 +63,42 @@ export class FeedService {
         page: number,
         limit: number,
     ): Promise<SectionPaginationResponse<EpisodeFeedItem | BookFeedItem | PodcasterFeedItem>> {
-        this.logger.log(`getSectionData() called for section: ${sectionId}, page: ${page}, limit: ${limit}`);
+        this.logger.log(
+            `getSectionData() called for section: ${sectionId}, page: ${page}, limit: ${limit}`,
+        );
 
         try {
             const offset = (page - 1) * limit;
 
             // Episode sections
             if (Object.values(EpisodeSectionId).includes(sectionId as EpisodeSectionId)) {
-                return this.getEpisodeSectionPaginated(sectionId as EpisodeSectionId, userId, offset, limit, page);
+                return this.getEpisodeSectionPaginated(
+                    sectionId as EpisodeSectionId,
+                    userId,
+                    offset,
+                    limit,
+                    page,
+                );
             }
 
             // Book sections
             if (Object.values(BookSectionId).includes(sectionId as BookSectionId)) {
-                return this.getBookSectionPaginated(sectionId as BookSectionId, offset, limit, page);
+                return this.getBookSectionPaginated(
+                    sectionId as BookSectionId,
+                    offset,
+                    limit,
+                    page,
+                );
             }
 
             // Podcaster sections
             if (Object.values(PodcasterSectionId).includes(sectionId as PodcasterSectionId)) {
-                return this.getPodcasterSectionPaginated(sectionId as PodcasterSectionId, offset, limit, page);
+                return this.getPodcasterSectionPaginated(
+                    sectionId as PodcasterSectionId,
+                    offset,
+                    limit,
+                    page,
+                );
             }
 
             throw new BadRequestException(`Invalid section ID: ${sectionId}`);
@@ -114,7 +127,7 @@ export class FeedService {
         return {
             tab: FeedTab.EPISODES,
             sections: [continueListening, popular, latest, recommended].filter(
-                (section) => section.items.length > 0,
+                section => section.items.length > 0,
             ),
         };
     }
@@ -126,7 +139,9 @@ export class FeedService {
      * - Started within last 30 days
      * - Progress > 0% and < 95%
      */
-    private async getContinueListeningSection(userId: string): Promise<FeedSection<EpisodeFeedItem>> {
+    private async getContinueListeningSection(
+        userId: string,
+    ): Promise<FeedSection<EpisodeFeedItem>> {
         this.logger.log(`getContinueListeningSection() called for userId: ${userId}`);
 
         try {
@@ -153,7 +168,9 @@ export class FeedService {
 
             // Calculate date threshold (30 days ago)
             const thirtyDaysAgo = new Date();
-            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - FEED_CONFIG.CONTINUE_LISTENING_MAX_DAYS);
+            thirtyDaysAgo.setDate(
+                thirtyDaysAgo.getDate() - FEED_CONFIG.CONTINUE_LISTENING_MAX_DAYS,
+            );
 
             // Fetch episodes with their metadata
             const episodes = await this.databaseService.episode.findMany({
@@ -190,7 +207,7 @@ export class FeedService {
 
             // Filter by progress percentage and map to feed items
             const items: EpisodeFeedItem[] = episodes
-                .map((episode) => {
+                .map(episode => {
                     const progressMs = playbackProgress[episode.id] || 0;
                     // Duration is stored in seconds, convert to milliseconds for comparison
                     const durationMs = (episode.duration || 1) * 1000;
@@ -258,10 +275,7 @@ export class FeedService {
                     isPublic: true,
                     generationStatus: 'COMPLETED',
                 },
-                orderBy: [
-                    { playCount: 'desc' },
-                    { likeCount: 'desc' },
-                ],
+                orderBy: [{ playCount: 'desc' }, { likeCount: 'desc' }],
                 take: FEED_CONFIG.DEFAULT_SECTION_LIMIT,
                 include: {
                     book: {
@@ -378,10 +392,7 @@ export class FeedService {
                     isPublic: true,
                     generationStatus: 'COMPLETED',
                 },
-                orderBy: [
-                    { playCount: 'desc' },
-                    { likeCount: 'desc' },
-                ],
+                orderBy: [{ playCount: 'desc' }, { likeCount: 'desc' }],
                 take: FEED_CONFIG.DEFAULT_SECTION_LIMIT,
                 include: {
                     book: {
@@ -434,7 +445,7 @@ export class FeedService {
         return {
             tab: FeedTab.BOOKS,
             sections: [popularInspirations, popularBooks, latestBooks, bestsellers].filter(
-                (section) => section.items.length > 0,
+                section => section.items.length > 0,
             ),
         };
     }
@@ -484,7 +495,7 @@ export class FeedService {
                 .sort((a, b) => b._count.episodes - a._count.episodes)
                 .slice(0, FEED_CONFIG.DEFAULT_SECTION_LIMIT);
 
-            const items: BookFeedItem[] = sortedBooks.map((book) => ({
+            const items: BookFeedItem[] = sortedBooks.map(book => ({
                 id: book.id,
                 title: book.title,
                 author: book.author ?? undefined,
@@ -545,7 +556,7 @@ export class FeedService {
             });
 
             // Calculate total play count and sort
-            const booksWithPlayCount = books.map((book) => ({
+            const booksWithPlayCount = books.map(book => ({
                 ...book,
                 totalPlayCount: book.episodes.reduce((sum, ep) => sum + ep.playCount, 0),
             }));
@@ -554,7 +565,7 @@ export class FeedService {
                 .sort((a, b) => b.totalPlayCount - a.totalPlayCount)
                 .slice(0, FEED_CONFIG.DEFAULT_SECTION_LIMIT);
 
-            const items: BookFeedItem[] = sortedBooks.map((book) => ({
+            const items: BookFeedItem[] = sortedBooks.map(book => ({
                 id: book.id,
                 title: book.title,
                 author: book.author ?? undefined,
@@ -610,7 +621,7 @@ export class FeedService {
                 },
             });
 
-            const items: BookFeedItem[] = books.map((book) => ({
+            const items: BookFeedItem[] = books.map(book => ({
                 id: book.id,
                 title: book.title,
                 author: book.author ?? undefined,
@@ -662,7 +673,7 @@ export class FeedService {
                 },
             });
 
-            const items: BookFeedItem[] = books.map((book) => ({
+            const items: BookFeedItem[] = books.map(book => ({
                 id: book.id,
                 title: book.title,
                 author: book.author ?? undefined,
@@ -696,9 +707,7 @@ export class FeedService {
 
         return {
             tab: FeedTab.PODCASTERS,
-            sections: [trending, topRated, newVoices].filter(
-                (section) => section.items.length > 0,
-            ),
+            sections: [trending, topRated, newVoices].filter(section => section.items.length > 0),
         };
     }
 
@@ -718,10 +727,7 @@ export class FeedService {
 
             const podcasters = await this.databaseService.podcaster.findMany({
                 where: { isPublic: true },
-                orderBy: [
-                    { playCount: 'desc' },
-                    { likeCount: 'desc' },
-                ],
+                orderBy: [{ playCount: 'desc' }, { likeCount: 'desc' }],
                 take: FEED_CONFIG.DEFAULT_SECTION_LIMIT,
                 include: {
                     user: {
@@ -764,10 +770,7 @@ export class FeedService {
                     isPublic: true,
                     ratingCount: { gt: 0 }, // Only podcasters with ratings
                 },
-                orderBy: [
-                    { averageRating: 'desc' },
-                    { ratingCount: 'desc' },
-                ],
+                orderBy: [{ averageRating: 'desc' }, { ratingCount: 'desc' }],
                 take: FEED_CONFIG.DEFAULT_SECTION_LIMIT,
                 include: {
                     user: {
@@ -844,7 +847,7 @@ export class FeedService {
     ): Promise<SectionPaginationResponse<EpisodeFeedItem>> {
         this.logger.log(`getEpisodeSectionPaginated() called for section: ${sectionId}`);
 
-        let where: any = {
+        const where: any = {
             isPublic: true,
             generationStatus: 'COMPLETED',
         };
@@ -955,7 +958,7 @@ export class FeedService {
             this.databaseService.book.count({ where }),
         ]);
 
-        const items: BookFeedItem[] = books.map((book) => ({
+        const items: BookFeedItem[] = books.map(book => ({
             id: book.id,
             title: book.title,
             author: book.author ?? undefined,
@@ -1055,7 +1058,7 @@ export class FeedService {
     }
 
     private mapEpisodesToFeedItems(episodes: any[]): EpisodeFeedItem[] {
-        return episodes.map((episode) => ({
+        return episodes.map(episode => ({
             id: episode.id,
             title: episode.title,
             description: episode.description,
@@ -1071,7 +1074,7 @@ export class FeedService {
     }
 
     private mapPodcastersToFeedItems(podcasters: any[]): PodcasterFeedItem[] {
-        return podcasters.map((podcaster) => ({
+        return podcasters.map(podcaster => ({
             id: podcaster.id,
             name: podcaster.name,
             bio: podcaster.bio,

@@ -1,14 +1,4 @@
-import {
-    Controller,
-    Get,
-    Post,
-    Body,
-    Query,
-    UseGuards,
-    Request,
-    Logger,
-    Redirect,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards, Request, Logger } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SubscriptionsService } from './subscriptions.service';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
@@ -41,10 +31,7 @@ export class SubscriptionsController {
      */
     @Post('checkout')
     @UseGuards(JwtAuthGuard)
-    async createCheckoutSession(
-        @Request() req,
-        @Body() dto: CreateCheckoutSessionDto,
-    ) {
+    async createCheckoutSession(@Request() req, @Body() dto: CreateCheckoutSessionDto) {
         const userId = req.user.userId;
         return this.subscriptionsService.createCheckoutSession(userId, dto.tier);
     }
@@ -77,10 +64,7 @@ export class SubscriptionsController {
      * GET /subscriptions/callback
      */
     @Get('callback')
-    async handleCallback(
-        @Query('reference') reference: string,
-        @Query('trxref') trxref: string,
-    ) {
+    async handleCallback(@Query('reference') reference: string, @Query('trxref') trxref: string) {
         const ref = reference || trxref;
         this.logger.log(`Payment callback received for reference: ${ref}`);
 
@@ -122,7 +106,7 @@ export class SubscriptionsController {
      * GET /subscriptions/success
      */
     @Get('success')
-    async handleSuccess() {
+    handleSuccess() {
         const mobileScheme = this.paystackService.getMobileAppScheme();
         return {
             message: 'Subscription successful!',
@@ -135,7 +119,7 @@ export class SubscriptionsController {
      * GET /subscriptions/cancel-redirect
      */
     @Get('cancel-redirect')
-    async handleCancelRedirect() {
+    handleCancelRedirect() {
         const mobileScheme = this.paystackService.getMobileAppScheme();
         return {
             message: 'Checkout cancelled',

@@ -47,7 +47,7 @@ export class CoverExtractionService {
             if (sourceType === 'PDF') {
                 imageBuffer = await this.extractPdfCover(fileBuffer);
             } else if (sourceType === 'EPUB') {
-                imageBuffer = await this.extractEpubCover(fileBuffer);
+                imageBuffer = this.extractEpubCover(fileBuffer);
             }
 
             if (imageBuffer && imageBuffer.length > 0) {
@@ -93,7 +93,9 @@ export class CoverExtractionService {
         isbn?: string;
     }): Promise<string | null> {
         // Log incoming metadata immediately
-        this.logger.log(`[fetchGoogleBooksCover] Called with metadata: ${JSON.stringify(metadata)}`);
+        this.logger.log(
+            `[fetchGoogleBooksCover] Called with metadata: ${JSON.stringify(metadata)}`,
+        );
 
         // Build list of queries to try in order
         const queries: string[] = [];
@@ -106,7 +108,7 @@ export class CoverExtractionService {
         // 2. Title + Author search
         if (metadata.title && metadata.author) {
             queries.push(
-                `intitle:${encodeURIComponent(metadata.title)}+inauthor:${encodeURIComponent(metadata.author)}`
+                `intitle:${encodeURIComponent(metadata.title)}+inauthor:${encodeURIComponent(metadata.author)}`,
             );
         }
 
@@ -116,12 +118,16 @@ export class CoverExtractionService {
         }
 
         if (queries.length === 0) {
-            this.logger.warn(`[fetchGoogleBooksCover] No queries could be built - no title/author/isbn in metadata`);
+            this.logger.warn(
+                `[fetchGoogleBooksCover] No queries could be built - no title/author/isbn in metadata`,
+            );
             return null;
         }
 
         // Log what we're searching for
-        this.logger.log(`Google Books search for: title="${metadata.title}", author="${metadata.author}", isbn="${metadata.isbn}"`);
+        this.logger.log(
+            `Google Books search for: title="${metadata.title}", author="${metadata.author}", isbn="${metadata.isbn}"`,
+        );
         this.logger.log(`Will try ${queries.length} queries: ${queries.join(' | ')}`);
 
         // Try each query until we find a cover
@@ -144,7 +150,7 @@ export class CoverExtractionService {
         return title
             .toLowerCase()
             .replace(/[^\w\s]/g, '') // Remove punctuation
-            .replace(/\s+/g, ' ')    // Collapse whitespace
+            .replace(/\s+/g, ' ') // Collapse whitespace
             .trim();
     }
 
@@ -162,8 +168,10 @@ export class CoverExtractionService {
         }
 
         // One contains the other (for subtitles, editions, etc.)
-        if (normalizedReturned.includes(normalizedExpected) ||
-            normalizedExpected.includes(normalizedReturned)) {
+        if (
+            normalizedReturned.includes(normalizedExpected) ||
+            normalizedExpected.includes(normalizedReturned)
+        ) {
             return true;
         }
 
@@ -181,7 +189,10 @@ export class CoverExtractionService {
      * Execute a single Google Books API query and extract cover URL.
      * Validates that the returned book title matches the expected title.
      */
-    private async tryGoogleBooksQuery(query: string, expectedTitle?: string): Promise<string | null> {
+    private async tryGoogleBooksQuery(
+        query: string,
+        expectedTitle?: string,
+    ): Promise<string | null> {
         try {
             const url = `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=5`;
             this.logger.debug(`Google Books API query: ${url}`);
@@ -208,7 +219,9 @@ export class CoverExtractionService {
                 const returnedAuthors = volumeInfo?.authors?.join(', ') || 'unknown';
                 const imageLinks = volumeInfo?.imageLinks;
 
-                this.logger.log(`  Result: "${returnedTitle}" by ${returnedAuthors}, hasImage: ${!!imageLinks}`);
+                this.logger.log(
+                    `  Result: "${returnedTitle}" by ${returnedAuthors}, hasImage: ${!!imageLinks}`,
+                );
 
                 // Skip results without images
                 if (!imageLinks) {
@@ -219,7 +232,9 @@ export class CoverExtractionService {
                 // Validate title match if expected title provided
                 if (expectedTitle && returnedTitle) {
                     if (!this.titlesMatch(expectedTitle, returnedTitle)) {
-                        this.logger.log(`    Skipping - title mismatch: expected "${expectedTitle}"`);
+                        this.logger.log(
+                            `    Skipping - title mismatch: expected "${expectedTitle}"`,
+                        );
                         continue;
                     }
                     this.logger.log(`    Title match confirmed!`);
@@ -250,7 +265,9 @@ export class CoverExtractionService {
                         cleanUrl += (cleanUrl.includes('?') ? '&' : '?') + 'zoom=4';
                     }
 
-                    this.logger.log(`Found Google Books cover for "${returnedTitle}" (query: "${query}"): ${cleanUrl}`);
+                    this.logger.log(
+                        `Found Google Books cover for "${returnedTitle}" (query: "${query}"): ${cleanUrl}`,
+                    );
                     return cleanUrl;
                 }
             }
@@ -322,35 +339,49 @@ export class CoverExtractionService {
                                     imageDataArray = new Uint8ClampedArray(img.data);
                                 } else if (channels === 3) {
                                     // RGB - convert to RGBA
-                                    imageDataArray = new Uint8ClampedArray(img.width * img.height * 4);
+                                    imageDataArray = new Uint8ClampedArray(
+                                        img.width * img.height * 4,
+                                    );
                                     for (let i = 0, j = 0; i < img.data.length; i += 3, j += 4) {
-                                        imageDataArray[j] = img.data[i];         // R
+                                        imageDataArray[j] = img.data[i]; // R
                                         imageDataArray[j + 1] = img.data[i + 1]; // G
                                         imageDataArray[j + 2] = img.data[i + 2]; // B
-                                        imageDataArray[j + 3] = 255;             // A
+                                        imageDataArray[j + 3] = 255; // A
                                     }
                                 } else if (channels === 1) {
                                     // Grayscale - convert to RGBA
-                                    imageDataArray = new Uint8ClampedArray(img.width * img.height * 4);
+                                    imageDataArray = new Uint8ClampedArray(
+                                        img.width * img.height * 4,
+                                    );
                                     for (let i = 0, j = 0; i < img.data.length; i++, j += 4) {
-                                        imageDataArray[j] = img.data[i];     // R
+                                        imageDataArray[j] = img.data[i]; // R
                                         imageDataArray[j + 1] = img.data[i]; // G
                                         imageDataArray[j + 2] = img.data[i]; // B
-                                        imageDataArray[j + 3] = 255;         // A
+                                        imageDataArray[j + 3] = 255; // A
                                     }
                                 } else {
                                     continue; // Skip unsupported format
                                 }
 
-                                const imageData = createImageData(imageDataArray, img.width, img.height);
+                                const imageData = createImageData(
+                                    imageDataArray,
+                                    img.width,
+                                    img.height,
+                                );
                                 imgContext.putImageData(imageData, 0, 0);
 
-                                const imageBuffer = imgCanvas.toBuffer('image/jpeg', { quality: 0.85 });
-                                this.logger.log(`Extracted embedded image from PDF: ${img.width}x${img.height}, ${imageBuffer.length} bytes`);
+                                const imageBuffer = imgCanvas.toBuffer('image/jpeg', {
+                                    quality: 0.85,
+                                });
+                                this.logger.log(
+                                    `Extracted embedded image from PDF: ${img.width}x${img.height}, ${imageBuffer.length} bytes`,
+                                );
                                 return imageBuffer;
                             }
                         } catch (imgError) {
-                            this.logger.debug(`Failed to extract image ${imgName}: ${imgError.message}`);
+                            this.logger.debug(
+                                `Failed to extract image ${imgName}: ${imgError.message}`,
+                            );
                         }
                     }
                 }
@@ -392,7 +423,7 @@ export class CoverExtractionService {
      * Note: @gxl/epub-parser doesn't directly expose cover images,
      * so we rely on Google Books API for EPUB covers.
      */
-    private async extractEpubCover(_buffer: Buffer): Promise<Buffer | null> {
+    private extractEpubCover(_buffer: Buffer): Buffer | null {
         // EPUB cover extraction requires parsing the OPF manifest and extracting
         // the referenced image file from the ZIP archive. The @gxl/epub-parser
         // library doesn't expose this functionality directly.

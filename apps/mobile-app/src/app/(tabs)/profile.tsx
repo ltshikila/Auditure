@@ -58,7 +58,7 @@ function SettingItem({ icon, label, value, onValueChange, disabled }: SettingIte
 }
 
 export default function Profile() {
-    const { user, logout } = useAuth();
+    const { logout } = useAuth();
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [settings, setSettings] = useState<UserSettings | null>(null);
     const [subscription, setSubscription] = useState<Subscription | null>(null);

@@ -170,14 +170,14 @@ export const FEED_CONFIG = {
 
     // Cache TTLs (in seconds)
     CACHE_TTL: {
-        EPISODES_POPULAR: 300,      // 5 minutes
-        EPISODES_LATEST: 120,       // 2 minutes
-        BOOKS_POPULAR: 600,         // 10 minutes
-        BOOKS_LATEST: 300,          // 5 minutes
-        PODCASTERS_TRENDING: 300,   // 5 minutes
-        PODCASTERS_TOP_RATED: 600,  // 10 minutes
+        EPISODES_POPULAR: 300, // 5 minutes
+        EPISODES_LATEST: 120, // 2 minutes
+        BOOKS_POPULAR: 600, // 10 minutes
+        BOOKS_LATEST: 300, // 5 minutes
+        PODCASTERS_TRENDING: 300, // 5 minutes
+        PODCASTERS_TOP_RATED: 600, // 10 minutes
         PODCASTERS_NEW_VOICES: 300, // 5 minutes
-        USER_CONTINUE: 60,          // 1 minute
+        USER_CONTINUE: 60, // 1 minute
     },
 
     // Cache keys

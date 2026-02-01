@@ -84,7 +84,9 @@ export class BooksService {
             } catch (storageError) {
                 this.logger.error(`Storage upload failed: ${storageError.message}`);
                 this.logger.error(`Storage error stack: ${storageError.stack}`);
-                throw new BadRequestException(`Failed to upload file to storage: ${storageError.message}`);
+                throw new BadRequestException(
+                    `Failed to upload file to storage: ${storageError.message}`,
+                );
             }
 
             // 4. Create book record
@@ -139,7 +141,9 @@ export class BooksService {
                 this.logger.error(`RabbitMQ publish failed: ${mqError.message}`);
                 this.logger.error(`RabbitMQ error stack: ${mqError.stack}`);
                 // Don't throw - the book is created, extraction can be retried
-                this.logger.warn('Book created but extraction job failed to queue - can be retried later');
+                this.logger.warn(
+                    'Book created but extraction job failed to queue - can be retried later',
+                );
             }
 
             this.logger.log(`uploadBook() completed successfully for book ${book.id}`);

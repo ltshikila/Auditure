@@ -1,11 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PodcastersService } from './podcasters.service';
 import { DatabaseService } from '../database/database.service';
-import {
-    NotFoundException,
-    ForbiddenException,
-    BadRequestException,
-} from '@nestjs/common';
+import { NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import {
     createMockPodcaster,
     createPublicMockPodcaster,
@@ -109,9 +105,7 @@ describe('PodcastersService', () => {
                 await service.create('test-user-id', dto);
             }
 
-            expect(databaseService.podcaster.create).toHaveBeenCalledTimes(
-                validAngles.length,
-            );
+            expect(databaseService.podcaster.create).toHaveBeenCalledTimes(validAngles.length);
         });
     });
 
@@ -149,7 +143,7 @@ describe('PodcastersService', () => {
             ];
             mockPrismaClient.podcaster.count.mockResolvedValue(50);
             mockPrismaClient.podcaster.findMany.mockResolvedValue(
-                mockPodcasters.map((p) => ({
+                mockPodcasters.map(p => ({
                     ...p,
                     user: { id: 'user-1', firstName: 'John', lastName: 'Doe' },
                 })),
@@ -245,7 +239,7 @@ describe('PodcastersService', () => {
         it('should return trending podcasters from last 30 days', async () => {
             const mockPodcasters = [createTrendingMockPodcaster()];
             mockPrismaClient.podcaster.findMany.mockResolvedValue(
-                mockPodcasters.map((p) => ({
+                mockPodcasters.map(p => ({
                     ...p,
                     user: { id: 'user-1', firstName: 'John', lastName: 'Doe' },
                 })),
@@ -273,7 +267,7 @@ describe('PodcastersService', () => {
         it('should return podcasters with specific expertise tag', async () => {
             const mockPodcasters = [createPublicMockPodcaster()];
             mockPrismaClient.podcaster.findMany.mockResolvedValue(
-                mockPodcasters.map((p) => ({
+                mockPodcasters.map(p => ({
                     ...p,
                     user: { id: 'user-1', firstName: 'John', lastName: 'Doe' },
                 })),
@@ -341,9 +335,7 @@ describe('PodcastersService', () => {
         it('should throw NotFoundException if podcaster does not exist', async () => {
             mockPrismaClient.podcaster.findUnique.mockResolvedValue(null);
 
-            await expect(service.findOne('non-existent-id')).rejects.toThrow(
-                NotFoundException,
-            );
+            await expect(service.findOne('non-existent-id')).rejects.toThrow(NotFoundException);
         });
     });
 

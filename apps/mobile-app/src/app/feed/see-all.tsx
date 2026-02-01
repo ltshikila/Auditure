@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -48,7 +48,7 @@ const getItemType = (section: string): 'episode' | 'book' | 'podcaster' => {
 };
 
 export default function SeeAllScreen() {
-    const { section, tab } = useLocalSearchParams<{ section: string; tab: string }>();
+    const { section } = useLocalSearchParams<{ section: string }>();
     const { getAccessToken } = useAuth();
 
     const [items, setItems] = useState<(EpisodeFeedItem | BookFeedItem | PodcasterFeedItem)[]>([]);

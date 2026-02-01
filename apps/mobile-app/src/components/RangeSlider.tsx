@@ -57,10 +57,6 @@ export const RangeSlider: React.FC<RangeSliderProps> = ({
         return Math.max(minValue, Math.min(maxValue, steppedValue));
     }, [minValue, maxValue, sliderWidth, range, step]);
 
-    const valueToPosition = useCallback((value: number): number => {
-        return ((value - minValue) / range) * (sliderWidth - THUMB_SIZE);
-    }, [minValue, range, sliderWidth]);
-
     const updateValues = useCallback((newMin: number, newMax: number) => {
         setCurrentMin(newMin);
         setCurrentMax(newMax);

@@ -78,7 +78,7 @@ export const mockRedisServiceWithStreams = {
 };
 
 export const mockNotificationsService = {
-    create: jest.fn().mockImplementation((payload) => ({
+    create: jest.fn().mockImplementation(payload => ({
         id: 'mock-notification-id',
         ...payload,
         read: false,

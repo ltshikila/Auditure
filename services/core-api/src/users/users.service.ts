@@ -1,15 +1,14 @@
-import {
-    Injectable,
-    NotFoundException,
-    ForbiddenException,
-    Logger,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { DatabaseService } from '../database/database.service';
 import { StorageService } from '../common/storage.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { DeleteAccountDto } from './dto/delete-account.dto';
-import { UpdateSettingsDto, UserSettingsResponseDto, ThemePreference } from './dto/user-settings.dto';
+import {
+    UpdateSettingsDto,
+    UserSettingsResponseDto,
+    ThemePreference,
+} from './dto/user-settings.dto';
 import { AcceptTermsDto } from './dto/accept-terms.dto';
 import { UserProfileResponseDto } from './dto/user-profile.dto';
 
@@ -141,28 +140,36 @@ export class UsersService {
         // Delete book files
         for (const book of books) {
             if (book.fileStorageKey) {
-                await this.storageService.deleteFile(book.fileStorageKey).catch((e) =>
-                    this.logger.warn(`Failed to delete ${book.fileStorageKey}: ${e.message}`),
-                );
+                await this.storageService
+                    .deleteFile(book.fileStorageKey)
+                    .catch(e =>
+                        this.logger.warn(`Failed to delete ${book.fileStorageKey}: ${e.message}`),
+                    );
             }
             if (book.fullTextKey) {
-                await this.storageService.deleteFile(book.fullTextKey).catch((e) =>
-                    this.logger.warn(`Failed to delete ${book.fullTextKey}: ${e.message}`),
-                );
+                await this.storageService
+                    .deleteFile(book.fullTextKey)
+                    .catch(e =>
+                        this.logger.warn(`Failed to delete ${book.fullTextKey}: ${e.message}`),
+                    );
             }
             if (book.coverImageKey) {
-                await this.storageService.deleteFile(book.coverImageKey).catch((e) =>
-                    this.logger.warn(`Failed to delete ${book.coverImageKey}: ${e.message}`),
-                );
+                await this.storageService
+                    .deleteFile(book.coverImageKey)
+                    .catch(e =>
+                        this.logger.warn(`Failed to delete ${book.coverImageKey}: ${e.message}`),
+                    );
             }
         }
 
         // Delete episode audio files
         for (const episode of episodes) {
             if (episode.audioFileKey) {
-                await this.storageService.deleteFile(episode.audioFileKey).catch((e) =>
-                    this.logger.warn(`Failed to delete ${episode.audioFileKey}: ${e.message}`),
-                );
+                await this.storageService
+                    .deleteFile(episode.audioFileKey)
+                    .catch(e =>
+                        this.logger.warn(`Failed to delete ${episode.audioFileKey}: ${e.message}`),
+                    );
             }
         }
 
@@ -343,12 +350,18 @@ Last updated: January 2025`,
                 geminiEpisodes: {
                     used: subscription.geminiEpisodesUsed,
                     limit: subscription.geminiEpisodeLimit,
-                    remaining: Math.max(0, subscription.geminiEpisodeLimit - subscription.geminiEpisodesUsed),
+                    remaining: Math.max(
+                        0,
+                        subscription.geminiEpisodeLimit - subscription.geminiEpisodesUsed,
+                    ),
                 },
                 standardEpisodes: {
                     used: subscription.standardEpisodesUsed,
                     limit: subscription.standardEpisodeLimit,
-                    remaining: Math.max(0, subscription.standardEpisodeLimit - subscription.standardEpisodesUsed),
+                    remaining: Math.max(
+                        0,
+                        subscription.standardEpisodeLimit - subscription.standardEpisodesUsed,
+                    ),
                 },
             },
             periodStart: subscription.usagePeriodStart,
@@ -365,7 +378,9 @@ Last updated: January 2025`,
         const subscription = await this.getSubscription(userId);
 
         const usage =
-            voiceTier === 'GEMINI' ? subscription.usage.geminiEpisodes : subscription.usage.standardEpisodes;
+            voiceTier === 'GEMINI'
+                ? subscription.usage.geminiEpisodes
+                : subscription.usage.standardEpisodes;
 
         if (usage.remaining <= 0) {
             this.logger.warn(`User ${userId} has exceeded ${voiceTier} quota`);

@@ -1,9 +1,4 @@
-import {
-    Injectable,
-    OnModuleInit,
-    OnModuleDestroy,
-    Logger,
-} from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 
 @Injectable()
@@ -19,7 +14,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
             lazyConnect: true,
         });
 
-        this.client.on('error', (err) => {
+        this.client.on('error', err => {
             this.logger.error('Redis connection error:', err.message);
         });
 
@@ -30,10 +25,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         try {
             await this.client.connect();
         } catch (error) {
-            this.logger.warn(
-                'Redis connection failed, caching will be disabled:',
-                error.message,
-            );
+            this.logger.warn('Redis connection failed, caching will be disabled:', error.message);
         }
     }
 
@@ -51,11 +43,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     // Job Progress Tracking (Episode Generation)
     // ============================================
 
-    async setJobProgress(
-        jobId: string,
-        progress: number,
-        status: string,
-    ): Promise<void> {
+    async setJobProgress(jobId: string, progress: number, status: string): Promise<void> {
         if (!this.isConnected()) return;
 
         try {
@@ -117,35 +105,23 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
             // Keep playback progress for 30 days
             await this.client.expire(key, 30 * 24 * 60 * 60);
         } catch (error) {
-            this.logger.error(
-                `Error setting playback progress: ${error.message}`,
-            );
+            this.logger.error(`Error setting playback progress: ${error.message}`);
         }
     }
 
-    async getPlaybackProgress(
-        userId: string,
-        episodeId: string,
-    ): Promise<number | null> {
+    async getPlaybackProgress(userId: string, episodeId: string): Promise<number | null> {
         if (!this.isConnected()) return null;
 
         try {
-            const position = await this.client.hget(
-                `playback:${userId}`,
-                episodeId,
-            );
+            const position = await this.client.hget(`playback:${userId}`, episodeId);
             return position ? parseInt(position) : null;
         } catch (error) {
-            this.logger.error(
-                `Error getting playback progress: ${error.message}`,
-            );
+            this.logger.error(`Error getting playback progress: ${error.message}`);
             return null;
         }
     }
 
-    async getAllPlaybackProgress(
-        userId: string,
-    ): Promise<Record<string, number>> {
+    async getAllPlaybackProgress(userId: string): Promise<Record<string, number>> {
         if (!this.isConnected()) return {};
 
         try {
@@ -156,25 +132,18 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
             }
             return result;
         } catch (error) {
-            this.logger.error(
-                `Error getting all playback progress: ${error.message}`,
-            );
+            this.logger.error(`Error getting all playback progress: ${error.message}`);
             return {};
         }
     }
 
-    async deletePlaybackProgress(
-        userId: string,
-        episodeId: string,
-    ): Promise<void> {
+    async deletePlaybackProgress(userId: string, episodeId: string): Promise<void> {
         if (!this.isConnected()) return;
 
         try {
             await this.client.hdel(`playback:${userId}`, episodeId);
         } catch (error) {
-            this.logger.error(
-                `Error deleting playback progress: ${error.message}`,
-            );
+            this.logger.error(`Error deleting playback progress: ${error.message}`);
         }
     }
 
@@ -189,11 +158,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
      * @param windowSeconds - Time window in seconds
      * @returns true if within limit, false if exceeded
      */
-    async checkRateLimit(
-        key: string,
-        limit: number,
-        windowSeconds: number,
-    ): Promise<boolean> {
+    async checkRateLimit(key: string, limit: number, windowSeconds: number): Promise<boolean> {
         if (!this.isConnected()) return true; // Allow if Redis is down
 
         try {
@@ -230,9 +195,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
                 resetIn: Math.max(0, ttl),
             };
         } catch (error) {
-            this.logger.error(
-                `Error getting rate limit remaining: ${error.message}`,
-            );
+            this.logger.error(`Error getting rate limit remaining: ${error.message}`);
             return { remaining: limit, resetIn: 0 };
         }
     }
@@ -264,13 +227,19 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
                 '0',
                 'MKSTREAM',
             );
-            this.logger.log(`Created notification stream consumer group: ${this.NOTIFICATION_CONSUMER_GROUP}`);
+            this.logger.log(
+                `Created notification stream consumer group: ${this.NOTIFICATION_CONSUMER_GROUP}`,
+            );
         } catch (error) {
             // BUSYGROUP error means the group already exists, which is fine
             if (error.message?.includes('BUSYGROUP')) {
-                this.logger.log(`Notification stream consumer group already exists: ${this.NOTIFICATION_CONSUMER_GROUP}`);
+                this.logger.log(
+                    `Notification stream consumer group already exists: ${this.NOTIFICATION_CONSUMER_GROUP}`,
+                );
             } else {
-                this.logger.error(`Error creating notification stream consumer group: ${error.message}`);
+                this.logger.error(
+                    `Error creating notification stream consumer group: ${error.message}`,
+                );
                 throw error;
             }
         }
@@ -298,15 +267,24 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
             const messageId = await this.client.xadd(
                 this.NOTIFICATION_STREAM,
                 '*', // Auto-generate message ID
-                'notificationId', notification.notificationId,
-                'userId', notification.userId,
-                'type', notification.type,
-                'title', notification.title,
-                'body', notification.body,
-                'data', notification.data || '',
-                'createdAt', new Date().toISOString(),
+                'notificationId',
+                notification.notificationId,
+                'userId',
+                notification.userId,
+                'type',
+                notification.type,
+                'title',
+                notification.title,
+                'body',
+                notification.body,
+                'data',
+                notification.data || '',
+                'createdAt',
+                new Date().toISOString(),
             );
-            this.logger.log(`Added notification ${notification.notificationId} to stream with ID: ${messageId}`);
+            this.logger.log(
+                `Added notification ${notification.notificationId} to stream with ID: ${messageId}`,
+            );
             return messageId;
         } catch (error) {
             this.logger.error(`Error adding notification to stream: ${error.message}`);
@@ -326,16 +304,18 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         consumerName: string,
         count: number = 10,
         blockMs: number = 5000,
-    ): Promise<Array<{
-        id: string;
-        notificationId: string;
-        userId: string;
-        type: string;
-        title: string;
-        body: string;
-        data?: string;
-        createdAt: string;
-    }>> {
+    ): Promise<
+        Array<{
+            id: string;
+            notificationId: string;
+            userId: string;
+            type: string;
+            title: string;
+            body: string;
+            data?: string;
+            createdAt: string;
+        }>
+    > {
         if (!this.isConnected()) return [];
 
         try {
@@ -412,12 +392,14 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
      * Useful for handling failed/stuck notifications.
      * @param count - Maximum number of pending messages to return
      */
-    async getPendingNotifications(count: number = 100): Promise<Array<{
-        id: string;
-        consumer: string;
-        idleTime: number;
-        deliveryCount: number;
-    }>> {
+    async getPendingNotifications(count: number = 100): Promise<
+        Array<{
+            id: string;
+            consumer: string;
+            idleTime: number;
+            deliveryCount: number;
+        }>
+    > {
         if (!this.isConnected()) return [];
 
         try {

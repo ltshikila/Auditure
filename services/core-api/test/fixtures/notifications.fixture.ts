@@ -125,11 +125,7 @@ export const createSystemNotification = (overrides = {}) =>
 /**
  * Create an array of mock notifications for pagination testing.
  */
-export const createMockNotificationList = (
-    count: number,
-    userId: string,
-    overrides = {},
-) => {
+export const createMockNotificationList = (count: number, userId: string, overrides = {}) => {
     return Array.from({ length: count }, (_, index) =>
         createMockNotification({
             userId,

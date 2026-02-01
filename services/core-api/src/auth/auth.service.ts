@@ -58,7 +58,9 @@ export class AuthService {
             });
 
             if (existingUser) {
-                this.logger.warn(`Registration failed: Email already registered - ${registerDto.email}`);
+                this.logger.warn(
+                    `Registration failed: Email already registered - ${registerDto.email}`,
+                );
                 throw new ConflictException('Email already registered');
             }
 
@@ -102,7 +104,8 @@ export class AuthService {
 
             this.logger.log(`Registration completed successfully for: ${user.email}`);
             return {
-                message: 'Registration successful. Please check your email for the verification code.',
+                message:
+                    'Registration successful. Please check your email for the verification code.',
                 email: user.email,
             };
         } catch (error) {
@@ -204,7 +207,9 @@ export class AuthService {
 
             if (!user.otpCode || !user.otpExpiry) {
                 this.logger.warn(`Verification failed: No OTP found for - ${verifyDto.email}`);
-                throw new BadRequestException('No verification code found. Please request a new one.');
+                throw new BadRequestException(
+                    'No verification code found. Please request a new one.',
+                );
             }
 
             if (new Date() > user.otpExpiry) {

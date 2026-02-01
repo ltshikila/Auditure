@@ -57,10 +57,7 @@ export class PodcastersController {
      */
     @Get('expertise/:tag')
     findByExpertise(@Param('tag') tag: string, @Query('limit') limit?: number) {
-        return this.podcastersService.findByExpertise(
-            tag,
-            limit ? Number(limit) : 20,
-        );
+        return this.podcastersService.findByExpertise(tag, limit ? Number(limit) : 20);
     }
 
     /**
@@ -160,11 +157,7 @@ export class PodcastersController {
      */
     @Post(':id/rate')
     @UseGuards(JwtAuthGuard)
-    async rate(
-        @Param('id') id: string,
-        @Request() req,
-        @Body('rating') rating: number,
-    ) {
+    async rate(@Param('id') id: string, @Request() req, @Body('rating') rating: number) {
         return this.podcastersService.ratePodcaster(id, req.user.userId, rating);
     }
 
@@ -175,10 +168,7 @@ export class PodcastersController {
     @Get(':id/rating')
     @UseGuards(JwtAuthGuard)
     async getUserRating(@Param('id') id: string, @Request() req) {
-        const rating = await this.podcastersService.getUserRating(
-            id,
-            req.user.userId,
-        );
+        const rating = await this.podcastersService.getUserRating(id, req.user.userId);
         return { rating };
     }
 }

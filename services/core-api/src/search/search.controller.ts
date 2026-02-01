@@ -46,11 +46,7 @@ export class SearchController {
     @Get('suggestions')
     @UseGuards(OptionalJwtAuthGuard)
     @HttpCode(HttpStatus.OK)
-    async getSuggestions(
-        @Query('q') q: string,
-        @Query('limit') limit?: string,
-        @Request() req?,
-    ) {
+    async getSuggestions(@Query('q') q: string, @Query('limit') limit?: string, @Request() req?) {
         const userId = req?.user?.userId;
         const parsedLimit = limit ? Math.min(parseInt(limit, 10), 10) : 5;
 

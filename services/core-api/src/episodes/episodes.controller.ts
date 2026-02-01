@@ -77,7 +77,9 @@ export class EpisodesController {
         @Body() createEpisodeDto: CreateEpisodeWithFileDto,
     ) {
         this.logger.log(`createWithFile called by user: ${req.user.userId}`);
-        this.logger.log(`File received: ${file ? `${file.originalname} (${file.mimetype}, ${file.size} bytes)` : 'NO FILE'}`);
+        this.logger.log(
+            `File received: ${file ? `${file.originalname} (${file.mimetype}, ${file.size} bytes)` : 'NO FILE'}`,
+        );
         this.logger.log(`DTO: ${JSON.stringify(createEpisodeDto)}`);
 
         if (!file) {
@@ -86,7 +88,11 @@ export class EpisodesController {
         }
 
         try {
-            const result = await this.episodesService.createWithFile(req.user.userId, file, createEpisodeDto);
+            const result = await this.episodesService.createWithFile(
+                req.user.userId,
+                file,
+                createEpisodeDto,
+            );
             this.logger.log(`Episode created successfully: ${result.episode.id}`);
             return result;
         } catch (error) {
@@ -119,14 +125,8 @@ export class EpisodesController {
      * GET /episodes/podcaster/:podcasterId?limit=20
      */
     @Get('podcaster/:podcasterId')
-    findByPodcaster(
-        @Param('podcasterId') podcasterId: string,
-        @Query('limit') limit?: number,
-    ) {
-        return this.episodesService.findByPodcaster(
-            podcasterId,
-            limit ? Number(limit) : 20,
-        );
+    findByPodcaster(@Param('podcasterId') podcasterId: string, @Query('limit') limit?: number) {
+        return this.episodesService.findByPodcaster(podcasterId, limit ? Number(limit) : 20);
     }
 
     /**
@@ -167,11 +167,7 @@ export class EpisodesController {
      */
     @Patch(':id')
     @UseGuards(JwtAuthGuard)
-    update(
-        @Param('id') id: string,
-        @Request() req,
-        @Body() updateEpisodeDto: UpdateEpisodeDto,
-    ) {
+    update(@Param('id') id: string, @Request() req, @Body() updateEpisodeDto: UpdateEpisodeDto) {
         return this.episodesService.update(id, req.user.userId, updateEpisodeDto);
     }
 
@@ -260,12 +256,7 @@ export class EpisodesController {
         @Res({ passthrough: true }) res: Response,
         @Headers('range') range?: string,
     ): Promise<StreamableFile> {
-        return this.episodesService.streamAudio(
-            id,
-            req.user?.userId,
-            range,
-            res,
-        );
+        return this.episodesService.streamAudio(id, req.user?.userId, range, res);
     }
 
     /**
@@ -280,11 +271,7 @@ export class EpisodesController {
         @Request() req,
         @Body() body: { position: number },
     ) {
-        await this.episodesService.savePlaybackProgress(
-            req.user.userId,
-            id,
-            body.position,
-        );
+        await this.episodesService.savePlaybackProgress(req.user.userId, id, body.position);
     }
 
     /**

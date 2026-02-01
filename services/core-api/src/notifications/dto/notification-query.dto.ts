@@ -1,12 +1,4 @@
-import {
-    IsOptional,
-    IsInt,
-    Min,
-    Max,
-    IsBoolean,
-    IsEnum,
-    IsString,
-} from 'class-validator';
+import { IsOptional, IsInt, Min, Max, IsBoolean, IsEnum, IsString } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { NotificationType } from '../interfaces/notification-payload.interface';
 

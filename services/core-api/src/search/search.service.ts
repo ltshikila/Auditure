@@ -162,10 +162,7 @@ export class SearchService {
             ],
             AND: [
                 {
-                    OR: [
-                        { isPublic: true },
-                        ...(userId ? [{ userId }] : []),
-                    ],
+                    OR: [{ isPublic: true }, ...(userId ? [{ userId }] : [])],
                 },
             ],
         };
@@ -200,7 +197,7 @@ export class SearchService {
         this.logger.log(`searchEpisodes() found ${total} episodes`);
 
         return {
-            results: episodes.map((ep) => ({
+            results: episodes.map(ep => ({
                 id: ep.id,
                 title: ep.title,
                 description: ep.description,
@@ -277,7 +274,9 @@ export class SearchService {
         page: number,
         limit: number,
     ): Promise<{ results: PodcasterSearchResult[]; total: number }> {
-        this.logger.log(`searchPodcasters() called: query="${query}", page=${page}, limit=${limit}`);
+        this.logger.log(
+            `searchPodcasters() called: query="${query}", page=${page}, limit=${limit}`,
+        );
 
         const skip = (page - 1) * limit;
 
@@ -290,10 +289,7 @@ export class SearchService {
             ],
             AND: [
                 {
-                    OR: [
-                        { isPublic: true },
-                        ...(userId ? [{ userId }] : []),
-                    ],
+                    OR: [{ isPublic: true }, ...(userId ? [{ userId }] : [])],
                 },
             ],
         };
@@ -320,7 +316,7 @@ export class SearchService {
         this.logger.log(`searchPodcasters() found ${total} podcasters`);
 
         return {
-            results: podcasters.map((p) => ({
+            results: podcasters.map(p => ({
                 id: p.id,
                 name: p.name,
                 description: p.description,
@@ -364,9 +360,7 @@ export class SearchService {
         books: { id: string; title: string }[];
         podcasters: { id: string; name: string }[];
     }> {
-        this.logger.log(
-            `getSuggestions() called: query="${partialQuery}", limit=${limit}`,
-        );
+        this.logger.log(`getSuggestions() called: query="${partialQuery}", limit=${limit}`);
 
         const sanitizedQuery = this.sanitizeQuery(partialQuery);
         if (!sanitizedQuery || sanitizedQuery.length < 2) {

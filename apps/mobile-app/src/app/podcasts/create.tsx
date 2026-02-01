@@ -1,5 +1,4 @@
 import {
-    StyleSheet,
     Text,
     View,
     TextInput,
@@ -657,5 +656,3 @@ const Create = () => {
 };
 
 export default Create;
-
-const styles = StyleSheet.create({});

@@ -113,7 +113,7 @@ describe('FeedService', () => {
 
                 // Continue listening section should be filtered out if empty
                 const continueSection = result.sections.find(
-                    (s) => s.id === EpisodeSectionId.CONTINUE_LISTENING,
+                    s => s.id === EpisodeSectionId.CONTINUE_LISTENING,
                 );
                 expect(continueSection).toBeUndefined();
             });
@@ -138,7 +138,7 @@ describe('FeedService', () => {
                 const result = await service.getFeed(FeedTab.EPISODES, MOCK_USER_ID);
 
                 const continueSection = result.sections.find(
-                    (s) => s.id === EpisodeSectionId.CONTINUE_LISTENING,
+                    s => s.id === EpisodeSectionId.CONTINUE_LISTENING,
                 );
                 expect(continueSection).toBeDefined();
                 expect(continueSection!.items).toHaveLength(1);
@@ -171,7 +171,7 @@ describe('FeedService', () => {
                 const result = await service.getFeed(FeedTab.EPISODES, MOCK_USER_ID);
 
                 const continueSection = result.sections.find(
-                    (s) => s.id === EpisodeSectionId.CONTINUE_LISTENING,
+                    s => s.id === EpisodeSectionId.CONTINUE_LISTENING,
                 );
                 expect(continueSection!.items.length).toBeLessThanOrEqual(
                     FEED_CONFIG.CONTINUE_LISTENING_MAX_ITEMS,
@@ -195,7 +195,7 @@ describe('FeedService', () => {
                 const result = await service.getFeed(FeedTab.EPISODES, MOCK_USER_ID);
 
                 const continueSection = result.sections.find(
-                    (s) => s.id === EpisodeSectionId.CONTINUE_LISTENING,
+                    s => s.id === EpisodeSectionId.CONTINUE_LISTENING,
                 );
                 expect(continueSection).toBeUndefined();
             });
@@ -221,7 +221,7 @@ describe('FeedService', () => {
                 const result = await service.getFeed(FeedTab.EPISODES, MOCK_USER_ID);
 
                 const continueSection = result.sections.find(
-                    (s) => s.id === EpisodeSectionId.CONTINUE_LISTENING,
+                    s => s.id === EpisodeSectionId.CONTINUE_LISTENING,
                 );
                 expect(continueSection).toBeUndefined();
             });
@@ -252,9 +252,7 @@ describe('FeedService', () => {
 
                 const result = await service.getFeed(FeedTab.EPISODES, MOCK_USER_ID);
 
-                const popularSection = result.sections.find(
-                    (s) => s.id === EpisodeSectionId.POPULAR,
-                );
+                const popularSection = result.sections.find(s => s.id === EpisodeSectionId.POPULAR);
                 expect(popularSection).toBeDefined();
                 expect(popularSection!.items.length).toBeGreaterThan(0);
             });
@@ -306,9 +304,7 @@ describe('FeedService', () => {
 
                 const result = await service.getFeed(FeedTab.EPISODES, MOCK_USER_ID);
 
-                const latestSection = result.sections.find(
-                    (s) => s.id === EpisodeSectionId.LATEST,
-                );
+                const latestSection = result.sections.find(s => s.id === EpisodeSectionId.LATEST);
                 expect(latestSection).toBeDefined();
             });
         });
@@ -331,7 +327,7 @@ describe('FeedService', () => {
                 const result = await service.getFeed(FeedTab.BOOKS, MOCK_USER_ID);
 
                 const inspirationsSection = result.sections.find(
-                    (s) => s.id === BookSectionId.POPULAR_INSPIRATIONS,
+                    s => s.id === BookSectionId.POPULAR_INSPIRATIONS,
                 );
                 expect(inspirationsSection).toBeDefined();
             });
@@ -353,7 +349,7 @@ describe('FeedService', () => {
                 const result = await service.getFeed(FeedTab.BOOKS, MOCK_USER_ID);
 
                 const popularSection = result.sections.find(
-                    (s) => s.id === BookSectionId.POPULAR_BOOKS,
+                    s => s.id === BookSectionId.POPULAR_BOOKS,
                 );
                 expect(popularSection).toBeDefined();
             });
@@ -361,16 +357,14 @@ describe('FeedService', () => {
 
         describe('Latest Books Section', () => {
             it('should return books sorted by createdAt', async () => {
-                const mockBooks = [
-                    { ...createMockBookWithCount(), _count: { episodes: 2 } },
-                ];
+                const mockBooks = [{ ...createMockBookWithCount(), _count: { episodes: 2 } }];
 
                 mockPrismaClient.book.findMany.mockResolvedValue(mockBooks);
 
                 const result = await service.getFeed(FeedTab.BOOKS, MOCK_USER_ID);
 
                 const latestSection = result.sections.find(
-                    (s) => s.id === BookSectionId.LATEST_BOOKS,
+                    s => s.id === BookSectionId.LATEST_BOOKS,
                 );
                 expect(latestSection).toBeDefined();
             });
@@ -383,7 +377,7 @@ describe('FeedService', () => {
                 // Check that at least one call includes extractionStatus filter
                 const calls = mockPrismaClient.book.findMany.mock.calls;
                 const hasExtractionStatusFilter = calls.some(
-                    (call) => call[0]?.where?.extractionStatus === 'COMPLETED',
+                    call => call[0]?.where?.extractionStatus === 'COMPLETED',
                 );
                 expect(hasExtractionStatusFilter).toBe(true);
             });
@@ -391,16 +385,14 @@ describe('FeedService', () => {
 
         describe('Bestsellers Section', () => {
             it('should return bestsellers (MVP: static list)', async () => {
-                const mockBooks = [
-                    { ...createMockBookWithCount(), _count: { episodes: 3 } },
-                ];
+                const mockBooks = [{ ...createMockBookWithCount(), _count: { episodes: 3 } }];
 
                 mockPrismaClient.book.findMany.mockResolvedValue(mockBooks);
 
                 const result = await service.getFeed(FeedTab.BOOKS, MOCK_USER_ID);
 
                 const bestsellersSection = result.sections.find(
-                    (s) => s.id === BookSectionId.BESTSELLERS,
+                    s => s.id === BookSectionId.BESTSELLERS,
                 );
                 expect(bestsellersSection).toBeDefined();
             });
@@ -424,7 +416,7 @@ describe('FeedService', () => {
                 const result = await service.getFeed(FeedTab.PODCASTERS, MOCK_USER_ID);
 
                 const trendingSection = result.sections.find(
-                    (s) => s.id === PodcasterSectionId.TRENDING,
+                    s => s.id === PodcasterSectionId.TRENDING,
                 );
                 expect(trendingSection).toBeDefined();
             });
@@ -456,7 +448,7 @@ describe('FeedService', () => {
                 const result = await service.getFeed(FeedTab.PODCASTERS, MOCK_USER_ID);
 
                 const topRatedSection = result.sections.find(
-                    (s) => s.id === PodcasterSectionId.TOP_RATED,
+                    s => s.id === PodcasterSectionId.TOP_RATED,
                 );
                 expect(topRatedSection).toBeDefined();
             });
@@ -468,25 +460,21 @@ describe('FeedService', () => {
 
                 // Check that the top rated query has ratingCount > 0 filter
                 const calls = mockPrismaClient.podcaster.findMany.mock.calls;
-                const hasRatingFilter = calls.some(
-                    (call) => call[0]?.where?.ratingCount?.gt === 0,
-                );
+                const hasRatingFilter = calls.some(call => call[0]?.where?.ratingCount?.gt === 0);
                 expect(hasRatingFilter).toBe(true);
             });
         });
 
         describe('New Voices Section', () => {
             it('should return new podcasters sorted by createdAt', async () => {
-                const mockPodcasters = [
-                    createMockPodcasterWithCreator({ createdAt: new Date() }),
-                ];
+                const mockPodcasters = [createMockPodcasterWithCreator({ createdAt: new Date() })];
 
                 mockPrismaClient.podcaster.findMany.mockResolvedValue(mockPodcasters);
 
                 const result = await service.getFeed(FeedTab.PODCASTERS, MOCK_USER_ID);
 
                 const newVoicesSection = result.sections.find(
-                    (s) => s.id === PodcasterSectionId.NEW_VOICES,
+                    s => s.id === PodcasterSectionId.NEW_VOICES,
                 );
                 expect(newVoicesSection).toBeDefined();
             });
@@ -594,12 +582,7 @@ describe('FeedService', () => {
                 mockPrismaClient.podcaster.findMany.mockResolvedValue([]);
                 mockPrismaClient.podcaster.count.mockResolvedValue(0);
 
-                await service.getSectionData(
-                    PodcasterSectionId.TOP_RATED,
-                    MOCK_USER_ID,
-                    1,
-                    10,
-                );
+                await service.getSectionData(PodcasterSectionId.TOP_RATED, MOCK_USER_ID, 1, 10);
 
                 expect(mockPrismaClient.podcaster.findMany).toHaveBeenCalledWith(
                     expect.objectContaining({
@@ -638,9 +621,7 @@ describe('FeedService', () => {
 
         it('should set cache after fetching from database', async () => {
             mockRedisClient.get.mockResolvedValue(null);
-            mockPrismaClient.episode.findMany.mockResolvedValue([
-                createMockEpisodeWithRelations(),
-            ]);
+            mockPrismaClient.episode.findMany.mockResolvedValue([createMockEpisodeWithRelations()]);
             mockRedisService.getAllPlaybackProgress.mockResolvedValue({});
 
             await service.getFeed(FeedTab.EPISODES, MOCK_USER_ID);
@@ -651,9 +632,7 @@ describe('FeedService', () => {
 
         it('should handle cache read errors gracefully', async () => {
             mockRedisClient.get.mockRejectedValue(new Error('Redis connection error'));
-            mockPrismaClient.episode.findMany.mockResolvedValue([
-                createMockEpisodeWithRelations(),
-            ]);
+            mockPrismaClient.episode.findMany.mockResolvedValue([createMockEpisodeWithRelations()]);
             mockRedisService.getAllPlaybackProgress.mockResolvedValue({});
 
             // Should not throw, should fallback to DB
@@ -664,9 +643,7 @@ describe('FeedService', () => {
         it('should handle cache write errors gracefully', async () => {
             mockRedisClient.get.mockResolvedValue(null);
             mockRedisClient.setex.mockRejectedValue(new Error('Redis write error'));
-            mockPrismaClient.episode.findMany.mockResolvedValue([
-                createMockEpisodeWithRelations(),
-            ]);
+            mockPrismaClient.episode.findMany.mockResolvedValue([createMockEpisodeWithRelations()]);
             mockRedisService.getAllPlaybackProgress.mockResolvedValue({});
 
             // Should not throw
@@ -691,12 +668,8 @@ describe('FeedService', () => {
         });
 
         it('should handle Redis playback progress errors gracefully', async () => {
-            mockRedisService.getAllPlaybackProgress.mockRejectedValue(
-                new Error('Redis error'),
-            );
-            mockPrismaClient.episode.findMany.mockResolvedValue([
-                createMockEpisodeWithRelations(),
-            ]);
+            mockRedisService.getAllPlaybackProgress.mockRejectedValue(new Error('Redis error'));
+            mockPrismaClient.episode.findMany.mockResolvedValue([createMockEpisodeWithRelations()]);
 
             const result = await service.getFeed(FeedTab.EPISODES, MOCK_USER_ID);
 
@@ -727,22 +700,18 @@ describe('FeedService', () => {
             const result = await service.getFeed(FeedTab.EPISODES, MOCK_USER_ID);
 
             const continueSection = result.sections.find(
-                (s) => s.id === EpisodeSectionId.CONTINUE_LISTENING,
+                s => s.id === EpisodeSectionId.CONTINUE_LISTENING,
             );
             expect(continueSection?.title).toBe('Pick up where you left off');
         });
 
         it('should use correct title for popular episodes section', async () => {
-            mockPrismaClient.episode.findMany.mockResolvedValue([
-                createMockEpisodeWithRelations(),
-            ]);
+            mockPrismaClient.episode.findMany.mockResolvedValue([createMockEpisodeWithRelations()]);
             mockRedisService.getAllPlaybackProgress.mockResolvedValue({});
 
             const result = await service.getFeed(FeedTab.EPISODES, MOCK_USER_ID);
 
-            const popularSection = result.sections.find(
-                (s) => s.id === EpisodeSectionId.POPULAR,
-            );
+            const popularSection = result.sections.find(s => s.id === EpisodeSectionId.POPULAR);
             expect(popularSection?.title).toBe('Popular Episodes');
         });
     });

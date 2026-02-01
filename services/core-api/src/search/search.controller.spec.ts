@@ -153,10 +153,7 @@ describe('SearchController', () => {
         });
 
         it('should use default pagination values', async () => {
-            await controller.search(
-                { q: 'test' } as any,
-                { user: { userId: mockUserId } },
-            );
+            await controller.search({ q: 'test' } as any, { user: { userId: mockUserId } });
 
             expect(searchService.search).toHaveBeenCalledWith(
                 expect.objectContaining({ q: 'test' }),
@@ -211,11 +208,9 @@ describe('SearchController', () => {
 
             mockSearchService.getSuggestions.mockResolvedValueOnce(mockSuggestions);
 
-            const result = await controller.getSuggestions(
-                'test',
-                '5',
-                { user: { userId: mockUserId } },
-            );
+            const result = await controller.getSuggestions('test', '5', {
+                user: { userId: mockUserId },
+            });
 
             expect(result).toEqual(mockSuggestions);
         });
@@ -238,9 +233,7 @@ describe('SearchController', () => {
         });
 
         it('should propagate errors from getSuggestions', async () => {
-            mockSearchService.getSuggestions.mockRejectedValueOnce(
-                new Error('Suggestions error'),
-            );
+            mockSearchService.getSuggestions.mockRejectedValueOnce(new Error('Suggestions error'));
 
             await expect(
                 controller.getSuggestions('test', '5', { user: { userId: mockUserId } }),

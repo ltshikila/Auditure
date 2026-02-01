@@ -54,7 +54,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         this.logger.log('NotificationsService initialized');
     }
 
-    async onModuleDestroy() {
+    onModuleDestroy() {
         this.logger.log('Shutting down NotificationsService...');
         this.stopConsumer();
         this.logger.log('NotificationsService shut down');
@@ -117,7 +117,8 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
                 await this.reclaimStaleMessages();
 
                 // Periodically trim the stream
-                if (Math.random() < 0.01) { // ~1% chance each iteration
+                if (Math.random() < 0.01) {
+                    // ~1% chance each iteration
                     await this.redisService.trimNotificationStream(10000);
                 }
             } catch (error) {
@@ -141,7 +142,9 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         data?: string;
         createdAt: string;
     }): Promise<void> {
-        this.logger.log(`Processing notification ${message.notificationId} for user ${message.userId}`);
+        this.logger.log(
+            `Processing notification ${message.notificationId} for user ${message.userId}`,
+        );
 
         try {
             // Get user's push token
@@ -184,7 +187,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
             } else {
                 this.logger.log(
                     `Skipping push for ${message.notificationId}: ` +
-                    `enabled=${settings?.pushNotificationsEnabled}, hasToken=${!!settings?.expoPushToken}`,
+                        `enabled=${settings?.pushNotificationsEnabled}, hasToken=${!!settings?.expoPushToken}`,
                 );
             }
 
@@ -208,8 +211,8 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         try {
             const pending = await this.redisService.getPendingNotifications(50);
             const staleIds = pending
-                .filter((p) => p.idleTime > STALE_THRESHOLD_MS && p.deliveryCount < 5)
-                .map((p) => p.id);
+                .filter(p => p.idleTime > STALE_THRESHOLD_MS && p.deliveryCount < 5)
+                .map(p => p.id);
 
             if (staleIds.length > 0) {
                 this.logger.warn(`Reclaiming ${staleIds.length} stale notifications`);
@@ -234,9 +237,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
      * @returns The created notification
      */
     async create(payload: CreateNotificationPayload): Promise<NotificationResponseDto> {
-        this.logger.log(
-            `create() called: type=${payload.type}, userId=${payload.userId}`,
-        );
+        this.logger.log(`create() called: type=${payload.type}, userId=${payload.userId}`);
 
         // Validate user exists
         const user = await this.databaseService.user.findUnique({
@@ -279,9 +280,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
      * Create multiple notifications (batch).
      * Useful for sending the same notification to multiple users.
      */
-    async createBatch(
-        payloads: CreateNotificationPayload[],
-    ): Promise<NotificationResponseDto[]> {
+    async createBatch(payloads: CreateNotificationPayload[]): Promise<NotificationResponseDto[]> {
         this.logger.log(`createBatch() called with ${payloads.length} notifications`);
 
         if (payloads.length === 0) {
@@ -446,7 +445,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
                 select: { id: true, userId: true },
             });
 
-            const unauthorized = notifications.filter((n) => n.userId !== userId);
+            const unauthorized = notifications.filter(n => n.userId !== userId);
             if (unauthorized.length > 0) {
                 this.logger.error(
                     `User ${userId} attempted to mark notifications belonging to other users`,
@@ -685,6 +684,6 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     // ============================================
 
     private delay(ms: number): Promise<void> {
-        return new Promise((resolve) => setTimeout(resolve, ms));
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 }

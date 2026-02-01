@@ -24,9 +24,9 @@ export interface ExtractedContent {
 }
 
 export enum ExtractionQuality {
-    HIGH = 'high',         // Embedded TOC/bookmarks used
-    MEDIUM = 'medium',     // Printed TOC parsed successfully
-    LOW = 'low',           // Regex-based detection only
+    HIGH = 'high', // Embedded TOC/bookmarks used
+    MEDIUM = 'medium', // Printed TOC parsed successfully
+    LOW = 'low', // Regex-based detection only
     FALLBACK = 'fallback', // Single "Full Book" chapter
 }
 
@@ -52,8 +52,8 @@ interface TocEntry {
     isChapter: boolean;
 }
 
-/** Page label configuration from PDF */
-interface PageLabelRange {
+/** Page label configuration from PDF - reserved for future use */
+interface _PageLabelRange {
     startPage: number; // 0-indexed physical page
     prefix?: string; // e.g., "A-" for "A-1", "A-2"
     style?: 'decimal' | 'roman-lower' | 'roman-upper' | 'alpha-lower' | 'alpha-upper';
@@ -112,7 +112,7 @@ const BACK_MATTER_PATTERNS = new Set([
 
 // Quality thresholds for OCR text detection
 const MAX_AVG_WORD_LENGTH = 12; // Words longer than this suggest merged words
-const MIN_SPACE_RATIO = 0.10; // At least 10% of characters should be spaces
+const MIN_SPACE_RATIO = 0.1; // At least 10% of characters should be spaces
 const MAX_LONG_WORD_RATIO = 0.15; // Max 15% of words can be "long" (>15 chars)
 
 @Injectable()
@@ -121,7 +121,7 @@ export class TextExtractionService {
 
     async extractFromPdf(buffer: Buffer): Promise<ExtractedContent> {
         // pdf-parse 1.x - CommonJS module with simple API
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const pdfParse = require('pdf-parse');
         const data = await pdfParse(buffer);
 
@@ -221,7 +221,10 @@ export class TextExtractionService {
      * - Nested TOC entries (flattens to chapter level)
      * - Missing page numbers (skips entry)
      */
-    private async extractChaptersFromToc(buffer: Buffer, totalPages: number): Promise<ChapterData[]> {
+    private async extractChaptersFromToc(
+        buffer: Buffer,
+        totalPages: number,
+    ): Promise<ChapterData[]> {
         try {
             const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
             // pdfjs-dist requires Uint8Array, not Node.js Buffer
@@ -258,7 +261,9 @@ export class TextExtractionService {
 
             // Filter to only chapter entries for splitting
             const chapterEntries = tocEntries.filter(e => e.isChapter);
-            this.logger.log(`Found ${tocEntries.length} TOC entries, ${chapterEntries.length} are chapters`);
+            this.logger.log(
+                `Found ${tocEntries.length} TOC entries, ${chapterEntries.length} are chapters`,
+            );
 
             // Extract text page-by-page for accurate splitting
             const pageTexts = await this.extractTextByPage(pdfDoc);
@@ -362,7 +367,7 @@ export class TextExtractionService {
             if (coverageRatio >= 0.8 && items.length >= 3) {
                 // This looks like a valid chapter pattern!
                 this.logger.log(
-                    `Detected chapter pattern: "${prefix}" with ${items.length} sequential entries (${minNum}-${maxNum})`
+                    `Detected chapter pattern: "${prefix}" with ${items.length} sequential entries (${minNum}-${maxNum})`,
                 );
 
                 // Mark all matching entries as chapters
@@ -401,7 +406,10 @@ export class TextExtractionService {
                     // Still process nested items
                     if (item.items && item.items.length > 0) {
                         const nestedEntries = await this.parseTocEntries(
-                            pdfDoc, item.items, pageLabels, depth + 1
+                            pdfDoc,
+                            item.items,
+                            pageLabels,
+                            depth + 1,
                         );
                         entries.push(...nestedEntries);
                     }
@@ -447,14 +455,20 @@ export class TextExtractionService {
 
                     // Log why entries are being skipped for debugging
                     if (!isChapter) {
-                        this.logger.debug(`TOC entry skipped (not chapter): "${title}" at level ${depth}`);
+                        this.logger.debug(
+                            `TOC entry skipped (not chapter): "${title}" at level ${depth}`,
+                        );
                     }
 
                     // Try to extract chapter number from title
                     // Supports: Chapter, Law, Rule, Principle, Lesson, Unit, Module, Step, Habit, Part, Section
-                    const chapterMatch = title.match(/^(?:Chapter|LAW|Law|Rule|Principle|Lesson|Unit|Module|Step|Habit|Secret|Key|Commandment|Part|Section)?\s*(\d+)/i);
+                    const chapterMatch = title.match(
+                        /^(?:Chapter|LAW|Law|Rule|Principle|Lesson|Unit|Module|Step|Habit|Secret|Key|Commandment|Part|Section)?\s*(\d+)/i,
+                    );
                     const extractedChapterNum = isChapter
-                        ? (chapterMatch ? parseInt(chapterMatch[1]) : chapterCounter++)
+                        ? chapterMatch
+                            ? parseInt(chapterMatch[1])
+                            : chapterCounter++
                         : undefined;
 
                     // Get page label (e.g., "iv", "12", "A-3")
@@ -473,13 +487,18 @@ export class TextExtractionService {
 
                     this.logger.debug(
                         `TOC: "${title}" -> Page ${pageNumber + 1}${pageLabel ? ` (${pageLabel})` : ''}, ` +
-                        `Level ${depth}, isChapter=${isChapter}${destY !== undefined ? `, Y=${destY}` : ''}`
+                            `Level ${depth}, isChapter=${isChapter}${destY !== undefined ? `, Y=${destY}` : ''}`,
                     );
                 }
 
                 // Process nested items recursively and include them
                 if (item.items && item.items.length > 0) {
-                    const nestedEntries = await this.parseTocEntries(pdfDoc, item.items, pageLabels, depth + 1);
+                    const nestedEntries = await this.parseTocEntries(
+                        pdfDoc,
+                        item.items,
+                        pageLabels,
+                        depth + 1,
+                    );
                     entries.push(...nestedEntries);
                 }
             } catch (error) {
@@ -525,8 +544,7 @@ export class TextExtractionService {
         // Parse keywords (can be comma, semicolon, or space separated)
         let keywords: string[] | undefined;
         if (info.Keywords) {
-            keywords = info.Keywords
-                .split(/[,;]/)
+            keywords = info.Keywords.split(/[,;]/)
                 .map((k: string) => k.trim())
                 .filter((k: string) => k.length > 0);
         }
@@ -605,9 +623,19 @@ export class TextExtractionService {
      */
     private toRomanNumeral(num: number): string {
         const romanNumerals: [number, string][] = [
-            [1000, 'm'], [900, 'cm'], [500, 'd'], [400, 'cd'],
-            [100, 'c'], [90, 'xc'], [50, 'l'], [40, 'xl'],
-            [10, 'x'], [9, 'ix'], [5, 'v'], [4, 'iv'], [1, 'i']
+            [1000, 'm'],
+            [900, 'cm'],
+            [500, 'd'],
+            [400, 'cd'],
+            [100, 'c'],
+            [90, 'xc'],
+            [50, 'l'],
+            [40, 'xl'],
+            [10, 'x'],
+            [9, 'ix'],
+            [5, 'v'],
+            [4, 'iv'],
+            [1, 'i'],
         ];
 
         let result = '';
@@ -634,12 +662,20 @@ export class TextExtractionService {
 
         // Also check if title contains any front/back matter pattern
         for (const pattern of FRONT_MATTER_PATTERNS) {
-            if (titleLower.includes(pattern) && !titleLower.includes('law') && !titleLower.includes('chapter')) {
+            if (
+                titleLower.includes(pattern) &&
+                !titleLower.includes('law') &&
+                !titleLower.includes('chapter')
+            ) {
                 return false;
             }
         }
         for (const pattern of BACK_MATTER_PATTERNS) {
-            if (titleLower.includes(pattern) && !titleLower.includes('law') && !titleLower.includes('chapter')) {
+            if (
+                titleLower.includes(pattern) &&
+                !titleLower.includes('law') &&
+                !titleLower.includes('chapter')
+            ) {
                 return false;
             }
         }
@@ -652,7 +688,8 @@ export class TextExtractionService {
         }
 
         // Exclude common organizational headers that aren't chapters
-        const orgHeaderPattern = /^(online\s+chapters|online\s+appendices|acronyms|credits|list\s+of)/i;
+        const orgHeaderPattern =
+            /^(online\s+chapters|online\s+appendices|acronyms|credits|list\s+of)/i;
         if (orgHeaderPattern.test(title)) {
             return false;
         }
@@ -661,7 +698,8 @@ export class TextExtractionService {
         // Matches: "Chapter 1", "LAW 1", "Law1", "LESSON 5", "RULE 1", "PRINCIPLE 3", etc.
         // This covers common book structures: traditional chapters, laws (48 Laws of Power),
         // rules (12 Rules for Life), lessons, principles, steps, habits, etc.
-        const chapterPattern = /^(chapter|law|rule|principle|lesson|unit|module|step|habit|secret|key|commandment)\s*\d+/i;
+        const chapterPattern =
+            /^(chapter|law|rule|principle|lesson|unit|module|step|habit|secret|key|commandment)\s*\d+/i;
         if (chapterPattern.test(title)) {
             return true;
         }
@@ -676,7 +714,7 @@ export class TextExtractionService {
         // This catches TOC entries without "Chapter/LAW" prefix
         // Only apply to top-level (level 0-1) to avoid matching subsections like "2.1 Title"
         // Pattern matches: "1." (not "1.1"), "1 " (number followed by space)
-        const numberedPattern = /^(\d+\.(?!\d)|\d+\s)/;  // "1." or "1 " but not "1.1"
+        const numberedPattern = /^(\d+\.(?!\d)|\d+\s)/; // "1." or "1 " but not "1.1"
         if (level <= 1 && numberedPattern.test(title)) {
             return true;
         }
@@ -699,7 +737,11 @@ export class TextExtractionService {
      * Handles the edge case where multiple chapters start on the same page
      * using Y coordinates when available, falling back to title regex matching.
      */
-    private splitTextByToc(tocEntries: TocEntry[], pageTexts: string[], totalPages: number): ChapterData[] {
+    private splitTextByToc(
+        tocEntries: TocEntry[],
+        pageTexts: string[],
+        totalPages: number,
+    ): ChapterData[] {
         const chapters: ChapterData[] = [];
 
         // Sort entries by page number, then by Y coordinate (descending - PDF Y starts from bottom)
@@ -799,10 +841,12 @@ export class TextExtractionService {
 
             const splitResult = this.findChapterSplitPoint(searchText, next.title);
             if (splitResult.found) {
-                const absoluteSplitPos = searchStart + (searchText.length - splitResult.afterHeading.length - next.title.length);
+                const absoluteSplitPos =
+                    searchStart +
+                    (searchText.length - splitResult.afterHeading.length - next.title.length);
                 this.logger.debug(
                     `Coordinate-based split for "${next.title}": Y=${next.destY}, ` +
-                    `estimated pos=${estimatedSplitPos}, actual=${absoluteSplitPos}`
+                        `estimated pos=${estimatedSplitPos}, actual=${absoluteSplitPos}`,
                 );
                 return rawPageText.slice(0, absoluteSplitPos).trim();
             }
@@ -915,11 +959,16 @@ export class TextExtractionService {
         );
 
         // Step 4: Split content at chapter boundaries
-        const chapters = this.splitTextByPrintedToc(contentText, tocEntries, charsPerPage, contentStartPage);
+        const chapters = this.splitTextByPrintedToc(
+            contentText,
+            tocEntries,
+            charsPerPage,
+            contentStartPage,
+        );
 
         // Filter out chapters with insufficient content
         const MIN_CHAPTER_LENGTH = 1000;
-        const validChapters = chapters.filter((ch) => ch.text.length >= MIN_CHAPTER_LENGTH);
+        const validChapters = chapters.filter(ch => ch.text.length >= MIN_CHAPTER_LENGTH);
 
         this.logger.log(
             `Extracted ${validChapters.length} valid chapters from printed TOC (filtered ${chapters.length - validChapters.length} short entries)`,
@@ -955,22 +1004,22 @@ export class TextExtractionService {
         // Supports: Chapter, Law, Rule, Principle, Lesson, Step, Habit
         const patterns = [
             // "Chapter 1 Title 23" or "Chapter 1: Title 23" or "Chapter 1 Title ... 23"
-            /^(Chapter\s+(\d+))[\s:\.]+([^\d\n]+?)\s+(\d{1,4})\s*$/gim,
+            /^(Chapter\s+(\d+))[\s:.]+([^\d\n]+?)\s+(\d{1,4})\s*$/gim,
             // "CHAPTER 1 TITLE 23"
-            /^(CHAPTER\s+(\d+))[\s:\.]+([^\d\n]+?)\s+(\d{1,4})\s*$/gim,
+            /^(CHAPTER\s+(\d+))[\s:.]+([^\d\n]+?)\s+(\d{1,4})\s*$/gim,
             // "LAW 1 Title 23" or "LAW1 Title 23" or "LAW1Title 23" (OCR may merge)
             // Title can contain digits (e.g., "LAW 48 ASSUME FORMLESSNESS 419")
-            /^(LAW\s*(\d+))[\s:\.]*(.*?)\s+(\d{1,4})\s*$/gim,
+            /^(LAW\s*(\d+))[\s:.]*(.*?)\s+(\d{1,4})\s*$/gim,
             // "RULE 1 Title 23" or "RULE1 Title 23" (12 Rules for Life, etc.)
-            /^(RULE\s*(\d+))[\s:\.]*(.*?)\s+(\d{1,4})\s*$/gim,
+            /^(RULE\s*(\d+))[\s:.]*(.*?)\s+(\d{1,4})\s*$/gim,
             // "PRINCIPLE 1 Title 23" (Principles by Ray Dalio, etc.)
-            /^(PRINCIPLE\s*(\d+))[\s:\.]*(.*?)\s+(\d{1,4})\s*$/gim,
+            /^(PRINCIPLE\s*(\d+))[\s:.]*(.*?)\s+(\d{1,4})\s*$/gim,
             // "STEP 1 Title 23" (how-to books)
-            /^(STEP\s*(\d+))[\s:\.]*(.*?)\s+(\d{1,4})\s*$/gim,
+            /^(STEP\s*(\d+))[\s:.]*(.*?)\s+(\d{1,4})\s*$/gim,
             // "LESSON 1 Title 23"
-            /^(LESSON\s*(\d+))[\s:\.]*(.*?)\s+(\d{1,4})\s*$/gim,
+            /^(LESSON\s*(\d+))[\s:.]*(.*?)\s+(\d{1,4})\s*$/gim,
             // "HABIT 1 Title 23" (7 Habits, etc.)
-            /^(HABIT\s*(\d+))[\s:\.]*(.*?)\s+(\d{1,4})\s*$/gim,
+            /^(HABIT\s*(\d+))[\s:.]*(.*?)\s+(\d{1,4})\s*$/gim,
             // "1. Title 23" (only match if number is <= 100 to avoid page number confusion)
             /^(\d{1,2})\.[\s]+([A-Z][^\n]+?)\s+(\d{1,4})\s*$/gm,
         ];
@@ -997,7 +1046,10 @@ export class TextExtractionService {
                 }
 
                 // Clean up title - remove trailing dots and excess whitespace
-                title = title.replace(/\.{2,}\s*$/, '').replace(/\s+/g, ' ').trim();
+                title = title
+                    .replace(/\.{2,}\s*$/, '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
 
                 // Skip if title looks like a section number (e.g., "1.1 Introduction")
                 if (/^\d+\.\d+/.test(title)) {
@@ -1005,7 +1057,7 @@ export class TextExtractionService {
                 }
 
                 // Skip duplicates
-                if (entries.some((e) => e.chapterNumber === chapterNum)) {
+                if (entries.some(e => e.chapterNumber === chapterNum)) {
                     continue;
                 }
 
@@ -1130,7 +1182,12 @@ export class TextExtractionService {
             }
 
             // Refine positions by looking for actual chapter headings
-            const refinedStart = this.refineChapterStart(contentText, current, estimatedStart, charsPerPage);
+            const refinedStart = this.refineChapterStart(
+                contentText,
+                current,
+                estimatedStart,
+                charsPerPage,
+            );
             let refinedEnd = estimatedEnd;
 
             if (next) {
@@ -1268,7 +1325,8 @@ export class TextExtractionService {
                     'Text accuracy may vary, especially for complex layouts, images, or handwritten content.',
             ];
 
-            const finalChapters = chapters.length > 0 ? chapters : this.createDefaultChapter(fullText);
+            const finalChapters =
+                chapters.length > 0 ? chapters : this.createDefaultChapter(fullText);
 
             if (chapters.length === 0) {
                 warnings.push(
@@ -1374,20 +1432,20 @@ export class TextExtractionService {
         // Supports: "Chapter X", "CHAPTER X", "LAW X", "RULE X", "PRINCIPLE X", etc.
         // Covers common book structures: traditional chapters, laws, rules, principles, lessons, steps, habits
         const chapterPatterns = [
-            /^(Chapter\s+(\d+))(?:[:\.\s]+(.*))?$/gim,
-            /^(CHAPTER\s+(\d+))(?:[:\.\s]+(.*))?$/gim,
-            /^(LAW\s*(\d+))[:\.\s]*(.*)$/gim,  // "LAW 1", "LAW1", or "LAW1TITLE" (OCR often removes spaces)
-            /^(Law\s*(\d+))[:\.\s]*(.*)$/gim,
-            /^(RULE\s*(\d+))[:\.\s]*(.*)$/gim,  // "RULE 1", "RULE1" (12 Rules for Life, etc.)
-            /^(Rule\s*(\d+))[:\.\s]*(.*)$/gim,
-            /^(PRINCIPLE\s*(\d+))[:\.\s]*(.*)$/gim,  // "PRINCIPLE 1" (Principles by Ray Dalio, etc.)
-            /^(Principle\s*(\d+))[:\.\s]*(.*)$/gim,
-            /^(STEP\s*(\d+))[:\.\s]*(.*)$/gim,  // "STEP 1" (how-to books)
-            /^(Step\s*(\d+))[:\.\s]*(.*)$/gim,
-            /^(LESSON\s*(\d+))[:\.\s]*(.*)$/gim,  // "LESSON 1"
-            /^(Lesson\s*(\d+))[:\.\s]*(.*)$/gim,
-            /^(HABIT\s*(\d+))[:\.\s]*(.*)$/gim,  // "HABIT 1" (7 Habits, etc.)
-            /^(Habit\s*(\d+))[:\.\s]*(.*)$/gim,
+            /^(Chapter\s+(\d+))(?:[:\s.]+(.*))?$/gim,
+            /^(CHAPTER\s+(\d+))(?:[:\s.]+(.*))?$/gim,
+            /^(LAW\s*(\d+))[:\s.]*(.*)$/gim, // "LAW 1", "LAW1", or "LAW1TITLE" (OCR often removes spaces)
+            /^(Law\s*(\d+))[:\s.]*(.*)$/gim,
+            /^(RULE\s*(\d+))[:\s.]*(.*)$/gim, // "RULE 1", "RULE1" (12 Rules for Life, etc.)
+            /^(Rule\s*(\d+))[:\s.]*(.*)$/gim,
+            /^(PRINCIPLE\s*(\d+))[:\s.]*(.*)$/gim, // "PRINCIPLE 1" (Principles by Ray Dalio, etc.)
+            /^(Principle\s*(\d+))[:\s.]*(.*)$/gim,
+            /^(STEP\s*(\d+))[:\s.]*(.*)$/gim, // "STEP 1" (how-to books)
+            /^(Step\s*(\d+))[:\s.]*(.*)$/gim,
+            /^(LESSON\s*(\d+))[:\s.]*(.*)$/gim, // "LESSON 1"
+            /^(Lesson\s*(\d+))[:\s.]*(.*)$/gim,
+            /^(HABIT\s*(\d+))[:\s.]*(.*)$/gim, // "HABIT 1" (7 Habits, etc.)
+            /^(Habit\s*(\d+))[:\s.]*(.*)$/gim,
         ];
 
         interface ChapterMatch {
@@ -1459,7 +1517,7 @@ export class TextExtractionService {
 
         // Deduplicate by chapter number, keeping only the first occurrence
         const seenChapters = new Set<number>();
-        const uniqueMatches = filteredMatches.filter((match) => {
+        const uniqueMatches = filteredMatches.filter(match => {
             if (seenChapters.has(match.chapterNumber)) {
                 return false;
             }
@@ -1474,7 +1532,7 @@ export class TextExtractionService {
         // Real chapters should have at least 2500 characters of content
         // (TOC entries with brief summaries are typically 100-500 chars between headings)
         const MIN_CHAPTER_CONTENT_LENGTH = 2500;
-        const validChapters = chapters.filter((chapter) => {
+        const validChapters = chapters.filter(chapter => {
             if (chapter.text.length < MIN_CHAPTER_CONTENT_LENGTH) {
                 this.logger.debug(
                     `Filtered out chapter ${chapter.chapterNumber} with insufficient content: ${chapter.text.length} chars`,
@@ -1513,7 +1571,7 @@ export class TextExtractionService {
         fullMatch: string;
     }> {
         // Filter out matches that appear to be in table of contents, index, or appendix sections
-        return matches.filter((match) => {
+        return matches.filter(match => {
             // Get surrounding context (100 chars before and after)
             const contextStart = Math.max(0, match.position - 100);
             const contextEnd = Math.min(text.length, match.position + match.matchLength + 100);
@@ -1554,8 +1612,8 @@ export class TextExtractionService {
             'table of contents',
             'list of chapters',
             '-----',
-            'contents\n',  // "CONTENTS" at start of section
-            '\ncontents',  // "CONTENTS" preceded by newline
+            'contents\n', // "CONTENTS" at start of section
+            '\ncontents', // "CONTENTS" preceded by newline
         ];
 
         // Check if any TOC indicator is present
@@ -1585,7 +1643,9 @@ export class TextExtractionService {
         // Also check if the "title" ends with what looks like a page number
         // e.g., "Cryptographic Tools 52" where 52 is a page number
         // Supports: Chapter, Law, Rule, Principle, Lesson, Step, Habit
-        const titleMatch = chapterLine.match(/(?:chapter|law|rule|principle|lesson|step|habit)\s*\d+[:\.\s]+(.+)/i);
+        const titleMatch = chapterLine.match(
+            /(?:chapter|law|rule|principle|lesson|step|habit)\s*\d+[:\s.]+(.+)/i,
+        );
         if (titleMatch) {
             const title = titleMatch[1].trim();
             // If title ends with a standalone number (likely page number)
@@ -1610,7 +1670,11 @@ export class TextExtractionService {
 
         // Pattern like "Chapter 1, 45" or "Chapter 1: 45, 67, 89" or "LAW 1, 45" or "RULE 1, 45"
         // Supports: Chapter, Law, Rule, Principle, Lesson, Step, Habit
-        if (/^(?:chapter|law|rule|principle|lesson|step|habit)\s*\d+[,:\s]+\d+(?:\s*,\s*\d+)*\s*$/im.test(afterMatch.slice(0, 50))) {
+        if (
+            /^(?:chapter|law|rule|principle|lesson|step|habit)\s*\d+[,:\s]+\d+(?:\s*,\s*\d+)*\s*$/im.test(
+                afterMatch.slice(0, 50),
+            )
+        ) {
             return true;
         }
 
@@ -1652,7 +1716,8 @@ export class TextExtractionService {
             const chapterText = text.slice(startPosition, endPosition).trim();
 
             // Estimate page numbers from character positions
-            const startPage = charsPerPage > 0 ? Math.floor(startPosition / charsPerPage) + 1 : undefined;
+            const startPage =
+                charsPerPage > 0 ? Math.floor(startPosition / charsPerPage) + 1 : undefined;
             const endPage = charsPerPage > 0 ? Math.floor(endPosition / charsPerPage) : undefined;
 
             chapters.push({
@@ -1726,7 +1791,7 @@ export class TextExtractionService {
         }
 
         // Check 2: Average word length and long word ratio
-        const words = sample.split(/\s+/).filter((w) => w.length > 0);
+        const words = sample.split(/\s+/).filter(w => w.length > 0);
         if (words.length === 0) {
             return false;
         }
@@ -1742,7 +1807,7 @@ export class TextExtractionService {
         }
 
         // Check 3: Ratio of very long words (>15 chars)
-        const longWords = words.filter((w) => w.length > 15);
+        const longWords = words.filter(w => w.length > 15);
         const longWordRatio = longWords.length / words.length;
 
         if (longWordRatio > MAX_LONG_WORD_RATIO) {
@@ -1750,7 +1815,7 @@ export class TextExtractionService {
                 `Poor OCR detected: High long-word ratio (${(longWordRatio * 100).toFixed(1)}% > ${MAX_LONG_WORD_RATIO * 100}%)`,
             );
             // Log some examples of long words for debugging
-            const examples = longWords.slice(0, 5).map((w) => w.slice(0, 30));
+            const examples = longWords.slice(0, 5).map(w => w.slice(0, 30));
             this.logger.debug(`Long word examples: ${examples.join(', ')}`);
             return true;
         }

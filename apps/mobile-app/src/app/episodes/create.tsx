@@ -1,5 +1,4 @@
 import {
-    StyleSheet,
     Text,
     View,
     ScrollView,
@@ -7,11 +6,10 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     Alert,
-    FlatList,
     Modal,
 } from 'react-native';
-import React, { useState, useEffect, useCallback } from 'react';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useState, useEffect } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -33,7 +31,6 @@ type TabOption<T> = {
 
 const Create = () => {
     const router = useRouter();
-    const insets = useSafeAreaInsets();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -951,5 +948,3 @@ const Create = () => {
 };
 
 export default Create;
-
-const styles = StyleSheet.create({});

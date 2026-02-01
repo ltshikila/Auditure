@@ -85,10 +85,7 @@ export class NotificationsController {
         this.logger.log(
             `PATCH /notifications/read-all - user ${req.user.userId}, ids=${body.notificationIds?.length || 'all'}`,
         );
-        return this.notificationsService.markMultipleAsRead(
-            req.user.userId,
-            body.notificationIds,
-        );
+        return this.notificationsService.markMultipleAsRead(req.user.userId, body.notificationIds);
     }
 
     /**
@@ -117,10 +114,7 @@ export class NotificationsController {
         @Body() body: RegisterPushTokenDto,
     ): Promise<{ success: boolean; message: string }> {
         this.logger.log(`POST /notifications/push-token - user ${req.user.userId}`);
-        await this.notificationsService.registerPushToken(
-            req.user.userId,
-            body.pushToken,
-        );
+        await this.notificationsService.registerPushToken(req.user.userId, body.pushToken);
         return {
             success: true,
             message: 'Push token registered successfully',
@@ -135,9 +129,7 @@ export class NotificationsController {
      */
     @Delete('push-token')
     @HttpCode(HttpStatus.OK)
-    async clearPushToken(
-        @Request() req,
-    ): Promise<{ success: boolean; message: string }> {
+    async clearPushToken(@Request() req): Promise<{ success: boolean; message: string }> {
         this.logger.log(`DELETE /notifications/push-token - user ${req.user.userId}`);
         await this.notificationsService.clearPushToken(req.user.userId);
         return {
@@ -153,10 +145,7 @@ export class NotificationsController {
      * @param id - The notification ID
      */
     @Get(':id')
-    async findOne(
-        @Request() req,
-        @Param('id') id: string,
-    ): Promise<NotificationResponseDto> {
+    async findOne(@Request() req, @Param('id') id: string): Promise<NotificationResponseDto> {
         this.logger.log(`GET /notifications/${id} - user ${req.user.userId}`);
         return this.notificationsService.findOne(id, req.user.userId);
     }
@@ -168,10 +157,7 @@ export class NotificationsController {
      * @param id - The notification ID
      */
     @Patch(':id/read')
-    async markAsRead(
-        @Request() req,
-        @Param('id') id: string,
-    ): Promise<MarkReadResponseDto> {
+    async markAsRead(@Request() req, @Param('id') id: string): Promise<MarkReadResponseDto> {
         this.logger.log(`PATCH /notifications/${id}/read - user ${req.user.userId}`);
         return this.notificationsService.markAsRead(id, req.user.userId);
     }
@@ -184,10 +170,7 @@ export class NotificationsController {
      */
     @Delete(':id')
     @HttpCode(HttpStatus.OK)
-    async delete(
-        @Request() req,
-        @Param('id') id: string,
-    ): Promise<DeleteNotificationResponseDto> {
+    async delete(@Request() req, @Param('id') id: string): Promise<DeleteNotificationResponseDto> {
         this.logger.log(`DELETE /notifications/${id} - user ${req.user.userId}`);
         return this.notificationsService.delete(id, req.user.userId);
     }

@@ -6,7 +6,6 @@ import {
     TouchableOpacity,
     Image,
     ActivityIndicator,
-    Share,
     TextInput,
     KeyboardAvoidingView,
     Platform,
@@ -204,19 +203,6 @@ export default function EpisodeInfoScreen() {
             } else {
                 await play(episode);
                 router.push(`/episodes/${episode.id}/play`);
-            }
-        }
-    };
-
-    const handleShare = async () => {
-        if (episode) {
-            try {
-                await Share.share({
-                    message: `Check out "${episode.title}" on Auditure!`,
-                });
-                await episodeService.share(episode.id);
-            } catch (error) {
-                console.error('Error sharing:', error);
             }
         }
     };

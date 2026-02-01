@@ -56,7 +56,10 @@ describe('NotificationsController', () => {
             const result = await controller.findAll(mockRequest, { page: 1, limit: 20 });
 
             expect(result).toEqual(mockResponse);
-            expect(notificationsService.findAll).toHaveBeenCalledWith(mockUserId, { page: 1, limit: 20 });
+            expect(notificationsService.findAll).toHaveBeenCalledWith(mockUserId, {
+                page: 1,
+                limit: 20,
+            });
         });
 
         it('should pass query parameters correctly', async () => {
@@ -111,7 +114,10 @@ describe('NotificationsController', () => {
             const result = await controller.findOne(mockRequest, mockNotification.id);
 
             expect(result).toEqual(mockNotification);
-            expect(notificationsService.findOne).toHaveBeenCalledWith(mockNotification.id, mockUserId);
+            expect(notificationsService.findOne).toHaveBeenCalledWith(
+                mockNotification.id,
+                mockUserId,
+            );
         });
     });
 
@@ -132,7 +138,10 @@ describe('NotificationsController', () => {
             const result = await controller.markAsRead(mockRequest, notificationId);
 
             expect(result).toEqual(mockResponse);
-            expect(notificationsService.markAsRead).toHaveBeenCalledWith(notificationId, mockUserId);
+            expect(notificationsService.markAsRead).toHaveBeenCalledWith(
+                notificationId,
+                mockUserId,
+            );
         });
     });
 
@@ -152,7 +161,10 @@ describe('NotificationsController', () => {
             const result = await controller.markAllAsRead(mockRequest, {});
 
             expect(result).toEqual(mockResponse);
-            expect(notificationsService.markMultipleAsRead).toHaveBeenCalledWith(mockUserId, undefined);
+            expect(notificationsService.markMultipleAsRead).toHaveBeenCalledWith(
+                mockUserId,
+                undefined,
+            );
         });
 
         it('should mark specific notifications as read when IDs provided', async () => {
@@ -167,7 +179,10 @@ describe('NotificationsController', () => {
             const result = await controller.markAllAsRead(mockRequest, { notificationIds });
 
             expect(result).toEqual(mockResponse);
-            expect(notificationsService.markMultipleAsRead).toHaveBeenCalledWith(mockUserId, notificationIds);
+            expect(notificationsService.markMultipleAsRead).toHaveBeenCalledWith(
+                mockUserId,
+                notificationIds,
+            );
         });
     });
 

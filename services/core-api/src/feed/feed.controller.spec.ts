@@ -82,7 +82,7 @@ describe('FeedController', () => {
                 const result = await controller.getFeed(mockRequest, { tab: FeedTab.EPISODES });
 
                 const continueSection = result.sections.find(
-                    (s) => s.id === EpisodeSectionId.CONTINUE_LISTENING,
+                    s => s.id === EpisodeSectionId.CONTINUE_LISTENING,
                 );
                 expect(continueSection).toBeDefined();
             });
@@ -93,9 +93,7 @@ describe('FeedController', () => {
 
                 const result = await controller.getFeed(mockRequest, { tab: FeedTab.EPISODES });
 
-                const popularSection = result.sections.find(
-                    (s) => s.id === EpisodeSectionId.POPULAR,
-                );
+                const popularSection = result.sections.find(s => s.id === EpisodeSectionId.POPULAR);
                 expect(popularSection).toBeDefined();
             });
 
@@ -105,9 +103,7 @@ describe('FeedController', () => {
 
                 const result = await controller.getFeed(mockRequest, { tab: FeedTab.EPISODES });
 
-                const latestSection = result.sections.find(
-                    (s) => s.id === EpisodeSectionId.LATEST,
-                );
+                const latestSection = result.sections.find(s => s.id === EpisodeSectionId.LATEST);
                 expect(latestSection).toBeDefined();
             });
         });
@@ -140,7 +136,7 @@ describe('FeedController', () => {
                 const result = await controller.getFeed(mockRequest, { tab: FeedTab.BOOKS });
 
                 const inspirationsSection = result.sections.find(
-                    (s) => s.id === BookSectionId.POPULAR_INSPIRATIONS,
+                    s => s.id === BookSectionId.POPULAR_INSPIRATIONS,
                 );
                 expect(inspirationsSection).toBeDefined();
             });
@@ -152,7 +148,7 @@ describe('FeedController', () => {
                 const result = await controller.getFeed(mockRequest, { tab: FeedTab.BOOKS });
 
                 const popularSection = result.sections.find(
-                    (s) => s.id === BookSectionId.POPULAR_BOOKS,
+                    s => s.id === BookSectionId.POPULAR_BOOKS,
                 );
                 expect(popularSection).toBeDefined();
             });
@@ -186,7 +182,7 @@ describe('FeedController', () => {
                 const result = await controller.getFeed(mockRequest, { tab: FeedTab.PODCASTERS });
 
                 const trendingSection = result.sections.find(
-                    (s) => s.id === PodcasterSectionId.TRENDING,
+                    s => s.id === PodcasterSectionId.TRENDING,
                 );
                 expect(trendingSection).toBeDefined();
             });
@@ -198,7 +194,7 @@ describe('FeedController', () => {
                 const result = await controller.getFeed(mockRequest, { tab: FeedTab.PODCASTERS });
 
                 const topRatedSection = result.sections.find(
-                    (s) => s.id === PodcasterSectionId.TOP_RATED,
+                    s => s.id === PodcasterSectionId.TOP_RATED,
                 );
                 expect(topRatedSection).toBeDefined();
             });
@@ -214,9 +210,7 @@ describe('FeedController', () => {
             });
 
             it('should propagate BadRequestException for invalid tab', async () => {
-                mockFeedService.getFeed.mockRejectedValue(
-                    new BadRequestException('Invalid tab'),
-                );
+                mockFeedService.getFeed.mockRejectedValue(new BadRequestException('Invalid tab'));
 
                 await expect(
                     controller.getFeed(mockRequest, { tab: 'invalid' as FeedTab }),
@@ -242,11 +236,10 @@ describe('FeedController', () => {
                 };
                 mockFeedService.getSectionData.mockResolvedValue(mockResponse);
 
-                await controller.getSectionData(
-                    mockRequest,
-                    EpisodeSectionId.POPULAR,
-                    { page: 1, limit: 20 },
-                );
+                await controller.getSectionData(mockRequest, EpisodeSectionId.POPULAR, {
+                    page: 1,
+                    limit: 20,
+                });
 
                 expect(feedService.getSectionData).toHaveBeenCalledWith(
                     EpisodeSectionId.POPULAR,
@@ -384,11 +377,10 @@ describe('FeedController', () => {
                 };
                 mockFeedService.getSectionData.mockResolvedValue(mockResponse);
 
-                await controller.getSectionData(
-                    mockRequest,
-                    EpisodeSectionId.POPULAR,
-                    { page: undefined, limit: 20 },
-                );
+                await controller.getSectionData(mockRequest, EpisodeSectionId.POPULAR, {
+                    page: undefined,
+                    limit: 20,
+                });
 
                 expect(feedService.getSectionData).toHaveBeenCalledWith(
                     EpisodeSectionId.POPULAR,
@@ -409,11 +401,10 @@ describe('FeedController', () => {
                 };
                 mockFeedService.getSectionData.mockResolvedValue(mockResponse);
 
-                await controller.getSectionData(
-                    mockRequest,
-                    EpisodeSectionId.POPULAR,
-                    { page: 1, limit: undefined },
-                );
+                await controller.getSectionData(mockRequest, EpisodeSectionId.POPULAR, {
+                    page: 1,
+                    limit: undefined,
+                });
 
                 expect(feedService.getSectionData).toHaveBeenCalledWith(
                     EpisodeSectionId.POPULAR,
@@ -426,16 +417,13 @@ describe('FeedController', () => {
 
         describe('Error Handling', () => {
             it('should propagate errors from feed service', async () => {
-                mockFeedService.getSectionData.mockRejectedValue(
-                    new Error('Section data error'),
-                );
+                mockFeedService.getSectionData.mockRejectedValue(new Error('Section data error'));
 
                 await expect(
-                    controller.getSectionData(
-                        mockRequest,
-                        EpisodeSectionId.POPULAR,
-                        { page: 1, limit: 20 },
-                    ),
+                    controller.getSectionData(mockRequest, EpisodeSectionId.POPULAR, {
+                        page: 1,
+                        limit: 20,
+                    }),
                 ).rejects.toThrow('Section data error');
             });
 
@@ -445,11 +433,10 @@ describe('FeedController', () => {
                 );
 
                 await expect(
-                    controller.getSectionData(
-                        mockRequest,
-                        'invalid_section',
-                        { page: 1, limit: 20 },
-                    ),
+                    controller.getSectionData(mockRequest, 'invalid_section', {
+                        page: 1,
+                        limit: 20,
+                    }),
                 ).rejects.toThrow(BadRequestException);
             });
         });
@@ -469,10 +456,7 @@ describe('FeedController', () => {
                 { tab: FeedTab.EPISODES },
             );
 
-            expect(feedService.getFeed).toHaveBeenCalledWith(
-                FeedTab.EPISODES,
-                'custom-user-id',
-            );
+            expect(feedService.getFeed).toHaveBeenCalledWith(FeedTab.EPISODES, 'custom-user-id');
         });
 
         it('should pass userId to getSectionData', async () => {

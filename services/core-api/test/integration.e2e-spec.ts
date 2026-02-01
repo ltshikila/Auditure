@@ -14,14 +14,8 @@ import { AppModule } from '../src/app.module';
 import { DatabaseService } from '../src/database/database.service';
 
 // Fixtures
-import {
-    createCompletedMockBook,
-    createMockChapter,
-} from './fixtures/books.fixture';
-import {
-    createMockPodcaster,
-    createPublicMockPodcaster,
-} from './fixtures/podcasters.fixture';
+import { createCompletedMockBook, createMockChapter } from './fixtures/books.fixture';
+import { createMockPodcaster, createPublicMockPodcaster } from './fixtures/podcasters.fixture';
 import { mockCreateEpisodeDto } from './fixtures/episodes.fixture';
 
 // Mocks
@@ -36,11 +30,7 @@ import { RabbitMQService } from '../src/rabbitmq/rabbitmq.service';
 import { RedisService } from '../src/redis/redis.service';
 
 // DTOs and Types
-import {
-    ContentCoverage,
-    EpisodeType,
-    EpisodeTheme,
-} from '../src/episodes/dto/create-episode.dto';
+import { ContentCoverage, EpisodeType, EpisodeTheme } from '../src/episodes/dto/create-episode.dto';
 
 describe('Integration: Books → Podcasters → Episodes Workflow', () => {
     let app: INestApplication<App>;
@@ -131,7 +121,9 @@ describe('Integration: Books → Podcasters → Episodes Workflow', () => {
                 });
 
                 // Verify episode creation queues generation job
-                expect(mockRabbitMQServiceWithEpisodes.publishEpisodeGenerationJob).not.toHaveBeenCalled();
+                expect(
+                    mockRabbitMQServiceWithEpisodes.publishEpisodeGenerationJob,
+                ).not.toHaveBeenCalled();
 
                 // After episode creation, verify job was queued
                 // This would happen through the controller/service layer
@@ -474,10 +466,7 @@ describe('Integration: Books → Podcasters → Episodes Workflow', () => {
 
                 mockRedisService.getPlaybackProgress.mockResolvedValue(expectedPosition);
 
-                const position = await mockRedisService.getPlaybackProgress(
-                    testUserId,
-                    episodeId,
-                );
+                const position = await mockRedisService.getPlaybackProgress(testUserId, episodeId);
 
                 expect(position).toBe(expectedPosition);
             });

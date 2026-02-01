@@ -1,4 +1,7 @@
-import { NotificationType, NotificationPayload } from '../interfaces/notification-payload.interface';
+import {
+    NotificationType,
+    NotificationPayload,
+} from '../interfaces/notification-payload.interface';
 
 /**
  * Response DTO for a single notification

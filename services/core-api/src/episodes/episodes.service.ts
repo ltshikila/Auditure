@@ -14,7 +14,11 @@ import { RabbitMQService } from '../rabbitmq/rabbitmq.service';
 import { RedisService } from '../redis/redis.service';
 import { StorageService } from '../common/storage.service';
 import { BooksService } from '../books/books.service';
-import { CreateEpisodeDto, CreateEpisodeWithFileDto, ContentCoverage } from './dto/create-episode.dto';
+import {
+    CreateEpisodeDto,
+    CreateEpisodeWithFileDto,
+    ContentCoverage,
+} from './dto/create-episode.dto';
 import { UpdateEpisodeDto } from './dto/update-episode.dto';
 import { QueryEpisodesDto, EpisodeSortBy } from './dto/query-episodes.dto';
 import { EpisodeResponseDto, EpisodeStatus } from './dto/episode-response.dto';
@@ -25,7 +29,8 @@ export class EpisodesService {
     private readonly logger = new Logger(EpisodesService.name);
 
     // Official Gemini TTS tags that should be stripped from user-facing transcripts
-    private static readonly TTS_TAGS_PATTERN = /\[(sigh|laughing|uhm|short pause|medium pause|long pause|whispering|shouting|sarcasm|extremely fast)\]/gi;
+    private static readonly TTS_TAGS_PATTERN =
+        /\[(sigh|laughing|uhm|short pause|medium pause|long pause|whispering|shouting|sarcasm|extremely fast)\]/gi;
 
     constructor(
         private databaseService: DatabaseService,
@@ -63,7 +68,9 @@ export class EpisodesService {
     /**
      * Clean transcripts for an array of episodes
      */
-    private cleanEpisodesTranscripts<T extends { scriptContent?: string | null }>(episodes: T[]): T[] {
+    private cleanEpisodesTranscripts<T extends { scriptContent?: string | null }>(
+        episodes: T[],
+    ): T[] {
         return episodes.map(episode => ({
             ...episode,
             scriptContent: this.cleanTranscriptForDisplay(episode.scriptContent ?? null),
@@ -73,10 +80,7 @@ export class EpisodesService {
     /**
      * Create a new episode and queue it for generation
      */
-    async create(
-        userId: string,
-        createEpisodeDto: CreateEpisodeDto,
-    ): Promise<EpisodeResponseDto> {
+    async create(userId: string, createEpisodeDto: CreateEpisodeDto): Promise<EpisodeResponseDto> {
         this.logger.log(`create() called for user ${userId}`);
         this.logger.log(`DTO: ${JSON.stringify(createEpisodeDto)}`);
 
@@ -93,13 +97,17 @@ export class EpisodesService {
             }
 
             if (book.userId !== userId) {
-                this.logger.error(`Book ${createEpisodeDto.bookId} does not belong to user ${userId}`);
+                this.logger.error(
+                    `Book ${createEpisodeDto.bookId} does not belong to user ${userId}`,
+                );
                 throw new ForbiddenException('You can only create episodes from your own books');
             }
 
             // Validate book extraction is completed (or partially completed)
             if (!['COMPLETED', 'PARTIALLY_COMPLETED'].includes(book.extractionStatus)) {
-                this.logger.error(`Book ${createEpisodeDto.bookId} extraction not completed: ${book.extractionStatus}`);
+                this.logger.error(
+                    `Book ${createEpisodeDto.bookId} extraction not completed: ${book.extractionStatus}`,
+                );
                 throw new BadRequestException(
                     'Book extraction must be completed before creating an episode',
                 );
@@ -125,7 +133,9 @@ export class EpisodesService {
             }
 
             if (!podcaster.isPublic && podcaster.userId !== userId) {
-                this.logger.error(`Podcaster ${createEpisodeDto.podcasterId} access denied for user ${userId}`);
+                this.logger.error(
+                    `Podcaster ${createEpisodeDto.podcasterId} access denied for user ${userId}`,
+                );
                 throw new ForbiddenException('Access denied to private podcaster');
             }
 
@@ -142,7 +152,9 @@ export class EpisodesService {
 
             // Validate target length range
             if (createEpisodeDto.targetLengthMin > createEpisodeDto.targetLengthMax) {
-                this.logger.error(`Invalid target length range: ${createEpisodeDto.targetLengthMin} > ${createEpisodeDto.targetLengthMax}`);
+                this.logger.error(
+                    `Invalid target length range: ${createEpisodeDto.targetLengthMin} > ${createEpisodeDto.targetLengthMax}`,
+                );
                 throw new BadRequestException(
                     'Target length minimum cannot be greater than maximum',
                 );
@@ -219,13 +231,17 @@ export class EpisodesService {
             this.logger.log(`Found podcaster: ${podcaster.name}`);
 
             if (!podcaster.isPublic && podcaster.userId !== userId) {
-                this.logger.error(`Podcaster ${createEpisodeDto.podcasterId} access denied for user ${userId}`);
+                this.logger.error(
+                    `Podcaster ${createEpisodeDto.podcasterId} access denied for user ${userId}`,
+                );
                 throw new ForbiddenException('Access denied to private podcaster');
             }
 
             // Validate target length range
             if (createEpisodeDto.targetLengthMin > createEpisodeDto.targetLengthMax) {
-                this.logger.error(`Invalid target length range: ${createEpisodeDto.targetLengthMin} > ${createEpisodeDto.targetLengthMax}`);
+                this.logger.error(
+                    `Invalid target length range: ${createEpisodeDto.targetLengthMin} > ${createEpisodeDto.targetLengthMax}`,
+                );
                 throw new BadRequestException(
                     'Target length minimum cannot be greater than maximum',
                 );
@@ -236,10 +252,11 @@ export class EpisodesService {
             this.logger.log(`Source type: ${sourceType}`);
 
             // Extract book title from filename (remove extension)
-            const bookTitle = file.originalname
-                .replace(/\.(pdf|epub)$/i, '')
-                .replace(/[-_]/g, ' ')
-                .trim() || 'Untitled Book';
+            const bookTitle =
+                file.originalname
+                    .replace(/\.(pdf|epub)$/i, '')
+                    .replace(/[-_]/g, ' ')
+                    .trim() || 'Untitled Book';
             this.logger.log(`Book title: ${bookTitle}`);
 
             // Upload the book using BooksService
@@ -369,9 +386,12 @@ export class EpisodesService {
     /**
      * Find public episodes (for feed/discovery)
      */
-    async findPublic(
-        query: QueryEpisodesDto,
-    ): Promise<{ episodes: EpisodeResponseDto[]; total: number; page: number; totalPages: number }> {
+    async findPublic(query: QueryEpisodesDto): Promise<{
+        episodes: EpisodeResponseDto[];
+        total: number;
+        page: number;
+        totalPages: number;
+    }> {
         const { sortBy, search, episodeType, episodeTheme, status, podcasterId, bookId } = query;
 
         // Apply defaults for pagination
@@ -462,7 +482,7 @@ export class EpisodesService {
         });
 
         // Transform response and clean transcripts
-        const transformedEpisodes = episodes.map((e) => ({
+        const transformedEpisodes = episodes.map(e => ({
             ...e,
             scriptContent: this.cleanTranscriptForDisplay(e.scriptContent),
             creator: e.user,
@@ -517,7 +537,7 @@ export class EpisodesService {
             },
         });
 
-        return episodes.map((e) => ({
+        return episodes.map(e => ({
             ...e,
             scriptContent: this.cleanTranscriptForDisplay(e.scriptContent),
             creator: e.user,
@@ -528,10 +548,7 @@ export class EpisodesService {
     /**
      * Find episodes by podcaster
      */
-    async findByPodcaster(
-        podcasterId: string,
-        limit: number = 20,
-    ): Promise<EpisodeResponseDto[]> {
+    async findByPodcaster(podcasterId: string, limit: number = 20): Promise<EpisodeResponseDto[]> {
         const episodes = await this.databaseService.episode.findMany({
             where: {
                 podcasterId,
@@ -558,10 +575,7 @@ export class EpisodesService {
     /**
      * Find episodes by book
      */
-    async findByBook(
-        bookId: string,
-        limit: number = 20,
-    ): Promise<EpisodeResponseDto[]> {
+    async findByBook(bookId: string, limit: number = 20): Promise<EpisodeResponseDto[]> {
         const episodes = await this.databaseService.episode.findMany({
             where: {
                 bookId,
@@ -659,9 +673,7 @@ export class EpisodesService {
             episode.generationStatus === 'SCRIPT_GENERATING' ||
             episode.generationStatus === 'AUDIO_GENERATING'
         ) {
-            throw new BadRequestException(
-                'Cannot update episode while generation is in progress',
-            );
+            throw new BadRequestException('Cannot update episode while generation is in progress');
         }
 
         // Validate target length range if provided
@@ -669,9 +681,7 @@ export class EpisodesService {
         const targetLengthMax = updateEpisodeDto.targetLengthMax ?? episode.targetLengthMax;
 
         if (targetLengthMin > targetLengthMax) {
-            throw new BadRequestException(
-                'Target length minimum cannot be greater than maximum',
-            );
+            throw new BadRequestException('Target length minimum cannot be greater than maximum');
         }
 
         const updated = await this.databaseService.episode.update({
@@ -816,9 +826,7 @@ export class EpisodesService {
         }
 
         if (episode.generationStatus !== 'COMPLETED') {
-            throw new BadRequestException(
-                'Only completed episodes can be made public',
-            );
+            throw new BadRequestException('Only completed episodes can be made public');
         }
 
         const updated = await this.databaseService.episode.update({
@@ -861,7 +869,9 @@ export class EpisodesService {
 
         // Check if the book extraction also failed - if so, retry that too
         if (episode.book?.extractionStatus === 'FAILED') {
-            this.logger.log(`Book ${episode.bookId} extraction also failed, re-triggering extraction`);
+            this.logger.log(
+                `Book ${episode.bookId} extraction also failed, re-triggering extraction`,
+            );
 
             // Reset book status
             await this.databaseService.book.update({
@@ -880,7 +890,9 @@ export class EpisodesService {
                 sourceType: episode.book.sourceType as 'PDF' | 'EPUB',
             });
 
-            this.logger.log(`Retrying book extraction for ${episode.bookId}, episode ${episode.id} will be queued after extraction`);
+            this.logger.log(
+                `Retrying book extraction for ${episode.bookId}, episode ${episode.id} will be queued after extraction`,
+            );
         } else {
             // Book is fine, just re-queue the episode generation
             await this.rabbitMQService.publishEpisodeGenerationJob({
@@ -895,7 +907,7 @@ export class EpisodesService {
                 episodeTheme: episode.episodeTheme as any,
                 targetLengthMin: episode.targetLengthMin,
                 targetLengthMax: episode.targetLengthMax,
-                voiceTier: episode.voiceTier as any || 'STANDARD',
+                voiceTier: (episode.voiceTier as any) || 'STANDARD',
             });
 
             this.logger.log(`Retrying episode generation for ${episode.id}`);
@@ -926,14 +938,11 @@ export class EpisodesService {
         }
 
         // Download the audio file
-        const audioBuffer = await this.storageService.downloadFile(
-            episode.audioFileKey,
-        );
+        const audioBuffer = await this.storageService.downloadFile(episode.audioFileKey);
         const fileSize = audioBuffer.length;
 
         // Determine content type based on format
-        const contentType =
-            episode.audioFormat === 'wav' ? 'audio/wav' : 'audio/mpeg';
+        const contentType = episode.audioFormat === 'wav' ? 'audio/wav' : 'audio/mpeg';
 
         // Handle range requests for seeking
         if (range) {
@@ -979,14 +988,8 @@ export class EpisodesService {
     /**
      * Get playback progress from Redis
      */
-    async getPlaybackProgress(
-        userId: string,
-        episodeId: string,
-    ): Promise<{ position: number }> {
-        const position = await this.redisService.getPlaybackProgress(
-            userId,
-            episodeId,
-        );
+    async getPlaybackProgress(userId: string, episodeId: string): Promise<{ position: number }> {
+        const position = await this.redisService.getPlaybackProgress(userId, episodeId);
         // Always return a valid object to prevent empty response issues
         return { position: position ?? 0 };
     }
@@ -1121,7 +1124,9 @@ export class EpisodesService {
             const searchResponse = await fetch(searchUrl);
 
             if (!searchResponse.ok) {
-                this.logger.warn(`Open Library search failed for "${authorName}": ${searchResponse.status}`);
+                this.logger.warn(
+                    `Open Library search failed for "${authorName}": ${searchResponse.status}`,
+                );
                 return null;
             }
 
@@ -1140,7 +1145,9 @@ export class EpisodesService {
             const authorResponse = await fetch(authorUrl);
 
             if (!authorResponse.ok) {
-                this.logger.warn(`Open Library author fetch failed for "${authorKey}": ${authorResponse.status}`);
+                this.logger.warn(
+                    `Open Library author fetch failed for "${authorKey}": ${authorResponse.status}`,
+                );
                 return {
                     name: authorDoc.name || authorName,
                     works: authorDoc.work_count,
@@ -1152,9 +1159,7 @@ export class EpisodesService {
             // Extract bio - can be a string or an object with 'value' key
             let bio: string | undefined;
             if (authorData.bio) {
-                bio = typeof authorData.bio === 'string'
-                    ? authorData.bio
-                    : authorData.bio.value;
+                bio = typeof authorData.bio === 'string' ? authorData.bio : authorData.bio.value;
             }
 
             return {
@@ -1162,7 +1167,9 @@ export class EpisodesService {
                 bio,
                 birthDate: authorData.birth_date,
                 deathDate: authorData.death_date,
-                photoUrl: authorDoc.key ? `https://covers.openlibrary.org/a/olid/${authorKey}-M.jpg` : undefined,
+                photoUrl: authorDoc.key
+                    ? `https://covers.openlibrary.org/a/olid/${authorKey}-M.jpg`
+                    : undefined,
                 wikipedia: authorData.wikipedia,
                 works: authorDoc.work_count,
             };

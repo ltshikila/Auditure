@@ -44,14 +44,12 @@ export class PodcastersService {
             ];
 
             const invalidTags = createPodcasterDto.expertiseTags.filter(
-                (tag) => !validExpertiseTags.includes(tag),
+                tag => !validExpertiseTags.includes(tag),
             );
 
             if (invalidTags.length > 0) {
                 this.logger.error(`Invalid expertise tags: ${invalidTags.join(', ')}`);
-                throw new BadRequestException(
-                    `Invalid expertise tags: ${invalidTags.join(', ')}`,
-                );
+                throw new BadRequestException(`Invalid expertise tags: ${invalidTags.join(', ')}`);
             }
 
             // Validate intellectual angle
@@ -65,7 +63,9 @@ export class PodcastersService {
             ];
 
             if (!validAngles.includes(createPodcasterDto.intellectualAngle)) {
-                this.logger.error(`Invalid intellectual angle: ${createPodcasterDto.intellectualAngle}`);
+                this.logger.error(
+                    `Invalid intellectual angle: ${createPodcasterDto.intellectualAngle}`,
+                );
                 throw new BadRequestException(
                     `Invalid intellectual angle. Must be one of: ${validAngles.join(', ')}`,
                 );
@@ -121,9 +121,12 @@ export class PodcastersService {
     /**
      * Find public podcasters (for feed/discovery)
      */
-    async findPublic(
-        query: QueryPodcastersDto,
-    ): Promise<{ podcasters: PodcasterResponseDto[]; total: number; page: number; totalPages: number }> {
+    async findPublic(query: QueryPodcastersDto): Promise<{
+        podcasters: PodcasterResponseDto[];
+        total: number;
+        page: number;
+        totalPages: number;
+    }> {
         this.logger.log(`findPublic() called with query: ${JSON.stringify(query)}`);
 
         try {
@@ -196,7 +199,7 @@ export class PodcastersService {
             this.logger.log(`Returning ${podcasters.length} podcasters (page ${page})`);
 
             // Transform response
-            const transformedPodcasters = podcasters.map((p) => ({
+            const transformedPodcasters = podcasters.map(p => ({
                 ...p,
                 creator: p.user,
                 user: undefined,
@@ -244,7 +247,7 @@ export class PodcastersService {
 
             this.logger.log(`Found ${podcasters.length} trending podcasters`);
 
-            return podcasters.map((p) => ({
+            return podcasters.map(p => ({
                 ...p,
                 creator: p.user,
                 user: undefined,
@@ -286,9 +289,11 @@ export class PodcastersService {
                 },
             });
 
-            this.logger.log(`Found ${podcasters.length} podcasters with expertise: ${expertiseTag}`);
+            this.logger.log(
+                `Found ${podcasters.length} podcasters with expertise: ${expertiseTag}`,
+            );
 
-            return podcasters.map((p) => ({
+            return podcasters.map(p => ({
                 ...p,
                 creator: p.user,
                 user: undefined,
@@ -371,7 +376,9 @@ export class PodcastersService {
             }
 
             if (podcaster.userId !== userId) {
-                this.logger.warn(`User ${userId} attempted to update podcaster ${id} owned by ${podcaster.userId}`);
+                this.logger.warn(
+                    `User ${userId} attempted to update podcaster ${id} owned by ${podcaster.userId}`,
+                );
                 throw new ForbiddenException('You can only update your own podcasters');
             }
 
@@ -391,7 +398,7 @@ export class PodcastersService {
                 ];
 
                 const invalidTags = updatePodcasterDto.expertiseTags.filter(
-                    (tag) => !validExpertiseTags.includes(tag),
+                    tag => !validExpertiseTags.includes(tag),
                 );
 
                 if (invalidTags.length > 0) {
@@ -414,7 +421,9 @@ export class PodcastersService {
                 ];
 
                 if (!validAngles.includes(updatePodcasterDto.intellectualAngle)) {
-                    this.logger.error(`Invalid intellectual angle: ${updatePodcasterDto.intellectualAngle}`);
+                    this.logger.error(
+                        `Invalid intellectual angle: ${updatePodcasterDto.intellectualAngle}`,
+                    );
                     throw new BadRequestException(
                         `Invalid intellectual angle. Must be one of: ${validAngles.join(', ')}`,
                     );
@@ -451,7 +460,11 @@ export class PodcastersService {
             this.logger.log(`Podcaster ${id} updated successfully`);
             return updated as PodcasterResponseDto;
         } catch (error) {
-            if (error instanceof NotFoundException || error instanceof ForbiddenException || error instanceof BadRequestException) {
+            if (
+                error instanceof NotFoundException ||
+                error instanceof ForbiddenException ||
+                error instanceof BadRequestException
+            ) {
                 throw error;
             }
             this.logger.error(`Error in update(): ${error.message}`);
@@ -477,7 +490,9 @@ export class PodcastersService {
             }
 
             if (podcaster.userId !== userId) {
-                this.logger.warn(`User ${userId} attempted to delete podcaster ${id} owned by ${podcaster.userId}`);
+                this.logger.warn(
+                    `User ${userId} attempted to delete podcaster ${id} owned by ${podcaster.userId}`,
+                );
                 throw new ForbiddenException('You can only delete your own podcasters');
             }
 
@@ -658,13 +673,8 @@ export class PodcastersService {
     /**
      * Get user's rating for a podcaster
      */
-    async getUserRating(
-        podcasterId: string,
-        userId: string,
-    ): Promise<number | null> {
-        this.logger.log(
-            `getUserRating() called: podcaster=${podcasterId}, user=${userId}`,
-        );
+    async getUserRating(podcasterId: string, userId: string): Promise<number | null> {
+        this.logger.log(`getUserRating() called: podcaster=${podcasterId}, user=${userId}`);
 
         try {
             const rating = await this.databaseService.podcasterRating.findUnique({

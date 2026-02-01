@@ -165,6 +165,8 @@ const TranscriptLineItem = React.memo(({
            (prev.index === prev.currentIndex) === (next.index === next.currentIndex);
 });
 
+TranscriptLineItem.displayName = 'TranscriptLineItem';
+
 export default function TranscriptScreen() {
     const { episode: episodeId } = useLocalSearchParams<{ episode: string }>();
     const insets = useSafeAreaInsets();

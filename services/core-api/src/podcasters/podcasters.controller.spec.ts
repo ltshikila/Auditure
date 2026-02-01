@@ -43,7 +43,7 @@ describe('PodcastersController (Integration)', () => {
         })
             .overrideGuard(JwtAuthGuard)
             .useValue({
-                canActivate: jest.fn((context) => {
+                canActivate: jest.fn(context => {
                     const request = context.switchToHttp().getRequest();
                     request.user = { userId: 'test-user-id', email: 'test@example.com' };
                     return true;
@@ -80,7 +80,7 @@ describe('PodcastersController (Integration)', () => {
                 .post('/podcasters')
                 .send(mockCreatePodcasterDto)
                 .expect(201)
-                .then((response) => {
+                .then(response => {
                     expect(response.body).toMatchObject({
                         name: mockPodcaster.name,
                         voiceModel: mockPodcaster.voiceModel,
@@ -148,7 +148,7 @@ describe('PodcastersController (Integration)', () => {
             return request(app.getHttpServer())
                 .get('/podcasters/public')
                 .expect(200)
-                .then((res) => {
+                .then(res => {
                     expect(res.body.total).toBe(50);
                     expect(res.body.page).toBe(1);
                     expect(res.body.totalPages).toBe(3);
@@ -190,7 +190,7 @@ describe('PodcastersController (Integration)', () => {
             return request(app.getHttpServer())
                 .get('/podcasters/trending')
                 .expect(200)
-                .then((res) => {
+                .then(res => {
                     expect(res.body).toHaveLength(1);
                     expect(res.body[0]).toHaveProperty('name');
                     expect(res.body[0]).toHaveProperty('playCount');
@@ -218,7 +218,7 @@ describe('PodcastersController (Integration)', () => {
             return request(app.getHttpServer())
                 .get('/podcasters/expertise/Philosophy')
                 .expect(200)
-                .then((res) => {
+                .then(res => {
                     expect(res.body).toHaveLength(1);
                     expect(res.body[0].expertiseTags).toContain('Philosophy');
                 });
@@ -241,14 +241,14 @@ describe('PodcastersController (Integration)', () => {
     });
 
     describe('GET /podcasters/my', () => {
-        it('should return current user\'s podcasters', () => {
+        it("should return current user's podcasters", () => {
             const response = [createMockPodcaster()];
             mockPodcastersService.findAllByUser.mockResolvedValue(response);
 
             return request(app.getHttpServer())
                 .get('/podcasters/my')
                 .expect(200)
-                .then((res) => {
+                .then(res => {
                     expect(res.body).toHaveLength(1);
                     expect(res.body[0]).toHaveProperty('name');
                 });
@@ -263,7 +263,7 @@ describe('PodcastersController (Integration)', () => {
             return request(app.getHttpServer())
                 .get('/podcasters/test-id')
                 .expect(200)
-                .then((res) => {
+                .then(res => {
                     expect(res.body).toHaveProperty('id');
                     expect(res.body).toHaveProperty('name');
                     expect(res.body.isPublic).toBe(true);
@@ -280,7 +280,7 @@ describe('PodcastersController (Integration)', () => {
                 .patch('/podcasters/test-id')
                 .send(mockUpdatePodcasterDto)
                 .expect(200)
-                .then((res) => {
+                .then(res => {
                     expect(res.body).toHaveProperty('id');
                     expect(res.body).toHaveProperty('name');
                 });
@@ -325,9 +325,7 @@ describe('PodcastersController (Integration)', () => {
         it('should decrement like count', () => {
             mockPodcastersService.decrementLikeCount.mockResolvedValue(undefined);
 
-            return request(app.getHttpServer())
-                .delete('/podcasters/test-id/like')
-                .expect(204);
+            return request(app.getHttpServer()).delete('/podcasters/test-id/like').expect(204);
         });
     });
 

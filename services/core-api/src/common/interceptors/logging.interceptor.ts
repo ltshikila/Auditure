@@ -1,10 +1,4 @@
-import {
-    Injectable,
-    NestInterceptor,
-    ExecutionContext,
-    CallHandler,
-    Logger,
-} from '@nestjs/common';
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from '@nestjs/common';
 import { Observable, throwError } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
 
@@ -15,7 +9,7 @@ export class LoggingInterceptor implements NestInterceptor {
     intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
         const request = context.switchToHttp().getRequest();
         const { method, url, body, query, params, file, files } = request;
-        const userAgent = request.get('user-agent') || '';
+        const _userAgent = request.get('user-agent') || '';
         const contentType = request.get('content-type') || '';
         const ip = request.ip || request.connection?.remoteAddress;
         const userId = request.user?.userId || 'anonymous';
@@ -23,18 +17,20 @@ export class LoggingInterceptor implements NestInterceptor {
         const now = Date.now();
 
         // Log incoming request
-        this.logger.log(
-            `>>> ${method} ${url} | User: ${userId} | IP: ${ip}`,
-        );
+        this.logger.log(`>>> ${method} ${url} | User: ${userId} | IP: ${ip}`);
         this.logger.log(`    Content-Type: ${contentType}`);
 
         // Log file upload info
         if (file) {
-            this.logger.log(`    File: ${file.originalname} (${file.mimetype}, ${file.size} bytes)`);
+            this.logger.log(
+                `    File: ${file.originalname} (${file.mimetype}, ${file.size} bytes)`,
+            );
         }
         if (files && Array.isArray(files)) {
             files.forEach((f: any, i: number) => {
-                this.logger.log(`    File[${i}]: ${f.originalname} (${f.mimetype}, ${f.size} bytes)`);
+                this.logger.log(
+                    `    File[${i}]: ${f.originalname} (${f.mimetype}, ${f.size} bytes)`,
+                );
             });
         }
 
@@ -58,14 +54,12 @@ export class LoggingInterceptor implements NestInterceptor {
 
         return next.handle().pipe(
             tap({
-                next: (data) => {
+                next: data => {
                     const response = context.switchToHttp().getResponse();
                     const statusCode = response.statusCode;
                     const duration = Date.now() - now;
 
-                    this.logger.log(
-                        `<<< ${method} ${url} | ${statusCode} | ${duration}ms`,
-                    );
+                    this.logger.log(`<<< ${method} ${url} | ${statusCode} | ${duration}ms`);
 
                     // Log response summary for debugging
                     if (data && typeof data === 'object') {
@@ -76,7 +70,7 @@ export class LoggingInterceptor implements NestInterceptor {
                     }
                 },
             }),
-            catchError((error) => {
+            catchError(error => {
                 const duration = Date.now() - now;
                 const statusCode = error.status || error.statusCode || 500;
 

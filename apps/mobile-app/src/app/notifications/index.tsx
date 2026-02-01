@@ -238,7 +238,7 @@ export default function NotificationsScreen() {
                     All caught up!
                 </Text>
                 <Text className="font-jakarta text-gray-500 text-center text-base leading-6">
-                    You have no new notifications.{'\n'}We'll let you know when something arrives.
+                    You have no new notifications.{'\n'}We&apos;ll let you know when something arrives.
                 </Text>
             </View>
         );

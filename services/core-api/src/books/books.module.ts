@@ -9,6 +9,7 @@ import { BookExtractionWorker } from './workers/book-extraction.worker';
 @Module({
     imports: [
         MulterModule.register({
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
             storage: require('multer').memoryStorage(), // Store in memory for processing
         }),
     ],

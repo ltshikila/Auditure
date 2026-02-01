@@ -108,10 +108,7 @@ export class PaystackService implements OnModuleInit {
      * Verify webhook signature using HMAC SHA512
      */
     verifyWebhookSignature(payload: string, signature: string): boolean {
-        const hash = crypto
-            .createHmac('sha512', this.secretKey)
-            .update(payload)
-            .digest('hex');
+        const hash = crypto.createHmac('sha512', this.secretKey).update(payload).digest('hex');
         return hash === signature;
     }
 
@@ -266,7 +263,7 @@ export class PaystackService implements OnModuleInit {
     /**
      * Generate a manage subscription link (for customer portal equivalent)
      */
-    async generateManageSubscriptionLink(subscriptionCode: string): Promise<string> {
+    generateManageSubscriptionLink(subscriptionCode: string): string {
         // Paystack doesn't have a built-in portal, so we'll use the subscription page
         // The customer can manage via the email they receive or via a custom page
         return `https://paystack.com/manage/subscription/${subscriptionCode}`;

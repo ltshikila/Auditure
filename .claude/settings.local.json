@@ -78,7 +78,9 @@
       "WebFetch(domain:github.com)",
       "Bash(del \"c:\\\\Users\\\\ltshi\\\\OneDrive\\\\Documents\\\\GitHub\\\\Auditure\\\\services\\\\core-api\\\\src\\\\subscriptions\\\\stripe.service.ts\")",
       "Bash(del \"c:\\\\Users\\\\ltshi\\\\OneDrive\\\\Documents\\\\GitHub\\\\Auditure\\\\services\\\\core-api\\\\src\\\\subscriptions\\\\dto\\\\create-portal-session.dto.ts\")",
-      "Bash(ipconfig:*)"
+      "Bash(ipconfig:*)",
+      "Bash(npm run lint)",
+      "Bash(npx eslint:*)"
     ]
   }
 }

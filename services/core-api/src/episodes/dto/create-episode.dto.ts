@@ -30,8 +30,8 @@ export enum ContentCoverage {
 }
 
 export enum VoiceTier {
-    STANDARD = 'STANDARD',  // Google Cloud Standard voices - $4/1M chars
-    GEMINI = 'GEMINI',      // Gemini 2.5 Pro TTS - ~$0.32/10-min episode
+    STANDARD = 'STANDARD', // Google Cloud Standard voices - $4/1M chars
+    GEMINI = 'GEMINI', // Gemini 2.5 Pro TTS - ~$0.32/10-min episode
 }
 
 export class CreateEpisodeDto {
@@ -102,7 +102,7 @@ export class CreateEpisodeWithFileDto {
             try {
                 return JSON.parse(value);
             } catch {
-                return value.split(',').map((v) => parseInt(v.trim(), 10));
+                return value.split(',').map(v => parseInt(v.trim(), 10));
             }
         }
         return value;

@@ -36,15 +36,19 @@ describe('ExpoPushService', () => {
 
     describe('isValidExpoPushToken', () => {
         it('should return true for valid ExponentPushToken format', () => {
-            expect(service.isValidExpoPushToken('ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]')).toBe(true);
+            expect(service.isValidExpoPushToken('ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]')).toBe(
+                true,
+            );
         });
 
         it('should return true for valid ExpoPushToken format', () => {
-            expect(service.isValidExpoPushToken('ExpoPushToken[xxxxxxxxxxxxxxxxxxxxxx]')).toBe(true);
+            expect(service.isValidExpoPushToken('ExpoPushToken[xxxxxxxxxxxxxxxxxxxxxx]')).toBe(
+                true,
+            );
         });
 
         it('should return false for invalid token formats', () => {
-            INVALID_PUSH_TOKENS.forEach((token) => {
+            INVALID_PUSH_TOKENS.forEach(token => {
                 expect(service.isValidExpoPushToken(token as string)).toBe(false);
             });
         });
@@ -100,12 +104,10 @@ describe('ExpoPushService', () => {
                 json: async () => ({ data: [mockExpoPushSuccessTicket] }),
             });
 
-            await service.sendPushNotification(
-                VALID_EXPO_PUSH_TOKEN,
-                'Test Title',
-                'Test Body',
-                { episodeId: 'episode-123', route: '/episodes/123' },
-            );
+            await service.sendPushNotification(VALID_EXPO_PUSH_TOKEN, 'Test Title', 'Test Body', {
+                episodeId: 'episode-123',
+                route: '/episodes/123',
+            });
 
             expect(mockFetch).toHaveBeenCalledWith(
                 expect.any(String),
@@ -164,7 +166,7 @@ describe('ExpoPushService', () => {
             ]);
 
             expect(result).toHaveLength(2);
-            expect(result.every((t) => t.status === 'ok')).toBe(true);
+            expect(result.every(t => t.status === 'ok')).toBe(true);
         });
 
         it('should return empty array for empty input', async () => {

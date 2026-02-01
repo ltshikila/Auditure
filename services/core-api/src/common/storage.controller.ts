@@ -59,16 +59,16 @@ export class StorageController {
     private getContentType(filename: string): string {
         const ext = filename.toLowerCase().split('.').pop();
         const mimeTypes: Record<string, string> = {
-            'jpg': 'image/jpeg',
-            'jpeg': 'image/jpeg',
-            'png': 'image/png',
-            'gif': 'image/gif',
-            'webp': 'image/webp',
-            'pdf': 'application/pdf',
-            'txt': 'text/plain',
-            'mp3': 'audio/mpeg',
-            'wav': 'audio/wav',
-            'ogg': 'audio/ogg',
+            jpg: 'image/jpeg',
+            jpeg: 'image/jpeg',
+            png: 'image/png',
+            gif: 'image/gif',
+            webp: 'image/webp',
+            pdf: 'application/pdf',
+            txt: 'text/plain',
+            mp3: 'audio/mpeg',
+            wav: 'audio/wav',
+            ogg: 'audio/ogg',
         };
         return mimeTypes[ext || ''] || 'application/octet-stream';
     }

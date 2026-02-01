@@ -45,7 +45,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         try {
           const currentUser = await authService.getProfile(accessToken);
           setUser(currentUser);
-        } catch (error) {
+        } catch {
           const refreshToken = await storageService.getRefreshToken();
           if (refreshToken) {
             try {

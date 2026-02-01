@@ -143,8 +143,18 @@ describe('NotificationsService', () => {
                 .mockResolvedValueOnce(mockNotification2);
 
             const result = await service.createBatch([
-                { userId: 'user-1', type: NotificationType.SYSTEM, title: 'Test 1', body: 'Body 1' },
-                { userId: 'user-2', type: NotificationType.SYSTEM, title: 'Test 2', body: 'Body 2' },
+                {
+                    userId: 'user-1',
+                    type: NotificationType.SYSTEM,
+                    title: 'Test 1',
+                    body: 'Body 1',
+                },
+                {
+                    userId: 'user-2',
+                    type: NotificationType.SYSTEM,
+                    title: 'Test 2',
+                    body: 'Body 2',
+                },
             ]);
 
             expect(result).toHaveLength(2);
@@ -165,8 +175,18 @@ describe('NotificationsService', () => {
             mockPrismaClient.notification.create.mockResolvedValue(mockNotification);
 
             const result = await service.createBatch([
-                { userId: 'user-1', type: NotificationType.SYSTEM, title: 'Test 1', body: 'Body 1' },
-                { userId: 'user-2', type: NotificationType.SYSTEM, title: 'Test 2', body: 'Body 2' },
+                {
+                    userId: 'user-1',
+                    type: NotificationType.SYSTEM,
+                    title: 'Test 1',
+                    body: 'Body 1',
+                },
+                {
+                    userId: 'user-2',
+                    type: NotificationType.SYSTEM,
+                    title: 'Test 2',
+                    body: 'Body 2',
+                },
             ]);
 
             expect(result).toHaveLength(1);
@@ -198,9 +218,7 @@ describe('NotificationsService', () => {
         it('should filter by unread only', async () => {
             const unreadNotifications = [createUnreadMockNotification({ userId: mockUserId })];
 
-            mockPrismaClient.notification.count
-                .mockResolvedValueOnce(1)
-                .mockResolvedValueOnce(1);
+            mockPrismaClient.notification.count.mockResolvedValueOnce(1).mockResolvedValueOnce(1);
             mockPrismaClient.notification.findMany.mockResolvedValue(unreadNotifications);
 
             const result = await service.findAll(mockUserId, { unreadOnly: true });
@@ -213,9 +231,7 @@ describe('NotificationsService', () => {
         });
 
         it('should filter by notification type', async () => {
-            mockPrismaClient.notification.count
-                .mockResolvedValueOnce(0)
-                .mockResolvedValueOnce(0);
+            mockPrismaClient.notification.count.mockResolvedValueOnce(0).mockResolvedValueOnce(0);
             mockPrismaClient.notification.findMany.mockResolvedValue([]);
 
             await service.findAll(mockUserId, { type: NotificationType.EPISODE_READY });
@@ -256,18 +272,18 @@ describe('NotificationsService', () => {
         it('should throw NotFoundException if notification does not exist', async () => {
             mockPrismaClient.notification.findUnique.mockResolvedValue(null);
 
-            await expect(
-                service.findOne('non-existent-id', mockUserId),
-            ).rejects.toThrow(NotFoundException);
+            await expect(service.findOne('non-existent-id', mockUserId)).rejects.toThrow(
+                NotFoundException,
+            );
         });
 
         it('should throw ForbiddenException if user is not the owner', async () => {
             const mockNotification = createMockNotification({ userId: 'other-user' });
             mockPrismaClient.notification.findUnique.mockResolvedValue(mockNotification);
 
-            await expect(
-                service.findOne(mockNotification.id, mockUserId),
-            ).rejects.toThrow(ForbiddenException);
+            await expect(service.findOne(mockNotification.id, mockUserId)).rejects.toThrow(
+                ForbiddenException,
+            );
         });
     });
 
@@ -317,9 +333,9 @@ describe('NotificationsService', () => {
         it('should throw NotFoundException if notification does not exist', async () => {
             mockPrismaClient.notification.findUnique.mockResolvedValue(null);
 
-            await expect(
-                service.markAsRead('non-existent-id', mockUserId),
-            ).rejects.toThrow(NotFoundException);
+            await expect(service.markAsRead('non-existent-id', mockUserId)).rejects.toThrow(
+                NotFoundException,
+            );
 
             expect(mockPrismaClient.notification.update).not.toHaveBeenCalled();
         });
@@ -328,9 +344,9 @@ describe('NotificationsService', () => {
             const mockNotification = createMockNotification({ userId: 'other-user' });
             mockPrismaClient.notification.findUnique.mockResolvedValue(mockNotification);
 
-            await expect(
-                service.markAsRead(mockNotification.id, mockUserId),
-            ).rejects.toThrow(ForbiddenException);
+            await expect(service.markAsRead(mockNotification.id, mockUserId)).rejects.toThrow(
+                ForbiddenException,
+            );
 
             expect(mockPrismaClient.notification.update).not.toHaveBeenCalled();
         });
@@ -370,9 +386,9 @@ describe('NotificationsService', () => {
                 { id: 'id-2', userId: 'other-user' }, // Belongs to another user
             ]);
 
-            await expect(
-                service.markMultipleAsRead(mockUserId, notificationIds),
-            ).rejects.toThrow(ForbiddenException);
+            await expect(service.markMultipleAsRead(mockUserId, notificationIds)).rejects.toThrow(
+                ForbiddenException,
+            );
 
             expect(mockPrismaClient.notification.updateMany).not.toHaveBeenCalled();
         });
@@ -399,18 +415,18 @@ describe('NotificationsService', () => {
         it('should throw NotFoundException if notification does not exist', async () => {
             mockPrismaClient.notification.findUnique.mockResolvedValue(null);
 
-            await expect(
-                service.delete('non-existent-id', mockUserId),
-            ).rejects.toThrow(NotFoundException);
+            await expect(service.delete('non-existent-id', mockUserId)).rejects.toThrow(
+                NotFoundException,
+            );
         });
 
         it('should throw ForbiddenException if user is not the owner', async () => {
             const mockNotification = createMockNotification({ userId: 'other-user' });
             mockPrismaClient.notification.findUnique.mockResolvedValue(mockNotification);
 
-            await expect(
-                service.delete(mockNotification.id, mockUserId),
-            ).rejects.toThrow(ForbiddenException);
+            await expect(service.delete(mockNotification.id, mockUserId)).rejects.toThrow(
+                ForbiddenException,
+            );
 
             expect(mockPrismaClient.notification.delete).not.toHaveBeenCalled();
         });
@@ -451,9 +467,9 @@ describe('NotificationsService', () => {
         it('should throw BadRequestException for invalid push token', async () => {
             mockExpoPushService.isValidExpoPushToken.mockReturnValue(false);
 
-            await expect(
-                service.registerPushToken(mockUserId, 'invalid-token'),
-            ).rejects.toThrow(BadRequestException);
+            await expect(service.registerPushToken(mockUserId, 'invalid-token')).rejects.toThrow(
+                BadRequestException,
+            );
 
             expect(mockPrismaClient.userSettings.upsert).not.toHaveBeenCalled();
         });
@@ -461,9 +477,9 @@ describe('NotificationsService', () => {
         it('should throw BadRequestException for empty push token', async () => {
             mockExpoPushService.isValidExpoPushToken.mockReturnValue(false);
 
-            await expect(
-                service.registerPushToken(mockUserId, ''),
-            ).rejects.toThrow(BadRequestException);
+            await expect(service.registerPushToken(mockUserId, '')).rejects.toThrow(
+                BadRequestException,
+            );
         });
     });
 
@@ -593,7 +609,9 @@ describe('NotificationsService', () => {
             });
 
             expect(mockExpoPushService.sendPushNotification).toHaveBeenCalled();
-            expect(mockRedisServiceWithStreams.ackNotification).toHaveBeenCalledWith('1234567890-0');
+            expect(mockRedisServiceWithStreams.ackNotification).toHaveBeenCalledWith(
+                '1234567890-0',
+            );
         });
 
         it('should skip push when user has push disabled', async () => {
@@ -635,8 +653,12 @@ describe('NotificationsService', () => {
         it('should clear token when device is not registered', async () => {
             const mockSettings = createMockUserSettingsWithPushToken({ userId: mockUserId });
             mockPrismaClient.userSettings.findUnique.mockResolvedValue(mockSettings);
-            mockExpoPushService.sendPushNotification.mockResolvedValue(mockExpoPushDeviceNotRegisteredTicket);
-            mockExpoPushService.getInvalidTokenFromTicket.mockReturnValue(mockSettings.expoPushToken);
+            mockExpoPushService.sendPushNotification.mockResolvedValue(
+                mockExpoPushDeviceNotRegisteredTicket,
+            );
+            mockExpoPushService.getInvalidTokenFromTicket.mockReturnValue(
+                mockSettings.expoPushToken,
+            );
             mockPrismaClient.userSettings.update.mockResolvedValue({});
 
             await (service as any).processNotificationMessage({

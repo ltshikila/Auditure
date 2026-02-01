@@ -42,7 +42,7 @@ import { FEED_CONFIG } from '../src/feed/dto/feed-response.dto';
 
 // Mock JWT auth guard
 const mockJwtAuthGuard = {
-    canActivate: jest.fn().mockImplementation((context) => {
+    canActivate: jest.fn().mockImplementation(context => {
         const req = context.switchToHttp().getRequest();
         req.user = { userId: MOCK_USER_ID };
         return true;
@@ -221,7 +221,7 @@ describe('Integration: Feed Service', () => {
                     playbackProgress,
                 );
 
-                const episodes = Object.keys(playbackProgress).map((id) =>
+                const episodes = Object.keys(playbackProgress).map(id =>
                     createMockEpisodeWithRelations({
                         id,
                         duration: 1200000,
@@ -365,9 +365,7 @@ describe('Integration: Feed Service', () => {
 
         describe('Latest Books Section', () => {
             it('should return latest books sorted by createdAt', async () => {
-                const mockBooks = [
-                    { ...createMockBookWithCount(), _count: { episodes: 3 } },
-                ];
+                const mockBooks = [{ ...createMockBookWithCount(), _count: { episodes: 3 } }];
 
                 mockPrismaClient.book.findMany.mockResolvedValue(mockBooks);
 
@@ -451,9 +449,7 @@ describe('Integration: Feed Service', () => {
 
         describe('New Voices Section', () => {
             it('should return newest podcasters', async () => {
-                const mockPodcasters = [
-                    createMockPodcasterWithCreator({ createdAt: new Date() }),
-                ];
+                const mockPodcasters = [createMockPodcasterWithCreator({ createdAt: new Date() })];
 
                 mockPrismaClient.podcaster.findMany.mockResolvedValue(mockPodcasters);
 
@@ -593,9 +589,7 @@ describe('Integration: Feed Service', () => {
 
     describe('Caching Behavior', () => {
         it('should cache feed results', async () => {
-            mockPrismaClient.episode.findMany.mockResolvedValue([
-                createMockEpisodeWithRelations(),
-            ]);
+            mockPrismaClient.episode.findMany.mockResolvedValue([createMockEpisodeWithRelations()]);
 
             await request(app.getHttpServer())
                 .get('/feed')
@@ -637,9 +631,7 @@ describe('Integration: Feed Service', () => {
             mockPrismaClient.episode.findMany.mockResolvedValue([]);
             mockPrismaClient.episode.count.mockResolvedValue(0);
 
-            await request(app.getHttpServer())
-                .get('/feed/section/invalid_section')
-                .expect(400);
+            await request(app.getHttpServer()).get('/feed/section/invalid_section').expect(400);
         });
 
         it('should handle database errors gracefully', async () => {

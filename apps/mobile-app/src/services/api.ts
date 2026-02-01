@@ -36,7 +36,7 @@ export interface ApiError {
 }
 
 // Map technical API error messages to user-friendly messages
-const getUserFriendlyMessage = (statusCode: number, apiMessage: string, error?: string): string => {
+const getUserFriendlyMessage = (statusCode: number, apiMessage: string, _error?: string): string => {
   // Handle specific error types
   if (statusCode === 409) {
     if (apiMessage.toLowerCase().includes('email')) {
@@ -250,7 +250,7 @@ class ApiClient {
               error: data.error,
             } as ApiError);
           }
-        } catch (parseError) {
+        } catch {
           console.error(`[API] Failed to parse response:`, xhr.responseText);
           reject({
             message: 'Invalid response from server.',

@@ -143,18 +143,20 @@ describe('EpisodesController (Integration)', () => {
             const streamableFile = new StreamableFile(mockAudioBuffer);
             mockEpisodesService.streamAudio.mockResolvedValue(streamableFile);
 
-            return request(app.getHttpServer())
-                .get(`/episodes/${mockEpisode.id}/stream`)
-                // No Authorization header
-                .expect(200)
-                .then(response => {
-                    expect(episodesService.streamAudio).toHaveBeenCalledWith(
-                        mockEpisode.id,
-                        undefined, // No user ID
-                        undefined,
-                        expect.anything(),
-                    );
-                });
+            return (
+                request(app.getHttpServer())
+                    .get(`/episodes/${mockEpisode.id}/stream`)
+                    // No Authorization header
+                    .expect(200)
+                    .then(response => {
+                        expect(episodesService.streamAudio).toHaveBeenCalledWith(
+                            mockEpisode.id,
+                            undefined, // No user ID
+                            undefined,
+                            expect.anything(),
+                        );
+                    })
+            );
         });
 
         it('should return 404 for non-existent episode', () => {
@@ -173,10 +175,12 @@ describe('EpisodesController (Integration)', () => {
                 new ForbiddenException('Access denied to private episode'),
             );
 
-            return request(app.getHttpServer())
-                .get('/episodes/private-episode-id/stream')
-                // No Authorization header
-                .expect(403);
+            return (
+                request(app.getHttpServer())
+                    .get('/episodes/private-episode-id/stream')
+                    // No Authorization header
+                    .expect(403)
+            );
         });
     });
 
@@ -390,13 +394,15 @@ describe('EpisodesController (Integration)', () => {
             const mockEpisode = createPublicMockEpisode();
             mockEpisodesService.findOne.mockResolvedValue(mockEpisode);
 
-            return request(app.getHttpServer())
-                .get(`/episodes/${mockEpisode.id}`)
-                // No Authorization header
-                .expect(200)
-                .then(response => {
-                    expect(response.body.isPublic).toBe(true);
-                });
+            return (
+                request(app.getHttpServer())
+                    .get(`/episodes/${mockEpisode.id}`)
+                    // No Authorization header
+                    .expect(200)
+                    .then(response => {
+                        expect(response.body.isPublic).toBe(true);
+                    })
+            );
         });
 
         it('should return 404 for non-existent episode', () => {
