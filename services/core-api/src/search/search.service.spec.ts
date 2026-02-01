@@ -3,13 +3,13 @@ import { BadRequestException } from '@nestjs/common';
 import { SearchService } from './search.service';
 import { DatabaseService } from '../database/database.service';
 import { SearchScope, SearchResponseDto, ScopedSearchResponseDto } from './dto';
-import { mockPrismaClient } from '../../../test/mocks/database.mock';
+import { mockPrismaClient } from '../../test/mocks/database.mock';
 import {
     createMockPrismaEpisode,
     createMockPrismaBook,
     createMockPrismaPodcaster,
     mockUserId,
-} from '../../../test/fixtures/search.fixture';
+} from '../../test/fixtures/search.fixture';
 
 describe('SearchService', () => {
     let service: SearchService;

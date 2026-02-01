@@ -2,13 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { SearchController } from './search.controller';
 import { SearchService } from './search.service';
 import { SearchScope } from './dto';
-import { mockSearchService } from '../../../test/mocks/services.mock';
+import { mockSearchService } from '../../test/mocks/services.mock';
 import {
     createMockEpisodeSearchResult,
     createMockBookSearchResult,
     createMockPodcasterSearchResult,
     mockUserId,
-} from '../../../test/fixtures/search.fixture';
+} from '../../test/fixtures/search.fixture';
 
 describe('SearchController', () => {
     let controller: SearchController;

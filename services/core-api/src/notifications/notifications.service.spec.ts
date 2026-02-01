@@ -16,12 +16,12 @@ import {
     VALID_EXPO_PUSH_TOKEN,
     mockExpoPushSuccessTicket,
     mockExpoPushDeviceNotRegisteredTicket,
-} from '../../../test/fixtures/notifications.fixture';
-import { mockPrismaClient } from '../../../test/mocks/database.mock';
+} from '../../test/fixtures/notifications.fixture';
+import { mockPrismaClient } from '../../test/mocks/database.mock';
 import {
     mockExpoPushService,
     mockRedisServiceWithStreams,
-} from '../../../test/mocks/services.mock';
+} from '../../test/mocks/services.mock';
 
 describe('NotificationsService', () => {
     let service: NotificationsService;

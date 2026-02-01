@@ -6,8 +6,8 @@ import {
     createMockNotification,
     createMockNotificationList,
     VALID_EXPO_PUSH_TOKEN,
-} from '../../../test/fixtures/notifications.fixture';
-import { mockNotificationsService } from '../../../test/mocks/services.mock';
+} from '../../test/fixtures/notifications.fixture';
+import { mockNotificationsService } from '../../test/mocks/services.mock';
 
 describe('NotificationsController', () => {
     let controller: NotificationsController;

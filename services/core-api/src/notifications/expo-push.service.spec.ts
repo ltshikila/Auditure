@@ -6,7 +6,7 @@ import {
     mockExpoPushSuccessTicket,
     mockExpoPushDeviceNotRegisteredTicket,
     mockExpoPushInvalidCredentialsTicket,
-} from '../../../test/fixtures/notifications.fixture';
+} from '../../test/fixtures/notifications.fixture';
 
 // Mock global fetch
 const mockFetch = jest.fn();
