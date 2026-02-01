@@ -29,7 +29,7 @@ RUN npx prisma generate
 COPY . .
 
 # Build the application
-RUN npm run build && echo "Build completed, checking dist:" && ls -la dist/
+RUN npm run build
 
 # Production stage
 FROM node:20-alpine AS runner
@@ -51,9 +51,6 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package*.json ./
 
-# Verify dist exists
-RUN echo "Verifying dist folder in runner:" && ls -la dist/ && ls -la dist/main.js
-
 # Create storage directory
 RUN mkdir -p /storage
 
@@ -69,4 +66,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
 # Run the application
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]
