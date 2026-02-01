@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.config import get_settings
 from src.utils import setup_logging
 from src.consumers import EpisodeConsumer
+from src.health import start_health_server
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,9 @@ def main() -> None:
     # Ensure directories exist
     Path(settings.local_storage_path).mkdir(parents=True, exist_ok=True)
     Path(settings.tts_temp_dir).mkdir(parents=True, exist_ok=True)
+
+    # Start health check server for Cloud Run
+    start_health_server()
 
     # Create and start consumer
     consumer = EpisodeConsumer()
