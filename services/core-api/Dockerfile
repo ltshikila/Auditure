@@ -29,7 +29,7 @@ RUN npx prisma generate
 COPY . .
 
 # Build the application
-RUN npm run build
+RUN npm run build && echo "Build completed, checking dist:" && ls -la dist/
 
 # Production stage
 FROM node:20-alpine AS runner
@@ -50,6 +50,9 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package*.json ./
+
+# Verify dist exists
+RUN echo "Verifying dist folder in runner:" && ls -la dist/ && ls -la dist/main.js
 
 # Create storage directory
 RUN mkdir -p /storage
