@@ -74,13 +74,13 @@ const Create = () => {
         { label: 'Empirical', value: 'Empirical' },
     ];
 
-    const voiceModels: { type: VoiceModel; label: string }[] = [
-        { type: 'custom', label: 'Custom' },
-        { type: 'conversational', label: 'Conversational' },
-        { type: 'energetic', label: 'Energetic' },
-        { type: 'calm', label: 'Calm' },
-        { type: 'sarcastic', label: 'Sarcastic' },
-        { type: 'academic', label: 'Academic' },
+    const voiceModels: { type: VoiceModel; label: string; icon: string }[] = [
+        { type: 'custom', label: 'Custom', icon: 'options' },
+        { type: 'conversational', label: 'Conversational', icon: 'chatbubbles' },
+        { type: 'energetic', label: 'Energetic', icon: 'flash' },
+        { type: 'calm', label: 'Calm', icon: 'leaf' },
+        { type: 'sarcastic', label: 'Sarcastic', icon: 'happy' },
+        { type: 'academic', label: 'Academic', icon: 'school' },
     ];
 
     const expertiseTags = [
@@ -296,6 +296,7 @@ const Create = () => {
                                     <VoiceModelButton
                                         key={model.type}
                                         label={model.label}
+                                        icon={model.icon as any}
                                         isSelected={selectedVoiceModel === model.type}
                                         onPress={() => handleVoiceModelSelect(model.type)}
                                     />
@@ -540,7 +541,7 @@ const Create = () => {
             {/* Navigation Buttons - Fixed at bottom */}
             <View
                 className="flex-row justify-between items-center px-6 py-5 bg-brand-beige"
-                style={{ paddingBottom: Math.max(insets.bottom, 20) + (isMiniPlayerVisible ? MINI_PLAYER_HEIGHT + 16 : 0) }}>
+                style={{ paddingBottom: Math.max(insets.bottom, 36) + (isMiniPlayerVisible ? MINI_PLAYER_HEIGHT + 16 : 0) }}>
                 {/* Back Button */}
                 <TouchableOpacity
                     onPress={() => {

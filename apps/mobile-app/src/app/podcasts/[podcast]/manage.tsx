@@ -150,11 +150,14 @@ export default function ManagePodcaster() {
       >
         {/* Header */}
         <View className="flex-row items-center justify-between mb-6">
-          <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="#000" />
+          <TouchableOpacity
+            onPress={() => router.back()}
+            className="w-10 h-10 items-center justify-center -ml-2"
+          >
+            <Ionicons name="chevron-back" size={24} color="#1A1C1E" />
           </TouchableOpacity>
           <Text className="font-jakarta-bold text-xl text-gray-900">Manage Podcaster</Text>
-          <View style={{ width: 24 }} />
+          <View style={{ width: 40 }} />
         </View>
 
         {/* Profile Picture */}

@@ -89,7 +89,16 @@
       "Bash(npm run test:integration:*)",
       "Bash(pip install:*)",
       "Bash(pytest:*)",
-      "Bash(\"C:\\\\Users\\\\ltshi\\\\AppData\\\\Local\\\\Microsoft\\\\WindowsApps\\\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\\\python.exe\" -m pytest --tb=short)"
+      "Bash(\"C:\\\\Users\\\\ltshi\\\\AppData\\\\Local\\\\Microsoft\\\\WindowsApps\\\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\\\python.exe\" -m pytest --tb=short)",
+      "Bash(gcloud run services describe:*)",
+      "Bash(gcloud run services list:*)",
+      "Bash(gcloud run revisions list:*)",
+      "Bash(xxd:*)",
+      "Bash(printf:*)",
+      "Bash(gcloud run revisions describe:*)",
+      "Bash(gcloud builds submit:*)",
+      "Bash(gcloud builds list:*)",
+      "WebFetch(domain:core-api-60457656342.us-central1.run.app)"
     ]
   }
 }

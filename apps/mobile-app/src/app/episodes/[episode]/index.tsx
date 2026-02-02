@@ -703,8 +703,8 @@ export default function EpisodeInfoScreen() {
                     <View className="px-6 pb-2 flex-row items-center justify-between">
                         <TouchableOpacity
                             onPress={() => router.back()}
-                            className="w-10 h-10 items-center justify-center">
-                            <Ionicons name="arrow-back" size={24} color="#1A1C1E" />
+                            className="w-10 h-10 items-center justify-center -ml-2">
+                            <Ionicons name="chevron-back" size={24} color="#1A1C1E" />
                         </TouchableOpacity>
                         <Text className="font-jakarta-medium text-lg text-brand-black">About</Text>
                         <TouchableOpacity

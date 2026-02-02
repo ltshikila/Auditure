@@ -360,8 +360,8 @@ export default function SeeAllScreen() {
         <SafeAreaView className="flex-1 bg-brand-beige" edges={['top', 'left', 'right']}>
             {/* Header */}
             <View className="flex-row items-center px-6 py-4 border-b border-gray-200">
-                <TouchableOpacity onPress={() => router.back()} className="mr-4">
-                    <Ionicons name="arrow-back" size={24} color="#2F2F2F" />
+                <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center -ml-2 mr-2">
+                    <Ionicons name="chevron-back" size={24} color="#1A1C1E" />
                 </TouchableOpacity>
                 <View className="flex-1">
                     <Text className="font-jakarta-bold text-xl text-brand-black">{title}</Text>

@@ -327,7 +327,7 @@ export default function TranscriptScreen() {
             <SafeAreaView className="flex-1 bg-brand-beige">
                 <View className="px-6 pt-4 pb-4 flex-row items-center justify-between border-b border-[#E8E3D6]">
                     <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center">
-                        <Ionicons name="arrow-back" size={24} color={COLORS.icon} />
+                        <Ionicons name="chevron-back" size={24} color={COLORS.icon} />
                     </TouchableOpacity>
                     <Text className="font-jakarta-bold text-lg text-[#1A1C1E]">Transcript</Text>
                     <View className="w-10 h-10" />
@@ -350,7 +350,7 @@ export default function TranscriptScreen() {
             {/* Header with book cover */}
             <View className="px-6 pt-2 pb-3 flex-row items-center border-b border-[#E8E3D6]">
                 <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center">
-                    <Ionicons name="arrow-back" size={24} color={COLORS.icon} />
+                    <Ionicons name="chevron-back" size={24} color={COLORS.icon} />
                 </TouchableOpacity>
 
                 {/* Book cover thumbnail */}

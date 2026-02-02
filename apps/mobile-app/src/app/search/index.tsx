@@ -474,9 +474,9 @@ export default function SearchScreen() {
             <View className="flex-row items-center justify-center px-4 py-3 relative">
                 <TouchableOpacity
                     onPress={() => router.back()}
-                    className="absolute left-4 w-10 h-10 items-center justify-center"
+                    className="absolute left-2 w-10 h-10 items-center justify-center"
                 >
-                    <Ionicons name="arrow-back" size={24} color="#1A1C1E" />
+                    <Ionicons name="chevron-back" size={24} color="#1A1C1E" />
                 </TouchableOpacity>
                 <Text className="font-jakarta text-lg text-gray-900">Search</Text>
             </View>

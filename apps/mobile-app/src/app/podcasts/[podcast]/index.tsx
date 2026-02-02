@@ -8,6 +8,7 @@ import { episodeService, Episode } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
 import { EpisodeCard } from '@/components/EpisodeCard';
 import { GeneratingEpisodeCard } from '@/components/GeneratingEpisodeCard';
+import { TopBar } from '@/components/TopBar';
 
 export default function PodcastDetailsScreen() {
   const { podcast: podcastId } = useLocalSearchParams();
@@ -162,18 +163,14 @@ export default function PodcastDetailsScreen() {
   if (error || !podcaster) {
     return (
       <SafeAreaView className="flex-1 bg-brand-beige">
-        <View className="p-6">
-          <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="#000" />
+        <TopBar showBackButton />
+        <View className="flex-1 items-center justify-center px-6">
+          <Text className="font-inter-bold text-xl text-gray-900 mb-2">
+            {error || 'Podcaster not found'}
+          </Text>
+          <TouchableOpacity onPress={fetchPodcaster} className="mt-4">
+            <Text className="font-inter-medium text-brand-gold">Retry</Text>
           </TouchableOpacity>
-          <View className="items-center justify-center flex-1">
-            <Text className="font-inter-bold text-xl text-gray-900 mb-2">
-              {error || 'Podcaster not found'}
-            </Text>
-            <TouchableOpacity onPress={fetchPodcaster} className="mt-4">
-              <Text className="font-inter-medium text-brand-gold">Retry</Text>
-            </TouchableOpacity>
-          </View>
         </View>
       </SafeAreaView>
     );
@@ -181,20 +178,10 @@ export default function PodcastDetailsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-brand-beige">
+      <TopBar showBackButton />
       <ScrollView>
         {/* Header Section */}
         <View className="px-6 pt-2">
-          {/* Top Bar */}
-          <View className="flex-row justify-between items-center mb-6">
-            <TouchableOpacity onPress={() => router.back()}>
-               <Ionicons name="arrow-back" size={24} color="#000" />
-            </TouchableOpacity>
-            <View className="flex-row gap-4">
-              <Ionicons name="notifications-outline" size={24} color="#000" />
-              <Ionicons name="search-outline" size={24} color="#000" />
-            </View>
-          </View>
-
           <Text className="font-jakarta-bold text-2xl text-gray-900 mb-1">{podcaster.name}</Text>
           <Text className="font-inter text-gray-500 mb-8">
             {podcaster.description || 'No description provided'}
