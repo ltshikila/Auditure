@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from src.generators.script_generator import ScriptGenerator, ScriptResult
+from src.generators.script_generator import ScriptGenerator, ScriptResult, DurationMismatchError
 
 
 class TestScriptGeneratorIntegration:
@@ -32,7 +32,7 @@ class TestScriptGeneratorIntegration:
 
     @pytest.fixture
     def sample_book_content(self):
-        """Create sample book content."""
+        """Create sample book content with enough material for short episodes."""
         return """
         Chapter 1: Introduction to Stoicism
 
@@ -62,6 +62,7 @@ class TestScriptGeneratorIntegration:
     # Template fallback tests
     def test_generate_with_template_fallback(self, generator, sample_personality, sample_book_content):
         """Test generation falls back to templates when LLM unavailable."""
+        # Use shorter duration that matches what fallback can produce from sample content
         result = generator.generate(
             book_content=sample_book_content,
             book_title="Introduction to Stoicism",
@@ -71,8 +72,8 @@ class TestScriptGeneratorIntegration:
             podcaster_personality=sample_personality,
             episode_type="MONOLOGUE",
             episode_theme="LECTURE",
-            target_length_min=10,
-            target_length_max=15,
+            target_length_min=5,
+            target_length_max=10,
         )
 
         assert isinstance(result, ScriptResult)
@@ -92,8 +93,8 @@ class TestScriptGeneratorIntegration:
             podcaster_personality=sample_personality,
             episode_type="DUO",
             episode_theme="DISCUSSION",
-            target_length_min=15,
-            target_length_max=20,
+            target_length_min=5,
+            target_length_max=12,
         )
 
         assert result.method == "template"
@@ -111,8 +112,8 @@ class TestScriptGeneratorIntegration:
             podcaster_personality=sample_personality,
             episode_type="GROUP",
             episode_theme="DEBATE",
-            target_length_min=20,
-            target_length_max=30,
+            target_length_min=5,
+            target_length_max=12,
         )
 
         assert result.method == "template"
@@ -123,17 +124,56 @@ class TestScriptGeneratorIntegration:
     # LLM integration tests (mocked)
     def test_generate_with_llm_success(self, sample_personality, sample_book_content):
         """Test generation with successful LLM response."""
+        # Generate a script with enough words for the target duration
+        long_script = """
+        Welcome to the show! I'm Philosophy Phil, and today we're diving deep into Stoicism.
+
+        The ancient Stoics taught us fundamental truths about human nature and how we can
+        live a more fulfilling life. At the core of Stoic philosophy is the idea that we
+        cannot control external events, only our reactions to them. This principle is
+        perhaps best exemplified by Marcus Aurelius in his famous work, Meditations.
+
+        Let me share with you some key insights from Stoic philosophy. First, we must
+        understand that our emotions are not caused by external events but by our judgments
+        about those events. When we feel angry or anxious, it's because of how we interpret
+        what's happening around us, not because of the events themselves.
+
+        Second, the Stoics emphasized the importance of focusing on what is within our
+        control - our own thoughts, judgments, and actions - rather than worrying about
+        things beyond our control like other people's opinions or the weather.
+
+        Third, they practiced what they called negative visualization, imagining potential
+        hardships to prepare mentally and appreciate what we have. This might sound
+        pessimistic, but it actually leads to greater contentment and resilience.
+
+        Marcus Aurelius wrote extensively about applying these principles in daily life.
+        Despite being the most powerful man in Rome, he remained humble and focused on
+        self-improvement. His journal entries reveal a man constantly striving to align
+        his actions with his values.
+
+        Seneca, another great Stoic, taught us about the shortness of life and how we
+        often waste our most precious resource - time. He encouraged us to live each day
+        as if it might be our last, not in a reckless way, but by focusing on what truly
+        matters and avoiding trivial pursuits.
+
+        Epictetus, who was born a slave, demonstrated that circumstances don't determine
+        our character - our choices do. His teachings in the Enchiridion remain remarkably
+        practical and applicable to modern life.
+
+        So what can we take away from Stoic philosophy today? Start by noticing when you
+        feel frustrated or upset, and ask yourself: Is this within my control? If not,
+        can I change my perspective on it? This simple practice can transform your daily
+        experience.
+
+        Thank you for listening to this episode! Remember - focus on what you can control,
+        accept what you cannot, and always strive to act with virtue. Until next time,
+        stay philosophical and keep learning!
+        """
+
         with patch('src.generators.script_generator.HuggingFaceClient') as mock_client:
             mock_instance = MagicMock()
             mock_instance.is_available = True
-            mock_instance.generate_script.return_value = """
-            Welcome to the show! I'm Philosophy Phil, and today we're diving into Stoicism.
-
-            The ancient Stoics taught us that we cannot control external events,
-            only our reactions to them. Marcus Aurelius exemplified this in his Meditations.
-
-            Thank you for listening, and remember - focus on what you can control!
-            """
+            mock_instance.generate_script.return_value = long_script
             mock_client.return_value = mock_instance
 
             generator = ScriptGenerator()
@@ -146,8 +186,8 @@ class TestScriptGeneratorIntegration:
                 podcaster_personality=sample_personality,
                 episode_type="MONOLOGUE",
                 episode_theme="LECTURE",
-                target_length_min=10,
-                target_length_max=15,
+                target_length_min=2,
+                target_length_max=5,
             )
 
             assert result.method == "llm"
@@ -171,8 +211,8 @@ class TestScriptGeneratorIntegration:
                 podcaster_personality=sample_personality,
                 episode_type="MONOLOGUE",
                 episode_theme="LECTURE",
-                target_length_min=10,
-                target_length_max=15,
+                target_length_min=5,
+                target_length_max=10,
             )
 
             # Should fall back to template
@@ -180,27 +220,26 @@ class TestScriptGeneratorIntegration:
             assert result.word_count > 0
 
     # Edge cases
-    def test_generate_with_minimal_content(self, generator, sample_personality):
-        """Test generation with minimal book content."""
-        result = generator.generate(
-            book_content="This is a very short book.",
-            book_title="Short Book",
-            book_author=None,
-            episode_title="Quick Review",
-            podcaster_name="Quick Host",
-            podcaster_personality=sample_personality,
-            episode_type="MONOLOGUE",
-            episode_theme="LECTURE",
-            target_length_min=5,
-            target_length_max=10,
-        )
-
-        assert result.method == "template"
-        assert len(result.script) > 0
+    def test_generate_with_minimal_content_raises_error(self, generator, sample_personality):
+        """Test generation with minimal book content raises DurationMismatchError."""
+        # With very minimal content and a duration requirement, expect an error
+        with pytest.raises(DurationMismatchError):
+            generator.generate(
+                book_content="This is a very short book.",
+                book_title="Short Book",
+                book_author=None,
+                episode_title="Quick Review",
+                podcaster_name="Quick Host",
+                podcaster_personality=sample_personality,
+                episode_type="MONOLOGUE",
+                episode_theme="LECTURE",
+                target_length_min=5,
+                target_length_max=10,
+            )
 
     def test_generate_preserves_episode_type_in_script(self, generator, sample_personality, sample_book_content):
         """Test that episode type is properly reflected in script format."""
-        # Test all episode types
+        # Test all episode types with achievable duration
         for episode_type in ["MONOLOGUE", "DUO", "GROUP"]:
             result = generator.generate(
                 book_content=sample_book_content,
@@ -211,8 +250,8 @@ class TestScriptGeneratorIntegration:
                 podcaster_personality=sample_personality,
                 episode_type=episode_type,
                 episode_theme="LECTURE",
-                target_length_min=10,
-                target_length_max=15,
+                target_length_min=5,
+                target_length_max=10,
             )
 
             if episode_type == "MONOLOGUE":

@@ -121,15 +121,15 @@ class TestPromptBuilder:
     # Target word calculation tests
     def test_calculate_target_words(self, builder):
         """Test word count calculation."""
-        # 15-25 minutes, average 20 minutes at 150 wpm = 3000 words
+        # 15-25 minutes, always aims for MAX duration: 25 minutes at 150 wpm = 3750 words
         words = builder.calculate_target_words(15, 25, 150)
-        assert words == 3000
+        assert words == 3750
 
     def test_calculate_target_words_short(self, builder):
         """Test word count for short episode."""
-        # 5-10 minutes, average 7.5 minutes at 150 wpm = 1125 words
+        # 5-10 minutes, always aims for MAX duration: 10 minutes at 150 wpm = 1500 words
         words = builder.calculate_target_words(5, 10, 150)
-        assert words == 1125
+        assert words == 1500
 
     # Full prompt building tests
     def test_build_prompt_complete(self, builder, sample_personality):

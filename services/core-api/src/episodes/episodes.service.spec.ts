@@ -4,6 +4,7 @@ import { DatabaseService } from '../database/database.service';
 import { RabbitMQService } from '../rabbitmq/rabbitmq.service';
 import { RedisService } from '../redis/redis.service';
 import { StorageService } from '../common/storage.service';
+import { BooksService } from '../books/books.service';
 import { NotFoundException, ForbiddenException, StreamableFile } from '@nestjs/common';
 import {
     createMockEpisode,
@@ -34,6 +35,14 @@ describe('EpisodesService', () => {
         set: jest.fn().mockReturnThis(),
     });
 
+    const mockBooksService = {
+        uploadBook: jest.fn().mockResolvedValue({
+            id: 'mock-book-id',
+            title: 'Test Book',
+            author: 'Test Author',
+        }),
+    };
+
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
             providers: [
@@ -53,6 +62,10 @@ describe('EpisodesService', () => {
                 {
                     provide: StorageService,
                     useValue: mockStorageService,
+                },
+                {
+                    provide: BooksService,
+                    useValue: mockBooksService,
                 },
             ],
         }).compile();
@@ -272,14 +285,14 @@ describe('EpisodesService', () => {
             );
         });
 
-        it('should return null if no progress saved', async () => {
+        it('should return zero position if no progress saved', async () => {
             const mockEpisode = createCompletedMockEpisode({ userId: mockUserId });
             mockPrismaClient.episode.findUnique.mockResolvedValue(mockEpisode);
             mockRedisService.getPlaybackProgress.mockResolvedValue(null);
 
             const result = await service.getPlaybackProgress(mockUserId, mockEpisode.id);
 
-            expect(result).toBeNull();
+            expect(result).toEqual({ position: 0 });
         });
     });
 
@@ -298,12 +311,15 @@ describe('EpisodesService', () => {
             expect(redisService.getJobProgress).toHaveBeenCalledWith('episode-id');
         });
 
-        it('should return null if no progress found', async () => {
+        it('should return default progress if no progress found in Redis', async () => {
             mockRedisService.getJobProgress.mockResolvedValue(null);
 
             const result = await service.getGenerationProgress('episode-id');
 
-            expect(result).toBeNull();
+            expect(result).toBeDefined();
+            expect(result.progress).toBe(0);
+            expect(result.status).toBe('pending');
+            expect(result.updatedAt).toBeDefined();
         });
     });
 

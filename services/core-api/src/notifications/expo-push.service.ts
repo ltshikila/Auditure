@@ -42,8 +42,11 @@ export class ExpoPushService {
         if (!token || typeof token !== 'string') {
             return false;
         }
-        // Expo push tokens start with "ExponentPushToken[" or "ExpoPushToken["
-        return token.startsWith('ExponentPushToken[') || token.startsWith('ExpoPushToken[');
+        // Expo push tokens follow the format "ExponentPushToken[xxx]" or "ExpoPushToken[xxx]"
+        // where xxx is a non-empty token value
+        const exponentMatch = token.match(/^ExponentPushToken\[(.+)\]$/);
+        const expoMatch = token.match(/^ExpoPushToken\[(.+)\]$/);
+        return !!(exponentMatch || expoMatch);
     }
 
     /**

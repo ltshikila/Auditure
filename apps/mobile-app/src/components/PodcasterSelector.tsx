@@ -30,9 +30,9 @@ export const PodcasterSelector: React.FC<PodcasterSelectorProps> = ({
                 </View>
                 <TouchableOpacity
                     onPress={onAddNew}
-                    className="w-8 h-8 rounded-full bg-[#E8E3D6] items-center justify-center"
+                    className="w-6 h-6 rounded-full border border-brand-gold items-center justify-center"
                 >
-                    <Ionicons name="add" size={20} color="#1A1C1E" />
+                    <Ionicons name="add" size={16} color="#BF9A54" />
                 </TouchableOpacity>
             </View>
 
@@ -48,8 +48,19 @@ export const PodcasterSelector: React.FC<PodcasterSelectorProps> = ({
                         <TouchableOpacity
                             key={podcaster.id}
                             onPress={() => onSelect(podcaster.id)}
-                            className={`items-center mr-4 ${isSelected ? '' : 'opacity-70'}`}
-                            style={{ width: 90 }}
+                            className={`items-center mr-4 rounded-xl p-2 ${
+                                isSelected ? 'bg-[#F5F5F0]' : ''
+                            }`}
+                            style={[
+                                { width: 94 },
+                                isSelected && {
+                                    shadowColor: '#000',
+                                    shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: 0.1,
+                                    shadowRadius: 4,
+                                    elevation: 4,
+                                },
+                            ]}
                         >
                             {/* Avatar */}
                             <View

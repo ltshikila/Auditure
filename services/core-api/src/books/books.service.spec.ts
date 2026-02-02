@@ -427,11 +427,10 @@ describe('BooksService', () => {
                 new Error('RabbitMQ connection failed'),
             );
 
-            // Should still create the book even if job queueing fails
-            await expect(
-                service.uploadBook(mockUserId, mockFile, mockCreateBookDto),
-            ).rejects.toThrow('RabbitMQ connection failed');
+            // Should still create the book even if job queueing fails (doesn't throw)
+            const result = await service.uploadBook(mockUserId, mockFile, mockCreateBookDto);
 
+            expect(result).toEqual(mockBook);
             expect(databaseService.book.create).toHaveBeenCalled();
         });
     });

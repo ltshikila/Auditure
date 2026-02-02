@@ -6,6 +6,7 @@ interface CustomSliderProps {
     label: string;
     value: number;
     onValueChange: (value: number) => void;
+    onSlidingComplete?: (value: number) => void;
     leftLabel: string;
     rightLabel: string;
     minimumValue?: number;
@@ -18,6 +19,7 @@ export const CustomSlider: React.FC<CustomSliderProps> = ({
     label,
     value,
     onValueChange,
+    onSlidingComplete,
     leftLabel,
     rightLabel,
     minimumValue = 1,
@@ -44,6 +46,7 @@ export const CustomSlider: React.FC<CustomSliderProps> = ({
                 <Slider
                     value={value}
                     onValueChange={onValueChange}
+                    onSlidingComplete={onSlidingComplete}
                     minimumValue={minimumValue}
                     maximumValue={maximumValue}
                     step={step}

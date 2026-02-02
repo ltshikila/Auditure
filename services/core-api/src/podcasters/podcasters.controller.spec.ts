@@ -4,6 +4,7 @@ import request = require('supertest');
 import { PodcastersController } from './podcasters.controller';
 import { PodcastersService } from './podcasters.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import {
     createMockPodcaster,
     createPublicMockPodcaster,
@@ -42,6 +43,14 @@ describe('PodcastersController (Integration)', () => {
             ],
         })
             .overrideGuard(JwtAuthGuard)
+            .useValue({
+                canActivate: jest.fn(context => {
+                    const request = context.switchToHttp().getRequest();
+                    request.user = { userId: 'test-user-id', email: 'test@example.com' };
+                    return true;
+                }),
+            })
+            .overrideGuard(OptionalJwtAuthGuard)
             .useValue({
                 canActivate: jest.fn(context => {
                     const request = context.switchToHttp().getRequest();
@@ -361,12 +370,14 @@ describe('PodcastersController (Integration)', () => {
                 ...mockCreatePodcasterDto,
                 speakingSpeed: 1,
                 vocalPitch: 10,
-                vocabularyComplexity: 1,
+                sentenceStructure: 1,
+                emotionalExpression: 10,
                 ageTone: 10,
                 tone: 1,
                 communicationStyle: 10,
                 humorLevel: 5,
                 conversationalDepth: 5,
+                chaosFactor: 1,
                 viewpointBehavior: 10,
             };
 

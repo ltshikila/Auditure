@@ -158,9 +158,9 @@ export default function EpisodesScreen() {
                         </View>
                         <TouchableOpacity
                             onPress={() => router.push('/episodes/create')}
-                            className="w-8 h-8 rounded-full border border-[#E8E3D6] items-center justify-center"
+                            className="w-6 h-6 rounded-full border border-brand-gold items-center justify-center"
                         >
-                            <Ionicons name="add" size={20} color="#1A1C1E" />
+                            <Ionicons name="add" size={16} color="#BF9A54" />
                         </TouchableOpacity>
                     </View>
                 </View>

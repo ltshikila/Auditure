@@ -80,7 +80,16 @@
       "Bash(del \"c:\\\\Users\\\\ltshi\\\\OneDrive\\\\Documents\\\\GitHub\\\\Auditure\\\\services\\\\core-api\\\\src\\\\subscriptions\\\\dto\\\\create-portal-session.dto.ts\")",
       "Bash(ipconfig:*)",
       "Bash(npm run lint)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(gh run:*)",
+      "Bash(gcloud secrets:*)",
+      "Bash(gcloud logging read:*)",
+      "Bash(npm run test:integration:*)",
+      "Bash(pip install:*)",
+      "Bash(pytest:*)",
+      "Bash(\"C:\\\\Users\\\\ltshi\\\\AppData\\\\Local\\\\Microsoft\\\\WindowsApps\\\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\\\python.exe\" -m pytest --tb=short)"
     ]
   }
 }

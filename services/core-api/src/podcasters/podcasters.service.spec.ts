@@ -50,10 +50,11 @@ describe('PodcastersService', () => {
 
             expect(result).toEqual(mockPodcaster);
             expect(databaseService.podcaster.create).toHaveBeenCalledWith({
-                data: {
+                data: expect.objectContaining({
                     userId: 'test-user-id',
                     ...mockCreatePodcasterDto,
-                },
+                    geminiVoiceName: expect.any(String),
+                }),
             });
         });
 
@@ -93,11 +94,11 @@ describe('PodcastersService', () => {
 
             const validAngles = [
                 'Skeptical',
-                'Open-minded',
-                'Critical',
                 'Accepting',
-                'Questioning',
-                'Trusting',
+                'Critical',
+                'Pragmatic',
+                'Idealistic',
+                'Empirical',
             ];
 
             for (const angle of validAngles) {

@@ -37,6 +37,8 @@ export const mockPrismaClient = {
         update: jest.fn(),
         delete: jest.fn(),
         count: jest.fn(),
+        updateMany: jest.fn(),
+        deleteMany: jest.fn(),
     },
     notification: {
         create: jest.fn(),

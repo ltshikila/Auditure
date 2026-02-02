@@ -17,6 +17,8 @@ import { VoiceModelButton } from '@/components/VoiceModelButton';
 import { ProfilePictureInput } from '@/components/ProfilePictureInput';
 import { podcasterService } from '@/services/podcaster.service';
 import { storageService } from '@/services/storage.service';
+import { usePlayback } from '@/contexts/PlaybackContext';
+import { MINI_PLAYER_HEIGHT } from '@/components/MiniPlayer';
 
 type VoiceModel = 'custom' | 'conversational' | 'energetic' | 'calm' | 'sarcastic' | 'academic';
 type Gender = 'male' | 'female';
@@ -24,6 +26,8 @@ type Gender = 'male' | 'female';
 const Create = () => {
     const router = useRouter();
     const insets = useSafeAreaInsets();
+    const { episode } = usePlayback();
+    const isMiniPlayerVisible = !!episode;
     const [currentStep, setCurrentStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -347,10 +351,8 @@ const Create = () => {
                         <CustomSlider
                             label="Speaking Speed"
                             value={speakingSpeed}
-                            onValueChange={(value) => {
-                                switchToCustomIfNeeded();
-                                setSpeakingSpeed(value);
-                            }}
+                            onValueChange={setSpeakingSpeed}
+                            onSlidingComplete={switchToCustomIfNeeded}
                             leftLabel="Slow"
                             rightLabel="Fast"
                         />
@@ -358,10 +360,8 @@ const Create = () => {
                         <CustomSlider
                             label="Vocal Pitch"
                             value={vocalPitch}
-                            onValueChange={(value) => {
-                                switchToCustomIfNeeded();
-                                setVocalPitch(value);
-                            }}
+                            onValueChange={setVocalPitch}
+                            onSlidingComplete={switchToCustomIfNeeded}
                             leftLabel="Low"
                             rightLabel="High"
                         />
@@ -369,10 +369,8 @@ const Create = () => {
                         <CustomSlider
                             label="Age Tone"
                             value={ageTone}
-                            onValueChange={(value) => {
-                                switchToCustomIfNeeded();
-                                setAgeTone(value);
-                            }}
+                            onValueChange={setAgeTone}
+                            onSlidingComplete={switchToCustomIfNeeded}
                             leftLabel="Youthful"
                             rightLabel="Senior"
                         />
@@ -380,10 +378,8 @@ const Create = () => {
                         <CustomSlider
                             label="Sentence Structure"
                             value={sentenceStructure}
-                            onValueChange={(value) => {
-                                switchToCustomIfNeeded();
-                                setSentenceStructure(value);
-                            }}
+                            onValueChange={setSentenceStructure}
+                            onSlidingComplete={switchToCustomIfNeeded}
                             leftLabel="Concise"
                             rightLabel="Elaborate"
                         />
@@ -391,10 +387,8 @@ const Create = () => {
                         <CustomSlider
                             label="Emotional Expression"
                             value={emotionalExpression}
-                            onValueChange={(value) => {
-                                switchToCustomIfNeeded();
-                                setEmotionalExpression(value);
-                            }}
+                            onValueChange={setEmotionalExpression}
+                            onSlidingComplete={switchToCustomIfNeeded}
                             leftLabel="Monotone"
                             rightLabel="Expressive"
                         />
@@ -416,10 +410,8 @@ const Create = () => {
                         <CustomSlider
                             label="Tone"
                             value={tone}
-                            onValueChange={(value) => {
-                                switchToCustomIfNeeded();
-                                setTone(value);
-                            }}
+                            onValueChange={setTone}
+                            onSlidingComplete={switchToCustomIfNeeded}
                             leftLabel="Calm"
                             rightLabel="Energetic"
                         />
@@ -427,10 +419,8 @@ const Create = () => {
                         <CustomSlider
                             label="Communication Style"
                             value={communicationStyle}
-                            onValueChange={(value) => {
-                                switchToCustomIfNeeded();
-                                setCommunicationStyle(value);
-                            }}
+                            onValueChange={setCommunicationStyle}
+                            onSlidingComplete={switchToCustomIfNeeded}
                             leftLabel="Storytelling"
                             rightLabel="Analytical"
                         />
@@ -438,10 +428,8 @@ const Create = () => {
                         <CustomSlider
                             label="Humor Level"
                             value={humorLevel}
-                            onValueChange={(value) => {
-                                switchToCustomIfNeeded();
-                                setHumorLevel(value);
-                            }}
+                            onValueChange={setHumorLevel}
+                            onSlidingComplete={switchToCustomIfNeeded}
                             leftLabel="Dry"
                             rightLabel="Comedic"
                         />
@@ -449,10 +437,8 @@ const Create = () => {
                         <CustomSlider
                             label="Conversational Depth"
                             value={conversationalDepth}
-                            onValueChange={(value) => {
-                                switchToCustomIfNeeded();
-                                setConversationalDepth(value);
-                            }}
+                            onValueChange={setConversationalDepth}
+                            onSlidingComplete={switchToCustomIfNeeded}
                             leftLabel="Surface-Level"
                             rightLabel="Deep Thinking"
                         />
@@ -460,10 +446,8 @@ const Create = () => {
                         <CustomSlider
                             label="Chaos Factor"
                             value={chaosFactor}
-                            onValueChange={(value) => {
-                                switchToCustomIfNeeded();
-                                setChaosFactor(value);
-                            }}
+                            onValueChange={setChaosFactor}
+                            onSlidingComplete={switchToCustomIfNeeded}
                             leftLabel="Steady"
                             rightLabel="Volatile"
                         />
@@ -556,7 +540,7 @@ const Create = () => {
             {/* Navigation Buttons - Fixed at bottom */}
             <View
                 className="flex-row justify-between items-center px-6 py-5 bg-brand-beige"
-                style={{ paddingBottom: Math.max(insets.bottom, 20) }}>
+                style={{ paddingBottom: Math.max(insets.bottom, 20) + (isMiniPlayerVisible ? MINI_PLAYER_HEIGHT + 16 : 0) }}>
                 {/* Back Button */}
                 <TouchableOpacity
                     onPress={() => {

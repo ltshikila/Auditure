@@ -21,6 +21,8 @@ import { episodeService, EpisodeType, EpisodeTheme, ContentCoverage, FileUpload,
 import { bookService, Book, Chapter } from '@/services/book.service';
 import { storageService } from '@/services/storage.service';
 import Slider from '@react-native-community/slider';
+import { usePlayback } from '@/contexts/PlaybackContext';
+import { MINI_PLAYER_HEIGHT } from '@/components/MiniPlayer';
 
 type BookSourceMode = 'search' | 'upload';
 
@@ -31,6 +33,8 @@ type TabOption<T> = {
 
 const Create = () => {
     const router = useRouter();
+    const { episode } = usePlayback();
+    const isMiniPlayerVisible = !!episode;
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -74,7 +78,6 @@ const Create = () => {
     const episodeTypeOptions: TabOption<EpisodeType>[] = [
         { value: 'MONOLOGUE', label: 'Monologue' },
         { value: 'DUO', label: 'Duo' },
-        { value: 'GROUP', label: 'Group' },
     ];
 
     const episodeTypeDescriptions: Record<EpisodeType, string> = {
@@ -407,7 +410,7 @@ const Create = () => {
     return (
         <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-brand-beige">
             <KeyboardAwareScrollView
-                contentContainerStyle={{ padding: 24, paddingBottom: 100 }}
+                contentContainerStyle={{ padding: 24, paddingBottom: 50 + (isMiniPlayerVisible ? MINI_PLAYER_HEIGHT + 16 : 0) }}
                 keyboardShouldPersistTaps="handled"
                 enableOnAndroid={true}
                 extraScrollHeight={20}

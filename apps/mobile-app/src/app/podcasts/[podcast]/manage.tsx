@@ -216,7 +216,16 @@ export default function ManagePodcaster() {
         </View>
 
         {/* Voice Configuration Section */}
-        <View className="mb-6 bg-white/50 rounded-xl p-4">
+        <View
+          className="mb-6 bg-[#F5F5F0] rounded-2xl p-4"
+          style={{
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 14,
+          }}
+        >
           <Text className="font-inter-bold text-lg text-gray-900 mb-2">Voice Configuration</Text>
           <Text className="font-inter text-sm text-gray-600 mb-3">
             Voice Model: {podcaster.voiceModel}

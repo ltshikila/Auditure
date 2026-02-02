@@ -140,7 +140,7 @@ class PodcasterService {
    * Update a podcaster
    */
   async update(id: string, updateData: UpdatePodcasterDto, token: string): Promise<Podcaster> {
-    return apiClient.put<Podcaster>(`/podcasters/${id}`, updateData, token);
+    return apiClient.patch<Podcaster>(`/podcasters/${id}`, updateData, token);
   }
 
   /**
