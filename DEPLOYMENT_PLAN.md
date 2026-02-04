@@ -1002,11 +1002,15 @@ RUN npm install
 
 ### Pending Tasks
 
+- [x] Configure Paystack integration (subscriptions module)
+- [x] Update mobile app subscription flow
 - [ ] Run database migrations
 - [ ] Set up custom domain (api.auditure.app)
 - [ ] Configure Memorystore VPC connector
 - [ ] Set up monitoring alerts
-- [ ] Configure production Paystack keys
+- [ ] Configure production Paystack keys in Secret Manager
+- [ ] Set up Paystack webhook URL in production
+- [ ] Enable international payments in Paystack dashboard
 - [ ] Submit mobile apps to app stores
 
 ---

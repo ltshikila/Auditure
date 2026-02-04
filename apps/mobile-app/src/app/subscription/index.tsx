@@ -9,13 +9,14 @@ import {
     ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { storageService } from '@/services/storage.service';
 import {
     subscriptionService,
-    StripeSubscriptionStatus,
-    BillingInterval,
+    SubscriptionStatus,
+    SubscriptionTier,
     Pricing,
 } from '@/services/subscription.service';
 import { TopBar } from '@/components';
@@ -23,53 +24,72 @@ import { TopBar } from '@/components';
 type PricingCardProps = {
     title: string;
     price: string;
-    interval: string;
-    savings?: string | null;
-    monthlyEquivalent?: string;
+    episodesPerMonth: number;
     isSelected: boolean;
     onSelect: () => void;
     disabled?: boolean;
+    isPopular?: boolean;
+    icon: keyof typeof Ionicons.glyphMap;
 };
 
 function PricingCard({
     title,
     price,
-    interval,
-    savings,
-    monthlyEquivalent,
+    episodesPerMonth,
     isSelected,
     onSelect,
     disabled,
+    isPopular,
+    icon,
 }: PricingCardProps) {
     return (
         <TouchableOpacity
             onPress={onSelect}
             disabled={disabled}
-            className={`flex-1 p-4 rounded-2xl border-2 ${
-                isSelected ? 'border-brand-gold bg-brand-gold/10' : 'border-gray-200 bg-white'
-            } ${disabled ? 'opacity-50' : ''}`}
+            className={`flex-1 p-4 rounded-2xl ${disabled ? 'opacity-50' : ''}`}
             style={{
+                backgroundColor: isSelected ? '#FDF8EE' : '#F5F5F0',
+                borderWidth: 2,
+                borderColor: isSelected ? '#BF9A54' : '#F5F5F0',
                 shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.05,
-                shadowRadius: 8,
-                elevation: 2,
+                shadowOffset: { width: 0, height: isSelected ? 4 : 2 },
+                shadowOpacity: isSelected ? 0.12 : 0.05,
+                shadowRadius: isSelected ? 8 : 4,
+                elevation: isSelected ? 4 : 2,
             }}>
-            {savings && (
-                <View className="bg-brand-gold px-2 py-1 rounded-full self-start mb-2">
-                    <Text className="font-inter-medium text-white text-xs">{savings}</Text>
+            {/* Popular Badge */}
+            {isPopular && (
+                <View className="bg-brand-gold px-2.5 py-1 rounded-full self-start mb-3">
+                    <Text className="font-inter-bold text-white text-[10px]">BEST VALUE</Text>
                 </View>
             )}
-            <Text className="font-inter-bold text-lg text-gray-900">{title}</Text>
-            <View className="flex-row items-baseline mt-2">
-                <Text className="font-inter-bold text-2xl text-brand-gold">{price}</Text>
-                <Text className="font-inter text-gray-500 ml-1">/{interval}</Text>
+
+            {/* Icon */}
+            <View
+                className={`w-10 h-10 rounded-xl items-center justify-center mb-3 ${
+                    isSelected ? 'bg-brand-gold' : 'bg-brand-gold/20'
+                }`}>
+                <Ionicons name={icon} size={20} color={isSelected ? 'white' : '#BF9A54'} />
             </View>
-            {monthlyEquivalent && (
-                <Text className="font-inter text-gray-500 text-sm mt-1">
-                    {monthlyEquivalent}/mo
+
+            {/* Title */}
+            <Text className="font-inter-bold text-lg text-gray-900">{title}</Text>
+
+            {/* Price */}
+            <View className="flex-row items-baseline mt-1">
+                <Text className="font-inter-bold text-2xl text-brand-gold">{price}</Text>
+                <Text className="font-inter text-gray-500 text-sm ml-1">/mo</Text>
+            </View>
+
+            {/* Episodes */}
+            <View className="flex-row items-center mt-2">
+                <Ionicons name="mic-outline" size={14} color="#6B7280" />
+                <Text className="font-inter text-gray-600 text-sm ml-1.5">
+                    {episodesPerMonth} episodes
                 </Text>
-            )}
+            </View>
+
+            {/* Selection indicator */}
             <View
                 className={`w-5 h-5 rounded-full border-2 mt-3 items-center justify-center ${
                     isSelected ? 'border-brand-gold bg-brand-gold' : 'border-gray-300'
@@ -80,15 +100,65 @@ function PricingCard({
     );
 }
 
+function UsageBar({ used, limit, label }: { used: number; limit: number; label: string }) {
+    const percentage = Math.min((used / limit) * 100, 100);
+    const isLow = percentage >= 80;
+
+    return (
+        <View className="mb-4 last:mb-0">
+            <View className="flex-row justify-between mb-2">
+                <Text className="font-inter text-gray-600">{label}</Text>
+                <Text className={`font-inter-medium ${isLow ? 'text-orange-500' : 'text-gray-900'}`}>
+                    {used} / {limit}
+                </Text>
+            </View>
+            <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                <View
+                    className={`h-full rounded-full ${isLow ? 'bg-orange-400' : 'bg-brand-gold'}`}
+                    style={{ width: `${percentage}%` }}
+                />
+            </View>
+        </View>
+    );
+}
+
 export default function SubscriptionScreen() {
-    const [subscription, setSubscription] = useState<StripeSubscriptionStatus | null>(null);
+    const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [purchasing, setPurchasing] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [selectedInterval, setSelectedInterval] = useState<BillingInterval>('year');
+    const [selectedTier, setSelectedTier] = useState<SubscriptionTier>('pro');
 
+    const { status, reason } = useLocalSearchParams<{ status?: string; reason?: string }>();
     const pricing: Pricing = subscriptionService.getPricing();
+
+    useEffect(() => {
+        if (status === 'success') {
+            Alert.alert(
+                'Payment Successful!',
+                'Your subscription is now active. Enjoy your premium features!',
+                [{ text: 'OK' }],
+            );
+            router.setParams({ status: undefined, reason: undefined });
+        } else if (status === 'failed') {
+            Alert.alert(
+                'Payment Failed',
+                reason
+                    ? `Payment was not completed: ${reason}`
+                    : 'Your payment could not be processed. Please try again.',
+                [{ text: 'OK' }],
+            );
+            router.setParams({ status: undefined, reason: undefined });
+        } else if (status === 'error') {
+            Alert.alert('Error', 'Something went wrong. Please try again or contact support.', [
+                { text: 'OK' },
+            ]);
+            router.setParams({ status: undefined, reason: undefined });
+        } else if (status === 'cancelled') {
+            router.setParams({ status: undefined, reason: undefined });
+        }
+    }, [status, reason]);
 
     const fetchSubscription = async (isRefreshing: boolean = false) => {
         try {
@@ -105,7 +175,7 @@ export default function SubscriptionScreen() {
                 return;
             }
 
-            const data = await subscriptionService.getStripeSubscriptionStatus(token);
+            const data = await subscriptionService.getSubscriptionStatus(token);
             setSubscription(data);
         } catch (err: any) {
             console.error('Error fetching subscription:', err);
@@ -141,16 +211,22 @@ export default function SubscriptionScreen() {
                 return;
             }
 
-            const result = await subscriptionService.startCheckout(token, selectedInterval);
+            const result = await subscriptionService.startCheckout(token, selectedTier);
 
             if (result.success) {
-                Alert.alert(
-                    'Subscription Activated!',
-                    'Welcome to Auditure Premium! Enjoy unlimited podcast episodes.',
-                    [{ text: 'OK', onPress: () => fetchSubscription() }],
-                );
+                // Handle re-enabled subscription (same plan, just reactivated)
+                if (result.reEnabled) {
+                    Alert.alert('Subscription Reactivated!', result.message || 'Your subscription is active again.', [
+                        { text: 'OK', onPress: () => fetchSubscription() },
+                    ]);
+                } else {
+                    Alert.alert(
+                        'Subscription Activated!',
+                        `Welcome to Auditure ${subscriptionService.getTierDisplayName(selectedTier)}! Enjoy your podcast episodes.`,
+                        [{ text: 'OK', onPress: () => fetchSubscription() }],
+                    );
+                }
             } else if (result.cancelled) {
-                // User cancelled, no alert needed
                 console.log('User cancelled checkout');
             } else if (result.error) {
                 setError(result.error);
@@ -163,7 +239,7 @@ export default function SubscriptionScreen() {
         }
     };
 
-    const handleManageSubscription = async () => {
+    const handleUpgrade = async () => {
         try {
             setPurchasing(true);
             setError(null);
@@ -174,12 +250,121 @@ export default function SubscriptionScreen() {
                 return;
             }
 
-            await subscriptionService.openCustomerPortal(token);
-            // Refresh subscription status after returning from portal
+            // Start checkout for Pro with isUpgrade flag
+            // The old subscription will be cancelled AFTER successful payment (server-side)
+            const result = await subscriptionService.startCheckout(token, 'pro', { isUpgrade: true });
+
+            if (result.success) {
+                Alert.alert(
+                    'Upgrade Successful!',
+                    'Welcome to Auditure Pro! Enjoy your 100 episodes per month.',
+                    [{ text: 'OK', onPress: () => fetchSubscription() }],
+                );
+            } else if (result.cancelled) {
+                // User cancelled - their existing subscription remains fully active
+                console.log('User cancelled upgrade - existing subscription unchanged');
+            } else if (result.error) {
+                setError(result.error);
+            }
+        } catch (err: any) {
+            console.error('Upgrade error:', err);
+            setError(err.message || 'Failed to upgrade subscription');
+        } finally {
+            setPurchasing(false);
+        }
+    };
+
+    const handleCancelSubscription = () => {
+        // Step 1: Ask why they want to cancel
+        Alert.alert(
+            "We're sorry to see you go",
+            'Before you cancel, could you tell us why?',
+            [
+                { text: 'Keep My Subscription', style: 'cancel' },
+                {
+                    text: "It's too expensive",
+                    onPress: () => showPauseOffer(),
+                },
+                {
+                    text: "I don't use it enough",
+                    onPress: () => showPauseOffer(),
+                },
+                {
+                    text: 'Other reason',
+                    onPress: () => showFinalConfirmation(),
+                },
+            ],
+        );
+    };
+
+    const showPauseOffer = () => {
+        // Step 2: Offer alternatives
+        Alert.alert(
+            'How about a pause instead?',
+            "We'd hate to lose you! Would you like to pause your subscription for a month instead of cancelling?",
+            [
+                { text: 'Keep My Subscription', style: 'cancel' },
+                {
+                    text: 'Pause for 1 Month',
+                    onPress: () => {
+                        Alert.alert(
+                            'Feature Coming Soon',
+                            "We're working on adding pause functionality. For now, you can cancel and resubscribe anytime.",
+                        );
+                    },
+                },
+                {
+                    text: 'Continue Cancelling',
+                    style: 'destructive',
+                    onPress: () => showFinalConfirmation(),
+                },
+            ],
+        );
+    };
+
+    const showFinalConfirmation = () => {
+        // Step 3: Final guilt trip
+        Alert.alert(
+            'Are you absolutely sure?',
+            `You'll lose access to:\n\n• ${subscription?.usage.geminiEpisodeLimit ?? 30} monthly episodes\n• Premium voice quality\n• All your saved preferences\n\nYour subscription will remain active until the end of your billing period.`,
+            [
+                { text: "No, I'll Stay!", style: 'cancel' },
+                {
+                    text: 'Yes, Cancel',
+                    style: 'destructive',
+                    onPress: () => performCancellation(),
+                },
+            ],
+        );
+    };
+
+    const performCancellation = async () => {
+        try {
+            setPurchasing(true);
+            const token = await storageService.getAccessToken();
+            if (!token) return;
+
+            const result = await subscriptionService.cancelSubscription(token);
+            Alert.alert('Subscription Cancelled', result.message);
             await fetchSubscription();
         } catch (err: any) {
-            console.error('Portal error:', err);
-            Alert.alert('Error', err.message || 'Failed to open subscription portal');
+            Alert.alert('Error', err.message || 'Failed to cancel subscription');
+        } finally {
+            setPurchasing(false);
+        }
+    };
+
+    const handleReactivate = async () => {
+        try {
+            setPurchasing(true);
+            const token = await storageService.getAccessToken();
+            if (!token) return;
+
+            const result = await subscriptionService.reactivateSubscription(token);
+            Alert.alert('Subscription Reactivated!', result.message);
+            await fetchSubscription();
+        } catch (err: any) {
+            Alert.alert('Error', err.message || 'Failed to reactivate subscription');
         } finally {
             setPurchasing(false);
         }
@@ -205,47 +390,47 @@ export default function SubscriptionScreen() {
         );
     }
 
-    const isPremium = subscription?.isPremium ?? false;
-    const stripeStatus = subscription?.stripeSubscription;
+    const isPaid = subscription?.isPaid ?? false;
+    const isCancelled = subscription?.isCancelled ?? false;
+    const paystackStatus = subscription?.paystackSubscription;
 
     return (
         <SafeAreaView className="flex-1 bg-brand-beige" edges={['top', 'left', 'right']}>
-            <TopBar showBack onBack={() => router.back()} />
+            <TopBar showBackButton title="Subscription" />
 
             <ScrollView
-                contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+                contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
                 refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={onRefresh}
-                        tintColor="#BF9A54"
-                    />
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#BF9A54" />
                 }>
                 {/* Header */}
                 <View className="mb-6">
                     <Text className="font-inter-bold text-2xl text-brand-black">
-                        {isPremium ? 'Your Subscription' : 'Upgrade to Premium'}
+                        {isPaid ? 'Your Subscription' : 'Unlock Premium'}
                     </Text>
                     <Text className="font-jakarta text-gray-600 mt-1">
-                        {isPremium
+                        {isPaid
                             ? 'Manage your premium subscription'
-                            : 'Unlock unlimited podcast episodes from your books'}
+                            : 'Create more podcast episodes from your books'}
                     </Text>
                 </View>
 
                 {/* Error Message */}
                 {error && (
-                    <View className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-                        <Text className="font-inter text-red-800">{error}</Text>
-                        <TouchableOpacity onPress={() => fetchSubscription()} className="mt-2">
-                            <Text className="font-inter-medium text-red-600">Retry</Text>
-                        </TouchableOpacity>
+                    <View className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6 flex-row items-start">
+                        <Ionicons name="alert-circle" size={20} color="#DC2626" />
+                        <View className="flex-1 ml-3">
+                            <Text className="font-inter-medium text-red-800">{error}</Text>
+                            <TouchableOpacity onPress={() => fetchSubscription()} className="mt-2">
+                                <Text className="font-inter-bold text-red-600">Tap to retry</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 )}
 
                 {/* Current Status Card */}
                 <View
-                    className="bg-white rounded-2xl p-5 mb-6"
+                    className="bg-[#F5F5F0] rounded-2xl p-5 mb-6"
                     style={{
                         shadowColor: '#000',
                         shadowOffset: { width: 0, height: 2 },
@@ -256,212 +441,280 @@ export default function SubscriptionScreen() {
                     <View className="flex-row items-center justify-between mb-4">
                         <Text className="font-inter-bold text-lg text-gray-900">Current Plan</Text>
                         <View
-                            className={`px-3 py-1 rounded-full ${
-                                isPremium ? 'bg-brand-gold' : 'bg-gray-200'
-                            }`}>
+                            className={`px-3 py-1 rounded-full ${isPaid ? 'bg-brand-gold' : 'bg-gray-200'}`}>
                             <Text
-                                className={`font-inter-bold text-sm ${
-                                    isPremium ? 'text-white' : 'text-gray-700'
-                                }`}>
+                                className={`font-inter-bold text-sm ${isPaid ? 'text-white' : 'text-gray-600'}`}>
                                 {subscription?.tier || 'FREE'}
                             </Text>
                         </View>
                     </View>
 
-                    {isPremium && stripeStatus && (
-                        <View className="space-y-2">
-                            <View className="flex-row justify-between">
-                                <Text className="font-inter text-gray-500">Status</Text>
-                                <Text className="font-inter-medium text-gray-900 capitalize">
-                                    {stripeStatus.status}
+                    {isPaid && paystackStatus && (
+                        <View
+                            className={`rounded-xl p-3 mb-4 flex-row items-center ${
+                                isCancelled ? 'bg-orange-50' : 'bg-green-50'
+                            }`}>
+                            <Ionicons
+                                name={isCancelled ? 'time-outline' : 'checkmark-circle'}
+                                size={18}
+                                color={isCancelled ? '#EA580C' : '#16A34A'}
+                            />
+                            <Text
+                                className={`font-inter-medium ml-2 ${
+                                    isCancelled ? 'text-orange-700' : 'text-green-700'
+                                }`}>
+                                {isCancelled ? 'Cancelled' : 'Active'}
+                            </Text>
+                            {subscription?.premiumExpiresAt && (
+                                <Text
+                                    className={`font-inter ml-auto text-sm ${
+                                        isCancelled ? 'text-orange-600' : 'text-green-600'
+                                    }`}>
+                                    {isCancelled ? 'Expires' : 'Renews'}{' '}
+                                    {formatDate(subscription.premiumExpiresAt)}
                                 </Text>
-                            </View>
-                            <View className="flex-row justify-between">
-                                <Text className="font-inter text-gray-500">Renews</Text>
-                                <Text className="font-inter-medium text-gray-900">
-                                    {formatDate(stripeStatus.currentPeriodEnd)}
-                                </Text>
-                            </View>
-                            {stripeStatus.cancelAtPeriodEnd && (
-                                <View className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-2">
-                                    <Text className="font-inter text-amber-800">
-                                        Your subscription will end on{' '}
-                                        {formatDate(stripeStatus.currentPeriodEnd)}
-                                    </Text>
-                                </View>
                             )}
                         </View>
                     )}
 
-                    {!isPremium && (
-                        <View className="space-y-2">
-                            <View className="flex-row justify-between">
-                                <Text className="font-inter text-gray-500">Gemini Episodes</Text>
-                                <Text className="font-inter-medium text-gray-900">
-                                    {subscription?.usage.geminiEpisodesUsed ?? 0} /{' '}
-                                    {subscription?.usage.geminiEpisodeLimit ?? 1} per month
-                                </Text>
-                            </View>
-                            <View className="flex-row justify-between">
-                                <Text className="font-inter text-gray-500">Standard Episodes</Text>
-                                <Text className="font-inter-medium text-gray-900">
-                                    {subscription?.usage.standardEpisodesUsed ?? 0} /{' '}
-                                    {subscription?.usage.standardEpisodeLimit ?? 2} per month
-                                </Text>
-                            </View>
-                        </View>
-                    )}
+                    {/* Usage Stats */}
+                    <UsageBar
+                        label="Gemini Episodes"
+                        used={subscription?.usage.geminiEpisodesUsed ?? 0}
+                        limit={subscription?.usage.geminiEpisodeLimit ?? 1}
+                    />
+                    <UsageBar
+                        label="Standard Episodes"
+                        used={subscription?.usage.standardEpisodesUsed ?? 0}
+                        limit={subscription?.usage.standardEpisodeLimit ?? 2}
+                    />
                 </View>
 
-                {/* Premium Features */}
-                {!isPremium && (
-                    <View
-                        className="bg-white rounded-2xl p-5 mb-6"
-                        style={{
-                            shadowColor: '#000',
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.1,
-                            shadowRadius: 10,
-                            elevation: 8,
-                        }}>
-                        <Text className="font-inter-bold text-lg text-gray-900 mb-4">
-                            Premium Benefits
-                        </Text>
-
-                        {[
-                            {
-                                icon: 'infinite',
-                                title: 'Unlimited Episodes',
-                                desc: 'Create as many podcast episodes as you want',
-                            },
-                            {
-                                icon: 'mic',
-                                title: 'Premium Voice Quality',
-                                desc: 'Access to Gemini multi-speaker TTS',
-                            },
-                            {
-                                icon: 'flash',
-                                title: 'Priority Processing',
-                                desc: 'Your episodes are processed faster',
-                            },
-                            {
-                                icon: 'headset',
-                                title: 'Priority Support',
-                                desc: 'Get help when you need it',
-                            },
-                        ].map((feature, index) => (
-                            <View key={index} className="flex-row items-start mb-4 last:mb-0">
-                                <View className="w-10 h-10 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
-                                    <Ionicons
-                                        name={feature.icon as any}
-                                        size={20}
-                                        color="#BF9A54"
-                                    />
-                                </View>
-                                <View className="flex-1">
-                                    <Text className="font-inter-medium text-gray-900">
-                                        {feature.title}
-                                    </Text>
-                                    <Text className="font-inter text-gray-500 text-sm">
-                                        {feature.desc}
-                                    </Text>
-                                </View>
-                            </View>
-                        ))}
-                    </View>
-                )}
-
-                {/* Pricing Selection */}
-                {!isPremium && (
-                    <View className="mb-6">
+                {/* Pricing Selection - Only show if not paid */}
+                {!isPaid && (
+                    <>
                         <Text className="font-inter-bold text-lg text-gray-900 mb-4">
                             Choose Your Plan
                         </Text>
 
-                        <View className="flex-row gap-3">
+                        {/* Pricing Cards */}
+                        <View className="flex-row gap-3 mb-6">
                             <PricingCard
-                                title="Monthly"
-                                price={subscriptionService.formatPrice(pricing.monthly.price)}
-                                interval="month"
-                                isSelected={selectedInterval === 'month'}
-                                onSelect={() => setSelectedInterval('month')}
+                                title="Starter"
+                                price={subscriptionService.formatPrice(pricing.starter.price)}
+                                episodesPerMonth={pricing.starter.episodesPerMonth}
+                                isSelected={selectedTier === 'starter'}
+                                onSelect={() => setSelectedTier('starter')}
                                 disabled={purchasing}
+                                icon="rocket-outline"
                             />
                             <PricingCard
-                                title="Yearly"
-                                price={subscriptionService.formatPrice(pricing.yearly.price)}
-                                interval="year"
-                                savings={pricing.yearly.savings}
-                                monthlyEquivalent={
-                                    pricing.yearly.monthlyEquivalent
-                                        ? subscriptionService.formatPrice(
-                                              pricing.yearly.monthlyEquivalent,
-                                          )
-                                        : undefined
-                                }
-                                isSelected={selectedInterval === 'year'}
-                                onSelect={() => setSelectedInterval('year')}
+                                title="Pro"
+                                price={subscriptionService.formatPrice(pricing.pro.price)}
+                                episodesPerMonth={pricing.pro.episodesPerMonth}
+                                isSelected={selectedTier === 'pro'}
+                                onSelect={() => setSelectedTier('pro')}
                                 disabled={purchasing}
+                                isPopular
+                                icon="flash"
                             />
+                        </View>
+
+                        {/* Features List */}
+                        <View
+                            className="bg-[#F5F5F0] rounded-2xl p-5 mb-6"
+                            style={{
+                                shadowColor: '#000',
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.1,
+                                shadowRadius: 10,
+                                elevation: 8,
+                            }}>
+                            <Text className="font-inter-bold text-lg text-gray-900 mb-4">
+                                {selectedTier === 'pro' ? 'Pro' : 'Starter'} Features
+                            </Text>
+
+                            {pricing[selectedTier].features.map((feature, index) => (
+                                <View key={index} className="flex-row items-center py-2.5">
+                                    <View className="w-6 h-6 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
+                                        <Ionicons name="checkmark" size={14} color="#BF9A54" />
+                                    </View>
+                                    <Text className="font-inter text-gray-700 flex-1">{feature}</Text>
+                                </View>
+                            ))}
+                        </View>
+
+                        {/* Subscribe Button */}
+                        <TouchableOpacity
+                            onPress={handleSubscribe}
+                            disabled={purchasing}
+                            className={`overflow-hidden rounded-2xl mb-4 ${purchasing ? 'opacity-70' : ''}`}
+                            style={{
+                                shadowColor: '#BF9A54',
+                                shadowOffset: { width: 0, height: 4 },
+                                shadowOpacity: 0.3,
+                                shadowRadius: 8,
+                                elevation: 6,
+                            }}>
+                            <LinearGradient
+                                colors={['#BF9A54', '#D4AF37']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                className="py-4 items-center flex-row justify-center">
+                                {purchasing ? (
+                                    <ActivityIndicator color="white" />
+                                ) : (
+                                    <>
+                                        <Ionicons name="sparkles" size={18} color="white" />
+                                        <Text className="font-inter-bold text-white text-base ml-2">
+                                            Get {subscriptionService.getTierDisplayName(selectedTier)} -{' '}
+                                            {subscriptionService.formatPrice(pricing[selectedTier].price)}/mo
+                                        </Text>
+                                    </>
+                                )}
+                            </LinearGradient>
+                        </TouchableOpacity>
+
+                        {/* Security Badge */}
+                        <View className="flex-row items-center justify-center mb-4">
+                            <Ionicons name="shield-checkmark" size={14} color="#9CA3AF" />
+                            <Text className="font-inter text-gray-400 text-xs ml-1.5">
+                                Secured by Paystack
+                            </Text>
+                        </View>
+                    </>
+                )}
+
+                {/* Upgrade Option - Only show for STARTER subscribers */}
+                {isPaid && subscription?.tier === 'STARTER' && (
+                    <View className="mb-6">
+                        <Text className="font-inter-bold text-lg text-gray-900 mb-4">
+                            Upgrade Your Plan
+                        </Text>
+                        <View
+                            className="bg-[#F5F5F0] rounded-2xl p-5"
+                            style={{
+                                shadowColor: '#000',
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.1,
+                                shadowRadius: 10,
+                                elevation: 8,
+                            }}>
+                            <View className="flex-row items-center mb-4">
+                                <View className="bg-brand-gold/20 w-10 h-10 rounded-xl items-center justify-center mr-3">
+                                    <Ionicons name="flash" size={20} color="#BF9A54" />
+                                </View>
+                                <View className="flex-1">
+                                    <Text className="font-inter-bold text-lg text-gray-900">
+                                        Upgrade to Pro
+                                    </Text>
+                                    <Text className="font-inter text-gray-500 text-sm">
+                                        {pricing.pro.episodesPerMonth} episodes/month
+                                    </Text>
+                                </View>
+                                <Text className="font-inter-bold text-xl text-brand-gold">
+                                    {subscriptionService.formatPrice(pricing.pro.price)}
+                                    <Text className="text-sm text-gray-500">/mo</Text>
+                                </Text>
+                            </View>
+
+                            {/* Pro Features */}
+                            <View className="border-t border-gray-200 pt-4 mb-4">
+                                {pricing.pro.features.map((feature, index) => (
+                                    <View key={index} className="flex-row items-center py-2">
+                                        <View className="w-5 h-5 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
+                                            <Ionicons name="checkmark" size={12} color="#BF9A54" />
+                                        </View>
+                                        <Text className="font-inter text-gray-700 flex-1 text-sm">{feature}</Text>
+                                    </View>
+                                ))}
+                            </View>
+
+                            <TouchableOpacity
+                                onPress={handleUpgrade}
+                                disabled={purchasing}
+                                className="overflow-hidden rounded-xl"
+                                style={{
+                                    shadowColor: '#BF9A54',
+                                    shadowOffset: { width: 0, height: 4 },
+                                    shadowOpacity: 0.3,
+                                    shadowRadius: 8,
+                                    elevation: 6,
+                                }}>
+                                <LinearGradient
+                                    colors={['#BF9A54', '#D4AF37']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                    className="py-3 items-center flex-row justify-center">
+                                    <Ionicons name="arrow-up-circle" size={18} color="white" />
+                                    <Text className="font-inter-bold text-white ml-2">
+                                        Upgrade Now
+                                    </Text>
+                                </LinearGradient>
+                            </TouchableOpacity>
                         </View>
                     </View>
                 )}
 
-                {/* Subscribe Button */}
-                {!isPremium && (
+                {/* Reactivate or Cancel Button - Only show if paid */}
+                {isPaid && isCancelled && (
                     <TouchableOpacity
-                        onPress={handleSubscribe}
+                        onPress={handleReactivate}
                         disabled={purchasing}
-                        className={`bg-brand-gold py-4 rounded-xl items-center mb-4 ${
-                            purchasing ? 'opacity-70' : ''
-                        }`}
+                        className="overflow-hidden rounded-2xl mb-4"
                         style={{
                             shadowColor: '#BF9A54',
                             shadowOffset: { width: 0, height: 4 },
                             shadowOpacity: 0.3,
                             shadowRadius: 8,
-                            elevation: 4,
+                            elevation: 6,
                         }}>
-                        {purchasing ? (
-                            <ActivityIndicator color="white" />
-                        ) : (
-                            <Text className="font-inter-bold text-white text-lg">
-                                Subscribe Now
-                            </Text>
-                        )}
+                        <LinearGradient
+                            colors={['#BF9A54', '#D4AF37']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            className="py-4 items-center flex-row justify-center">
+                            {purchasing ? (
+                                <ActivityIndicator color="white" />
+                            ) : (
+                                <>
+                                    <Ionicons name="refresh" size={18} color="white" />
+                                    <Text className="font-inter-bold text-white ml-2">
+                                        Reactivate Subscription
+                                    </Text>
+                                </>
+                            )}
+                        </LinearGradient>
                     </TouchableOpacity>
                 )}
 
-                {/* Manage Subscription Button */}
-                {isPremium && (
+                {isPaid && !isCancelled && (
                     <TouchableOpacity
-                        onPress={handleManageSubscription}
+                        onPress={handleCancelSubscription}
                         disabled={purchasing}
-                        className={`bg-brand-gold py-4 rounded-xl items-center mb-4 ${
+                        className={`bg-[#F5F5F0] py-4 rounded-2xl items-center mb-4 flex-row justify-center ${
                             purchasing ? 'opacity-70' : ''
-                        }`}
-                        style={{
-                            shadowColor: '#BF9A54',
-                            shadowOffset: { width: 0, height: 4 },
-                            shadowOpacity: 0.3,
-                            shadowRadius: 8,
-                            elevation: 4,
-                        }}>
+                        }`}>
                         {purchasing ? (
-                            <ActivityIndicator color="white" />
+                            <ActivityIndicator color="#6B7280" />
                         ) : (
-                            <Text className="font-inter-bold text-white text-lg">
-                                Manage Subscription
-                            </Text>
+                            <>
+                                <Ionicons name="close-circle-outline" size={18} color="#6B7280" />
+                                <Text className="font-inter-medium text-gray-600 text-sm ml-2">
+                                    Cancel Subscription
+                                </Text>
+                            </>
                         )}
                     </TouchableOpacity>
                 )}
 
                 {/* Terms */}
-                <Text className="font-inter text-gray-400 text-xs text-center px-4">
-                    {isPremium
-                        ? 'Manage your subscription, update payment method, or cancel anytime through the Customer Portal.'
-                        : 'By subscribing, you agree to our Terms of Service. Subscription automatically renews unless cancelled at least 24 hours before the end of the current period.'}
+                <Text className="font-inter text-gray-400 text-xs text-center px-4 leading-5">
+                    {isPaid
+                        ? isCancelled
+                            ? 'Your subscription is cancelled but you still have access until the end of your billing period. Reactivate anytime to continue your subscription.'
+                            : 'Your subscription will be cancelled at the end of your current billing period. You can resubscribe anytime.'
+                        : 'By subscribing, you agree to our Terms of Service. Subscription automatically renews unless cancelled.'}
                 </Text>
             </ScrollView>
         </SafeAreaView>

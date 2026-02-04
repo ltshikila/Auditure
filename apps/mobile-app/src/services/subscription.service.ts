@@ -19,6 +19,7 @@ export interface PaystackSubscriptionDetails {
 export interface SubscriptionStatus {
     tier: 'FREE' | 'STARTER' | 'PRO';
     isPaid: boolean;
+    isCancelled: boolean;
     premiumStartedAt: string | null;
     premiumExpiresAt: string | null;
     paystackSubscription: PaystackSubscriptionDetails | null;
@@ -33,7 +34,14 @@ export interface SubscriptionStatus {
 export interface CheckoutResult {
     success: boolean;
     cancelled?: boolean;
+    reEnabled?: boolean;
+    message?: string;
     error?: string;
+}
+
+export interface ReactivateResult {
+    success: boolean;
+    message: string;
 }
 
 export interface PricingPlan {
@@ -63,17 +71,31 @@ class SubscriptionService {
      * Create a checkout session and open Paystack Checkout in browser
      * @param token - Auth token
      * @param tier - 'starter' or 'pro'
+     * @param options - Optional settings (isUpgrade: true for upgrades)
      */
-    async startCheckout(token: string, tier: SubscriptionTier): Promise<CheckoutResult> {
+    async startCheckout(
+        token: string,
+        tier: SubscriptionTier,
+        options?: { isUpgrade?: boolean },
+    ): Promise<CheckoutResult> {
         try {
-            console.log(`[Subscription] Starting checkout for ${tier} plan`);
+            const isUpgrade = options?.isUpgrade ?? false;
+            console.log(`[Subscription] Starting checkout for ${tier} plan (upgrade: ${isUpgrade})`);
 
             // Create checkout session on backend
-            const session = await apiClient.post<CheckoutSession>(
+            const response = await apiClient.post<CheckoutSession | { reEnabled: boolean; message: string }>(
                 '/subscriptions/checkout',
-                { tier },
+                { tier, isUpgrade },
                 token,
             );
+
+            // Check if subscription was re-enabled (same plan, just reactivating)
+            if ('reEnabled' in response && response.reEnabled) {
+                console.log('[Subscription] Subscription re-enabled without new checkout');
+                return { success: true, reEnabled: true, message: response.message };
+            }
+
+            const session = response as CheckoutSession;
 
             if (!session.url) {
                 console.error('[Subscription] No checkout URL received');
@@ -145,6 +167,24 @@ class SubscriptionService {
             );
         } catch (error: any) {
             console.error('[Subscription] Cancel subscription error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Reactivate a cancelled subscription
+     * Only works if the subscription is in the grace period (non-renewing but not yet expired)
+     */
+    async reactivateSubscription(token: string): Promise<ReactivateResult> {
+        try {
+            console.log('[Subscription] Reactivating subscription');
+            return await apiClient.post<ReactivateResult>(
+                '/subscriptions/reactivate',
+                {},
+                token,
+            );
+        } catch (error: any) {
+            console.error('[Subscription] Reactivate subscription error:', error);
             throw error;
         }
     }

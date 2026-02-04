@@ -23,6 +23,7 @@ export class SubscriptionsService {
             return {
                 tier: 'FREE',
                 isPaid: false,
+                isCancelled: false,
                 paystackSubscription: null,
                 usage: {
                     geminiEpisodesUsed: 0,
@@ -38,6 +39,7 @@ export class SubscriptionsService {
             status: string;
             nextPaymentDate: Date | null;
         } | null = null;
+        let isCancelled = false;
 
         if (subscription.paystackSubscriptionCode && this.paystackService.isConfigured()) {
             try {
@@ -51,6 +53,9 @@ export class SubscriptionsService {
                         ? new Date(paystackSub.next_payment_date)
                         : null,
                 };
+
+                // Subscription is cancelled if it's "non-renewing" on Paystack
+                isCancelled = paystackSub.status === 'non-renewing';
             } catch (error: any) {
                 this.logger.warn(
                     `Failed to fetch Paystack subscription ${subscription.paystackSubscriptionCode}: ${error.message}`,
@@ -63,6 +68,7 @@ export class SubscriptionsService {
         return {
             tier: subscription.tier,
             isPaid,
+            isCancelled,
             premiumStartedAt: subscription.premiumStartedAt,
             premiumExpiresAt: subscription.premiumExpiresAt,
             paystackSubscription,
@@ -79,9 +85,10 @@ export class SubscriptionsService {
      * Initialize a Paystack transaction for subscription purchase
      * @param userId - User ID
      * @param tier - 'starter' or 'pro'
+     * @param isUpgrade - Whether this is an upgrade from an existing plan
      */
-    async createCheckoutSession(userId: string, tier: 'starter' | 'pro') {
-        this.logger.log(`Creating checkout session for user ${userId}, tier: ${tier}`);
+    async createCheckoutSession(userId: string, tier: 'starter' | 'pro', isUpgrade?: boolean) {
+        this.logger.log(`Creating checkout session for user ${userId}, tier: ${tier}, isUpgrade: ${isUpgrade}`);
 
         if (!this.paystackService.isConfigured()) {
             throw new BadRequestException('Payment system is not configured');
@@ -89,15 +96,69 @@ export class SubscriptionsService {
 
         // Get or create subscription record
         const subscription = await this.getOrCreateSubscription(userId);
+        const requestedTier = tier.toUpperCase() as 'STARTER' | 'PRO';
+
+        // Check if user has a cancelled (non-renewing) subscription to the SAME plan
+        // If so, just re-enable it instead of creating a new checkout (no double charging)
+        if (
+            !isUpgrade &&
+            subscription.tier === requestedTier &&
+            subscription.paystackSubscriptionCode &&
+            subscription.paystackEmailToken &&
+            subscription.premiumExpiresAt &&
+            subscription.premiumExpiresAt > new Date()
+        ) {
+            // Check if subscription is non-renewing on Paystack
+            try {
+                const paystackSub = await this.paystackService.getSubscription(
+                    subscription.paystackSubscriptionCode,
+                );
+
+                if (paystackSub.status === 'non-renewing') {
+                    this.logger.log(
+                        `User ${userId} has non-renewing subscription to same plan - re-enabling instead of new checkout`,
+                    );
+
+                    // Re-enable the existing subscription (no charge until next billing date)
+                    await this.paystackService.enableSubscription({
+                        code: subscription.paystackSubscriptionCode,
+                        token: subscription.paystackEmailToken,
+                    });
+
+                    return {
+                        reEnabled: true,
+                        message:
+                            'Your subscription has been re-activated! You will be billed on your regular billing date.',
+                    };
+                }
+            } catch (error: any) {
+                this.logger.warn(`Error checking/re-enabling subscription: ${error.message}`);
+                // Fall through to normal checkout if re-enable fails
+            }
+        }
 
         // Check if user already has an active paid subscription
-        if (
-            (subscription.tier === 'STARTER' || subscription.tier === 'PRO') &&
-            subscription.paystackSubscriptionCode
-        ) {
-            throw new BadRequestException(
-                'You already have an active subscription. Please manage it from your account.',
-            );
+        // Allow if this is an upgrade - the old subscription will be cancelled after successful payment
+        if (!isUpgrade && (subscription.tier === 'STARTER' || subscription.tier === 'PRO')) {
+            // Check if subscription hasn't expired
+            if (!subscription.premiumExpiresAt || subscription.premiumExpiresAt > new Date()) {
+                // Check if it's actively renewing (not cancelled)
+                if (subscription.paystackSubscriptionCode) {
+                    try {
+                        const paystackSub = await this.paystackService.getSubscription(
+                            subscription.paystackSubscriptionCode,
+                        );
+                        if (paystackSub.status === 'active') {
+                            throw new BadRequestException(
+                                'You already have an active subscription. Please manage it from your account.',
+                            );
+                        }
+                    } catch (error: any) {
+                        if (error instanceof BadRequestException) throw error;
+                        // If we can't check Paystack, still allow checkout
+                    }
+                }
+            }
         }
 
         // Get user details
@@ -135,14 +196,24 @@ export class SubscriptionsService {
         // Initialize transaction with plan
         const planCode = this.paystackService.getPlanCode(tier);
         const appUrl = this.paystackService.getAppUrl();
+        // Amount in cents (Paystack requires amount even with plan)
+        const amountInCents = tier === 'starter' ? 999 : 2499;
+
+        // Store old subscription info if this is an upgrade (for cancellation after success)
+        const oldSubscriptionCode = isUpgrade ? subscription.paystackSubscriptionCode : null;
+        const oldEmailToken = isUpgrade ? subscription.paystackEmailToken : null;
 
         const transaction = await this.paystackService.initializeTransaction({
             email: user.email,
+            amount: amountInCents,
             plan: planCode,
             callback_url: `${appUrl}/subscriptions/callback`,
             metadata: {
                 userId,
                 tier,
+                isUpgrade: isUpgrade || false,
+                oldSubscriptionCode,
+                oldEmailToken,
                 custom_fields: [
                     {
                         display_name: 'User ID',
@@ -153,6 +224,11 @@ export class SubscriptionsService {
                         display_name: 'Tier',
                         variable_name: 'tier',
                         value: tier,
+                    },
+                    {
+                        display_name: 'Is Upgrade',
+                        variable_name: 'is_upgrade',
+                        value: isUpgrade ? 'true' : 'false',
                     },
                 ],
             },
@@ -169,6 +245,8 @@ export class SubscriptionsService {
 
     /**
      * Handle successful payment callback
+     * This also updates the subscription (in case webhooks aren't received)
+     * For upgrades, cancels the old subscription AFTER successful payment
      */
     async handlePaymentCallback(reference: string) {
         this.logger.log(`Handling payment callback for reference: ${reference}`);
@@ -179,9 +257,91 @@ export class SubscriptionsService {
 
         const transaction = await this.paystackService.verifyTransaction(reference);
 
+        this.logger.log(`Transaction verified: ${JSON.stringify(transaction)}`);
+
         if (transaction.status !== 'success') {
             this.logger.warn(`Transaction ${reference} was not successful: ${transaction.status}`);
             return { success: false, status: transaction.status };
+        }
+
+        // Extract user info from metadata
+        const metadata = (transaction as any).metadata || {};
+        this.logger.log(`Transaction metadata: ${JSON.stringify(metadata)}`);
+
+        const userId =
+            metadata.userId ||
+            metadata.custom_fields?.find((f: any) => f.variable_name === 'user_id')?.value;
+        const tier =
+            metadata.tier ||
+            metadata.custom_fields?.find((f: any) => f.variable_name === 'tier')?.value;
+        const isUpgrade =
+            metadata.isUpgrade ||
+            metadata.custom_fields?.find((f: any) => f.variable_name === 'is_upgrade')?.value === 'true';
+        const oldSubscriptionCode = metadata.oldSubscriptionCode;
+        const oldEmailToken = metadata.oldEmailToken;
+
+        this.logger.log(`Extracted userId: ${userId}, tier: ${tier}, isUpgrade: ${isUpgrade}`);
+
+        // Determine tier from plan if not in metadata
+        let subscriptionTier: 'STARTER' | 'PRO' = 'STARTER';
+        if (tier) {
+            subscriptionTier = tier.toUpperCase() as 'STARTER' | 'PRO';
+        } else if (transaction.plan) {
+            subscriptionTier = this.determineTierFromPlan(transaction.plan);
+        }
+
+        // Find user by metadata userId or by customer email
+        let targetUserId = userId;
+        if (!targetUserId && transaction.customer?.email) {
+            const user = await this.databaseService.user.findUnique({
+                where: { email: transaction.customer.email },
+            });
+            if (user) {
+                targetUserId = user.id;
+                this.logger.log(`Found user by email: ${targetUserId}`);
+            }
+        }
+
+        if (targetUserId) {
+            this.logger.log(`Activating subscription for user ${targetUserId}, tier: ${subscriptionTier}`);
+
+            const limits = this.getLimitsForTier(subscriptionTier);
+
+            const subscription = await this.databaseService.subscription.findUnique({
+                where: { userId: targetUserId },
+            });
+
+            if (subscription) {
+                // For upgrades: Cancel the old subscription on Paystack AFTER new payment succeeds
+                if (isUpgrade && oldSubscriptionCode && oldEmailToken) {
+                    this.logger.log(`Upgrade detected - cancelling old subscription: ${oldSubscriptionCode}`);
+                    try {
+                        await this.paystackService.disableSubscription({
+                            code: oldSubscriptionCode,
+                            token: oldEmailToken,
+                        });
+                        this.logger.log(`Old subscription ${oldSubscriptionCode} cancelled successfully`);
+                    } catch (error: any) {
+                        // Log but don't fail - the new subscription is already active
+                        this.logger.warn(`Failed to cancel old subscription: ${error.message}`);
+                    }
+                }
+
+                await this.databaseService.subscription.update({
+                    where: { userId: targetUserId },
+                    data: {
+                        tier: subscriptionTier,
+                        premiumStartedAt: subscription.premiumStartedAt || new Date(),
+                        premiumExpiresAt: this.calculateNextBillingDate(),
+                        geminiEpisodeLimit: limits.geminiEpisodeLimit,
+                        standardEpisodeLimit: limits.standardEpisodeLimit,
+                        paystackCustomerCode:
+                            transaction.customer?.customer_code || subscription.paystackCustomerCode,
+                    },
+                });
+
+                this.logger.log(`Subscription activated for user ${targetUserId}: ${subscriptionTier}`);
+            }
         }
 
         return { success: true, status: transaction.status };
@@ -214,6 +374,8 @@ export class SubscriptionsService {
 
     /**
      * Cancel subscription
+     * Sets subscription to "non-renewing" on Paystack - user keeps benefits until billing period ends
+     * We keep the tier and Paystack codes so user can re-enable if they change their mind
      */
     async cancelSubscription(userId: string) {
         this.logger.log(`Cancelling subscription for user ${userId}`);
@@ -222,21 +384,88 @@ export class SubscriptionsService {
             where: { userId },
         });
 
-        if (!subscription?.paystackSubscriptionCode || !subscription?.paystackEmailToken) {
+        if (!subscription || subscription.tier === 'FREE') {
             throw new BadRequestException('No active subscription found.');
         }
 
-        await this.paystackService.disableSubscription({
-            code: subscription.paystackSubscriptionCode,
-            token: subscription.paystackEmailToken,
-        });
+        // Try to cancel on Paystack if we have the subscription code
+        // This sets the subscription to "non-renewing" - user keeps access until billing period ends
+        if (subscription.paystackSubscriptionCode && subscription.paystackEmailToken) {
+            try {
+                await this.paystackService.disableSubscription({
+                    code: subscription.paystackSubscriptionCode,
+                    token: subscription.paystackEmailToken,
+                });
+                this.logger.log(`Paystack subscription set to non-renewing for user ${userId}`);
+            } catch (error: any) {
+                this.logger.warn(`Failed to disable Paystack subscription: ${error.message}`);
+                throw new BadRequestException('Failed to cancel subscription. Please try again.');
+            }
+        } else {
+            throw new BadRequestException('No Paystack subscription found to cancel.');
+        }
 
-        this.logger.log(`Subscription cancelled for user ${userId}`);
+        // DON'T change tier to FREE or clear codes - user keeps benefits until premiumExpiresAt
+        // The webhook (subscription.disable) will handle the actual downgrade when the period ends
+        // Keeping codes allows user to re-enable if they change their mind
+
+        this.logger.log(`Subscription cancelled (non-renewing) for user ${userId}`);
+
+        const expiresAt = subscription.premiumExpiresAt
+            ? new Date(subscription.premiumExpiresAt).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+              })
+            : 'the end of your billing period';
 
         return {
             success: true,
-            message: 'Subscription will be cancelled at the end of the billing period.',
+            message: `Your subscription has been cancelled. You'll continue to have access until ${expiresAt}.`,
         };
+    }
+
+    /**
+     * Re-enable a cancelled (non-renewing) subscription
+     * Only works if subscription is still within the billing period
+     */
+    async reEnableSubscription(userId: string) {
+        this.logger.log(`Re-enabling subscription for user ${userId}`);
+
+        const subscription = await this.databaseService.subscription.findUnique({
+            where: { userId },
+        });
+
+        if (!subscription || subscription.tier === 'FREE') {
+            throw new BadRequestException('No subscription found to re-enable.');
+        }
+
+        if (!subscription.paystackSubscriptionCode || !subscription.paystackEmailToken) {
+            throw new BadRequestException('No Paystack subscription found to re-enable.');
+        }
+
+        // Check if subscription hasn't expired yet
+        if (subscription.premiumExpiresAt && subscription.premiumExpiresAt < new Date()) {
+            throw new BadRequestException(
+                'Your billing period has ended. Please start a new subscription.',
+            );
+        }
+
+        try {
+            await this.paystackService.enableSubscription({
+                code: subscription.paystackSubscriptionCode,
+                token: subscription.paystackEmailToken,
+            });
+            this.logger.log(`Paystack subscription re-enabled for user ${userId}`);
+
+            return {
+                success: true,
+                message: 'Your subscription has been re-activated! You will be billed on your regular billing date.',
+            };
+        } catch (error: any) {
+            this.logger.error(`Failed to re-enable subscription: ${error.message}`);
+            throw new BadRequestException('Failed to re-enable subscription. Please try again or start a new subscription.');
+        }
     }
 
     // Webhook handlers
@@ -248,9 +477,6 @@ export class SubscriptionsService {
         const userId =
             metadata.userId ||
             metadata.custom_fields?.find((f: any) => f.variable_name === 'user_id')?.value;
-        const _tier =
-            metadata.tier ||
-            metadata.custom_fields?.find((f: any) => f.variable_name === 'tier')?.value;
 
         if (!userId) {
             this.logger.warn(`No userId found in charge metadata for reference ${data.reference}`);

@@ -40,6 +40,7 @@ export interface PaystackTransaction {
     access_code?: string;
     customer?: PaystackCustomer;
     plan?: PaystackPlan;
+    metadata?: Record<string, any>;
 }
 
 export interface PaystackWebhookEvent {

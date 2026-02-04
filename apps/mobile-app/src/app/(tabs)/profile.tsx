@@ -549,7 +549,7 @@ export default function Profile() {
                             onPress={() => router.push('/subscription')}
                             className="mt-4 bg-brand-gold py-3 rounded-xl items-center">
                             <Text className="font-inter-medium text-white">
-                                {subscription.isPremium ? 'Manage Subscription' : 'Upgrade to Premium'}
+                                {subscription.isPremium ? 'Manage Subscription' : 'View Plans'}
                             </Text>
                         </TouchableOpacity>
                     </View>

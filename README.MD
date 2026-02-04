@@ -140,6 +140,57 @@ npm run start:mobile
 * **Episode Types:** Generate monologues, dual-host conversations, or group discussions
 * **Social Features:** Like, comment, bookmark episodes, follow podcasters
 * **Discovery Feed:** Browse trending episodes with search by title, author, keywords
+* **Subscription Plans:** Tiered subscriptions (Free, Starter, Pro) with Paystack payment processing
+
+## Subscription Plans
+
+Auditure uses **Paystack** for subscription management, supporting both local (South Africa) and international payments.
+
+### Plans
+
+| Tier | Price | Episodes/Month | Features |
+|------|-------|----------------|----------|
+| Free | $0 | 1 Gemini + 2 Standard | Basic access |
+| Starter | $9.99/mo | 30 | Gemini Pro voice, Mono & Duo episodes, 10 personalities |
+| Pro | $24.99/mo | 100 | All features, Group episodes, Unlimited personalities, Priority processing |
+
+### Payment Flow
+
+1. User selects a plan in the mobile app
+2. App opens Paystack Checkout in a web browser
+3. User completes payment on Paystack's secure page
+4. Paystack webhook notifies the backend of successful payment
+5. Backend updates user's subscription tier and episode limits
+
+### Configuration
+
+Set the following environment variables in `services/core-api/.env`:
+
+```env
+PAYSTACK_SECRET_KEY="sk_test_xxx"
+PAYSTACK_PUBLIC_KEY="pk_test_xxx"
+PAYSTACK_PLAN_CODE_STARTER="PLN_xxx"
+PAYSTACK_PLAN_CODE_PRO="PLN_xxx"
+APP_URL="http://localhost:3000"
+```
+
+### Webhook Setup
+
+Configure webhook URL in Paystack dashboard:
+```
+https://your-api-domain.com/subscriptions/webhook
+```
+
+For local testing, use ngrok:
+```bash
+ngrok http 3000
+# Then set webhook to: https://xxxx.ngrok.io/subscriptions/webhook
+```
+
+### Test Cards
+
+- **Success:** 4084 0841 1111 1111 (any future expiry, any CVV)
+- **Failed:** 4084 0841 1111 1119
 
 ## Documentation
 
