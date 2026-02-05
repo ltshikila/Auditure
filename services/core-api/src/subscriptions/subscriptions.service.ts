@@ -41,6 +41,8 @@ export class SubscriptionsService {
         } | null = null;
         let isCancelled = false;
 
+        const isPaid = subscription.tier === 'STARTER' || subscription.tier === 'PRO';
+
         if (subscription.paystackSubscriptionCode && this.paystackService.isConfigured()) {
             try {
                 const paystackSub = await this.paystackService.getSubscription(
@@ -61,9 +63,20 @@ export class SubscriptionsService {
                     `Failed to fetch Paystack subscription ${subscription.paystackSubscriptionCode}: ${error.message}`,
                 );
             }
-        }
+        } else if (isPaid && !subscription.paystackSubscriptionCode) {
+            // Paid tier but no Paystack subscription code could mean:
+            // 1. Subscription was cancelled locally (user keeps benefits until expiry)
+            // 2. Fresh subscription where we couldn't fetch the Paystack code yet
+            // Only mark as cancelled if subscription was started more than 10 minutes ago
+            // (gives time for Paystack to create subscription and webhook to arrive)
+            const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+            const isRecentlyStarted = subscription.premiumStartedAt && subscription.premiumStartedAt > tenMinutesAgo;
 
-        const isPaid = subscription.tier === 'STARTER' || subscription.tier === 'PRO';
+            if (!isRecentlyStarted) {
+                isCancelled = true;
+            }
+            // If recently started, assume it's a new subscription awaiting Paystack sync
+        }
 
         return {
             tier: subscription.tier,
@@ -327,20 +340,73 @@ export class SubscriptionsService {
                     }
                 }
 
+                // Fetch subscription details from Paystack (since webhooks may not reach local server)
+                // Paystack creates subscriptions asynchronously, so we may need to retry
+                let paystackSubscriptionCode = subscription.paystackSubscriptionCode;
+                let paystackEmailToken = subscription.paystackEmailToken;
+                let premiumExpiresAt = this.calculateNextBillingDate();
+
+                if (transaction.customer?.customer_code) {
+                    const planCode = this.paystackService.getPlanCode(tier || subscriptionTier.toLowerCase() as 'starter' | 'pro');
+
+                    // Retry fetching subscription with delays (Paystack creates it asynchronously)
+                    const maxRetries = 3;
+                    const retryDelayMs = 2000; // 2 seconds between retries
+
+                    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                        try {
+                            this.logger.log(`Fetching customer subscriptions (attempt ${attempt}/${maxRetries})...`);
+                            const subscriptions = await this.paystackService.listCustomerSubscriptions(
+                                transaction.customer.customer_code,
+                            );
+                            this.logger.log(`Found ${subscriptions.length} subscriptions for customer`);
+
+                            // Find the most recent active subscription for this plan
+                            const activeSubscription = subscriptions.find(
+                                (sub) => sub.plan?.plan_code === planCode && (sub.status === 'active' || sub.status === 'non-renewing'),
+                            );
+
+                            if (activeSubscription) {
+                                paystackSubscriptionCode = activeSubscription.subscription_code;
+                                paystackEmailToken = activeSubscription.email_token;
+                                if (activeSubscription.next_payment_date) {
+                                    premiumExpiresAt = new Date(activeSubscription.next_payment_date);
+                                }
+                                this.logger.log(`Found Paystack subscription: ${paystackSubscriptionCode}`);
+                                break; // Success, exit retry loop
+                            } else if (attempt < maxRetries) {
+                                this.logger.log(`No matching subscription found yet, waiting ${retryDelayMs}ms before retry...`);
+                                await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+                            }
+                        } catch (error: any) {
+                            this.logger.warn(`Failed to fetch customer subscriptions (attempt ${attempt}): ${error.message}`);
+                            if (attempt < maxRetries) {
+                                await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+                            }
+                        }
+                    }
+
+                    if (!paystackSubscriptionCode) {
+                        this.logger.warn(`Could not find subscription after ${maxRetries} attempts - will rely on webhook`);
+                    }
+                }
+
                 await this.databaseService.subscription.update({
                     where: { userId: targetUserId },
                     data: {
                         tier: subscriptionTier,
                         premiumStartedAt: subscription.premiumStartedAt || new Date(),
-                        premiumExpiresAt: this.calculateNextBillingDate(),
+                        premiumExpiresAt,
                         geminiEpisodeLimit: limits.geminiEpisodeLimit,
                         standardEpisodeLimit: limits.standardEpisodeLimit,
                         paystackCustomerCode:
                             transaction.customer?.customer_code || subscription.paystackCustomerCode,
+                        paystackSubscriptionCode,
+                        paystackEmailToken,
                     },
                 });
 
-                this.logger.log(`Subscription activated for user ${targetUserId}: ${subscriptionTier}`);
+                this.logger.log(`Subscription activated for user ${targetUserId}: ${subscriptionTier}, code: ${paystackSubscriptionCode}`);
             }
         }
 
@@ -400,6 +466,61 @@ export class SubscriptionsService {
             } catch (error: any) {
                 this.logger.warn(`Failed to disable Paystack subscription: ${error.message}`);
                 throw new BadRequestException('Failed to cancel subscription. Please try again.');
+            }
+        } else if (subscription.paystackCustomerCode) {
+            // Try to find and cancel subscription by customer code (for older subscriptions missing codes)
+            try {
+                this.logger.log(`Looking up subscriptions for customer: ${subscription.paystackCustomerCode}`);
+                const subscriptions = await this.paystackService.listCustomerSubscriptions(
+                    subscription.paystackCustomerCode,
+                );
+                this.logger.log(`Found ${subscriptions.length} subscriptions: ${JSON.stringify(subscriptions.map(s => ({ code: s.subscription_code, status: s.status, plan: s.plan?.plan_code })))}`);
+                const activeSubscription = subscriptions.find(
+                    (sub) => sub.status === 'active' || sub.status === 'non-renewing',
+                );
+                if (activeSubscription) {
+                    await this.paystackService.disableSubscription({
+                        code: activeSubscription.subscription_code,
+                        token: activeSubscription.email_token,
+                    });
+                    // Store the codes for future use
+                    await this.databaseService.subscription.update({
+                        where: { userId },
+                        data: {
+                            paystackSubscriptionCode: activeSubscription.subscription_code,
+                            paystackEmailToken: activeSubscription.email_token,
+                        },
+                    });
+                    this.logger.log(`Found and disabled subscription ${activeSubscription.subscription_code} for user ${userId}`);
+                } else {
+                    // No active subscription on Paystack - mark as cancelled locally
+                    // User keeps their tier benefits until premiumExpiresAt
+                    this.logger.warn(`No active Paystack subscription found for customer ${subscription.paystackCustomerCode} - marking as cancelled locally`);
+                    await this.databaseService.subscription.update({
+                        where: { userId },
+                        data: {
+                            paystackSubscriptionCode: null,
+                            paystackEmailToken: null,
+                        },
+                    });
+
+                    const expiresAt = subscription.premiumExpiresAt
+                        ? new Date(subscription.premiumExpiresAt).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                          })
+                        : 'the end of your billing period';
+
+                    return {
+                        success: true,
+                        message: `Your subscription has been cancelled. You'll continue to have access until ${expiresAt}.`,
+                    };
+                }
+            } catch (error: any) {
+                if (error instanceof BadRequestException) throw error;
+                this.logger.error(`Failed to find/cancel subscription: ${error.message}`);
+                throw new BadRequestException('Failed to cancel subscription. Please contact support.');
             }
         } else {
             throw new BadRequestException('No Paystack subscription found to cancel.');

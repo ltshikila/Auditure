@@ -262,6 +262,13 @@ export class PaystackService implements OnModuleInit {
     }
 
     /**
+     * List subscriptions for a customer
+     */
+    async listCustomerSubscriptions(customerIdOrCode: string): Promise<PaystackSubscription[]> {
+        return this.request('GET', `/subscription?customer=${customerIdOrCode}`);
+    }
+
+    /**
      * Generate a manage subscription link (for customer portal equivalent)
      */
     generateManageSubscriptionLink(subscriptionCode: string): string {

@@ -449,7 +449,7 @@ export default function SubscriptionScreen() {
                         </View>
                     </View>
 
-                    {isPaid && paystackStatus && (
+                    {isPaid && (
                         <View
                             className={`rounded-xl p-3 mb-4 flex-row items-center ${
                                 isCancelled ? 'bg-orange-50' : 'bg-green-50'
@@ -490,11 +490,11 @@ export default function SubscriptionScreen() {
                     />
                 </View>
 
-                {/* Pricing Selection - Only show if not paid */}
-                {!isPaid && (
+                {/* Pricing Selection - Show if not paid OR cancelled without ability to reactivate */}
+                {(!isPaid || (isPaid && isCancelled && !paystackStatus)) && (
                     <>
                         <Text className="font-inter-bold text-lg text-gray-900 mb-4">
-                            Choose Your Plan
+                            {isCancelled ? 'Subscribe Again' : 'Choose Your Plan'}
                         </Text>
 
                         {/* Pricing Cards */}
@@ -574,19 +574,11 @@ export default function SubscriptionScreen() {
                                 )}
                             </LinearGradient>
                         </TouchableOpacity>
-
-                        {/* Security Badge */}
-                        <View className="flex-row items-center justify-center mb-4">
-                            <Ionicons name="shield-checkmark" size={14} color="#9CA3AF" />
-                            <Text className="font-inter text-gray-400 text-xs ml-1.5">
-                                Secured by Paystack
-                            </Text>
-                        </View>
                     </>
                 )}
 
-                {/* Upgrade Option - Only show for STARTER subscribers */}
-                {isPaid && subscription?.tier === 'STARTER' && (
+                {/* Upgrade Option - Only show for cancelled STARTER subscribers viewing Subscribe Again with starter selected */}
+                {isPaid && subscription?.tier === 'STARTER' && isCancelled && !paystackStatus && selectedTier === 'starter' && (
                     <View className="mb-6">
                         <Text className="font-inter-bold text-lg text-gray-900 mb-4">
                             Upgrade Your Plan
@@ -656,8 +648,8 @@ export default function SubscriptionScreen() {
                     </View>
                 )}
 
-                {/* Reactivate or Cancel Button - Only show if paid */}
-                {isPaid && isCancelled && (
+                {/* Reactivate Button - Only show if cancelled AND we have Paystack status (can reactivate) */}
+                {isPaid && isCancelled && paystackStatus && (
                     <TouchableOpacity
                         onPress={handleReactivate}
                         disabled={purchasing}
@@ -707,6 +699,14 @@ export default function SubscriptionScreen() {
                         )}
                     </TouchableOpacity>
                 )}
+
+                {/* Footer Security Badge */}
+                <View className="flex-row items-center justify-center mt-6 mb-4">
+                    <Ionicons name="shield-checkmark" size={16} color="#9CA3AF" />
+                    <Text className="font-inter-medium text-gray-400 text-sm ml-1.5">
+                        Secured by Paystack
+                    </Text>
+                </View>
 
                 {/* Terms */}
                 <Text className="font-inter text-gray-400 text-xs text-center px-4 leading-5">

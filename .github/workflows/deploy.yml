@@ -171,8 +171,8 @@ jobs:
           npm ci
           npx prisma generate
 
-          # Start Cloud SQL Auth Proxy in background
-          ../../../cloud-sql-proxy --port 5432 ${{ env.PROJECT_ID }}:${{ env.REGION }}:auditure-db &
+          # Start Cloud SQL Auth Proxy in background (proxy is in repo root, 2 levels up)
+          ../../cloud-sql-proxy --port 5432 ${{ env.PROJECT_ID }}:${{ env.REGION }}:auditure-db &
           sleep 5
 
           # Get database credentials from Secret Manager and construct direct connection URL

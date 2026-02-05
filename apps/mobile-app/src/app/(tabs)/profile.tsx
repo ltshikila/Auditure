@@ -523,10 +523,9 @@ export default function Profile() {
                                 )}
                             </View>
 
-                            {/* Reset info - calculate days until next month */}
-                            {!subscription.isPremium && (
+                            {/* Reset/Expires info - only show for paid tiers */}
+                            {subscription.isPremium && subscription.periodStart && (
                                 <Text className="font-inter text-gray-500 text-xs mt-3">
-                                    Resets{' '}
                                     {(() => {
                                         const periodStart = new Date(subscription.periodStart);
                                         const nextReset = new Date(
@@ -538,7 +537,7 @@ export default function Profile() {
                                             (nextReset.getTime() - Date.now()) /
                                                 (1000 * 60 * 60 * 24),
                                         );
-                                        return `in ${daysUntilReset} days`;
+                                        return `Resets in ${daysUntilReset} days`;
                                     })()}
                                 </Text>
                             )}
