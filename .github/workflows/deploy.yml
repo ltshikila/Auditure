@@ -181,4 +181,7 @@ jobs:
           DB_PASS=$(echo "$DB_URL" | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
           export DATABASE_URL="postgresql://auditure_user:${DB_PASS}@localhost:5432/auditure_prod"
 
+          # Resolve any previously failed migrations so they can be re-applied
+          npx prisma migrate resolve --rolled-back 20260207000000_add_episode_likes_and_notification_types 2>/dev/null || true
+
           npx prisma migrate deploy
