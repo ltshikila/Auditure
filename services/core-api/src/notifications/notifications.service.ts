@@ -111,6 +111,10 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
                     for (const message of messages) {
                         await this.processNotificationMessage(message);
                     }
+                } else {
+                    // No messages — yield the event loop to prevent spin-looping
+                    // (readNotificationsFromStream returns [] instantly when Redis is down)
+                    await this.delay(5000);
                 }
 
                 // Also check for and reclaim stale pending messages
