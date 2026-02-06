@@ -274,6 +274,39 @@ export default function SubscriptionScreen() {
         }
     };
 
+    const handleDowngrade = async () => {
+        try {
+            setPurchasing(true);
+            setError(null);
+
+            const token = await storageService.getAccessToken();
+            if (!token) {
+                router.replace('/(auth)/Auth');
+                return;
+            }
+
+            // Start checkout for Starter - old PRO subscription will be cancelled after successful payment
+            const result = await subscriptionService.startCheckout(token, 'starter', { isUpgrade: true });
+
+            if (result.success) {
+                Alert.alert(
+                    'Plan Changed!',
+                    'You are now on the Starter plan with 30 episodes per month.',
+                    [{ text: 'OK', onPress: () => fetchSubscription() }],
+                );
+            } else if (result.cancelled) {
+                console.log('User cancelled downgrade - existing subscription unchanged');
+            } else if (result.error) {
+                setError(result.error);
+            }
+        } catch (err: any) {
+            console.error('Downgrade error:', err);
+            setError(err.message || 'Failed to change subscription');
+        } finally {
+            setPurchasing(false);
+        }
+    };
+
     const handleCancelSubscription = () => {
         // Step 1: Ask why they want to cancel
         Alert.alert(
@@ -365,6 +398,23 @@ export default function SubscriptionScreen() {
             await fetchSubscription();
         } catch (err: any) {
             Alert.alert('Error', err.message || 'Failed to reactivate subscription');
+            await fetchSubscription();
+        } finally {
+            setPurchasing(false);
+        }
+    };
+
+    const handleCleanupDuplicates = async () => {
+        try {
+            setPurchasing(true);
+            const token = await storageService.getAccessToken();
+            if (!token) return;
+
+            const result = await subscriptionService.cleanupDuplicates(token);
+            Alert.alert('Cleanup Complete', result.message);
+            await fetchSubscription();
+        } catch (err: any) {
+            Alert.alert('Error', err.message || 'Failed to cleanup duplicates');
         } finally {
             setPurchasing(false);
         }
@@ -440,20 +490,27 @@ export default function SubscriptionScreen() {
                     }}>
                     <View className="flex-row items-center justify-between mb-4">
                         <Text className="font-inter-bold text-lg text-gray-900">Current Plan</Text>
-                        <View
-                            className={`px-3 py-1 rounded-full ${isPaid ? 'bg-brand-gold' : 'bg-gray-200'}`}>
-                            <Text
-                                className={`font-inter-bold text-sm ${isPaid ? 'text-white' : 'text-gray-600'}`}>
-                                {subscription?.tier || 'FREE'}
-                            </Text>
-                        </View>
+                        {isPaid ? (
+                            <LinearGradient
+                                colors={['#BF9A54', '#D4AF37']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: 9999, overflow: 'hidden' }}>
+                                <Text className="font-inter-bold text-sm text-white">
+                                    {subscription?.tier || 'FREE'}
+                                </Text>
+                            </LinearGradient>
+                        ) : (
+                            <View className="px-3 py-1 rounded-full bg-gray-200">
+                                <Text className="font-inter-bold text-sm text-gray-600">
+                                    {subscription?.tier || 'FREE'}
+                                </Text>
+                            </View>
+                        )}
                     </View>
 
                     {isPaid && (
-                        <View
-                            className={`rounded-xl p-3 mb-4 flex-row items-center ${
-                                isCancelled ? 'bg-orange-50' : 'bg-green-50'
-                            }`}>
+                        <View className="rounded-xl p-3 mb-4 flex-row items-center">
                             <Ionicons
                                 name={isCancelled ? 'time-outline' : 'checkmark-circle'}
                                 size={18}
@@ -461,14 +518,14 @@ export default function SubscriptionScreen() {
                             />
                             <Text
                                 className={`font-inter-medium ml-2 ${
-                                    isCancelled ? 'text-orange-700' : 'text-green-700'
+                                    isCancelled ? 'text-orange-700' : 'text-green-600'
                                 }`}>
                                 {isCancelled ? 'Cancelled' : 'Active'}
                             </Text>
                             {subscription?.premiumExpiresAt && (
                                 <Text
                                     className={`font-inter ml-auto text-sm ${
-                                        isCancelled ? 'text-orange-600' : 'text-green-600'
+                                        isCancelled ? 'text-orange-600' : 'text-gray-500'
                                     }`}>
                                     {isCancelled ? 'Expires' : 'Renews'}{' '}
                                     {formatDate(subscription.premiumExpiresAt)}
@@ -478,17 +535,62 @@ export default function SubscriptionScreen() {
                     )}
 
                     {/* Usage Stats */}
-                    <UsageBar
-                        label="Gemini Episodes"
-                        used={subscription?.usage.geminiEpisodesUsed ?? 0}
-                        limit={subscription?.usage.geminiEpisodeLimit ?? 1}
-                    />
-                    <UsageBar
-                        label="Standard Episodes"
-                        used={subscription?.usage.standardEpisodesUsed ?? 0}
-                        limit={subscription?.usage.standardEpisodeLimit ?? 2}
-                    />
+                    {isPaid ? (
+                        /* Paid tiers: unified episode counter */
+                        <UsageBar
+                            label="Episodes"
+                            used={(subscription?.usage.geminiEpisodesUsed ?? 0) + (subscription?.usage.standardEpisodesUsed ?? 0)}
+                            limit={subscription?.usage.geminiEpisodeLimit ?? 20}
+                        />
+                    ) : (
+                        /* Free tier: separate Gemini + Standard counters */
+                        <>
+                            <UsageBar
+                                label="Gemini Episodes"
+                                used={subscription?.usage.geminiEpisodesUsed ?? 0}
+                                limit={subscription?.usage.geminiEpisodeLimit ?? 1}
+                            />
+                            <UsageBar
+                                label="Standard Episodes"
+                                used={subscription?.usage.standardEpisodesUsed ?? 0}
+                                limit={subscription?.usage.standardEpisodeLimit ?? 2}
+                            />
+                        </>
+                    )}
+
                 </View>
+
+                {/* Reactivate Button - Show below Current Plan card if cancelled AND we have Paystack status */}
+                {isPaid && isCancelled && paystackStatus && (
+                    <TouchableOpacity
+                        onPress={handleReactivate}
+                        disabled={purchasing}
+                        className="overflow-hidden rounded-2xl mb-6"
+                        style={{
+                            shadowColor: '#BF9A54',
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: 0.3,
+                            shadowRadius: 8,
+                            elevation: 6,
+                        }}>
+                        <LinearGradient
+                            colors={['#BF9A54', '#D4AF37']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            className="py-4 items-center flex-row justify-center">
+                            {purchasing ? (
+                                <ActivityIndicator color="white" />
+                            ) : (
+                                <>
+                                    <Ionicons name="refresh" size={18} color="white" />
+                                    <Text className="font-inter-bold text-white ml-2">
+                                        Reactivate Subscription
+                                    </Text>
+                                </>
+                            )}
+                        </LinearGradient>
+                    </TouchableOpacity>
+                )}
 
                 {/* Pricing Selection - Show if not paid OR cancelled without ability to reactivate */}
                 {(!isPaid || (isPaid && isCancelled && !paystackStatus)) && (
@@ -577,8 +679,8 @@ export default function SubscriptionScreen() {
                     </>
                 )}
 
-                {/* Upgrade Option - Only show for cancelled STARTER subscribers viewing Subscribe Again with starter selected */}
-                {isPaid && subscription?.tier === 'STARTER' && isCancelled && !paystackStatus && selectedTier === 'starter' && (
+                {/* Upgrade Option - Show for STARTER subscribers (active or cancelled) but not when PRO is selected in Subscribe Again */}
+                {isPaid && subscription?.tier === 'STARTER' && !(isCancelled && !paystackStatus && selectedTier === 'pro') && (
                     <View className="mb-6">
                         <Text className="font-inter-bold text-lg text-gray-900 mb-4">
                             Upgrade Your Plan
@@ -648,36 +750,62 @@ export default function SubscriptionScreen() {
                     </View>
                 )}
 
-                {/* Reactivate Button - Only show if cancelled AND we have Paystack status (can reactivate) */}
-                {isPaid && isCancelled && paystackStatus && (
-                    <TouchableOpacity
-                        onPress={handleReactivate}
-                        disabled={purchasing}
-                        className="overflow-hidden rounded-2xl mb-4"
-                        style={{
-                            shadowColor: '#BF9A54',
-                            shadowOffset: { width: 0, height: 4 },
-                            shadowOpacity: 0.3,
-                            shadowRadius: 8,
-                            elevation: 6,
-                        }}>
-                        <LinearGradient
-                            colors={['#BF9A54', '#D4AF37']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            className="py-4 items-center flex-row justify-center">
-                            {purchasing ? (
-                                <ActivityIndicator color="white" />
-                            ) : (
-                                <>
-                                    <Ionicons name="refresh" size={18} color="white" />
-                                    <Text className="font-inter-bold text-white ml-2">
-                                        Reactivate Subscription
+                {/* Downgrade Option - Show for PRO subscribers (active, or cancelled with reactivate option) */}
+                {isPaid && subscription?.tier === 'PRO' && (!isCancelled || paystackStatus) && (
+                    <View className="mb-6">
+                        <Text className="font-inter-bold text-lg text-gray-900 mb-4">
+                            Change Plan
+                        </Text>
+                        <View
+                            className="bg-[#F5F5F0] rounded-2xl p-5"
+                            style={{
+                                shadowColor: '#000',
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.1,
+                                shadowRadius: 10,
+                                elevation: 8,
+                            }}>
+                            <View className="flex-row items-center mb-4">
+                                <View className="bg-brand-gold/20 w-10 h-10 rounded-xl items-center justify-center mr-3">
+                                    <Ionicons name="rocket-outline" size={20} color="#BF9A54" />
+                                </View>
+                                <View className="flex-1">
+                                    <Text className="font-inter-bold text-lg text-gray-900">
+                                        Starter Plan
                                     </Text>
-                                </>
-                            )}
-                        </LinearGradient>
-                    </TouchableOpacity>
+                                    <Text className="font-inter text-gray-500 text-sm">
+                                        {pricing.starter.episodesPerMonth} episodes/month
+                                    </Text>
+                                </View>
+                                <Text className="font-inter-bold text-xl text-brand-gold">
+                                    {subscriptionService.formatPrice(pricing.starter.price)}
+                                    <Text className="text-sm text-gray-500">/mo</Text>
+                                </Text>
+                            </View>
+
+                            <TouchableOpacity
+                                onPress={() => {
+                                    Alert.alert(
+                                        'Switch to Starter?',
+                                        'You will be taken to checkout to subscribe to Starter. Your Pro subscription will be cancelled after payment.',
+                                        [
+                                            { text: 'Cancel', style: 'cancel' },
+                                            {
+                                                text: 'Continue',
+                                                onPress: handleDowngrade,
+                                            },
+                                        ],
+                                    );
+                                }}
+                                disabled={purchasing}
+                                className="bg-brand-gold py-3 rounded-xl items-center flex-row justify-center">
+                                <Ionicons name="arrow-down-circle" size={18} color="white" />
+                                <Text className="font-inter-bold text-white ml-2">
+                                    Switch to Starter
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
                 )}
 
                 {isPaid && !isCancelled && (
@@ -713,7 +841,7 @@ export default function SubscriptionScreen() {
                     {isPaid
                         ? isCancelled
                             ? 'Your subscription is cancelled but you still have access until the end of your billing period. Reactivate anytime to continue your subscription.'
-                            : 'Your subscription will be cancelled at the end of your current billing period. You can resubscribe anytime.'
+                            : 'Your subscription renews automatically. You can cancel anytime from this screen.'
                         : 'By subscribing, you agree to our Terms of Service. Subscription automatically renews unless cancelled.'}
                 </Text>
             </ScrollView>

@@ -5,6 +5,7 @@ import { RabbitMQService } from '../rabbitmq/rabbitmq.service';
 import { RedisService } from '../redis/redis.service';
 import { StorageService } from '../common/storage.service';
 import { BooksService } from '../books/books.service';
+import { UsersService } from '../users/users.service';
 import { NotFoundException, ForbiddenException, StreamableFile } from '@nestjs/common';
 import {
     createMockEpisode,
@@ -43,6 +44,10 @@ describe('EpisodesService', () => {
         }),
     };
 
+    const mockUsersService = {
+        checkAndConsumeQuota: jest.fn().mockResolvedValue(true),
+    };
+
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
             providers: [
@@ -66,6 +71,10 @@ describe('EpisodesService', () => {
                 {
                     provide: BooksService,
                     useValue: mockBooksService,
+                },
+                {
+                    provide: UsersService,
+                    useValue: mockUsersService,
                 },
             ],
         }).compile();

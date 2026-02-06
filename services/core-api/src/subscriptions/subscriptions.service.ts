@@ -43,21 +43,73 @@ export class SubscriptionsService {
 
         const isPaid = subscription.tier === 'STARTER' || subscription.tier === 'PRO';
 
+        // Enforce expiry: if premium has expired, downgrade to FREE immediately
+        if (isPaid && subscription.premiumExpiresAt && subscription.premiumExpiresAt < new Date()) {
+            this.logger.log(
+                `Premium expired for user ${userId} (expired: ${subscription.premiumExpiresAt}) — downgrading to FREE`,
+            );
+            const freeLimits = this.getLimitsForTier('FREE');
+
+            await this.databaseService.subscription.update({
+                where: { userId },
+                data: {
+                    tier: 'FREE',
+                    paystackSubscriptionCode: null,
+                    paystackEmailToken: null,
+                    geminiEpisodeLimit: freeLimits.geminiEpisodeLimit,
+                    standardEpisodeLimit: freeLimits.standardEpisodeLimit,
+                    geminiEpisodesUsed: 0,
+                    standardEpisodesUsed: 0,
+                    usagePeriodStart: new Date(),
+                },
+            });
+
+            return {
+                tier: 'FREE',
+                isPaid: false,
+                isCancelled: false,
+                premiumStartedAt: subscription.premiumStartedAt,
+                premiumExpiresAt: subscription.premiumExpiresAt,
+                paystackSubscription: null,
+                usage: {
+                    geminiEpisodesUsed: 0,
+                    standardEpisodesUsed: 0,
+                    geminiEpisodeLimit: freeLimits.geminiEpisodeLimit,
+                    standardEpisodeLimit: freeLimits.standardEpisodeLimit,
+                },
+            };
+        }
+
         if (subscription.paystackSubscriptionCode && this.paystackService.isConfigured()) {
             try {
                 const paystackSub = await this.paystackService.getSubscription(
                     subscription.paystackSubscriptionCode,
                 );
 
-                paystackSubscription = {
-                    status: paystackSub.status,
-                    nextPaymentDate: paystackSub.next_payment_date
-                        ? new Date(paystackSub.next_payment_date)
-                        : null,
-                };
+                const status = paystackSub.status;
 
-                // Subscription is cancelled if it's "non-renewing" on Paystack
-                isCancelled = paystackSub.status === 'non-renewing';
+                if (status === 'active' || status === 'non-renewing') {
+                    // Subscription exists and is either active or pending cancellation
+                    paystackSubscription = {
+                        status,
+                        nextPaymentDate: paystackSub.next_payment_date
+                            ? new Date(paystackSub.next_payment_date)
+                            : null,
+                    };
+                    isCancelled = status === 'non-renewing';
+                } else {
+                    // Subscription is fully cancelled/completed on Paystack (e.g. "cancelled", "complete")
+                    // Clear codes so user sees Subscribe Again instead of a broken Reactivate button
+                    this.logger.log(`Paystack subscription ${subscription.paystackSubscriptionCode} has status "${status}" - clearing codes`);
+                    await this.databaseService.subscription.update({
+                        where: { userId },
+                        data: {
+                            paystackSubscriptionCode: null,
+                            paystackEmailToken: null,
+                        },
+                    });
+                    isCancelled = true;
+                }
             } catch (error: any) {
                 this.logger.warn(
                     `Failed to fetch Paystack subscription ${subscription.paystackSubscriptionCode}: ${error.message}`,
@@ -146,6 +198,59 @@ export class SubscriptionsService {
                 }
             } catch (error: any) {
                 this.logger.warn(`Error checking/re-enabling subscription: ${error.message}`);
+                // Fall through to normal checkout if re-enable fails
+            }
+        }
+
+        // Fallback: If codes were cleared from DB but customer has a non-renewing subscription
+        // on Paystack for the same plan, try to re-enable it (avoids double-charging)
+        if (
+            !isUpgrade &&
+            subscription.tier === requestedTier &&
+            !subscription.paystackSubscriptionCode &&
+            subscription.paystackCustomerCode &&
+            subscription.premiumExpiresAt &&
+            subscription.premiumExpiresAt > new Date()
+        ) {
+            try {
+                const planCode = this.paystackService.getPlanCode(tier);
+                const customerSubs = await this.paystackService.listCustomerSubscriptions(
+                    subscription.paystackCustomerCode,
+                );
+
+                const nonRenewing = customerSubs.find(
+                    (sub) => sub.plan?.plan_code === planCode && sub.status === 'non-renewing',
+                );
+
+                if (nonRenewing) {
+                    this.logger.log(
+                        `Found non-renewing subscription ${nonRenewing.subscription_code} for plan ${planCode} - attempting re-enable`,
+                    );
+
+                    await this.paystackService.enableSubscription({
+                        code: nonRenewing.subscription_code,
+                        token: nonRenewing.email_token,
+                    });
+
+                    // Save codes back to DB
+                    await this.databaseService.subscription.update({
+                        where: { userId },
+                        data: {
+                            paystackSubscriptionCode: nonRenewing.subscription_code,
+                            paystackEmailToken: nonRenewing.email_token,
+                        },
+                    });
+
+                    this.logger.log(`Re-enabled subscription ${nonRenewing.subscription_code} for user ${userId}`);
+
+                    return {
+                        reEnabled: true,
+                        message:
+                            'Your subscription has been re-activated! You will be billed on your regular billing date.',
+                    };
+                }
+            } catch (error: any) {
+                this.logger.warn(`Fallback re-enable failed: ${error.message}`);
                 // Fall through to normal checkout if re-enable fails
             }
         }
@@ -361,10 +466,16 @@ export class SubscriptionsService {
                             );
                             this.logger.log(`Found ${subscriptions.length} subscriptions for customer`);
 
-                            // Find the most recent active subscription for this plan
-                            const activeSubscription = subscriptions.find(
-                                (sub) => sub.plan?.plan_code === planCode && (sub.status === 'active' || sub.status === 'non-renewing'),
+                            // Find the most recent active (renewing) subscription for this plan
+                            // Prefer 'active' over 'non-renewing'
+                            let activeSubscription = subscriptions.find(
+                                (sub) => sub.plan?.plan_code === planCode && sub.status === 'active',
                             );
+                            if (!activeSubscription) {
+                                activeSubscription = subscriptions.find(
+                                    (sub) => sub.plan?.plan_code === planCode && sub.status === 'non-renewing',
+                                );
+                            }
 
                             if (activeSubscription) {
                                 paystackSubscriptionCode = activeSubscription.subscription_code;
@@ -373,6 +484,27 @@ export class SubscriptionsService {
                                     premiumExpiresAt = new Date(activeSubscription.next_payment_date);
                                 }
                                 this.logger.log(`Found Paystack subscription: ${paystackSubscriptionCode}`);
+
+                                // Cancel any OTHER active/non-renewing subscriptions (cleanup duplicates)
+                                const otherSubscriptions = subscriptions.filter(
+                                    (sub) =>
+                                        sub.subscription_code !== activeSubscription!.subscription_code &&
+                                        (sub.status === 'active' || sub.status === 'non-renewing'),
+                                );
+
+                                for (const oldSub of otherSubscriptions) {
+                                    try {
+                                        this.logger.log(`Cancelling duplicate subscription: ${oldSub.subscription_code} (${oldSub.plan?.name}, status: ${oldSub.status})`);
+                                        await this.paystackService.disableSubscription({
+                                            code: oldSub.subscription_code,
+                                            token: oldSub.email_token,
+                                        });
+                                        this.logger.log(`Cancelled duplicate subscription: ${oldSub.subscription_code}`);
+                                    } catch (error: any) {
+                                        this.logger.warn(`Failed to cancel duplicate subscription ${oldSub.subscription_code}: ${error.message}`);
+                                    }
+                                }
+
                                 break; // Success, exit retry loop
                             } else if (attempt < maxRetries) {
                                 this.logger.log(`No matching subscription found yet, waiting ${retryDelayMs}ms before retry...`);
@@ -395,7 +527,7 @@ export class SubscriptionsService {
                     where: { userId: targetUserId },
                     data: {
                         tier: subscriptionTier,
-                        premiumStartedAt: subscription.premiumStartedAt || new Date(),
+                        premiumStartedAt: new Date(), // Always update to now for new payments
                         premiumExpiresAt,
                         geminiEpisodeLimit: limits.geminiEpisodeLimit,
                         standardEpisodeLimit: limits.standardEpisodeLimit,
@@ -585,8 +717,81 @@ export class SubscriptionsService {
             };
         } catch (error: any) {
             this.logger.error(`Failed to re-enable subscription: ${error.message}`);
+
+            // If reactivation fails (subscription fully cancelled), clear the codes
+            // so user sees "Subscribe Again" flow instead of stuck "Reactivate" button
+            if (error.message?.includes('cannot be reactivated') || error.message?.includes('has been cancelled')) {
+                this.logger.log(`Subscription cannot be reactivated - clearing Paystack codes for user ${userId}`);
+                await this.databaseService.subscription.update({
+                    where: { userId },
+                    data: {
+                        paystackSubscriptionCode: null,
+                        paystackEmailToken: null,
+                        // Clear premiumStartedAt to bypass the 10-minute grace period in getSubscriptionStatus
+                        // so the subscription correctly shows as "Cancelled" instead of "Active"
+                        // (premiumExpiresAt still controls benefit access)
+                        premiumStartedAt: null,
+                    },
+                });
+
+                throw new BadRequestException(
+                    'This subscription cannot be reactivated. Please subscribe again to continue.',
+                );
+            }
+
             throw new BadRequestException('Failed to re-enable subscription. Please try again or start a new subscription.');
         }
+    }
+
+    /**
+     * Cleanup duplicate Paystack subscriptions for a user.
+     * Keeps only the subscription matching the DB record, cancels all others.
+     */
+    async cleanupDuplicateSubscriptions(userId: string) {
+        this.logger.log(`Cleaning up duplicate subscriptions for user ${userId}`);
+
+        const subscription = await this.databaseService.subscription.findUnique({
+            where: { userId },
+        });
+
+        if (!subscription?.paystackCustomerCode) {
+            throw new BadRequestException('No Paystack customer found for this user.');
+        }
+
+        const subscriptions = await this.paystackService.listCustomerSubscriptions(
+            subscription.paystackCustomerCode,
+        );
+
+        const cancelable = subscriptions.filter(
+            (sub) => sub.status === 'active' || sub.status === 'non-renewing',
+        );
+
+        this.logger.log(`Found ${cancelable.length} active/non-renewing subscriptions`);
+
+        if (cancelable.length <= 1) {
+            return { message: `No duplicates. ${cancelable.length} active subscription(s).`, cancelled: 0 };
+        }
+
+        const keepCode = subscription.paystackSubscriptionCode;
+        const toCancel = keepCode
+            ? cancelable.filter((sub) => sub.subscription_code !== keepCode)
+            : cancelable.slice(1);
+
+        let cancelled = 0;
+        for (const sub of toCancel) {
+            try {
+                this.logger.log(`Cancelling duplicate: ${sub.subscription_code} (${sub.plan?.name}, ${sub.status})`);
+                await this.paystackService.disableSubscription({
+                    code: sub.subscription_code,
+                    token: sub.email_token,
+                });
+                cancelled++;
+            } catch (error: any) {
+                this.logger.warn(`Failed to cancel ${sub.subscription_code}: ${error.message}`);
+            }
+        }
+
+        return { message: `Cleaned up ${cancelled} duplicate(s). Kept ${keepCode || cancelable[0]?.subscription_code}.`, cancelled };
     }
 
     // Webhook handlers
@@ -720,29 +925,26 @@ export class SubscriptionsService {
             return;
         }
 
-        const freeLimits = this.getLimitsForTier('FREE');
+        // Don't downgrade immediately — user keeps benefits until premiumExpiresAt.
+        // The disable webhook fires when the subscription is set to non-renewing,
+        // not when it fully expires. Actual downgrade happens in getSubscriptionStatus
+        // when premiumExpiresAt passes or when Paystack reports the sub as fully cancelled.
+        const expiresAt = subscription.premiumExpiresAt
+            ? new Date(subscription.premiumExpiresAt).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+              })
+            : 'the end of your billing period';
 
-        await this.databaseService.subscription.update({
-            where: { id: subscription.id },
-            data: {
-                tier: 'FREE',
-                paystackSubscriptionCode: null,
-                paystackEmailToken: null,
-                premiumExpiresAt: new Date(),
-                geminiEpisodeLimit: freeLimits.geminiEpisodeLimit,
-                standardEpisodeLimit: freeLimits.standardEpisodeLimit,
-                geminiEpisodesUsed: 0,
-                standardEpisodesUsed: 0,
-                usagePeriodStart: new Date(),
-            },
-        });
-
-        this.logger.log(`User ${subscription.userId} downgraded to FREE tier`);
+        this.logger.log(
+            `Subscription ${subscriptionCode} set to non-renewing for user ${subscription.userId} — keeping benefits until ${expiresAt}`,
+        );
 
         await this.sendNotification(
             subscription.userId,
-            'Subscription Ended',
-            'Your subscription has ended. Re-subscribe anytime to continue creating episodes.',
+            'Subscription Cancellation Scheduled',
+            `Your subscription won't renew, but you'll keep premium access until ${expiresAt}. You can reactivate anytime before then.`,
         );
     }
 
@@ -870,13 +1072,31 @@ export class SubscriptionsService {
     } {
         switch (tier) {
             case 'FREE':
+                // Hybrid model: 1 Gemini + 2 Standard (separate limits)
                 return { geminiEpisodeLimit: 1, standardEpisodeLimit: 2 };
             case 'STARTER':
-                return { geminiEpisodeLimit: 30, standardEpisodeLimit: 30 };
+                // Unified: 20 total episodes (either Gemini or Standard)
+                return { geminiEpisodeLimit: 20, standardEpisodeLimit: 20 };
             case 'PRO':
-                return { geminiEpisodeLimit: 100, standardEpisodeLimit: 100 };
+                // Unified: 50 total episodes (either Gemini or Standard)
+                return { geminiEpisodeLimit: 50, standardEpisodeLimit: 50 };
             default:
                 return { geminiEpisodeLimit: 1, standardEpisodeLimit: 2 };
+        }
+    }
+
+    /**
+     * Get maximum episode duration (in minutes) for a subscription tier
+     */
+    getMaxDurationForTier(tier: 'FREE' | 'STARTER' | 'PRO'): number {
+        switch (tier) {
+            case 'FREE':
+                return 10;
+            case 'STARTER':
+            case 'PRO':
+                return 30;
+            default:
+                return 10;
         }
     }
 }

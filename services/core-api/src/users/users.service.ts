@@ -372,19 +372,35 @@ Last updated: January 2025`,
     /**
      * Check if user has quota and consume it.
      * Used by EpisodesService before creating an episode.
+     *
+     * Free tier: separate limits (1 Gemini, 2 Standard)
+     * Paid tiers: unified limit (20 Starter, 50 Pro - total across both types)
+     *
      * @returns true if quota available (and consumed), false if exceeded
      */
     async checkAndConsumeQuota(userId: string, voiceTier: 'GEMINI' | 'STANDARD'): Promise<boolean> {
         const subscription = await this.getSubscription(userId);
 
-        const usage =
-            voiceTier === 'GEMINI'
-                ? subscription.usage.geminiEpisodes
-                : subscription.usage.standardEpisodes;
+        if (subscription.isPaid) {
+            // Paid tiers use unified limit: total episodes across both types
+            const totalUsed =
+                subscription.usage.geminiEpisodes.used + subscription.usage.standardEpisodes.used;
+            const totalLimit = subscription.usage.geminiEpisodes.limit; // Same as standard for paid
+            if (totalUsed >= totalLimit) {
+                this.logger.warn(`User ${userId} has exceeded unified episode quota (${totalUsed}/${totalLimit})`);
+                return false;
+            }
+        } else {
+            // Free tier: check individual limits (1 Gemini, 2 Standard)
+            const usage =
+                voiceTier === 'GEMINI'
+                    ? subscription.usage.geminiEpisodes
+                    : subscription.usage.standardEpisodes;
 
-        if (usage.remaining <= 0) {
-            this.logger.warn(`User ${userId} has exceeded ${voiceTier} quota`);
-            return false;
+            if (usage.remaining <= 0) {
+                this.logger.warn(`User ${userId} has exceeded ${voiceTier} quota`);
+                return false;
+            }
         }
 
         await this.incrementUsage(userId, voiceTier);

@@ -8,14 +8,53 @@ Handles subscriptions using Paystack for payments. Paystack is ideal for African
 
 Based on [PRICING_STRATEGY.md](/docs/PRICING_STRATEGY.md):
 
-| Plan | Price | Episodes/month | Voice Quality |
-|------|-------|----------------|---------------|
-| **Free** | $0 | 3 (1 Gemini + 2 Standard) | Hybrid |
-| **Starter** | $9.99 | 30 | Gemini Pro |
-| **Pro** | $24.99 | 100 | Gemini Pro |
+| Plan | Price | Episodes/month | Max Duration | Voice Quality |
+|------|-------|----------------|--------------|---------------|
+| **Free** | $0 | 3 (1 Gemini + 2 Standard) | 10 min | Hybrid |
+| **Starter** | $9.99 | 20 (unified) | 30 min | Gemini Pro |
+| **Pro** | $24.99 | 50 (unified) | 30 min | Gemini Pro |
 
 - **Payment**: Paystack Checkout for purchases
-- **Management**: Via email links from Paystack or in-app cancellation
+- **Management**: Via email links from Paystack or in-app cancellation/reactivation
+
+## Subscription Lifecycle
+
+Paystack subscriptions follow this state machine:
+
+```
+                    User subscribes
+                         │
+                         ▼
+                    ┌──────────┐
+           ┌──────▶│  active   │◀─────────────────┐
+           │       └────┬─────┘                    │
+           │            │                          │
+           │       User cancels                    │
+           │       (disable API)              Re-enable API
+           │            │                     (non-renewing only)
+           │            ▼                          │
+           │    ┌───────────────┐                  │
+           │    │ non-renewing  │──────────────────┘
+           │    └───────┬───────┘
+           │            │
+           │    Billing period ends
+           │            │
+           │            ▼
+           │    ┌───────────────┐
+           │    │  cancelled    │
+           │    └───────┬───────┘
+           │            │
+           │    New checkout (re-charge)
+           └────────────┘
+```
+
+**Key behaviors:**
+- **Cancel** = Paystack `disable` API → sets subscription to `non-renewing`
+- **Non-renewing** subscriptions remain active until billing period ends, then become `cancelled`
+- **Re-enable** works only on `non-renewing` subscriptions (not `cancelled`)
+- Once `cancelled`, the user must go through checkout again (new charge)
+- Paystack allows **multiple active subscriptions** per customer — the app enforces single-subscription logic
+- Paystack has **no force-cancel** — disable only sets to non-renewing; must wait for billing period to end
 
 ## Environment Variables
 
@@ -33,30 +72,78 @@ APP_URL=https://api.auditure.com      # API base URL for callbacks
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | GET | `/subscriptions/status` | JWT | Get current subscription status |
-| POST | `/subscriptions/checkout` | JWT | Initialize Paystack transaction |
+| POST | `/subscriptions/checkout` | JWT | Initialize Paystack transaction (or re-enable) |
 | POST | `/subscriptions/manage` | JWT | Get subscription management info |
-| POST | `/subscriptions/cancel` | JWT | Cancel subscription |
+| POST | `/subscriptions/cancel` | JWT | Cancel subscription (sets to non-renewing) |
+| POST | `/subscriptions/reactivate` | JWT | Re-enable a cancelled/non-renewing subscription |
+| POST | `/subscriptions/cleanup-duplicates` | JWT | Clean up duplicate Paystack subscriptions |
 | POST | `/subscriptions/webhook` | None | Handle Paystack webhooks |
-| GET | `/subscriptions/callback` | None | Payment callback handler |
-| GET | `/subscriptions/success` | None | Success redirect |
+| GET | `/subscriptions/callback` | None | Payment callback handler (HTML redirect page) |
+| GET | `/subscriptions/success` | None | Success redirect (deep link) |
+| GET | `/subscriptions/cancel-redirect` | None | Cancel redirect (deep link) |
+
+### GET /subscriptions/status
+
+Returns current subscription status with Paystack state and usage information.
+
+If the Paystack subscription has a non-active/non-renewing status (e.g., `cancelled`, `complete`), the service automatically clears the stored Paystack codes from the DB and marks the subscription as cancelled.
+
+**Response:**
+```json
+{
+  "tier": "FREE" | "STARTER" | "PRO",
+  "isPaid": false,
+  "isCancelled": false,
+  "premiumStartedAt": null,
+  "premiumExpiresAt": null,
+  "paystackSubscription": {
+    "status": "active" | "non-renewing",
+    "nextPaymentDate": "2024-02-01T00:00:00.000Z"
+  },
+  "usage": {
+    "geminiEpisodesUsed": 1,
+    "standardEpisodesUsed": 2,
+    "geminiEpisodeLimit": 1,
+    "standardEpisodeLimit": 2
+  }
+}
+```
+
+**Episode Limits by Tier:**
+| Tier | Model | Limit |
+|------|-------|-------|
+| FREE | Separate: 1 Gemini + 2 Standard | 3 total |
+| STARTER | Unified (any type) | 20 total |
+| PRO | Unified (any type) | 50 total |
 
 ### POST /subscriptions/checkout
 
-Initializes a Paystack transaction for subscription purchase.
+Initializes a Paystack transaction for subscription purchase. Includes a smart re-enable fallback: if the user's DB codes were cleared but they have a `non-renewing` subscription on Paystack for the same plan, it attempts to re-enable it first (avoiding a double charge). Falls back to new checkout if re-enable fails.
 
 **Request:**
 ```json
 {
-  "tier": "starter" | "pro"
+  "tier": "starter" | "pro",
+  "isUpgrade": false
 }
 ```
 
-**Response:**
+- `isUpgrade` (optional, default `false`): Set to `true` when switching from Starter to Pro. This cancels the old subscription before creating the new one.
+
+**Response (new checkout):**
 ```json
 {
   "reference": "txn_ref_123...",
   "accessCode": "access_code_123...",
   "url": "https://checkout.paystack.com/..."
+}
+```
+
+**Response (re-enabled existing subscription):**
+```json
+{
+  "reEnabled": true,
+  "message": "Your subscription has been re-activated! You will be billed on your regular billing date."
 }
 ```
 
@@ -74,7 +161,7 @@ Returns subscription management information.
 
 ### POST /subscriptions/cancel
 
-Cancels the active subscription (takes effect at end of billing period).
+Cancels the active subscription via Paystack's `disable` API. The subscription moves to `non-renewing` and remains active until the billing period ends.
 
 **Response:**
 ```json
@@ -84,36 +171,62 @@ Cancels the active subscription (takes effect at end of billing period).
 }
 ```
 
-### GET /subscriptions/status
+### POST /subscriptions/reactivate
 
-Returns current subscription status with usage information.
+Re-enables a `non-renewing` subscription (one that was cancelled but billing period hasn't ended). Uses Paystack's `enable` API.
+
+If the subscription has already fully `cancelled` on Paystack (billing period ended), this clears the stored codes and `premiumStartedAt` from the DB, and returns an error prompting the user to subscribe again via checkout.
+
+**Response (success):**
+```json
+{
+  "success": true,
+  "message": "Subscription reactivated successfully."
+}
+```
+
+**Response (cannot reactivate):**
+```json
+{
+  "statusCode": 400,
+  "message": "This subscription cannot be reactivated. Please subscribe again to continue."
+}
+```
+
+### POST /subscriptions/cleanup-duplicates
+
+Cleans up duplicate Paystack subscriptions for the user. Since Paystack allows multiple subscriptions per customer and each new checkout creates a new subscription, duplicates can accumulate. This endpoint disables any `active` or `non-renewing` subscriptions that don't match the user's current subscription code.
 
 **Response:**
 ```json
 {
-  "tier": "FREE" | "STARTER" | "PRO",
-  "isPaid": false,
-  "premiumStartedAt": null,
-  "premiumExpiresAt": null,
-  "paystackSubscription": {
-    "status": "active",
-    "nextPaymentDate": "2024-02-01T00:00:00.000Z"
-  },
-  "usage": {
-    "geminiEpisodesUsed": 1,
-    "standardEpisodesUsed": 2,
-    "geminiEpisodeLimit": 1,
-    "standardEpisodeLimit": 2
-  }
+  "cleaned": 2,
+  "message": "Cleaned up 2 duplicate subscriptions."
 }
 ```
 
-**Episode Limits by Tier:**
-| Tier | Gemini Limit | Standard Limit |
-|------|--------------|----------------|
-| FREE | 1 | 2 |
-| STARTER | 30 | 30 |
-| PRO | 100 | 100 |
+### GET /subscriptions/callback
+
+Payment callback handler that Paystack redirects to after checkout. Verifies the transaction and renders an HTML page that:
+1. Attempts an automatic deep link redirect to the mobile app
+2. Shows a "Return to Auditure" button as fallback
+3. Displays payment status (success/failed/error)
+
+### GET /subscriptions/success
+
+Simple redirect to the mobile app deep link with `status=success`.
+
+### GET /subscriptions/cancel-redirect
+
+Simple redirect to the mobile app deep link with `status=cancelled`.
+
+## Re-Enable Strategy
+
+When a user resubscribes to the same plan, the service uses a 3-tier strategy to avoid unnecessary charges:
+
+1. **Fast path (reactivate endpoint)**: If DB has Paystack codes, use `enable` API directly
+2. **Fallback (checkout endpoint)**: If DB codes were cleared, query Paystack for `non-renewing` subscriptions matching the plan and attempt re-enable
+3. **New checkout (last resort)**: If no re-enableable subscription exists, create a new Paystack checkout session
 
 ## Paystack Dashboard Setup
 
@@ -188,6 +301,10 @@ ngrok http 3000
 - PIN: `0000` (if prompted)
 - OTP: `123456` (if prompted)
 
+### Known Test Mode Limitations
+
+- **Re-enable endpoint**: Paystack's `enable` API may refuse to re-enable `non-renewing` subscriptions in test mode, even though the docs confirm this should work. The fallback to new checkout handles this gracefully. Re-enable works in production.
+
 ## Module Structure
 
 ```
@@ -215,11 +332,13 @@ subscriptions/
 
 | Feature | Paystack | Stripe |
 |---------|----------|--------|
-| Customer Portal | ❌ (email links) | ✅ Built-in |
+| Customer Portal | No (email links) | Built-in |
 | Subscription Management | Via API/Email | Customer Portal |
-| Retry on Failed Payment | ❌ | ✅ Automatic |
+| Retry on Failed Payment | No | Automatic |
 | Webhook Signature | HMAC SHA512 | Stripe signing secret |
 | Settlement Currency | ZAR (SA) | Multiple currencies |
+| Cancel Behavior | Non-renewing until period ends | Configurable |
+| Multiple Active Subs | Allowed per customer | Configurable |
 
 ## Future: Stripe at Scale
 

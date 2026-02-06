@@ -65,6 +65,9 @@ const getUserFriendlyMessage = (statusCode: number, apiMessage: string, _error?:
     if (apiMessage.toLowerCase().includes('otp') || apiMessage.toLowerCase().includes('code')) {
       return 'Invalid or expired verification code. Please request a new one.';
     }
+    if (apiMessage.toLowerCase().includes('subscription') || apiMessage.toLowerCase().includes('reactivat')) {
+      return apiMessage;
+    }
     return 'Please check your information and try again.';
   }
 

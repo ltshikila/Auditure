@@ -20,6 +20,7 @@ import { podcasterService, Podcaster } from '@/services/podcaster.service';
 import { episodeService, EpisodeType, EpisodeTheme, ContentCoverage, FileUpload, VoiceTier } from '@/services/episode.service';
 import { bookService, Book, Chapter } from '@/services/book.service';
 import { storageService } from '@/services/storage.service';
+import { subscriptionService, SubscriptionStatus } from '@/services/subscription.service';
 import Slider from '@react-native-community/slider';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { MINI_PLAYER_HEIGHT } from '@/components/MiniPlayer';
@@ -63,9 +64,13 @@ const Create = () => {
     const [chapters, setChapters] = useState('');
     const [episodeType, setEpisodeType] = useState<EpisodeType>('MONOLOGUE');
     const [episodeTheme, setEpisodeTheme] = useState<EpisodeTheme>('LECTURE');
-    const [targetLengthMin, setTargetLengthMin] = useState(10);
-    const [targetLengthMax, setTargetLengthMax] = useState(30);
+    const [targetLengthMin, setTargetLengthMin] = useState(5);
+    const [targetLengthMax, setTargetLengthMax] = useState(10);
     const [voiceTier, setVoiceTier] = useState<VoiceTier>('STANDARD');
+    const [subscriptionTier, setSubscriptionTier] = useState<'FREE' | 'STARTER' | 'PRO'>('FREE');
+
+    // Duration limit based on subscription tier (Free=10min, Starter/Pro=30min)
+    const maxDuration = subscriptionTier === 'FREE' ? 10 : 30;
 
     // Content coverage options
     const contentCoverageOptions: TabOption<ContentCoverage>[] = [
@@ -80,10 +85,9 @@ const Create = () => {
         { value: 'DUO', label: 'Duo' },
     ];
 
-    const episodeTypeDescriptions: Record<EpisodeType, string> = {
+    const episodeTypeDescriptions: Record<string, string> = {
         MONOLOGUE: 'A podcast episode with just your virtual podcaster speaking. Catered to more of a lecture format podcast.',
         DUO: 'A conversation between two speakers - your podcaster and a generated guest. Great for discussions and interviews.',
-        GROUP: 'A multi-person discussion with your podcaster and multiple guests. Perfect for debates and panel discussions.',
     };
 
     // Episode theme options with descriptions
@@ -110,7 +114,7 @@ const Create = () => {
         GEMINI: 'Gemini 2.5 Pro TTS with natural multi-speaker synthesis (~$0.32/10-min). Premium listening experience.',
     };
 
-    // Load user's podcasters
+    // Load user's podcasters and subscription tier
     useEffect(() => {
         const loadPodcasters = async () => {
             try {
@@ -123,6 +127,17 @@ const Create = () => {
                 setPodcasters(myPodcasters);
                 if (myPodcasters.length > 0) {
                     setSelectedPodcasterId(myPodcasters[0].id);
+                }
+                // Fetch subscription tier for duration limits
+                try {
+                    const status = await subscriptionService.getSubscriptionStatus(token);
+                    const tier = (status.tier || 'FREE') as 'FREE' | 'STARTER' | 'PRO';
+                    setSubscriptionTier(tier);
+                    // Set default max duration based on tier
+                    const tierMaxDuration = tier === 'FREE' ? 10 : 30;
+                    setTargetLengthMax(tierMaxDuration);
+                } catch (subError) {
+                    console.error('Failed to load subscription:', subError);
                 }
             } catch (error) {
                 console.error('Failed to load podcasters:', error);
@@ -826,7 +841,7 @@ const Create = () => {
                                 }
                             }}
                             minimumValue={5}
-                            maximumValue={30}
+                            maximumValue={maxDuration}
                             step={1}
                             minimumTrackTintColor="#BF9A54"
                             maximumTrackTintColor="#E8E3D6"
@@ -846,7 +861,7 @@ const Create = () => {
                                 }
                             }}
                             minimumValue={5}
-                            maximumValue={30}
+                            maximumValue={maxDuration}
                             step={1}
                             minimumTrackTintColor="#BF9A54"
                             maximumTrackTintColor="#E8E3D6"

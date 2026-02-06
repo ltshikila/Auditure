@@ -37,6 +37,11 @@ services/core-api/
 │   │   ├── services/            # Text extraction service
 │   │   ├── workers/             # Background workers
 │   │   └── README.md            # Books documentation
+│   ├── subscriptions/             # Subscriptions module (Paystack)
+│   │   ├── subscriptions.service.ts # Subscription business logic
+│   │   ├── subscriptions.controller.ts # API endpoints
+│   │   ├── paystack.service.ts  # Paystack API wrapper
+│   │   └── README.md            # Subscriptions documentation
 │   ├── common/                  # Shared services
 │   │   ├── email.service.ts     # Email/OTP service
 │   │   ├── storage.service.ts   # File storage abstraction
@@ -229,6 +234,21 @@ See [Episodes Service Documentation](src/episodes/EPISODES_SERVICE.md) for detai
 - `POST /:id/like` - Like episode
 - `POST /:id/comments` - Add comment
 
+### Subscriptions Endpoints
+
+See [Subscriptions Documentation](src/subscriptions/README.md) for detailed API documentation.
+
+**Base URL:** `/subscriptions`
+
+- `GET /status` - Get subscription status and usage
+- `POST /checkout` - Initialize Paystack checkout (or re-enable existing)
+- `POST /manage` - Get subscription management info
+- `POST /cancel` - Cancel subscription (non-renewing)
+- `POST /reactivate` - Re-enable a cancelled subscription
+- `POST /cleanup-duplicates` - Clean up duplicate Paystack subscriptions
+- `POST /webhook` - Handle Paystack webhooks
+- `GET /callback` - Payment callback (HTML redirect to app)
+
 ### Storage Endpoints
 
 **Base URL:** `/api/storage`
@@ -400,6 +420,8 @@ HTTP Request
 | **NotificationsService** | In-app + push notifications | RedisService, ExpoPushService |
 | **EpisodesService** | Episode CRUD, playback progress | RedisService, StorageService |
 | **PodcastersService** | Podcaster management, voice assignment | DatabaseService |
+| **SubscriptionsService** | Subscription lifecycle, Paystack integration | PaystackService, DatabaseService |
+| **PaystackService** | Paystack API wrapper (plans, transactions, subscriptions) | Paystack API |
 | **EmailService** | Email delivery and OTP generation | Resend API |
 | **StorageService** | File storage abstraction | Local/S3 backends |
 | **RabbitMQService** | Async job processing | amqplib |

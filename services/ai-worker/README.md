@@ -97,8 +97,8 @@ ai-worker/
 - **Anti-Repetition**: Automatic extraction of covered topics and examples to prevent repetition
 - **Text-to-Speech**: Gemini 2.5 Flash TTS (premium) + Google Cloud Standard (free tier)
 - **Voice Tiers**: Standard ($4/1M chars) or Gemini (~$0.15/10-min episode)
-- **Episode Types**: MONOLOGUE, DUO, GROUP (multi-voice support)
-- **Episode Length**: 5-10 minutes (MVP), up to 30 minutes (chunked)
+- **Episode Types**: MONOLOGUE, DUO (GROUP planned post-MVP)
+- **Episode Length**: Free: 5-10 min, Paid: 5-30 min (chunked for episodes > 11 min)
 - **Voice Customization**: Gender, accent, speaking speed, vocal pitch, voice model
 - **Permanent Voice Assignment**: Each podcaster has a stored Gemini voice for consistency
 - **Multi-Speaker**: Native support (up to 9 speakers per episode)
@@ -114,7 +114,7 @@ ai-worker/
 | Parameter | Range | Google Standard | Gemini TTS |
 |-----------|-------|-----------------|------------|
 | Gender | MALE/FEMALE | Voice selection | Voice selection |
-| Accent | 6 regions | Voice ID mapping | language_code |
+| Accent | 4 regions | Voice ID mapping | language_code |
 | Speaking Speed | 1-10 | Rate: 0.7-1.3 | Voice selection score |
 | Vocal Pitch | 1-10 | Pitch: ±10 semitones | Voice selection score |
 | Voice Model | 6 presets | — | Style preference bonus |
@@ -129,8 +129,8 @@ ai-worker/
 | United Kingdom | en-GB-Standard-* | en-GB (Preview) |
 | Australia | en-AU-Standard-* | en-AU (Preview) |
 | India | en-IN-Standard-* | en-IN (GA) |
-| Canada | en-US-Standard-* | en-US |
-| Ireland | en-GB-Standard-* | en-GB |
+
+*Note: Canada and Ireland are supported as fallbacks (mapped to en-US and en-GB respectively) but not exposed in the UI.*
 
 **Reference:**
 - [Google Cloud TTS Voices](https://docs.cloud.google.com/text-to-speech/docs/voices)
@@ -152,8 +152,8 @@ ai-worker/
 **Reference:** [Gemini TTS Pricing](https://ai.google.dev/gemini-api/docs/pricing)
 
 **Hybrid Free Tier Model:**
-- Free users: 1 Gemini + 2 Standard episodes/month
-- Paid users: All episodes use Gemini 2.5 Flash TTS
+- Free users: 1 Gemini + 2 Standard episodes/month (up to 10 min each)
+- Paid users: 20 (Starter) or 50 (Pro) unified episodes/month using Gemini 2.5 Flash TTS (up to 30 min each)
 
 ### Gemini TTS Voice Selection
 

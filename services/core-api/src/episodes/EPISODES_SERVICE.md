@@ -36,7 +36,7 @@ model Episode {
   // Content Configuration
   contentCoverage       ContentCoverage  # ENTIRE_BOOK, MULTIPLE_CHAPTERS, SINGLE_CHAPTER
   chapters              Int[]            # Chapter numbers to cover
-  episodeType           EpisodeType      # MONOLOGUE, DUO, GROUP
+  episodeType           EpisodeType      # MONOLOGUE, DUO
   episodeTheme          EpisodeTheme     # LECTURE, DISCUSSION, DEBATE
   targetLengthMin       Int              # Min target length (minutes)
   targetLengthMax       Int              # Max target length (minutes)
@@ -145,7 +145,7 @@ The service builds prompts that include:
 - Book content and metadata
 - **Content scope** (specific chapters being covered, e.g., "Chapter 2: The Power of Habit")
 - Podcaster personality traits
-- Episode type (monologue/duo/group)
+- Episode type (monologue/duo)
 - Episode theme (lecture/discussion/debate)
 - Target length constraints
 
@@ -180,8 +180,10 @@ Podcaster traits are converted to descriptive text:
 | **Gemini Pro** | Gemini 2.5 Pro TTS | $20/1M audio tokens (~$0.30/ep) | Premium option |
 
 ### Hybrid Free Tier Model
-- **Free users:** 1 Gemini + 2 Standard episodes/month
-- **Paid users:** All episodes use Gemini 2.5 Flash TTS
+- **Free users:** 1 Gemini + 2 Standard episodes/month (separate counters, max 10 min)
+- **Starter users:** 20 total episodes/month (unified counter, max 30 min)
+- **Pro users:** 50 total episodes/month (unified counter, max 30 min)
+- Paid tiers use Gemini 2.5 Flash TTS for all episodes
 
 ### Gemini TTS Features
 - Native multi-speaker synthesis (up to 9 speakers per request)
@@ -198,7 +200,7 @@ Script length automatically adjusts based on podcaster's speaking speed:
 - Range: 140 WPM (slow) to 230 WPM (very fast)
 
 ### Natural Interruptions & Backchannels
-Multi-speaker episodes (DUO, GROUP) include verbal cues controlled by **chaos factor**:
+Multi-speaker episodes (DUO) include verbal cues controlled by **chaos factor**:
 - **DEBATE episodes:** Interruptions scale from polite (chaos 1-3) to passionate (chaos 7-10)
 - **DISCUSSION episodes:** Friendly backchannels scale with chaos factor
 - **LECTURE episodes:** No interruptions (monologue format)
@@ -245,12 +247,12 @@ FEMALE: {
 }
 ```
 
-### Multi-Voice Episodes (DUO/GROUP)
+### Multi-Voice Episodes (DUO)
 - **Gemini TTS:** Native multi-speaker - handles speaker labels automatically
   - HOST uses main podcaster's exact settings
-  - GUESTs alternate genders with slight speed/pitch variations
+  - GUEST uses opposite gender with slight speed/pitch variations
   - Language code (accent) applies to all speakers
-- **Standard:** Parses script for speaker labels (HOST:, GUEST1:, etc.)
+- **Standard:** Parses script for speaker labels (HOST:, GUEST:)
 - Assigns contrasting voices to different speakers
 - Concatenates audio segments using ffmpeg (Standard tier only)
 

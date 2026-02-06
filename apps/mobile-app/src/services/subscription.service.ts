@@ -190,6 +190,23 @@ class SubscriptionService {
     }
 
     /**
+     * Cleanup duplicate Paystack subscriptions
+     */
+    async cleanupDuplicates(token: string): Promise<{ message: string; cancelled: number }> {
+        try {
+            console.log('[Subscription] Cleaning up duplicate subscriptions');
+            return await apiClient.post<{ message: string; cancelled: number }>(
+                '/subscriptions/cleanup-duplicates',
+                {},
+                token,
+            );
+        } catch (error: any) {
+            console.error('[Subscription] Cleanup duplicates error:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Get current subscription status
      */
     async getSubscriptionStatus(token: string): Promise<SubscriptionStatus> {
@@ -199,18 +216,19 @@ class SubscriptionService {
     /**
      * Get pricing information
      * Based on PRICING_STRATEGY.md:
-     * - Starter: $9.99/month, 30 episodes
-     * - Pro: $24.99/month, 100 episodes
+     * - Starter: $9.99/month, 20 episodes (unified), up to 30 min
+     * - Pro: $24.99/month, 50 episodes (unified), up to 30 min
      */
     getPricing(): Pricing {
         return {
             starter: {
                 price: 9.99,
                 tier: 'starter',
-                episodesPerMonth: 30,
+                episodesPerMonth: 20,
                 features: [
-                    '30 episodes per month',
+                    '20 episodes per month',
                     'Gemini Pro voice quality',
+                    'Episodes up to 30 minutes',
                     'Monologue & Duo episodes',
                     '10 podcaster personalities',
                     'Download episodes',
@@ -219,14 +237,14 @@ class SubscriptionService {
             pro: {
                 price: 24.99,
                 tier: 'pro',
-                episodesPerMonth: 100,
+                episodesPerMonth: 50,
                 features: [
-                    '100 episodes per month',
+                    '50 episodes per month',
                     'Gemini Pro voice quality',
-                    'All episode types (Mono, Duo, Group)',
+                    'Episodes up to 30 minutes',
+                    'Monologue & Duo episodes',
                     'Unlimited podcaster personalities',
                     'Priority generation',
-                    'Custom podcaster creation',
                     'Download episodes',
                 ],
             },

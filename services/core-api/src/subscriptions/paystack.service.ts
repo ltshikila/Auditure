@@ -263,9 +263,73 @@ export class PaystackService implements OnModuleInit {
 
     /**
      * List subscriptions for a customer
+     * Tries multiple approaches: customer code, customer ID, and fetching customer details first
      */
     async listCustomerSubscriptions(customerIdOrCode: string): Promise<PaystackSubscription[]> {
-        return this.request('GET', `/subscription?customer=${customerIdOrCode}`);
+        this.logger.log(`Fetching subscriptions for customer: ${customerIdOrCode}`);
+
+        const headers: Record<string, string> = {
+            Authorization: `Bearer ${this.secretKey}`,
+            'Content-Type': 'application/json',
+        };
+
+        // Try fetching with customer code directly
+        let url = `${this.baseUrl}/subscription?customer=${customerIdOrCode}&perPage=100`;
+        let response = await fetch(url, { method: 'GET', headers });
+        let data = await response.json();
+
+        this.logger.log(`Paystack subscriptions response (by code): status=${data.status}, count=${data.data?.length || 0}`);
+
+        if (response.ok && data.data?.length > 0) {
+            return data.data;
+        }
+
+        // If no results with customer code, try getting customer details and using ID
+        try {
+            const customerUrl = `${this.baseUrl}/customer/${customerIdOrCode}`;
+            const customerResponse = await fetch(customerUrl, { method: 'GET', headers });
+            const customerData = await customerResponse.json();
+
+            if (customerResponse.ok && customerData.data) {
+                const customerId = customerData.data.id;
+                this.logger.log(`Found customer ID: ${customerId}, fetching subscriptions by ID`);
+
+                // Try with customer ID
+                url = `${this.baseUrl}/subscription?customer=${customerId}&perPage=100`;
+                response = await fetch(url, { method: 'GET', headers });
+                data = await response.json();
+
+                this.logger.log(`Paystack subscriptions response (by ID ${customerId}): status=${data.status}, count=${data.data?.length || 0}`);
+
+                if (response.ok && data.data?.length > 0) {
+                    return data.data;
+                }
+
+                // Final fallback: fetch all subscriptions and filter by email
+                const email = customerData.data.email;
+                if (email) {
+                    this.logger.log(`Fetching all subscriptions and filtering by email: ${email}`);
+                    url = `${this.baseUrl}/subscription?perPage=100`;
+                    response = await fetch(url, { method: 'GET', headers });
+                    data = await response.json();
+
+                    if (response.ok && data.data) {
+                        const filtered = data.data.filter((sub: any) => sub.customer?.email === email);
+                        this.logger.log(`Found ${filtered.length} subscriptions for email ${email}`);
+                        return filtered;
+                    }
+                }
+            }
+        } catch (error: any) {
+            this.logger.warn(`Error in fallback subscription lookup: ${error.message}`);
+        }
+
+        if (!response.ok) {
+            this.logger.error(`Paystack API error: ${JSON.stringify(data)}`);
+            throw new Error(data.message || 'Failed to fetch subscriptions');
+        }
+
+        return data.data || [];
     }
 
     /**

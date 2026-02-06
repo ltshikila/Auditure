@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '@/contexts/AuthContext';
 import { storageService } from '@/services/storage.service';
@@ -445,17 +446,29 @@ export default function Profile() {
                         </Text>
 
                         <View className="flex-row items-center mb-4">
-                            <View
-                                className={`px-3 py-1 rounded-full ${
-                                    subscription.isPremium ? 'bg-brand-gold' : 'bg-gray-200'
-                                }`}>
-                                <Text
-                                    className={`font-inter-bold text-sm ${
-                                        subscription.isPremium ? 'text-white' : 'text-gray-700'
-                                    }`}>
-                                    {subscription.tier}
-                                </Text>
-                            </View>
+                            {subscription.tier === 'PRO' ? (
+                                <LinearGradient
+                                    colors={['#BF9A54', '#D4AF37']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                    style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: 9999, overflow: 'hidden' }}>
+                                    <Text className="font-inter-bold text-sm text-white">
+                                        {subscription.tier}
+                                    </Text>
+                                </LinearGradient>
+                            ) : subscription.tier === 'STARTER' ? (
+                                <View className="px-3 py-1 rounded-full bg-brand-gold">
+                                    <Text className="font-inter-bold text-sm text-white">
+                                        {subscription.tier}
+                                    </Text>
+                                </View>
+                            ) : (
+                                <View className="px-3 py-1 rounded-full bg-gray-200">
+                                    <Text className="font-inter-bold text-sm text-gray-700">
+                                        {subscription.tier}
+                                    </Text>
+                                </View>
+                            )}
                         </View>
 
                         <View className="bg-[#F5F5F0] rounded-xl p-4">

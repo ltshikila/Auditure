@@ -98,7 +98,9 @@
       "Bash(gcloud run revisions describe:*)",
       "Bash(gcloud builds submit:*)",
       "Bash(gcloud builds list:*)",
-      "WebFetch(domain:core-api-60457656342.us-central1.run.app)"
+      "WebFetch(domain:core-api-60457656342.us-central1.run.app)",
+      "Bash(gcloud projects add-iam-policy-binding:*)",
+      "WebFetch(domain:support.paystack.com)"
     ]
   }
 }

@@ -148,11 +148,11 @@ Auditure uses **Paystack** for subscription management, supporting both local (S
 
 ### Plans
 
-| Tier | Price | Episodes/Month | Features |
-|------|-------|----------------|----------|
-| Free | $0 | 1 Gemini + 2 Standard | Basic access |
-| Starter | $9.99/mo | 30 | Gemini Pro voice, Mono & Duo episodes, 10 personalities |
-| Pro | $24.99/mo | 100 | All features, Group episodes, Unlimited personalities, Priority processing |
+| Tier | Price | Episodes/Month | Max Duration | Features |
+|------|-------|----------------|--------------|----------|
+| Free | $0 | 3 (1 Gemini + 2 Standard) | 10 min | Basic access |
+| Starter | $9.99/mo | 20 (unified) | 30 min | Gemini Pro voice, Mono & Duo episodes, 10 personalities |
+| Pro | $24.99/mo | 50 (unified) | 30 min | Gemini Pro voice, Unlimited personalities, Priority processing |
 
 ### Payment Flow
 

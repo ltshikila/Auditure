@@ -72,6 +72,17 @@ export class SubscriptionsController {
     }
 
     /**
+     * Cleanup duplicate Paystack subscriptions
+     * POST /subscriptions/cleanup-duplicates
+     */
+    @Post('cleanup-duplicates')
+    @UseGuards(JwtAuthGuard)
+    async cleanupDuplicates(@Request() req) {
+        const userId = req.user.userId;
+        return this.subscriptionsService.cleanupDuplicateSubscriptions(userId);
+    }
+
+    /**
      * Callback handler for Paystack payment redirect
      * GET /subscriptions/callback
      * Shows a page that redirects user back to the mobile app

@@ -51,10 +51,10 @@
 
 | Feature | MVP | Post-MVP |
 |---------|-----|----------|
-| Episode length | 5-10 min | 11-30 min (chunked), 45-90 min (add-on) |
+| Episode length | Free: 5-10 min, Paid: 5-30 min (chunked) | 30-90 min (add-on) |
 | Voice quality | Hybrid (1 Gemini + 2 Std) for free, Gemini Flash for paid | Higgs Audio (cost optimization) |
-| Episode types | Monologue, Duo, Group | - |
-| Voice accents | 6 regions | Additional regions |
+| Episode types | Monologue, Duo | Group (post-MVP) |
+| Voice accents | 4 regions (US, UK, AU, IN) | Additional regions |
 | Priority queue | No | Yes (add-on) |
 | Multi-speaker | 1/mo free, unlimited paid | - |
 | Natural dialogue | Chaos-based interruptions and backchannels | - |
@@ -65,38 +65,35 @@
 
 ### Recommended Tier Structure
 
-| Plan | Price | Episodes/mo | Voice Quality | Target User |
-|------|-------|-------------|---------------|-------------|
-| **Free** | $0 | 3 | 1 Gemini Pro + 2 Standard | Try before buy |
-| **Starter** | $9.99 | 30 | Gemini Pro | Casual readers |
-| **Pro** | $24.99 | 100 | Gemini Pro | Power users |
+| Plan | Price | Episodes/mo | Max Duration | Voice Quality | Target User |
+|------|-------|-------------|--------------|---------------|-------------|
+| **Free** | $0 | 3 (1 Gemini + 2 Std) | 10 min | Hybrid | Try before buy |
+| **Starter** | $9.99 | 20 (unified) | 30 min | Gemini Pro | Casual readers |
+| **Pro** | $24.99 | 50 (unified) | 30 min | Gemini Pro | Power users |
 
 ### Feature Matrix
 
 | Feature | Free | Starter | Pro |
 |---------|------|---------|-----|
-| Episodes per month | 3 (1 Pro + 2 Std) | 30 | 100 |
+| Episodes per month | 3 (1 Pro + 2 Std) | 20 (any type) | 50 (any type) |
 | Voice quality | Hybrid | Gemini 2.5 Pro | Gemini 2.5 Pro |
-| Episode length | 5-10 min | 5-10 min | 5-10 min |
-| Multi-speaker | 1 episode/mo | Yes (up to 9) | Yes (up to 9) |
-| Voice accents | 6 accents | 6 accents | 6 accents |
+| Episode length | 5-10 min | 5-30 min | 5-30 min |
+| Multi-speaker | 1 episode/mo | Yes (up to 2) | Yes (up to 2) |
+| Voice accents | 4 accents | 4 accents | 4 accents |
 | Podcaster personalities | 2 | 10 | Unlimited |
-| Episode types | Monologue + 1 Duo | Mono + Duo | All (Mono, Duo, Group) |
+| Episode types | Monologue + Duo | Monologue + Duo | Monologue + Duo |
 | Download episodes | No | Yes | Yes |
 | Priority generation | No | No | Yes |
-| Custom podcaster creation | No | No | Yes |
-| Non-verbal cues | 1 episode/mo | Yes ([sigh], [laugh]) | Yes |
-| Style prompts | 1 episode/mo | Yes | Yes |
 
-### Supported Voice Accents (6 total)
+> **Note:** Group episodes (3+ speakers) are planned for post-MVP. MVP supports Monologue and Duo only.
 
-| Accent | Google Cloud Voice |
-|--------|-------------------|
+### Supported Voice Accents (4 total)
+
+| Accent | Language Code |
+|--------|--------------|
 | United States | en-US |
 | United Kingdom | en-GB |
 | Australia | en-AU |
-| Canada | en-US |
-| Ireland | en-GB |
 | India | en-IN |
 
 ### Revenue Per User
@@ -227,11 +224,11 @@ Free users receive **1 Gemini Pro + 2 Standard episodes per month**. This provid
 - Clear quality gap to drive upgrades
 - Sustainable unit economics
 
-| Tier | Episodes | Voice | Avg Cost/User/Mo |
-|------|----------|-------|------------------|
-| **Free** | 3 (1 Pro + 2 Std) | Hybrid | $0.28 (realistic) |
-| Starter | 30 | Gemini 2.5 Pro | $10.80 |
-| Pro | 100 | Gemini 2.5 Pro | $36.00 |
+| Tier | Episodes | Max Duration | Voice | Avg Cost/User/Mo |
+|------|----------|--------------|-------|------------------|
+| **Free** | 3 (1 Pro + 2 Std) | 10 min | Hybrid | $0.28 (realistic) |
+| Starter | 20 (unified) | 30 min | Gemini 2.5 Pro | $5.10 (at 50% util) |
+| Pro | 50 (unified) | 30 min | Gemini 2.5 Pro | $12.75 (at 50% util) |
 
 ### Why Hybrid Over All-Standard?
 
@@ -267,18 +264,18 @@ Pay-per-use upgrades purchased on top of subscriptions for specific episodes.
 ### Why Add-Ons?
 
 Some features are too expensive for flat-rate subscriptions:
-- Extended episodes (11-30 min requires chunking due to Gemini's 11-min limit)
-- Extra-long episodes (45-90 minutes, multiple chunks)
+- Extra-long episodes (30-90 minutes, multiple chunks) beyond the included 30-min cap
 - Rush processing (infrastructure overhead)
 
 ### Add-On Pricing
 
 | Add-On | Your Cost | Price | Margin |
 |--------|-----------|-------|--------|
-| **Extended (11-30 min)** | $0.64-$0.96 | $1.49-$1.99 | 52% |
-| **Long-form (45-90 min)** | $1.44-$2.88 | $2.99-$4.99 | 42% |
+| **Long-form (45 min)** | ~$1.53 | $2.99 | 49% |
+| **Long-form (60 min)** | ~$2.04 | $3.99 | 49% |
+| **Long-form (90 min)** | ~$3.06 | $5.99 | 49% |
 | **Priority Queue** | $0.10 | $0.99 | 90% |
-| **Bundle (Long + Priority)** | $2.98 | $4.99 | 40% |
+| **Bundle (Long + Priority)** | ~$3.16 | $5.99 | 47% |
 
 ### User Flow
 
@@ -291,12 +288,14 @@ Some features are too expensive for flat-rate subscriptions:
 
 Standard LLM output limit: ~16,000 tokens ≈ 84 minutes max
 
-**Extended Episode Tiers:**
+**Long-Form Episode Tiers (Add-On):**
 | Duration | Chunks | Use Case |
 |----------|--------|----------|
-| 45 min | 2 | Medium-form content |
-| 60 min | 2 | Long-form content |
-| 90 min | 3 | Deep dives |
+| 45 min | 4-5 | Medium-form content |
+| 60 min | 5-6 | Long-form content |
+| 90 min | 8-9 | Deep dives |
+
+*Note: 5-30 min episodes are included in Starter and Pro tiers. Add-ons are only needed for 30+ min episodes.*
 
 **Chunk Generation Process:**
 1. Split book content into multiple segments
@@ -309,31 +308,34 @@ Standard LLM output limit: ~16,000 tokens ≈ 84 minutes max
 
 ## 7. Infrastructure Costs
 
+### GCP Deployment (Current)
+
+Infrastructure runs on Google Cloud Platform (Cloud Run, Cloud SQL). See [DEPLOYMENT_PLAN.md](/DEPLOYMENT_PLAN.md) for full details.
+
 ### Monthly Fixed Costs by Scale
 
-| Component | MVP | Growth | Scale | Enterprise |
-|-----------|-----|--------|-------|------------|
-| | (<10K DL) | (10-100K) | (100-500K) | (500K+) |
-| **Database (RDS)** | $0-22 | $45 | $180 | $500 |
-| **Redis (ElastiCache)** | $0-12 | $25 | $50 | $200 |
-| **RabbitMQ (CloudAMQP)** | $0 | $19 | $99 | $499 |
-| **Core API (Fargate)** | $15 | $30 | $120 | $480 |
-| **AI Workers (Fargate)** | $30 | $60 | $300 | $600 |
-| **Storage (S3)** | $0.01 | $0.16 | $2 | $12 |
-| **CDN (CloudFront)** | $0 | $6 | $64 | $425 |
-| **Load Balancer** | $0 | $0 | $20 | $50 |
-| **Monitoring** | $0 | $0 | $0 | $100 |
-| **TOTAL** | **$75** | **$185** | **$835** | **$2,866** |
+| Component | MVP | Growth | Scale |
+|-----------|-----|--------|-------|
+| | (<10K DL) | (10-100K) | (100-500K) |
+| **Cloud SQL (PostgreSQL)** | ~$9 | $30 | $150 |
+| **Cloud Run (Core API)** | ~$30 | $60 | $200 |
+| **Cloud Run (AI Worker)** | ~$20 | $50 | $200 |
+| **CloudAMQP (RabbitMQ)** | $0-19 | $19 | $99 |
+| **Cloud Storage** | ~$0.50 | $2 | $10 |
+| **Secret Manager** | ~$0.50 | $1 | $2 |
+| **Memorystore (Redis)** | $0* | $25 | $50 |
+| **TOTAL** | **~$60-80** | **~$185** | **~$710** |
 
-### AWS Free Tier Benefits (First 12 Months)
+*\* Redis not yet connected (needs VPC connector). App gracefully handles cache misses.*
 
-| Service | Free Allocation | Savings |
-|---------|-----------------|---------|
-| RDS db.t3.micro | 750 hours/month | ~$22/mo |
-| ElastiCache | 750 hours/month | ~$12/mo |
-| S3 | 5GB storage | ~$0.12/mo |
-| CloudFront | 1TB transfer | ~$85/mo |
-| **Total Year 1 Savings** | | **~$1,400** |
+### GCP Free Tier / Always Free Benefits
+
+| Service | Free Allocation | Notes |
+|---------|-----------------|-------|
+| Cloud Run | 2M requests/month | First 180K vCPU-seconds free |
+| Cloud Storage | 5GB standard storage | US multi-region |
+| Secret Manager | 6 active secret versions | Per billing account |
+| Cloud Build | 120 build-min/day | Free tier |
 
 ---
 
@@ -430,39 +432,40 @@ Subscription pricing assumes users consume **less than their allocation**. Indus
 | **Yellow** | 60-80% | Monitor closely, prepare contingency pricing |
 | **Red** | >80% | Consider price increase or episode reduction |
 
-### Starter Tier ($9.99 / 30 episodes)
+### Starter Tier ($9.99 / 20 episodes, up to 30 min)
+
+*Assumes average episode duration of 15 min. Cost per 15-min Gemini episode: ~$0.51*
 
 | Avg Usage | Episodes Used | TTS Cost | Revenue | Margin | Zone |
 |-----------|---------------|----------|---------|--------|------|
-| 30% | 9 | $3.24 | $9.99 | **+$6.75** | Green |
-| 50% | 15 | $5.40 | $9.99 | **+$4.59** | Green |
-| 60% | 18 | $6.48 | $9.99 | **+$3.51** | Yellow |
-| 70% | 21 | $7.56 | $9.99 | **+$2.43** | Yellow |
-| 80% | 24 | $8.64 | $9.99 | **+$1.35** | Red |
-| 90% | 27 | $9.72 | $9.99 | **+$0.27** | Red |
-| 100% | 30 | $10.80 | $9.99 | **-$0.81** | Red |
+| 30% | 6 | $3.06 | $9.99 | **+$6.93** | Green |
+| 40% | 8 | $4.08 | $9.99 | **+$5.91** | Green |
+| 50% | 10 | $5.10 | $9.99 | **+$4.89** | Green |
+| 60% | 12 | $6.12 | $9.99 | **+$3.87** | Yellow |
+| 80% | 16 | $8.16 | $9.99 | **+$1.83** | Red |
+| 100% | 20 | $10.20 | $9.99 | **-$0.21** | Red |
 
-*TTS Cost = Episodes × $0.36 (Gemini Pro)*
+*TTS Cost = Episodes × $0.51 (avg 15-min Gemini episode)*
 
-### Pro Tier ($24.99 / 100 episodes)
+### Pro Tier ($24.99 / 50 episodes, up to 30 min)
 
 | Avg Usage | Episodes Used | TTS Cost | Revenue | Margin | Zone |
 |-----------|---------------|----------|---------|--------|------|
-| 30% | 30 | $10.80 | $24.99 | **+$14.19** | Green |
-| 50% | 50 | $18.00 | $24.99 | **+$6.99** | Green |
-| 60% | 60 | $21.60 | $24.99 | **+$3.39** | Yellow |
-| 70% | 70 | $25.20 | $24.99 | **-$0.21** | Yellow |
-| 80% | 80 | $28.80 | $24.99 | **-$3.81** | Red |
-| 100% | 100 | $36.00 | $24.99 | **-$11.01** | Red |
+| 30% | 15 | $7.65 | $24.99 | **+$17.34** | Green |
+| 40% | 20 | $10.20 | $24.99 | **+$14.79** | Green |
+| 50% | 25 | $12.75 | $24.99 | **+$12.24** | Green |
+| 60% | 30 | $15.30 | $24.99 | **+$9.69** | Yellow |
+| 80% | 40 | $20.40 | $24.99 | **+$4.59** | Red |
+| 100% | 50 | $25.50 | $24.99 | **-$0.51** | Red |
 
-*Pro tier is more sensitive to high-usage users*
+*Pro tier has healthier margins with 50 episode cap*
 
 ### Tracking Formulas
 
 ```
 Avg Utilization = Total Episodes Generated / (Paying Users × Episode Allocation)
-Starter Utilization = Starter Episodes / (Starter Users × 30)
-Pro Utilization = Pro Episodes / (Pro Users × 100)
+Starter Utilization = Starter Episodes / (Starter Users × 20)
+Pro Utilization = Pro Episodes / (Pro Users × 50)
 ```
 
 ### Action Triggers
@@ -478,17 +481,18 @@ Pro Utilization = Pro Episodes / (Pro Users × 100)
 
 | Tier | Expected Usage | Expected Margin | Break-even Usage |
 |------|----------------|-----------------|------------------|
-| Starter | 40-50% | $4-5/user/month | 92% |
-| Pro | 30-40% | $10-12/user/month | 69% |
+| Starter | 40-50% | $5-6/user/month | ~98% |
+| Pro | 30-40% | $12-15/user/month | ~98% |
 
 ### Monitoring Dashboard (Recommended Metrics)
 
 Track these monthly:
-1. **Avg episodes per Starter user** (target: 12-15)
-2. **Avg episodes per Pro user** (target: 30-40)
-3. **% of users hitting allocation cap** (target: <10%)
-4. **TTS cost per paying user** (target: <60% of subscription price)
-5. **Utilization trend** (month-over-month change)
+1. **Avg episodes per Starter user** (target: 8-10)
+2. **Avg episodes per Pro user** (target: 15-20)
+3. **Avg episode duration** (target: 10-15 min)
+4. **% of users hitting allocation cap** (target: <10%)
+5. **TTS cost per paying user** (target: <60% of subscription price)
+6. **Utilization trend** (month-over-month change)
 
 ---
 
@@ -497,9 +501,9 @@ Track these monthly:
 ### Immediate Actions
 
 1. **Implement Hybrid Pricing Model**
-   - Free: 3 episodes/month (1 Gemini Pro + 2 Standard)
-   - Starter: 30 episodes/month, Gemini 2.5 Pro (multi-speaker)
-   - Pro: 100 episodes/month, Gemini 2.5 Pro (multi-speaker)
+   - Free: 3 episodes/month (1 Gemini Pro + 2 Standard), up to 10 min
+   - Starter: 20 episodes/month (unified, any voice tier), up to 30 min
+   - Pro: 50 episodes/month (unified, any voice tier), up to 30 min
 
 2. **Use Gemini 2.5 Pro TTS** for paid tiers
    - Native multi-speaker dialogue
@@ -508,8 +512,9 @@ Track these monthly:
    - Non-verbal cues ([sigh], [laugh])
 
 3. **Episode Length Strategy**
-   - MVP: 5-10 minutes (within Gemini's 11-min limit)
-   - Post-MVP: Chunked episodes for 11-30+ minutes
+   - Free: 5-10 minutes (within Gemini's 11-min single-call limit)
+   - Paid: 5-30 minutes (chunked generation for episodes > 11 min)
+   - Post-MVP: 30-90 min add-ons
 
 4. **Leverage AWS Free Tier**
    - ~$1,400 savings in Year 1
@@ -609,6 +614,7 @@ Break-even (migration) = Migration Investment / Monthly Savings
 | 2.0 | Jan 2025 | **Major TTS update:** Switched from Neural2 to Gemini 2.5 Pro TTS. Added Higgs Audio as scaling path. Updated costs, break-even analysis, and recommendations. Episode length capped at 10 min for MVP due to Gemini limit. |
 | 2.1 | Jan 2025 | **Hybrid free tier:** Changed free tier from 3 Standard to 1 Gemini Pro + 2 Standard. Updated break-even to ~8,000 downloads. Added realistic usage assumptions (50% utilization). |
 | 2.2 | Jan 2025 | **Utilization monitoring:** Added Section 10 with utilization zones (Green/Yellow/Red), margin tables by tier, tracking formulas, action triggers, and monitoring dashboard metrics. |
+| 3.0 | Feb 2026 | **MVP pricing revision:** Reduced episode limits (Starter: 30→20, Pro: 100→50) with unified counter for paid tiers. Added tier-based duration limits (Free: 10 min, Paid: 30 min). Removed GROUP episode type from MVP. Updated to 4 accents. Updated infra costs from AWS to GCP (Cloud Run). Long-form add-ons updated to 30-90 min range. |
 
 ---
 

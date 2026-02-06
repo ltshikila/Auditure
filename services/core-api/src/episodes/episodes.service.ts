@@ -14,6 +14,7 @@ import { RabbitMQService } from '../rabbitmq/rabbitmq.service';
 import { RedisService } from '../redis/redis.service';
 import { StorageService } from '../common/storage.service';
 import { BooksService } from '../books/books.service';
+import { UsersService } from '../users/users.service';
 import {
     CreateEpisodeDto,
     CreateEpisodeWithFileDto,
@@ -39,6 +40,7 @@ export class EpisodesService {
         private storageService: StorageService,
         @Inject(forwardRef(() => BooksService))
         private booksService: BooksService,
+        private usersService: UsersService,
     ) {}
 
     /**
@@ -160,6 +162,30 @@ export class EpisodesService {
                 );
             }
 
+            // Enforce tier-based duration limits (Free=10min, Starter/Pro=30min)
+            const subscription = await this.databaseService.subscription.findUnique({
+                where: { userId },
+                select: { tier: true },
+            });
+            const tier = (subscription?.tier || 'FREE') as 'FREE' | 'STARTER' | 'PRO';
+            const maxDuration = tier === 'FREE' ? 10 : 30;
+
+            if (createEpisodeDto.targetLengthMax > maxDuration) {
+                throw new BadRequestException(
+                    `Your plan allows episodes up to ${maxDuration} minutes. Upgrade for longer episodes.`,
+                );
+            }
+
+            // Check subscription quota before creating
+            const voiceTier = createEpisodeDto.voiceTier || 'STANDARD';
+            const hasQuota = await this.usersService.checkAndConsumeQuota(userId, voiceTier);
+            if (!hasQuota) {
+                const tierLabel = voiceTier === 'GEMINI' ? 'Gemini' : 'Standard';
+                throw new BadRequestException(
+                    `You've reached your monthly ${tierLabel} episode limit. Upgrade your plan for more episodes.`,
+                );
+            }
+
             // Create the episode
             this.logger.log('Creating episode in database');
             const episode = await this.databaseService.episode.create({
@@ -244,6 +270,30 @@ export class EpisodesService {
                 );
                 throw new BadRequestException(
                     'Target length minimum cannot be greater than maximum',
+                );
+            }
+
+            // Enforce tier-based duration limits (Free=10min, Starter/Pro=30min)
+            const subscription = await this.databaseService.subscription.findUnique({
+                where: { userId },
+                select: { tier: true },
+            });
+            const tier = (subscription?.tier || 'FREE') as 'FREE' | 'STARTER' | 'PRO';
+            const maxDuration = tier === 'FREE' ? 10 : 30;
+
+            if (createEpisodeDto.targetLengthMax > maxDuration) {
+                throw new BadRequestException(
+                    `Your plan allows episodes up to ${maxDuration} minutes. Upgrade for longer episodes.`,
+                );
+            }
+
+            // Check subscription quota before processing
+            const voiceTier = createEpisodeDto.voiceTier || 'STANDARD';
+            const hasQuota = await this.usersService.checkAndConsumeQuota(userId, voiceTier);
+            if (!hasQuota) {
+                const tierLabel = voiceTier === 'GEMINI' ? 'Gemini' : 'Standard';
+                throw new BadRequestException(
+                    `You've reached your monthly ${tierLabel} episode limit. Upgrade your plan for more episodes.`,
                 );
             }
 

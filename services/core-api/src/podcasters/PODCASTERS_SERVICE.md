@@ -68,8 +68,8 @@ Philosophy, Psychology, Finance, History, Literature, Politics, Self-help, Scien
 ### Valid Intellectual Angles
 Skeptical, Accepting, Critical, Pragmatic, Idealistic, Empirical
 
-### Supported Accents (9 options)
-United States, United Kingdom, Australia, Canada, Ireland, Scotland, India, New Zealand, South Africa
+### Supported Accents (4 options)
+United States, United Kingdom, Australia, India
 
 ## API Endpoints
 
@@ -87,7 +87,7 @@ Body:
   "profilePictureUrl": "string (optional)",
   "voiceModel": "CUSTOM" | "CONVERSATIONAL" | "ENERGETIC" | "CALM" | "SARCASTIC" | "ACADEMIC",
   "gender": "MALE" | "FEMALE",
-  "accent": "string (one of 9 supported accents)",
+  "accent": "string (one of 4 supported accents)",
   "speakingSpeed": 1-10,
   "vocalPitch": 1-10,
   "ageTone": 1-10,
@@ -405,7 +405,7 @@ The mobile app includes smart autofill templates for each voice model. When a us
 2. **Profile Picture** - Optional image URL
 3. **Voice Model** - Template that autofills personality traits
 4. **Gender** - MALE or FEMALE (affects TTS voice selection)
-5. **Accent** - One of 9 supported regional accents
+5. **Accent** - One of 4 supported regional accents
 6. **Speaking Speed** (1-10) - Slow ↔ Fast
 7. **Vocal Pitch** (1-10) - Low ↔ High
 8. **Age Tone** (1-10) - Youthful ↔ Senior
@@ -504,12 +504,9 @@ These fields influence script generation but not voice selection:
 | **sentenceStructure** | Script generation | N/A (text-level) |
 
 ### Multi-Speaker Voice Assignment
-For DUO and GROUP episodes:
+For DUO episodes:
 - **HOST**: Uses main podcaster's voice settings
-- **GUESTS**: Alternate genders with slight speed/pitch variations
-  - Guest 1: Opposite gender, slight speed offset
-  - Guest 2: Same gender, slight pitch offset
-  - Additional guests continue alternating pattern
+- **GUEST**: Opposite gender with slight speed/pitch variations
 
 ## Future Enhancements
 
