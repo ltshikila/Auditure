@@ -10,6 +10,7 @@ import {
     Alert,
     Modal,
     Platform,
+    Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -29,6 +30,8 @@ import {
 } from '@/services/user.service';
 import { TopBar } from '@/components';
 import { notificationService } from '@/services/notification.service';
+
+const avatarIcon = require('@/assets/icons/avatar.png');
 
 type SettingItemProps = {
     icon: keyof typeof Ionicons.glyphMap;
@@ -332,11 +335,8 @@ export default function Profile() {
 
                     {/* Avatar */}
                     <View className="items-center mb-6">
-                        <View className="w-20 h-20 bg-brand-gold rounded-full items-center justify-center mb-2">
-                            <Text className="font-jakarta-bold text-white text-2xl">
-                                {profile?.firstName?.charAt(0).toUpperCase() || '?'}
-                                {profile?.lastName?.charAt(0).toUpperCase() || ''}
-                            </Text>
+                        <View className="w-20 h-20 bg-brand-gold rounded-full items-center justify-center mb-2 overflow-hidden">
+                            <Image source={avatarIcon} style={{ width: 48, height: 48, tintColor: '#FFFFFF' }} resizeMode="contain" />
                         </View>
                         <Text className="font-inter text-gray-500">{profile?.email}</Text>
                         {profile?.isEmailVerified && (

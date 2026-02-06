@@ -270,6 +270,20 @@ class EpisodeService {
     }
 
     /**
+     * Get episodes liked by the current user
+     */
+    async getLikedEpisodes(token: string): Promise<Episode[]> {
+        return apiClient.get<Episode[]>('/episodes/liked', token);
+    }
+
+    /**
+     * Check if current user has liked an episode
+     */
+    async getLikeStatus(id: string, token: string): Promise<{ isLiked: boolean }> {
+        return apiClient.get<{ isLiked: boolean }>(`/episodes/${id}/like-status`, token);
+    }
+
+    /**
      * Increment share count
      */
     async share(id: string): Promise<void> {

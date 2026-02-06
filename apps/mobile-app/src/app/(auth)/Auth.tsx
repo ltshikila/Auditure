@@ -310,10 +310,10 @@ export default function AuthScreen() {
         {/* Social Buttons */}
         {isLogin && (
           <View className="flex-row justify-center">
-            <SocialButton icon="G" />
-            <SocialButton icon="f" />
-            <SocialButton icon="" />
-            <SocialButton icon="📱" />
+            <SocialButton icon={require('../../assets/icons/google-fill.png')} />
+            <SocialButton icon={require('../../assets/icons/facebook-circle-fill.png')} />
+            <SocialButton icon={require('../../assets/icons/apple_fill.png')} />
+            <SocialButton icon={require('../../assets/icons/smartphone-fill.png')} />
           </View>
         )}
 

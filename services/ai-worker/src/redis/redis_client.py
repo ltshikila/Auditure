@@ -1,9 +1,10 @@
-"""Redis client for job progress tracking."""
+"""Redis client for job progress tracking and notification queuing."""
 
+import json
 import logging
 from datetime import datetime
 from functools import lru_cache
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import redis
 
@@ -127,6 +128,41 @@ class RedisClient:
             self._client.delete(key)
         except Exception as e:
             logger.warning(f"Failed to delete job progress from Redis: {e}")
+
+    def queue_notification(
+        self,
+        notification_id: str,
+        user_id: str,
+        notification_type: str,
+        title: str,
+        body: str,
+        data: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        Add a notification to the Redis Stream for push delivery.
+
+        Uses the same stream format as the NestJS Core API so the
+        existing background consumer picks it up and sends the push.
+        """
+        if not self._client:
+            return
+
+        try:
+            self._client.xadd(
+                "notifications:stream",
+                {
+                    "notificationId": notification_id,
+                    "userId": user_id,
+                    "type": notification_type,
+                    "title": title,
+                    "body": body,
+                    "data": json.dumps(data) if data else "",
+                    "createdAt": datetime.utcnow().isoformat(),
+                },
+            )
+            logger.info(f"Queued notification {notification_id} to stream")
+        except Exception as e:
+            logger.warning(f"Failed to queue notification to stream: {e}")
 
 
 _redis_client: Optional[RedisClient] = None

@@ -6,6 +6,7 @@ import {
     Logger,
 } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreatePodcasterDto } from './dto/create-podcaster.dto';
 import { UpdatePodcasterDto } from './dto/update-podcaster.dto';
 import { QueryPodcastersDto, PodcasterSortBy } from './dto/query-podcasters.dto';
@@ -16,7 +17,10 @@ import { selectGeminiVoice } from './utils/gemini-voice-selector';
 export class PodcastersService {
     private readonly logger = new Logger(PodcastersService.name);
 
-    constructor(private databaseService: DatabaseService) {}
+    constructor(
+        private databaseService: DatabaseService,
+        private notificationsService: NotificationsService,
+    ) {}
 
     /**
      * Create a new podcaster/virtual podcaster
@@ -511,6 +515,8 @@ export class PodcastersService {
         }
     }
 
+    private static readonly PLAY_MILESTONES = [100, 500, 1000, 5000, 10000, 50000, 100000];
+
     /**
      * Increment play count
      */
@@ -518,15 +524,30 @@ export class PodcastersService {
         this.logger.log(`incrementPlayCount() called for podcaster ${id}`);
 
         try {
-            await this.databaseService.podcaster.update({
+            const podcaster = await this.databaseService.podcaster.update({
                 where: { id },
                 data: {
                     playCount: {
                         increment: 1,
                     },
                 },
+                select: { playCount: true, userId: true, name: true },
             });
             this.logger.log(`Play count incremented for podcaster ${id}`);
+
+            // Check for milestone
+            if (PodcastersService.PLAY_MILESTONES.includes(podcaster.playCount)) {
+                try {
+                    await this.notificationsService.notifyMilestone(
+                        podcaster.userId,
+                        podcaster.name,
+                        id,
+                        podcaster.playCount,
+                    );
+                } catch (notifError) {
+                    this.logger.error(`Failed to send milestone notification: ${notifError.message}`);
+                }
+            }
         } catch (error) {
             this.logger.error(`Error in incrementPlayCount(): ${error.message}`);
             this.logger.error(`Stack: ${error.stack}`);
@@ -650,13 +671,27 @@ export class PodcastersService {
             const ratingCount = aggregation._count.rating || 0;
 
             // Update podcaster with new averages
-            await this.databaseService.podcaster.update({
+            const podcaster = await this.databaseService.podcaster.update({
                 where: { id: podcasterId },
                 data: {
                     averageRating,
                     ratingCount,
                 },
             });
+
+            // Notify podcaster owner (don't notify yourself)
+            if (podcaster.userId !== userId) {
+                try {
+                    await this.notificationsService.notifyNewRating(
+                        podcaster.userId,
+                        podcasterId,
+                        podcaster.name,
+                        rating,
+                    );
+                } catch (notifError) {
+                    this.logger.error(`Failed to send rating notification: ${notifError.message}`);
+                }
+            }
 
             this.logger.log(
                 `Podcaster ${podcasterId} rated: avg=${averageRating}, count=${ratingCount}`,

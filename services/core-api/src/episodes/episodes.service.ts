@@ -15,6 +15,7 @@ import { RedisService } from '../redis/redis.service';
 import { StorageService } from '../common/storage.service';
 import { BooksService } from '../books/books.service';
 import { UsersService } from '../users/users.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import {
     CreateEpisodeDto,
     CreateEpisodeWithFileDto,
@@ -41,6 +42,7 @@ export class EpisodesService {
         @Inject(forwardRef(() => BooksService))
         private booksService: BooksService,
         private usersService: UsersService,
+        private notificationsService: NotificationsService,
     ) {}
 
     /**
@@ -180,10 +182,24 @@ export class EpisodesService {
             const voiceTier = createEpisodeDto.voiceTier || 'STANDARD';
             const hasQuota = await this.usersService.checkAndConsumeQuota(userId, voiceTier);
             if (!hasQuota) {
-                const tierLabel = voiceTier === 'GEMINI' ? 'Gemini' : 'Standard';
+                const tierLabel = String(voiceTier) === 'GEMINI' ? 'Gemini' : 'Standard';
                 throw new BadRequestException(
                     `You've reached your monthly ${tierLabel} episode limit. Upgrade your plan for more episodes.`,
                 );
+            }
+
+            // Warn user if usage is getting high
+            try {
+                const sub = await this.usersService.getSubscription(userId);
+                const totalUsed = sub.usage.geminiEpisodes.used + sub.usage.standardEpisodes.used;
+                const totalLimit =
+                    sub.usage.geminiEpisodes.limit + sub.usage.standardEpisodes.limit;
+                const usagePercent = Math.round((totalUsed / totalLimit) * 100);
+                if (usagePercent >= 80) {
+                    await this.notificationsService.notifySubscriptionWarning(userId, usagePercent);
+                }
+            } catch (error) {
+                this.logger.error(`Failed to send quota warning: ${error.message}`);
             }
 
             // Create the episode
@@ -291,10 +307,24 @@ export class EpisodesService {
             const voiceTier = createEpisodeDto.voiceTier || 'STANDARD';
             const hasQuota = await this.usersService.checkAndConsumeQuota(userId, voiceTier);
             if (!hasQuota) {
-                const tierLabel = voiceTier === 'GEMINI' ? 'Gemini' : 'Standard';
+                const tierLabel = String(voiceTier) === 'GEMINI' ? 'Gemini' : 'Standard';
                 throw new BadRequestException(
                     `You've reached your monthly ${tierLabel} episode limit. Upgrade your plan for more episodes.`,
                 );
+            }
+
+            // Warn user if usage is getting high
+            try {
+                const sub = await this.usersService.getSubscription(userId);
+                const totalUsed = sub.usage.geminiEpisodes.used + sub.usage.standardEpisodes.used;
+                const totalLimit =
+                    sub.usage.geminiEpisodes.limit + sub.usage.standardEpisodes.limit;
+                const usagePercent = Math.round((totalUsed / totalLimit) * 100);
+                if (usagePercent >= 80) {
+                    await this.notificationsService.notifySubscriptionWarning(userId, usagePercent);
+                }
+            } catch (error) {
+                this.logger.error(`Failed to send quota warning: ${error.message}`);
             }
 
             // Determine source type from file mimetype
@@ -818,31 +848,104 @@ export class EpisodesService {
     }
 
     /**
-     * Increment like count
+     * Like an episode (with proper user tracking)
      */
-    async incrementLikeCount(id: string): Promise<void> {
-        await this.databaseService.episode.update({
-            where: { id },
-            data: {
-                likeCount: {
-                    increment: 1,
-                },
-            },
+    async likeEpisode(episodeId: string, userId: string): Promise<void> {
+        // Check if already liked
+        const existing = await this.databaseService.episodeLike.findUnique({
+            where: { episodeId_userId: { episodeId, userId } },
+        });
+        if (existing) return; // Already liked, no-op
+
+        // Create like + increment count in transaction
+        const episode = await this.databaseService.$transaction(async tx => {
+            await tx.episodeLike.create({
+                data: { episodeId, userId },
+            });
+            return tx.episode.update({
+                where: { id: episodeId },
+                data: { likeCount: { increment: 1 } },
+                select: { userId: true, title: true },
+            });
+        });
+
+        // Notify episode owner (don't notify yourself)
+        if (episode.userId !== userId) {
+            try {
+                const liker = await this.databaseService.user.findUnique({
+                    where: { id: userId },
+                    select: { firstName: true, lastName: true },
+                });
+                const likerName = liker ? `${liker.firstName} ${liker.lastName}`.trim() : 'Someone';
+                await this.notificationsService.notifyNewLike(
+                    episode.userId,
+                    episodeId,
+                    episode.title,
+                    likerName,
+                );
+            } catch (error) {
+                this.logger.error(`Failed to send like notification: ${error.message}`);
+            }
+        }
+    }
+
+    /**
+     * Unlike an episode
+     */
+    async unlikeEpisode(episodeId: string, userId: string): Promise<void> {
+        // Check if liked
+        const existing = await this.databaseService.episodeLike.findUnique({
+            where: { episodeId_userId: { episodeId, userId } },
+        });
+        if (!existing) return; // Not liked, no-op
+
+        // Delete like + decrement count in transaction
+        await this.databaseService.$transaction(async tx => {
+            await tx.episodeLike.delete({
+                where: { episodeId_userId: { episodeId, userId } },
+            });
+            await tx.episode.update({
+                where: { id: episodeId },
+                data: { likeCount: { decrement: 1 } },
+            });
         });
     }
 
     /**
-     * Decrement like count
+     * Get episodes liked by user
      */
-    async decrementLikeCount(id: string): Promise<void> {
-        await this.databaseService.episode.update({
-            where: { id },
-            data: {
-                likeCount: {
-                    decrement: 1,
+    async getLikedEpisodes(userId: string): Promise<EpisodeResponseDto[]> {
+        const likes = await this.databaseService.episodeLike.findMany({
+            where: { userId },
+            orderBy: { createdAt: 'desc' },
+            include: {
+                episode: {
+                    include: {
+                        podcaster: { select: { id: true, name: true, profilePictureUrl: true } },
+                        book: {
+                            select: {
+                                id: true,
+                                title: true,
+                                author: true,
+                                coverImageUrl: true,
+                                language: true,
+                            },
+                        },
+                    },
                 },
             },
         });
+        return likes.map(like => like.episode as unknown as EpisodeResponseDto);
+    }
+
+    /**
+     * Check if user has liked an episode
+     */
+    async isEpisodeLiked(episodeId: string, userId: string): Promise<boolean> {
+        const like = await this.databaseService.episodeLike.findUnique({
+            where: { episodeId_userId: { episodeId, userId } },
+        });
+        return !!like;
     }
 
     /**
@@ -1127,6 +1230,21 @@ export class EpisodesService {
                 },
             },
         });
+
+        // Notify episode owner (don't notify yourself)
+        if (episode.userId !== userId) {
+            try {
+                const commenterName = `${comment.user.firstName} ${comment.user.lastName}`.trim();
+                await this.notificationsService.notifyNewComment(
+                    episode.userId,
+                    episodeId,
+                    episode.title,
+                    commenterName,
+                );
+            } catch (error) {
+                this.logger.error(`Failed to send comment notification: ${error.message}`);
+            }
+        }
 
         return comment as CommentResponseDto;
     }

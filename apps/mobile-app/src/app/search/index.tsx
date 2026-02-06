@@ -41,6 +41,7 @@ const TABS: { key: TabType; label: string }[] = [
 const starIcon = require('../../assets/icons/star.png');
 const searchIcon = require('../../assets/icons/search-normal.png');
 const profileIcon = require('../../assets/icons/profile.png');
+const booksIcon = require('../../assets/icons/books_fill.png');
 
 // Helper to render star ratings
 const StarRating = ({ rating, count }: { rating: number; count?: number }) => {
@@ -266,7 +267,7 @@ export default function SearchScreen() {
                 />
             ) : (
                 <View className="w-14 h-20 rounded bg-gray-200 items-center justify-center">
-                    <Ionicons name="book" size={24} color="#9CA3AF" />
+                    <Image source={booksIcon} style={{ width: 26, height: 26, tintColor: '#9CA3AF' }} />
                 </View>
             )}
             <View className="flex-1 ml-3">
@@ -476,7 +477,7 @@ export default function SearchScreen() {
                     onPress={() => router.back()}
                     className="absolute left-2 w-10 h-10 items-center justify-center"
                 >
-                    <Ionicons name="chevron-back" size={24} color="#1A1C1E" />
+                    <Image source={require('../../assets/icons/back.png')} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
                 </TouchableOpacity>
                 <Text className="font-jakarta text-lg text-gray-900">Search</Text>
             </View>

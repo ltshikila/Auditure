@@ -120,6 +120,11 @@ export const mockNotificationsService = {
     notifyNewRating: jest.fn().mockResolvedValue(null),
     notifySubscriptionWarning: jest.fn().mockResolvedValue(null),
     notifySystem: jest.fn().mockResolvedValue(null),
+    notifyNewLike: jest.fn().mockResolvedValue(null),
+    notifyBookReady: jest.fn().mockResolvedValue(null),
+    notifyBookFailed: jest.fn().mockResolvedValue(null),
+    notifyWelcome: jest.fn().mockResolvedValue(null),
+    notifyMilestone: jest.fn().mockResolvedValue(null),
 };
 
 // ============================================

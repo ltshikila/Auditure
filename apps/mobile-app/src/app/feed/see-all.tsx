@@ -12,6 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
+
+const booksIcon = require('@/assets/icons/books_fill.png');
 import {
     feedService,
     EpisodeFeedItem,
@@ -229,7 +231,7 @@ export default function SeeAllScreen() {
                     />
                 ) : (
                     <View className="w-full h-full bg-gradient-to-b from-brand-gold/30 to-brand-gold/10 items-center justify-center">
-                        <Ionicons name="book" size={24} color="#BF9A54" />
+                        <Image source={booksIcon} style={{ width: 26, height: 26, tintColor: '#BF9A54' }} />
                     </View>
                 )}
             </View>
@@ -361,7 +363,7 @@ export default function SeeAllScreen() {
             {/* Header */}
             <View className="flex-row items-center px-6 py-4 border-b border-gray-200">
                 <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center -ml-2 mr-2">
-                    <Ionicons name="chevron-back" size={24} color="#1A1C1E" />
+                    <Image source={require('../../assets/icons/back.png')} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
                 </TouchableOpacity>
                 <View className="flex-1">
                     <Text className="font-jakarta-bold text-xl text-brand-black">{title}</Text>

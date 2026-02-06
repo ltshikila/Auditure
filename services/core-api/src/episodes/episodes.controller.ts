@@ -149,6 +149,16 @@ export class EpisodesController {
     }
 
     /**
+     * Get episodes liked by current user (requires authentication)
+     * GET /episodes/liked
+     */
+    @Get('liked')
+    @UseGuards(JwtAuthGuard)
+    findLiked(@Request() req) {
+        return this.episodesService.getLikedEpisodes(req.user.userId);
+    }
+
+    /**
      * Get a specific episode by ID
      * GET /episodes/:id
      * Public episodes are accessible to everyone
@@ -193,14 +203,25 @@ export class EpisodesController {
     }
 
     /**
+     * Check if current user has liked an episode
+     * GET /episodes/:id/like-status
+     */
+    @Get(':id/like-status')
+    @UseGuards(JwtAuthGuard)
+    async likeStatus(@Param('id') id: string, @Request() req) {
+        const isLiked = await this.episodesService.isEpisodeLiked(id, req.user.userId);
+        return { isLiked };
+    }
+
+    /**
      * Like an episode (requires authentication)
      * POST /episodes/:id/like
      */
     @Post(':id/like')
     @UseGuards(JwtAuthGuard)
     @HttpCode(HttpStatus.NO_CONTENT)
-    async like(@Param('id') id: string) {
-        await this.episodesService.incrementLikeCount(id);
+    async like(@Param('id') id: string, @Request() req) {
+        await this.episodesService.likeEpisode(id, req.user.userId);
     }
 
     /**
@@ -210,8 +231,8 @@ export class EpisodesController {
     @Delete(':id/like')
     @UseGuards(JwtAuthGuard)
     @HttpCode(HttpStatus.NO_CONTENT)
-    async unlike(@Param('id') id: string) {
-        await this.episodesService.decrementLikeCount(id);
+    async unlike(@Param('id') id: string, @Request() req) {
+        await this.episodesService.unlikeEpisode(id, req.user.userId);
     }
 
     /**

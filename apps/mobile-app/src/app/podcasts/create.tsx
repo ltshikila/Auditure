@@ -5,6 +5,7 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     Alert,
+    Image,
 } from 'react-native';
 import React, { useState } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -552,7 +553,7 @@ const Create = () => {
                         }
                     }}
                     className="flex-row items-center px-4 py-3">
-                    <Ionicons name="chevron-back" size={24} color="#1A1C1E" />
+                    <Image source={require('../../assets/icons/back.png')} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
                     <Text className="text-[#1A1C1E] font-inter text-base ml-1">
                         {currentStep > 1 ? 'Back' : 'Cancel'}
                     </Text>

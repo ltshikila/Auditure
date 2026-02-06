@@ -35,6 +35,7 @@ model User {
   podcasterRatings PodcasterRating[]
   episodeComments  EpisodeComment[]
   notifications    Notification[]
+  episodeLikes     EpisodeLike[]
 
   @@map("users")
 }
@@ -327,6 +328,7 @@ model Episode {
   podcaster             Podcaster      @relation(fields: [podcasterId], references: [id], onDelete: Cascade)
   book                  Book           @relation(fields: [bookId], references: [id], onDelete: Cascade)
   comments              EpisodeComment[]
+  likes                 EpisodeLike[]
 
   @@index([userId])
   @@index([podcasterId])
@@ -447,13 +449,34 @@ model TermsAndConditions {
   @@map("terms_and_conditions")
 }
 
+model EpisodeLike {
+  id        String   @id @default(uuid())
+  episodeId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  // Relations
+  episode   Episode  @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([episodeId, userId])
+  @@index([userId])
+  @@index([episodeId])
+  @@map("episode_likes")
+}
+
 // Notification type enum
 enum NotificationType {
   EPISODE_READY
   EPISODE_FAILED
   NEW_COMMENT
   NEW_RATING
+  NEW_LIKE
+  BOOK_READY
+  BOOK_FAILED
   SUBSCRIPTION_WARNING
+  WELCOME
+  MILESTONE
   SYSTEM
 }
 

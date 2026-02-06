@@ -6,7 +6,7 @@ from typing import Optional, List, Dict, Any
 
 from sqlalchemy.orm import Session
 
-from .models import Episode, Podcaster, Book, Chapter, EpisodeStatus
+from .models import Episode, Podcaster, Book, Chapter, EpisodeStatus, Notification
 from .client import DatabaseClient
 
 logger = logging.getLogger(__name__)
@@ -215,5 +215,39 @@ class EpisodeRepository:
                 "podcaster": podcaster,
                 "book": book,
             }
+        finally:
+            session.close()
+
+    def create_notification(
+        self,
+        user_id: str,
+        notification_type: str,
+        title: str,
+        body: str,
+        data: Optional[Dict[str, Any]] = None,
+    ) -> Optional[str]:
+        """
+        Create a notification in the database.
+
+        Returns the notification ID for Redis stream queuing.
+        """
+        session = self.db_client.create_session()
+        try:
+            notification = Notification(
+                user_id=user_id,
+                type=notification_type,
+                title=title,
+                body=body,
+                data=data,
+            )
+            session.add(notification)
+            session.commit()
+            notification_id = notification.id
+            logger.info(f"[DB] Created notification {notification_id} for user {user_id}")
+            return notification_id
+        except Exception as e:
+            session.rollback()
+            logger.error(f"[DB] Failed to create notification: {e}")
+            return None
         finally:
             session.close()

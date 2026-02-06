@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { EmailService } from '../common/email.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import {
     createMockUser,
     createVerifiedMockUser,
@@ -12,7 +13,7 @@ import {
     mockVerifyDto,
 } from '../../test/fixtures/users.fixture';
 import { mockPrismaClient } from '../../test/mocks/database.mock';
-import { mockEmailService } from '../../test/mocks/services.mock';
+import { mockEmailService, mockNotificationsService } from '../../test/mocks/services.mock';
 
 // Mock bcrypt at module level
 jest.mock('bcrypt', () => ({
@@ -47,6 +48,10 @@ describe('AuthService', () => {
                 {
                     provide: EmailService,
                     useValue: mockEmailService,
+                },
+                {
+                    provide: NotificationsService,
+                    useValue: mockNotificationsService,
                 },
             ],
         }).compile();

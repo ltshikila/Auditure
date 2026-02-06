@@ -6,6 +6,7 @@ import { RedisService } from '../redis/redis.service';
 import { StorageService } from '../common/storage.service';
 import { BooksService } from '../books/books.service';
 import { UsersService } from '../users/users.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { NotFoundException, ForbiddenException, StreamableFile } from '@nestjs/common';
 import {
     createMockEpisode,
@@ -46,6 +47,20 @@ describe('EpisodesService', () => {
 
     const mockUsersService = {
         checkAndConsumeQuota: jest.fn().mockResolvedValue(true),
+        getSubscription: jest.fn().mockResolvedValue({
+            tier: 'FREE',
+            isPaid: false,
+            usage: {
+                geminiEpisodes: { used: 0, limit: 1, remaining: 1 },
+                standardEpisodes: { used: 0, limit: 2, remaining: 2 },
+            },
+        }),
+    };
+
+    const mockNotificationsService = {
+        notifyNewComment: jest.fn().mockResolvedValue({}),
+        notifySubscriptionWarning: jest.fn().mockResolvedValue({}),
+        notifyNewLike: jest.fn().mockResolvedValue({}),
     };
 
     beforeEach(async () => {
@@ -75,6 +90,10 @@ describe('EpisodesService', () => {
                 {
                     provide: UsersService,
                     useValue: mockUsersService,
+                },
+                {
+                    provide: NotificationsService,
+                    useValue: mockNotificationsService,
                 },
             ],
         }).compile();

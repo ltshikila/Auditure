@@ -6,6 +6,7 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -154,7 +155,7 @@ export default function ManagePodcaster() {
             onPress={() => router.back()}
             className="w-10 h-10 items-center justify-center -ml-2"
           >
-            <Ionicons name="chevron-back" size={24} color="#1A1C1E" />
+            <Image source={require('../../../assets/icons/back.png')} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
           </TouchableOpacity>
           <Text className="font-jakarta-bold text-xl text-gray-900">Manage Podcaster</Text>
           <View style={{ width: 40 }} />

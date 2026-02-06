@@ -662,6 +662,102 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     }
 
     /**
+     * Send a "new like" notification.
+     */
+    async notifyNewLike(
+        userId: string,
+        episodeId: string,
+        episodeTitle: string,
+        likerName: string,
+    ): Promise<NotificationResponseDto> {
+        return this.create({
+            userId,
+            type: NotificationType.NEW_LIKE,
+            title: 'New Like',
+            body: `${likerName} liked your episode "${episodeTitle}"`,
+            data: {
+                episodeId,
+                route: `/episodes/${episodeId}`,
+            },
+        });
+    }
+
+    /**
+     * Send a "book ready" notification.
+     */
+    async notifyBookReady(
+        userId: string,
+        bookTitle: string,
+        bookId: string,
+    ): Promise<NotificationResponseDto> {
+        return this.create({
+            userId,
+            type: NotificationType.BOOK_READY,
+            title: 'Book Ready! 📚',
+            body: `"${bookTitle}" has been processed and is ready for episodes.`,
+            data: {
+                bookId,
+                route: `/books/${bookId}`,
+            },
+        });
+    }
+
+    /**
+     * Send a "book failed" notification.
+     */
+    async notifyBookFailed(
+        userId: string,
+        bookTitle: string,
+        errorMessage: string,
+    ): Promise<NotificationResponseDto> {
+        return this.create({
+            userId,
+            type: NotificationType.BOOK_FAILED,
+            title: 'Book Processing Failed',
+            body: `We couldn't process "${bookTitle}". ${errorMessage}`,
+            data: {
+                route: '/books',
+            },
+        });
+    }
+
+    /**
+     * Send a "welcome" notification.
+     */
+    async notifyWelcome(userId: string): Promise<NotificationResponseDto> {
+        return this.create({
+            userId,
+            type: NotificationType.WELCOME,
+            title: 'Welcome to Auditure!',
+            body: 'Start exploring books and creating podcast episodes.',
+            data: {
+                route: '/home',
+            },
+        });
+    }
+
+    /**
+     * Send a "milestone" notification.
+     */
+    async notifyMilestone(
+        userId: string,
+        podcasterName: string,
+        podcasterId: string,
+        playCount: number,
+    ): Promise<NotificationResponseDto> {
+        return this.create({
+            userId,
+            type: NotificationType.MILESTONE,
+            title: 'Milestone Reached! 🎉',
+            body: `Your podcaster "${podcasterName}" hit ${playCount.toLocaleString()} plays!`,
+            data: {
+                podcasterId,
+                route: `/podcasters/${podcasterId}`,
+            },
+        });
+    }
+
+    /**
      * Send a system notification.
      */
     async notifySystem(

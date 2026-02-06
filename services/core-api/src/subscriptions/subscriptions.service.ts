@@ -1,6 +1,7 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { PaystackService, PaystackSubscription } from './paystack.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class SubscriptionsService {
@@ -9,6 +10,7 @@ export class SubscriptionsService {
     constructor(
         private readonly databaseService: DatabaseService,
         private readonly paystackService: PaystackService,
+        private readonly notificationsService: NotificationsService,
     ) {}
 
     /**
@@ -46,7 +48,7 @@ export class SubscriptionsService {
         // Enforce expiry: if premium has expired, downgrade to FREE immediately
         if (isPaid && subscription.premiumExpiresAt && subscription.premiumExpiresAt < new Date()) {
             this.logger.log(
-                `Premium expired for user ${userId} (expired: ${subscription.premiumExpiresAt}) — downgrading to FREE`,
+                `Premium expired for user ${userId} (expired: ${subscription.premiumExpiresAt?.toISOString()}) — downgrading to FREE`,
             );
             const freeLimits = this.getLimitsForTier('FREE');
 
@@ -100,7 +102,9 @@ export class SubscriptionsService {
                 } else {
                     // Subscription is fully cancelled/completed on Paystack (e.g. "cancelled", "complete")
                     // Clear codes so user sees Subscribe Again instead of a broken Reactivate button
-                    this.logger.log(`Paystack subscription ${subscription.paystackSubscriptionCode} has status "${status}" - clearing codes`);
+                    this.logger.log(
+                        `Paystack subscription ${subscription.paystackSubscriptionCode} has status "${status}" - clearing codes`,
+                    );
                     await this.databaseService.subscription.update({
                         where: { userId },
                         data: {
@@ -122,7 +126,8 @@ export class SubscriptionsService {
             // Only mark as cancelled if subscription was started more than 10 minutes ago
             // (gives time for Paystack to create subscription and webhook to arrive)
             const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-            const isRecentlyStarted = subscription.premiumStartedAt && subscription.premiumStartedAt > tenMinutesAgo;
+            const isRecentlyStarted =
+                subscription.premiumStartedAt && subscription.premiumStartedAt > tenMinutesAgo;
 
             if (!isRecentlyStarted) {
                 isCancelled = true;
@@ -153,7 +158,9 @@ export class SubscriptionsService {
      * @param isUpgrade - Whether this is an upgrade from an existing plan
      */
     async createCheckoutSession(userId: string, tier: 'starter' | 'pro', isUpgrade?: boolean) {
-        this.logger.log(`Creating checkout session for user ${userId}, tier: ${tier}, isUpgrade: ${isUpgrade}`);
+        this.logger.log(
+            `Creating checkout session for user ${userId}, tier: ${tier}, isUpgrade: ${isUpgrade}`,
+        );
 
         if (!this.paystackService.isConfigured()) {
             throw new BadRequestException('Payment system is not configured');
@@ -219,7 +226,7 @@ export class SubscriptionsService {
                 );
 
                 const nonRenewing = customerSubs.find(
-                    (sub) => sub.plan?.plan_code === planCode && sub.status === 'non-renewing',
+                    sub => sub.plan?.plan_code === planCode && sub.status === 'non-renewing',
                 );
 
                 if (nonRenewing) {
@@ -241,7 +248,9 @@ export class SubscriptionsService {
                         },
                     });
 
-                    this.logger.log(`Re-enabled subscription ${nonRenewing.subscription_code} for user ${userId}`);
+                    this.logger.log(
+                        `Re-enabled subscription ${nonRenewing.subscription_code} for user ${userId}`,
+                    );
 
                     return {
                         reEnabled: true,
@@ -394,7 +403,8 @@ export class SubscriptionsService {
             metadata.custom_fields?.find((f: any) => f.variable_name === 'tier')?.value;
         const isUpgrade =
             metadata.isUpgrade ||
-            metadata.custom_fields?.find((f: any) => f.variable_name === 'is_upgrade')?.value === 'true';
+            metadata.custom_fields?.find((f: any) => f.variable_name === 'is_upgrade')?.value ===
+                'true';
         const oldSubscriptionCode = metadata.oldSubscriptionCode;
         const oldEmailToken = metadata.oldEmailToken;
 
@@ -421,7 +431,9 @@ export class SubscriptionsService {
         }
 
         if (targetUserId) {
-            this.logger.log(`Activating subscription for user ${targetUserId}, tier: ${subscriptionTier}`);
+            this.logger.log(
+                `Activating subscription for user ${targetUserId}, tier: ${subscriptionTier}`,
+            );
 
             const limits = this.getLimitsForTier(subscriptionTier);
 
@@ -432,13 +444,17 @@ export class SubscriptionsService {
             if (subscription) {
                 // For upgrades: Cancel the old subscription on Paystack AFTER new payment succeeds
                 if (isUpgrade && oldSubscriptionCode && oldEmailToken) {
-                    this.logger.log(`Upgrade detected - cancelling old subscription: ${oldSubscriptionCode}`);
+                    this.logger.log(
+                        `Upgrade detected - cancelling old subscription: ${oldSubscriptionCode}`,
+                    );
                     try {
                         await this.paystackService.disableSubscription({
                             code: oldSubscriptionCode,
                             token: oldEmailToken,
                         });
-                        this.logger.log(`Old subscription ${oldSubscriptionCode} cancelled successfully`);
+                        this.logger.log(
+                            `Old subscription ${oldSubscriptionCode} cancelled successfully`,
+                        );
                     } catch (error: any) {
                         // Log but don't fail - the new subscription is already active
                         this.logger.warn(`Failed to cancel old subscription: ${error.message}`);
@@ -452,7 +468,9 @@ export class SubscriptionsService {
                 let premiumExpiresAt = this.calculateNextBillingDate();
 
                 if (transaction.customer?.customer_code) {
-                    const planCode = this.paystackService.getPlanCode(tier || subscriptionTier.toLowerCase() as 'starter' | 'pro');
+                    const planCode = this.paystackService.getPlanCode(
+                        tier || (subscriptionTier.toLowerCase() as 'starter' | 'pro'),
+                    );
 
                     // Retry fetching subscription with delays (Paystack creates it asynchronously)
                     const maxRetries = 3;
@@ -460,20 +478,27 @@ export class SubscriptionsService {
 
                     for (let attempt = 1; attempt <= maxRetries; attempt++) {
                         try {
-                            this.logger.log(`Fetching customer subscriptions (attempt ${attempt}/${maxRetries})...`);
-                            const subscriptions = await this.paystackService.listCustomerSubscriptions(
-                                transaction.customer.customer_code,
+                            this.logger.log(
+                                `Fetching customer subscriptions (attempt ${attempt}/${maxRetries})...`,
                             );
-                            this.logger.log(`Found ${subscriptions.length} subscriptions for customer`);
+                            const subscriptions =
+                                await this.paystackService.listCustomerSubscriptions(
+                                    transaction.customer.customer_code,
+                                );
+                            this.logger.log(
+                                `Found ${subscriptions.length} subscriptions for customer`,
+                            );
 
                             // Find the most recent active (renewing) subscription for this plan
                             // Prefer 'active' over 'non-renewing'
                             let activeSubscription = subscriptions.find(
-                                (sub) => sub.plan?.plan_code === planCode && sub.status === 'active',
+                                sub => sub.plan?.plan_code === planCode && sub.status === 'active',
                             );
                             if (!activeSubscription) {
                                 activeSubscription = subscriptions.find(
-                                    (sub) => sub.plan?.plan_code === planCode && sub.status === 'non-renewing',
+                                    sub =>
+                                        sub.plan?.plan_code === planCode &&
+                                        sub.status === 'non-renewing',
                                 );
                             }
 
@@ -481,37 +506,52 @@ export class SubscriptionsService {
                                 paystackSubscriptionCode = activeSubscription.subscription_code;
                                 paystackEmailToken = activeSubscription.email_token;
                                 if (activeSubscription.next_payment_date) {
-                                    premiumExpiresAt = new Date(activeSubscription.next_payment_date);
+                                    premiumExpiresAt = new Date(
+                                        activeSubscription.next_payment_date,
+                                    );
                                 }
-                                this.logger.log(`Found Paystack subscription: ${paystackSubscriptionCode}`);
+                                this.logger.log(
+                                    `Found Paystack subscription: ${paystackSubscriptionCode}`,
+                                );
 
                                 // Cancel any OTHER active/non-renewing subscriptions (cleanup duplicates)
                                 const otherSubscriptions = subscriptions.filter(
-                                    (sub) =>
-                                        sub.subscription_code !== activeSubscription!.subscription_code &&
+                                    sub =>
+                                        sub.subscription_code !==
+                                            activeSubscription.subscription_code &&
                                         (sub.status === 'active' || sub.status === 'non-renewing'),
                                 );
 
                                 for (const oldSub of otherSubscriptions) {
                                     try {
-                                        this.logger.log(`Cancelling duplicate subscription: ${oldSub.subscription_code} (${oldSub.plan?.name}, status: ${oldSub.status})`);
+                                        this.logger.log(
+                                            `Cancelling duplicate subscription: ${oldSub.subscription_code} (${oldSub.plan?.name}, status: ${oldSub.status})`,
+                                        );
                                         await this.paystackService.disableSubscription({
                                             code: oldSub.subscription_code,
                                             token: oldSub.email_token,
                                         });
-                                        this.logger.log(`Cancelled duplicate subscription: ${oldSub.subscription_code}`);
+                                        this.logger.log(
+                                            `Cancelled duplicate subscription: ${oldSub.subscription_code}`,
+                                        );
                                     } catch (error: any) {
-                                        this.logger.warn(`Failed to cancel duplicate subscription ${oldSub.subscription_code}: ${error.message}`);
+                                        this.logger.warn(
+                                            `Failed to cancel duplicate subscription ${oldSub.subscription_code}: ${error.message}`,
+                                        );
                                     }
                                 }
 
                                 break; // Success, exit retry loop
                             } else if (attempt < maxRetries) {
-                                this.logger.log(`No matching subscription found yet, waiting ${retryDelayMs}ms before retry...`);
+                                this.logger.log(
+                                    `No matching subscription found yet, waiting ${retryDelayMs}ms before retry...`,
+                                );
                                 await new Promise(resolve => setTimeout(resolve, retryDelayMs));
                             }
                         } catch (error: any) {
-                            this.logger.warn(`Failed to fetch customer subscriptions (attempt ${attempt}): ${error.message}`);
+                            this.logger.warn(
+                                `Failed to fetch customer subscriptions (attempt ${attempt}): ${error.message}`,
+                            );
                             if (attempt < maxRetries) {
                                 await new Promise(resolve => setTimeout(resolve, retryDelayMs));
                             }
@@ -519,7 +559,9 @@ export class SubscriptionsService {
                     }
 
                     if (!paystackSubscriptionCode) {
-                        this.logger.warn(`Could not find subscription after ${maxRetries} attempts - will rely on webhook`);
+                        this.logger.warn(
+                            `Could not find subscription after ${maxRetries} attempts - will rely on webhook`,
+                        );
                     }
                 }
 
@@ -532,13 +574,16 @@ export class SubscriptionsService {
                         geminiEpisodeLimit: limits.geminiEpisodeLimit,
                         standardEpisodeLimit: limits.standardEpisodeLimit,
                         paystackCustomerCode:
-                            transaction.customer?.customer_code || subscription.paystackCustomerCode,
+                            transaction.customer?.customer_code ||
+                            subscription.paystackCustomerCode,
                         paystackSubscriptionCode,
                         paystackEmailToken,
                     },
                 });
 
-                this.logger.log(`Subscription activated for user ${targetUserId}: ${subscriptionTier}, code: ${paystackSubscriptionCode}`);
+                this.logger.log(
+                    `Subscription activated for user ${targetUserId}: ${subscriptionTier}, code: ${paystackSubscriptionCode}`,
+                );
             }
         }
 
@@ -602,13 +647,17 @@ export class SubscriptionsService {
         } else if (subscription.paystackCustomerCode) {
             // Try to find and cancel subscription by customer code (for older subscriptions missing codes)
             try {
-                this.logger.log(`Looking up subscriptions for customer: ${subscription.paystackCustomerCode}`);
+                this.logger.log(
+                    `Looking up subscriptions for customer: ${subscription.paystackCustomerCode}`,
+                );
                 const subscriptions = await this.paystackService.listCustomerSubscriptions(
                     subscription.paystackCustomerCode,
                 );
-                this.logger.log(`Found ${subscriptions.length} subscriptions: ${JSON.stringify(subscriptions.map(s => ({ code: s.subscription_code, status: s.status, plan: s.plan?.plan_code })))}`);
+                this.logger.log(
+                    `Found ${subscriptions.length} subscriptions: ${JSON.stringify(subscriptions.map(s => ({ code: s.subscription_code, status: s.status, plan: s.plan?.plan_code })))}`,
+                );
                 const activeSubscription = subscriptions.find(
-                    (sub) => sub.status === 'active' || sub.status === 'non-renewing',
+                    sub => sub.status === 'active' || sub.status === 'non-renewing',
                 );
                 if (activeSubscription) {
                     await this.paystackService.disableSubscription({
@@ -623,11 +672,15 @@ export class SubscriptionsService {
                             paystackEmailToken: activeSubscription.email_token,
                         },
                     });
-                    this.logger.log(`Found and disabled subscription ${activeSubscription.subscription_code} for user ${userId}`);
+                    this.logger.log(
+                        `Found and disabled subscription ${activeSubscription.subscription_code} for user ${userId}`,
+                    );
                 } else {
                     // No active subscription on Paystack - mark as cancelled locally
                     // User keeps their tier benefits until premiumExpiresAt
-                    this.logger.warn(`No active Paystack subscription found for customer ${subscription.paystackCustomerCode} - marking as cancelled locally`);
+                    this.logger.warn(
+                        `No active Paystack subscription found for customer ${subscription.paystackCustomerCode} - marking as cancelled locally`,
+                    );
                     await this.databaseService.subscription.update({
                         where: { userId },
                         data: {
@@ -652,7 +705,9 @@ export class SubscriptionsService {
             } catch (error: any) {
                 if (error instanceof BadRequestException) throw error;
                 this.logger.error(`Failed to find/cancel subscription: ${error.message}`);
-                throw new BadRequestException('Failed to cancel subscription. Please contact support.');
+                throw new BadRequestException(
+                    'Failed to cancel subscription. Please contact support.',
+                );
             }
         } else {
             throw new BadRequestException('No Paystack subscription found to cancel.');
@@ -713,15 +768,21 @@ export class SubscriptionsService {
 
             return {
                 success: true,
-                message: 'Your subscription has been re-activated! You will be billed on your regular billing date.',
+                message:
+                    'Your subscription has been re-activated! You will be billed on your regular billing date.',
             };
         } catch (error: any) {
             this.logger.error(`Failed to re-enable subscription: ${error.message}`);
 
             // If reactivation fails (subscription fully cancelled), clear the codes
             // so user sees "Subscribe Again" flow instead of stuck "Reactivate" button
-            if (error.message?.includes('cannot be reactivated') || error.message?.includes('has been cancelled')) {
-                this.logger.log(`Subscription cannot be reactivated - clearing Paystack codes for user ${userId}`);
+            if (
+                error.message?.includes('cannot be reactivated') ||
+                error.message?.includes('has been cancelled')
+            ) {
+                this.logger.log(
+                    `Subscription cannot be reactivated - clearing Paystack codes for user ${userId}`,
+                );
                 await this.databaseService.subscription.update({
                     where: { userId },
                     data: {
@@ -739,7 +800,9 @@ export class SubscriptionsService {
                 );
             }
 
-            throw new BadRequestException('Failed to re-enable subscription. Please try again or start a new subscription.');
+            throw new BadRequestException(
+                'Failed to re-enable subscription. Please try again or start a new subscription.',
+            );
         }
     }
 
@@ -763,24 +826,29 @@ export class SubscriptionsService {
         );
 
         const cancelable = subscriptions.filter(
-            (sub) => sub.status === 'active' || sub.status === 'non-renewing',
+            sub => sub.status === 'active' || sub.status === 'non-renewing',
         );
 
         this.logger.log(`Found ${cancelable.length} active/non-renewing subscriptions`);
 
         if (cancelable.length <= 1) {
-            return { message: `No duplicates. ${cancelable.length} active subscription(s).`, cancelled: 0 };
+            return {
+                message: `No duplicates. ${cancelable.length} active subscription(s).`,
+                cancelled: 0,
+            };
         }
 
         const keepCode = subscription.paystackSubscriptionCode;
         const toCancel = keepCode
-            ? cancelable.filter((sub) => sub.subscription_code !== keepCode)
+            ? cancelable.filter(sub => sub.subscription_code !== keepCode)
             : cancelable.slice(1);
 
         let cancelled = 0;
         for (const sub of toCancel) {
             try {
-                this.logger.log(`Cancelling duplicate: ${sub.subscription_code} (${sub.plan?.name}, ${sub.status})`);
+                this.logger.log(
+                    `Cancelling duplicate: ${sub.subscription_code} (${sub.plan?.name}, ${sub.status})`,
+                );
                 await this.paystackService.disableSubscription({
                     code: sub.subscription_code,
                     token: sub.email_token,
@@ -791,7 +859,10 @@ export class SubscriptionsService {
             }
         }
 
-        return { message: `Cleaned up ${cancelled} duplicate(s). Kept ${keepCode || cancelable[0]?.subscription_code}.`, cancelled };
+        return {
+            message: `Cleaned up ${cancelled} duplicate(s). Kept ${keepCode || cancelable[0]?.subscription_code}.`,
+            cancelled,
+        };
     }
 
     // Webhook handlers
@@ -839,7 +910,7 @@ export class SubscriptionsService {
             this.logger.log(`User ${userId} payment successful, tier: ${subscriptionTier}`);
 
             const tierName = subscriptionTier === 'PRO' ? 'Pro' : 'Starter';
-            await this.sendNotification(
+            await this.notificationsService.notifySystem(
                 userId,
                 'Payment Successful',
                 `Your ${tierName} subscription payment was successful. Thank you!`,
@@ -903,7 +974,7 @@ export class SubscriptionsService {
         this.logger.log(`User ${subscription.userId} subscribed to ${tier}`);
 
         const tierName = tier === 'PRO' ? 'Pro' : 'Starter';
-        await this.sendNotification(
+        await this.notificationsService.notifySystem(
             subscription.userId,
             `Welcome to Auditure ${tierName}!`,
             tier === 'PRO'
@@ -941,7 +1012,7 @@ export class SubscriptionsService {
             `Subscription ${subscriptionCode} set to non-renewing for user ${subscription.userId} — keeping benefits until ${expiresAt}`,
         );
 
-        await this.sendNotification(
+        await this.notificationsService.notifySystem(
             subscription.userId,
             'Subscription Cancellation Scheduled',
             `Your subscription won't renew, but you'll keep premium access until ${expiresAt}. You can reactivate anytime before then.`,
@@ -961,7 +1032,7 @@ export class SubscriptionsService {
             return;
         }
 
-        await this.sendNotification(
+        await this.notificationsService.notifySystem(
             subscription.userId,
             'Subscription Cancellation Scheduled',
             'Your subscription will not renew. You can continue using premium features until the end of your billing period.',
@@ -988,7 +1059,7 @@ export class SubscriptionsService {
 
         this.logger.warn(`Payment failed for user ${subscription.userId}`);
 
-        await this.sendNotification(
+        await this.notificationsService.notifySystem(
             subscription.userId,
             'Payment Failed',
             "We couldn't process your subscription payment. Please update your payment method.",
@@ -1015,23 +1086,6 @@ export class SubscriptionsService {
         }
 
         return subscription;
-    }
-
-    private async sendNotification(userId: string, title: string, body: string): Promise<void> {
-        try {
-            await this.databaseService.notification.create({
-                data: {
-                    userId,
-                    type: 'SUBSCRIPTION_WARNING',
-                    title,
-                    body,
-                    data: { route: '/subscription' },
-                },
-            });
-            this.logger.debug(`Notification sent to user ${userId}: ${title}`);
-        } catch (error: any) {
-            this.logger.error(`Failed to send notification to user ${userId}: ${error.message}`);
-        }
     }
 
     /**

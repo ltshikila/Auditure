@@ -7,6 +7,10 @@ import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { resolveCoverUrl } from '@/services/api';
 
+const skipBackIcon = require('@/assets/icons/backward-10-seconds.png');
+const skipForwardIcon = require('@/assets/icons/forward-10-seconds.png');
+const booksIcon = require('@/assets/icons/books_fill.png');
+
 export const MINI_PLAYER_HEIGHT = 80;
 export const SIMPLIFIED_PLAYER_HEIGHT = 64;
 // Base tab bar height (matches _layout.tsx calculation: 72 + insets.bottom)
@@ -116,10 +120,7 @@ export const MiniPlayer: React.FC = () => {
                             className="w-12 h-12 items-center justify-center"
                             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                         >
-                            <View className="items-center">
-                                <Ionicons name="play-back" size={22} color="#FFFFFF" />
-                                <Text className="text-white text-[9px] font-inter -mt-0.5">10</Text>
-                            </View>
+                            <Image source={skipBackIcon} style={{ width: 28, height: 28, tintColor: '#FFFFFF' }} />
                         </TouchableOpacity>
 
                         {/* Play/Pause */}
@@ -144,10 +145,7 @@ export const MiniPlayer: React.FC = () => {
                             className="w-12 h-12 items-center justify-center"
                             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                         >
-                            <View className="items-center">
-                                <Ionicons name="play-forward" size={22} color="#FFFFFF" />
-                                <Text className="text-white text-[9px] font-inter -mt-0.5">10</Text>
-                            </View>
+                            <Image source={skipForwardIcon} style={{ width: 28, height: 28, tintColor: '#FFFFFF' }} />
                         </TouchableOpacity>
 
                         {/* Heart/Like */}
@@ -198,7 +196,7 @@ export const MiniPlayer: React.FC = () => {
                             />
                         ) : (
                             <View className="w-full h-full items-center justify-center">
-                                <Ionicons name="book" size={18} color="#BF9A54" />
+                                <Image source={booksIcon} style={{ width: 20, height: 20, tintColor: '#BF9A54' }} />
                             </View>
                         )}
                     </View>
@@ -227,10 +225,7 @@ export const MiniPlayer: React.FC = () => {
                             className="w-9 h-9 items-center justify-center"
                             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                         >
-                            <View className="items-center">
-                                <Ionicons name="play-back" size={18} color="#FFFFFF" />
-                                <Text className="text-white text-[8px] font-inter -mt-0.5">10</Text>
-                            </View>
+                            <Image source={skipBackIcon} style={{ width: 22, height: 22, tintColor: '#FFFFFF' }} />
                         </TouchableOpacity>
 
                         {/* Play/Pause */}
@@ -255,10 +250,7 @@ export const MiniPlayer: React.FC = () => {
                             className="w-9 h-9 items-center justify-center"
                             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                         >
-                            <View className="items-center">
-                                <Ionicons name="play-forward" size={18} color="#FFFFFF" />
-                                <Text className="text-white text-[8px] font-inter -mt-0.5">10</Text>
-                            </View>
+                            <Image source={skipForwardIcon} style={{ width: 22, height: 22, tintColor: '#FFFFFF' }} />
                         </TouchableOpacity>
 
                         {/* Heart/Like */}

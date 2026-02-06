@@ -4,6 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Episode, EpisodeStatus } from '@/services/episode.service';
 import { resolveCoverUrl } from '@/services/api';
 
+const booksIcon = require('@/assets/icons/books_fill.png');
+
 interface GeneratingEpisodeCardProps {
     episode: Episode;
     onPress: () => void;
@@ -104,7 +106,7 @@ export const GeneratingEpisodeCard: React.FC<GeneratingEpisodeCardProps> = ({
                         />
                     ) : (
                         <View className="w-full h-full bg-brand-gold/20 items-center justify-center">
-                            <Ionicons name="book" size={20} color="#BF9A54" />
+                            <Image source={booksIcon} style={{ width: 22, height: 22, tintColor: '#BF9A54' }} />
                         </View>
                     )}
                 </View>

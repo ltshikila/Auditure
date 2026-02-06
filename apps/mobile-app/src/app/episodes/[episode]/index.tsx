@@ -25,6 +25,8 @@ const icons = {
     star: require('@/assets/icons/star.png'),
     language: require('@/assets/icons/language.png'),
     microphone: require('@/assets/icons/microphone.png'),
+    books: require('@/assets/icons/books_fill.png'),
+    back: require('@/assets/icons/back.png'),
 };
 
 type TabType = 'summary' | 'details' | 'author' | 'comments';
@@ -115,6 +117,16 @@ export default function EpisodeInfoScreen() {
             const token = await storageService.getAccessToken();
             const data = await episodeService.getEpisode(episodeId, token || undefined);
             setEpisode(data);
+
+            // Fetch like status for the current user
+            if (token) {
+                try {
+                    const { isLiked: liked } = await episodeService.getLikeStatus(episodeId, token);
+                    setIsLiked(liked);
+                } catch {
+                    // Ignore — like status is non-critical
+                }
+            }
         } catch (err: any) {
             setError(err.message || 'Failed to load episode');
         } finally {
@@ -704,7 +716,7 @@ export default function EpisodeInfoScreen() {
                         <TouchableOpacity
                             onPress={() => router.back()}
                             className="w-10 h-10 items-center justify-center -ml-2">
-                            <Ionicons name="chevron-back" size={24} color="#1A1C1E" />
+                            <Image source={icons.back} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
                         </TouchableOpacity>
                         <Text className="font-jakarta-medium text-lg text-brand-black">About</Text>
                         <TouchableOpacity
@@ -731,7 +743,7 @@ export default function EpisodeInfoScreen() {
                                 />
                             ) : (
                                 <View className="w-full h-full bg-brand-gold/20 items-center justify-center">
-                                    <Ionicons name="book" size={40} color="#BF9A54" />
+                                    <Image source={icons.books} style={{ width: 40, height: 40, tintColor: '#BF9A54' }} />
                                 </View>
                             )}
                         </View>

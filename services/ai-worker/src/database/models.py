@@ -1,8 +1,10 @@
 """SQLAlchemy models matching Prisma schema."""
 
+import json
 from datetime import datetime
 from enum import Enum
 from typing import Optional, List
+from uuid import uuid4
 
 from sqlalchemy import (
     Column,
@@ -13,6 +15,7 @@ from sqlalchemy import (
     Text,
     ARRAY,
 )
+from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
@@ -204,3 +207,18 @@ class Episode(Base):
     # Timestamps
     created_at = Column("createdAt", DateTime, default=datetime.utcnow)
     updated_at = Column("updatedAt", DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Notification(Base):
+    """Notification model - user notifications for push delivery."""
+
+    __tablename__ = "notifications"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column("userId", String, nullable=False)
+    type = Column(String, nullable=False)
+    title = Column(String, nullable=False)
+    body = Column(String, nullable=False)
+    data = Column(JSON, nullable=True)
+    read = Column(Boolean, default=False)
+    created_at = Column("createdAt", DateTime, default=datetime.utcnow)

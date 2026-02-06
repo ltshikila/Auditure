@@ -5,6 +5,7 @@ import { BooksService } from './books.service';
 import { TextExtractionService } from './services/text-extraction.service';
 import { CoverExtractionService } from './services/cover-extraction.service';
 import { BookExtractionWorker } from './workers/book-extraction.worker';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
     imports: [
@@ -12,6 +13,7 @@ import { BookExtractionWorker } from './workers/book-extraction.worker';
             // eslint-disable-next-line @typescript-eslint/no-require-imports
             storage: require('multer').memoryStorage(), // Store in memory for processing
         }),
+        NotificationsModule,
     ],
     controllers: [BooksController],
     providers: [BooksService, TextExtractionService, CoverExtractionService, BookExtractionWorker],

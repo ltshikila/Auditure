@@ -19,6 +19,9 @@ import { usePlayback } from '@/contexts/PlaybackContext';
 import { MINI_PLAYER_HEIGHT } from '@/components/MiniPlayer';
 import { resolveCoverUrl } from '@/services/api';
 
+const booksIcon = require('@/assets/icons/books_fill.png');
+const backIcon = require('@/assets/icons/back.png');
+
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const LINE_HEIGHT = 64;
 
@@ -327,7 +330,7 @@ export default function TranscriptScreen() {
             <SafeAreaView className="flex-1 bg-brand-beige">
                 <View className="px-6 pt-4 pb-4 flex-row items-center justify-between border-b border-[#E8E3D6]">
                     <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center">
-                        <Ionicons name="chevron-back" size={24} color={COLORS.icon} />
+                        <Image source={backIcon} style={{ width: 24, height: 24, tintColor: COLORS.icon }} />
                     </TouchableOpacity>
                     <Text className="font-jakarta-bold text-lg text-[#1A1C1E]">Transcript</Text>
                     <View className="w-10 h-10" />
@@ -350,7 +353,7 @@ export default function TranscriptScreen() {
             {/* Header with book cover */}
             <View className="px-6 pt-2 pb-3 flex-row items-center border-b border-[#E8E3D6]">
                 <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center">
-                    <Ionicons name="chevron-back" size={24} color={COLORS.icon} />
+                    <Image source={backIcon} style={{ width: 24, height: 24, tintColor: COLORS.icon }} />
                 </TouchableOpacity>
 
                 {/* Book cover thumbnail */}
@@ -363,7 +366,7 @@ export default function TranscriptScreen() {
                         />
                     ) : (
                         <View className="w-full h-full items-center justify-center">
-                            <Ionicons name="book" size={18} color="#BF9A54" />
+                            <Image source={booksIcon} style={{ width: 20, height: 20, tintColor: '#BF9A54' }} />
                         </View>
                     )}
                 </View>

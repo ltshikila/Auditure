@@ -7,6 +7,7 @@ import { useNotifications } from '@/contexts/NotificationsContext';
 const logoIcon = require('@/assets/icons/logo_1.png');
 const notificationIcon = require('@/assets/icons/notification.png');
 const searchIcon = require('@/assets/icons/search-normal.png');
+const backIcon = require('@/assets/icons/back.png');
 
 interface TopBarProps {
     showBackButton?: boolean;
@@ -34,7 +35,7 @@ export const TopBar: React.FC<TopBarProps> = ({ showBackButton = false, title })
             <View className="flex-row items-center flex-1">
                 {showBackButton ? (
                     <TouchableOpacity onPress={handleBackPress} className="w-10 h-10 justify-center items-center -ml-2">
-                        <Ionicons name="chevron-back" size={24} color="#1A1C1E" />
+                        <Image source={backIcon} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
                     </TouchableOpacity>
                 ) : (
                     <View className="flex-row items-center">

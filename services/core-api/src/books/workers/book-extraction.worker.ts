@@ -4,6 +4,7 @@ import { TextExtractionService } from '../services/text-extraction.service';
 import { CoverExtractionService } from '../services/cover-extraction.service';
 import { StorageService } from '../../common/storage.service';
 import { DatabaseService } from '../../database/database.service';
+import { NotificationsService } from '../../notifications/notifications.service';
 import { BookExtractionJob } from '../../rabbitmq/interfaces/jobs.interface';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class BookExtractionWorker implements OnModuleInit {
         private coverExtractionService: CoverExtractionService,
         private storageService: StorageService,
         private databaseService: DatabaseService,
+        private notificationsService: NotificationsService,
     ) {}
 
     async onModuleInit() {
@@ -198,6 +200,14 @@ export class BookExtractionWorker implements OnModuleInit {
                 `Successfully extracted book ${job.bookId} (status: ${extractionStatus})`,
             );
 
+            // Notify user that book is ready
+            try {
+                const bookTitle = bestTitle || currentBook?.title || 'your book';
+                await this.notificationsService.notifyBookReady(job.userId, bookTitle, job.bookId);
+            } catch (notifError) {
+                this.logger.error(`Failed to send book ready notification: ${notifError.message}`);
+            }
+
             // 7. Queue any pending episodes for this book
             const pendingEpisodes = await this.databaseService.episode.findMany({
                 where: {
@@ -236,10 +246,21 @@ export class BookExtractionWorker implements OnModuleInit {
                 },
             });
 
+            // Notify user of extraction failure
+            const userFriendlyError = this.getUserFriendlyError(error, job.sourceType);
+            try {
+                const failedBook = await this.databaseService.book.findUnique({
+                    where: { id: job.bookId },
+                    select: { title: true },
+                });
+                const bookTitle = failedBook?.title || 'your book';
+                await this.notificationsService.notifyBookFailed(job.userId, bookTitle, userFriendlyError);
+            } catch (notifError) {
+                this.logger.error(`Failed to send book failed notification: ${notifError.message}`);
+            }
+
             // Mark all pending episodes for this book as FAILED
             // so they don't remain stuck in "Queued" state indefinitely
-            // Use user-friendly error message (not technical details)
-            const userFriendlyError = this.getUserFriendlyError(error, job.sourceType);
 
             const failedEpisodes = await this.databaseService.episode.updateMany({
                 where: {

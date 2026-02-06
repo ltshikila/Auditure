@@ -227,6 +227,14 @@ class EpisodeConsumer(BaseConsumer):
             )
             self._update_progress(episode_id, PROGRESS_COMPLETE, "COMPLETED")
 
+            # Notify user that episode is ready
+            self._send_notification(
+                user_id=message["userId"],
+                episode_id=episode_id,
+                episode_title=message.get("title", "your episode"),
+                is_ready=True,
+            )
+
             logger.info("=" * 50)
             logger.info(f"[EPISODE] COMPLETED: {episode_id}")
             logger.info(f"[EPISODE] Duration: {tts_result.duration}s | Words: {script_result.word_count}")
@@ -251,6 +259,15 @@ class EpisodeConsumer(BaseConsumer):
             )
             self._update_progress(episode_id, 0, "DURATION_MISMATCH")
 
+            # Notify user of failure
+            self._send_notification(
+                user_id=message["userId"],
+                episode_id=episode_id,
+                episode_title=message.get("title", "your episode"),
+                is_ready=False,
+                error_message=str(e),
+            )
+
             # Don't re-raise - this is not a retryable error
             # The user needs to select more content or adjust duration expectations
 
@@ -267,6 +284,15 @@ class EpisodeConsumer(BaseConsumer):
                 generation_error=str(e),
             )
             self._update_progress(episode_id, 0, "FAILED")
+
+            # Notify user of failure
+            self._send_notification(
+                user_id=message["userId"],
+                episode_id=episode_id,
+                episode_title=message.get("title", "your episode"),
+                is_ready=False,
+                error_message="Please try again.",
+            )
 
             # Re-raise for retry logic
             raise
@@ -296,6 +322,48 @@ class EpisodeConsumer(BaseConsumer):
         except Exception as e:
             logger.error(f"Failed to update progress in Redis: {e}")
             # Don't raise - progress update failure shouldn't stop processing
+
+    def _send_notification(
+        self,
+        user_id: str,
+        episode_id: str,
+        episode_title: str,
+        is_ready: bool,
+        error_message: str = "",
+    ) -> None:
+        """Create a notification in DB and queue it for push delivery."""
+        try:
+            if is_ready:
+                notif_type = "EPISODE_READY"
+                title = "Episode Ready! \U0001f3a7"
+                body = f'Your episode "{episode_title}" is ready to listen.'
+            else:
+                notif_type = "EPISODE_FAILED"
+                title = "Episode Generation Failed"
+                body = f'We couldn\'t generate "{episode_title}". {error_message}'
+
+            data = {"episodeId": episode_id, "route": f"/episodes/{episode_id}"}
+
+            notification_id = self.repository.create_notification(
+                user_id=user_id,
+                notification_type=notif_type,
+                title=title,
+                body=body,
+                data=data,
+            )
+
+            if notification_id:
+                self.redis_client.queue_notification(
+                    notification_id=notification_id,
+                    user_id=user_id,
+                    notification_type=notif_type,
+                    title=title,
+                    body=body,
+                    data=data,
+                )
+        except Exception as e:
+            logger.error(f"Failed to send notification: {e}")
+            # Don't raise - notification failure shouldn't affect episode processing
 
     def _build_content_scope(
         self,

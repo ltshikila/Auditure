@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PodcastersService } from './podcasters.service';
 import { DatabaseService } from '../database/database.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import {
     createMockPodcaster,
@@ -19,6 +20,11 @@ describe('PodcastersService', () => {
     let service: PodcastersService;
     let databaseService: DatabaseService;
 
+    const mockNotificationsService = {
+        notifyNewRating: jest.fn().mockResolvedValue({}),
+        notifyMilestone: jest.fn().mockResolvedValue({}),
+    };
+
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
             providers: [
@@ -26,6 +32,10 @@ describe('PodcastersService', () => {
                 {
                     provide: DatabaseService,
                     useValue: mockPrismaClient,
+                },
+                {
+                    provide: NotificationsService,
+                    useValue: mockNotificationsService,
                 },
             ],
         }).compile();
@@ -442,14 +452,51 @@ describe('PodcastersService', () => {
 
     describe('incrementPlayCount', () => {
         it('should increment play count', async () => {
-            mockPrismaClient.podcaster.update.mockResolvedValue({});
+            mockPrismaClient.podcaster.update.mockResolvedValue({
+                id: 'podcaster-id',
+                userId: 'user-1',
+                name: 'Test Podcaster',
+                playCount: 5,
+            });
 
             await service.incrementPlayCount('podcaster-id');
 
             expect(databaseService.podcaster.update).toHaveBeenCalledWith({
                 where: { id: 'podcaster-id' },
                 data: { playCount: { increment: 1 } },
+                select: { playCount: true, userId: true, name: true },
             });
+        });
+
+        it('should send milestone notification at 100 plays', async () => {
+            mockPrismaClient.podcaster.update.mockResolvedValue({
+                id: 'podcaster-id',
+                userId: 'user-1',
+                name: 'Test Podcaster',
+                playCount: 100,
+            });
+
+            await service.incrementPlayCount('podcaster-id');
+
+            expect(mockNotificationsService.notifyMilestone).toHaveBeenCalledWith(
+                'user-1',
+                'Test Podcaster',
+                'podcaster-id',
+                100,
+            );
+        });
+
+        it('should not send milestone notification for non-milestone counts', async () => {
+            mockPrismaClient.podcaster.update.mockResolvedValue({
+                id: 'podcaster-id',
+                userId: 'user-1',
+                name: 'Test Podcaster',
+                playCount: 99,
+            });
+
+            await service.incrementPlayCount('podcaster-id');
+
+            expect(mockNotificationsService.notifyMilestone).not.toHaveBeenCalled();
         });
     });
 

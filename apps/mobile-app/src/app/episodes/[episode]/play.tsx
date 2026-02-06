@@ -13,6 +13,7 @@ const icons = {
     star: require('@/assets/icons/star.png'),
     language: require('@/assets/icons/language.png'),
     microphone: require('@/assets/icons/microphone.png'),
+    books: require('@/assets/icons/books_fill.png'),
 };
 
 // Returns first few lines of transcript as a static preview
@@ -142,7 +143,7 @@ export default function EpisodePlayScreen() {
                         />
                     ) : (
                         <View className="w-[195px] h-[292px] bg-brand-gold/20 items-center justify-center">
-                            <Ionicons name="book" size={80} color="#BF9A54" />
+                            <Image source={icons.books} style={{ width: 80, height: 80, tintColor: '#BF9A54' }} />
                         </View>
                     )}
                 </View>

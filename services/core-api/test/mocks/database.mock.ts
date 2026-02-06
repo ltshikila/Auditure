@@ -58,6 +58,19 @@ export const mockPrismaClient = {
         delete: jest.fn(),
         upsert: jest.fn(),
     },
+    episodeLike: {
+        create: jest.fn(),
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+        delete: jest.fn(),
+        deleteMany: jest.fn(),
+    },
+    $transaction: jest.fn().mockImplementation((cb) => {
+        if (typeof cb === 'function') {
+            return cb(mockPrismaClient);
+        }
+        return Promise.resolve(cb);
+    }),
     $connect: jest.fn(),
     $disconnect: jest.fn(),
 };

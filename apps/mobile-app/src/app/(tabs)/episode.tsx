@@ -25,6 +25,7 @@ export default function EpisodesScreen() {
     // Categorized episodes
     const [generatingEpisodes, setGeneratingEpisodes] = useState<Episode[]>([]);
     const [myEpisodes, setMyEpisodes] = useState<Episode[]>([]);
+    const [likedEpisodes, setLikedEpisodes] = useState<Episode[]>([]);
     const [downloadedEpisodes, setDownloadedEpisodes] = useState<Episode[]>([]);
     const [startedEpisodes, setStartedEpisodes] = useState<Episode[]>([]);
     const [listenLaterEpisodes, setListenLaterEpisodes] = useState<Episode[]>([]);
@@ -44,8 +45,12 @@ export default function EpisodesScreen() {
                 return;
             }
 
-            const data = await episodeService.getMyEpisodes(token);
+            const [data, liked] = await Promise.all([
+                episodeService.getMyEpisodes(token),
+                episodeService.getLikedEpisodes(token).catch(() => [] as Episode[]),
+            ]);
             setEpisodes(data);
+            setLikedEpisodes(liked);
             categorizeEpisodes(data);
         } catch (err: any) {
             console.error('Error fetching episodes:', err);
@@ -231,6 +236,15 @@ export default function EpisodesScreen() {
                     onEpisodePress={handleEpisodePress}
                     showSeeAll={myEpisodes.length > 3}
                     onSeeAll={() => router.push('/episodes/my')}
+                />
+
+                {/* Liked Episodes Section */}
+                <EpisodeSection
+                    title="Liked Episodes"
+                    episodes={likedEpisodes}
+                    onEpisodePress={handleEpisodePress}
+                    showSeeAll={likedEpisodes.length > 3}
+                    onSeeAll={() => router.push('/episodes/liked')}
                 />
 
                 {/* Downloads Section */}

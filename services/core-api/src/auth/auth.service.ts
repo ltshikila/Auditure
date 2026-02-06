@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { DatabaseService } from '../database/database.service';
 import { EmailService } from '../common/email.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { VerifyDto } from './dto/verify.dto';
@@ -21,6 +22,7 @@ export class AuthService {
         private databaseService: DatabaseService,
         private jwtService: JwtService,
         private emailService: EmailService,
+        private notificationsService: NotificationsService,
     ) {}
 
     private generateOTP(): string {
@@ -237,6 +239,13 @@ export class AuthService {
             });
 
             this.logger.log(`Email verified successfully for user: ${user.id}`);
+
+            // Send welcome notification for new users
+            try {
+                await this.notificationsService.notifyWelcome(user.id);
+            } catch (notifError) {
+                this.logger.error(`Failed to send welcome notification: ${notifError.message}`);
+            }
 
             return {
                 message: 'Email verified successfully',
