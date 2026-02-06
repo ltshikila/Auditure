@@ -11,7 +11,15 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
             host: process.env.REDIS_HOST || 'localhost',
             port: parseInt(process.env.REDIS_PORT || '6379'),
             maxRetriesPerRequest: 3,
+            connectTimeout: 10_000, // 10s connection timeout
             lazyConnect: true,
+            retryStrategy: (times) => {
+                if (times > 3) {
+                    this.logger.warn('Redis max connection retries reached, giving up');
+                    return null; // Stop retrying
+                }
+                return Math.min(times * 200, 2000);
+            },
         });
 
         this.client.on('error', err => {

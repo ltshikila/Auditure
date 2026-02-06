@@ -5,11 +5,17 @@ import { AppModule } from './app.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 async function bootstrap() {
+    console.log(`[Bootstrap] Starting NestJS application (PID: ${process.pid}, PORT: ${process.env.PORT ?? 3000})`);
+    console.log(`[Bootstrap] NODE_ENV: ${process.env.NODE_ENV}`);
+    console.log(`[Bootstrap] Creating NestJS application...`);
+
     const app = await NestFactory.create(AppModule, {
         logger: ['log', 'error', 'warn', 'debug', 'verbose'],
         // Enable raw body for Stripe webhook signature verification
         rawBody: true,
     });
+
+    console.log(`[Bootstrap] NestJS application created, configuring...`);
 
     // Increase server timeouts for large file uploads
     const server = app.getHttpServer();

@@ -1,10 +1,12 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 
 @Injectable()
 export class DatabaseService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+    private readonly logger = new Logger(DatabaseService.name);
+
     constructor() {
         // Prisma v7 requires an adapter for PostgreSQL
         // Parse DATABASE_URL or use defaults
@@ -18,6 +20,7 @@ export class DatabaseService extends PrismaClient implements OnModuleInit, OnMod
             database: url.pathname.slice(1), // Remove leading '/'
             user: url.username,
             password: url.password,
+            connectionTimeoutMillis: 10_000, // 10s connection timeout
         });
         const adapter = new PrismaPg(pool);
 
@@ -28,7 +31,14 @@ export class DatabaseService extends PrismaClient implements OnModuleInit, OnMod
     }
 
     async onModuleInit() {
-        await this.$connect();
+        this.logger.log('Connecting to database...');
+        try {
+            await this.$connect();
+            this.logger.log('Database connected');
+        } catch (error) {
+            this.logger.error(`Database connection failed: ${error.message}`);
+            throw error;
+        }
     }
 
     async onModuleDestroy() {
