@@ -387,7 +387,9 @@ Last updated: January 2025`,
                 subscription.usage.geminiEpisodes.used + subscription.usage.standardEpisodes.used;
             const totalLimit = subscription.usage.geminiEpisodes.limit; // Same as standard for paid
             if (totalUsed >= totalLimit) {
-                this.logger.warn(`User ${userId} has exceeded unified episode quota (${totalUsed}/${totalLimit})`);
+                this.logger.warn(
+                    `User ${userId} has exceeded unified episode quota (${totalUsed}/${totalLimit})`,
+                );
                 return false;
             }
         } else {

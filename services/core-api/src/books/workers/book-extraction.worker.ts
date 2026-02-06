@@ -254,7 +254,11 @@ export class BookExtractionWorker implements OnModuleInit {
                     select: { title: true },
                 });
                 const bookTitle = failedBook?.title || 'your book';
-                await this.notificationsService.notifyBookFailed(job.userId, bookTitle, userFriendlyError);
+                await this.notificationsService.notifyBookFailed(
+                    job.userId,
+                    bookTitle,
+                    userFriendlyError,
+                );
             } catch (notifError) {
                 this.logger.error(`Failed to send book failed notification: ${notifError.message}`);
             }

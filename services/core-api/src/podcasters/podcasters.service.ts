@@ -545,7 +545,9 @@ export class PodcastersService {
                         podcaster.playCount,
                     );
                 } catch (notifError) {
-                    this.logger.error(`Failed to send milestone notification: ${notifError.message}`);
+                    this.logger.error(
+                        `Failed to send milestone notification: ${notifError.message}`,
+                    );
                 }
             }
         } catch (error) {

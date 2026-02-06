@@ -18,10 +18,7 @@ import {
     mockExpoPushDeviceNotRegisteredTicket,
 } from '../../test/fixtures/notifications.fixture';
 import { mockPrismaClient } from '../../test/mocks/database.mock';
-import {
-    mockExpoPushService,
-    mockRedisServiceWithStreams,
-} from '../../test/mocks/services.mock';
+import { mockExpoPushService, mockRedisServiceWithStreams } from '../../test/mocks/services.mock';
 
 describe('NotificationsService', () => {
     let service: NotificationsService;

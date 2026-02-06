@@ -11,7 +11,13 @@ import { NotificationsModule } from '../notifications/notifications.module';
 // The ai-worker consumes jobs from RabbitMQ and processes them independently.
 
 @Module({
-    imports: [DatabaseModule, CommonModule, forwardRef(() => BooksModule), UsersModule, NotificationsModule],
+    imports: [
+        DatabaseModule,
+        CommonModule,
+        forwardRef(() => BooksModule),
+        UsersModule,
+        NotificationsModule,
+    ],
     controllers: [EpisodesController],
     providers: [EpisodesService],
     exports: [EpisodesService],

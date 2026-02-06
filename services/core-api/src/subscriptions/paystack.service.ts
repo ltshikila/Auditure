@@ -278,7 +278,9 @@ export class PaystackService implements OnModuleInit {
         let response = await fetch(url, { method: 'GET', headers });
         let data = await response.json();
 
-        this.logger.log(`Paystack subscriptions response (by code): status=${data.status}, count=${data.data?.length || 0}`);
+        this.logger.log(
+            `Paystack subscriptions response (by code): status=${data.status}, count=${data.data?.length || 0}`,
+        );
 
         if (response.ok && data.data?.length > 0) {
             return data.data;
@@ -299,7 +301,9 @@ export class PaystackService implements OnModuleInit {
                 response = await fetch(url, { method: 'GET', headers });
                 data = await response.json();
 
-                this.logger.log(`Paystack subscriptions response (by ID ${customerId}): status=${data.status}, count=${data.data?.length || 0}`);
+                this.logger.log(
+                    `Paystack subscriptions response (by ID ${customerId}): status=${data.status}, count=${data.data?.length || 0}`,
+                );
 
                 if (response.ok && data.data?.length > 0) {
                     return data.data;
@@ -314,8 +318,12 @@ export class PaystackService implements OnModuleInit {
                     data = await response.json();
 
                     if (response.ok && data.data) {
-                        const filtered = data.data.filter((sub: any) => sub.customer?.email === email);
-                        this.logger.log(`Found ${filtered.length} subscriptions for email ${email}`);
+                        const filtered = data.data.filter(
+                            (sub: any) => sub.customer?.email === email,
+                        );
+                        this.logger.log(
+                            `Found ${filtered.length} subscriptions for email ${email}`,
+                        );
                         return filtered;
                     }
                 }

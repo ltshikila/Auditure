@@ -65,7 +65,7 @@ export const mockPrismaClient = {
         delete: jest.fn(),
         deleteMany: jest.fn(),
     },
-    $transaction: jest.fn().mockImplementation((cb) => {
+    $transaction: jest.fn().mockImplementation(cb => {
         if (typeof cb === 'function') {
             return cb(mockPrismaClient);
         }
