@@ -11,7 +11,18 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     async onModuleInit() {
         try {
             const url = process.env.RABBITMQ_URL || 'amqp://localhost:5672';
-            this.connection = await amqp.connect(url);
+
+            // Race against a timeout to prevent blocking startup if RabbitMQ is unreachable
+            const CONNECT_TIMEOUT = 10_000; // 10 seconds
+            this.connection = await Promise.race([
+                amqp.connect(url),
+                new Promise<never>((_, reject) =>
+                    setTimeout(
+                        () => reject(new Error('RabbitMQ connection timeout after 10s')),
+                        CONNECT_TIMEOUT,
+                    ),
+                ),
+            ]);
             this.channel = await this.connection.createChannel();
 
             // Declare queues
