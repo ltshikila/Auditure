@@ -104,7 +104,8 @@
       "Bash(npx nest build:*)",
       "Bash(gcloud beta run domain-mappings create:*)",
       "Bash(gcloud domains verify:*)",
-      "Bash(gcloud auth list:*)"
+      "Bash(gcloud auth list:*)",
+      "WebFetch(domain:rntp.dev)"
     ]
   }
 }
