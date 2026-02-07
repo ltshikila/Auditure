@@ -7,7 +7,7 @@
     "icon": "./src/assets/images/icon.png",
     "scheme": "auditure",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "infoPlist": {

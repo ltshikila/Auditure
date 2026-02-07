@@ -6,6 +6,8 @@ export interface Book {
   id: string;
   title: string;
   author?: string;
+  coverImageUrl?: string;
+  language?: string;
   sourceType: 'PDF' | 'EPUB';
   extractionStatus: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'PARTIALLY_COMPLETED' | 'FAILED';
   pageCount?: number;
@@ -13,6 +15,44 @@ export interface Book {
   createdAt: string;
   updatedAt: string;
   chapters?: Chapter[];
+}
+
+export interface BookDetailEpisode {
+  id: string;
+  title: string;
+  description?: string;
+  duration?: number;
+  playCount: number;
+  likeCount: number;
+  shareCount: number;
+  createdAt: string;
+  episodeType: string;
+  episodeTheme: string;
+  podcaster?: {
+    id: string;
+    name: string;
+    profilePictureUrl?: string;
+  };
+}
+
+export interface BookDetailResponse {
+  book: {
+    id: string;
+    title: string;
+    author?: string;
+    coverImageUrl?: string;
+    language?: string;
+    pageCount?: number;
+    sourceType: string;
+    createdAt: string;
+    episodeCount: number;
+    totalPlayCount: number;
+  };
+  sections: {
+    top: BookDetailEpisode[];
+    recent: BookDetailEpisode[];
+    trending: BookDetailEpisode[];
+  };
 }
 
 export interface Chapter {
@@ -83,6 +123,10 @@ class BookService {
 
   async retryExtraction(id: string, token: string): Promise<Book> {
     return apiClient.post<Book>(`/books/${id}/retry-extraction`, {}, token);
+  }
+
+  async getBookDetail(id: string, token: string): Promise<BookDetailResponse> {
+    return apiClient.get<BookDetailResponse>(`/books/${id}/detail`, token);
   }
 
   async validateChapters(

@@ -273,6 +273,92 @@ export class BooksService {
         };
     }
 
+    async getBookDetail(bookId: string, sectionLimit: number = 6) {
+        const book = await this.databaseService.book.findUnique({
+            where: { id: bookId },
+            select: {
+                id: true,
+                title: true,
+                author: true,
+                coverImageUrl: true,
+                language: true,
+                pageCount: true,
+                sourceType: true,
+                createdAt: true,
+            },
+        });
+
+        if (!book) {
+            throw new NotFoundException('Book not found');
+        }
+
+        const episodeWhere = {
+            bookId,
+            isPublic: true,
+            generationStatus: 'COMPLETED' as const,
+        };
+
+        const episodeInclude = {
+            podcaster: {
+                select: { id: true, name: true, profilePictureUrl: true },
+            },
+        };
+
+        // Top episodes: all-time by play count
+        const topEpisodes = await this.databaseService.episode.findMany({
+            where: episodeWhere,
+            orderBy: { playCount: 'desc' },
+            take: sectionLimit,
+            include: episodeInclude,
+        });
+
+        // Recent episodes: newest first
+        const recentEpisodes = await this.databaseService.episode.findMany({
+            where: episodeWhere,
+            orderBy: { createdAt: 'desc' },
+            take: sectionLimit,
+            include: episodeInclude,
+        });
+
+        // Trending episodes: created in last 14 days, sorted by engagement
+        const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+        const trendingEpisodes = await this.databaseService.episode.findMany({
+            where: {
+                ...episodeWhere,
+                createdAt: { gte: fourteenDaysAgo },
+            },
+            orderBy: [{ playCount: 'desc' }, { likeCount: 'desc' }],
+            take: sectionLimit,
+            include: episodeInclude,
+        });
+
+        const totalEpisodeCount = await this.databaseService.episode.count({
+            where: episodeWhere,
+        });
+
+        const playCountResult = await this.databaseService.episode.aggregate({
+            where: episodeWhere,
+            _sum: { playCount: true },
+        });
+
+        // Strip scriptContent from episodes
+        const clean = (episodes: any[]) =>
+            episodes.map(({ scriptContent, ...rest }) => rest);
+
+        return {
+            book: {
+                ...book,
+                episodeCount: totalEpisodeCount,
+                totalPlayCount: playCountResult._sum.playCount || 0,
+            },
+            sections: {
+                top: clean(topEpisodes),
+                recent: clean(recentEpisodes),
+                trending: clean(trendingEpisodes),
+            },
+        };
+    }
+
     async delete(userId: string, id: string): Promise<void> {
         const book = await this.findOne(userId, id);
 

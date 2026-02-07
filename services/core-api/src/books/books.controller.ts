@@ -54,6 +54,11 @@ export class BooksController {
         return this.booksService.findAll(req.user.userId);
     }
 
+    @Get(':id/detail')
+    async getBookDetail(@Param('id') id: string, @Query('limit') limit?: string) {
+        return this.booksService.getBookDetail(id, limit ? Number(limit) : 6);
+    }
+
     @Get(':id')
     async findOne(@Request() req, @Param('id') id: string) {
         return this.booksService.findOne(req.user.userId, id);

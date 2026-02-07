@@ -11,3 +11,4 @@ export { PodcastDetailSkeleton } from './PodcastDetailSkeleton';
 export { PodcastManageSkeleton } from './PodcastManageSkeleton';
 export { NotificationsSkeleton } from './NotificationsSkeleton';
 export { FeedListSkeleton } from './FeedListSkeleton';
+export { BookDetailSkeleton } from './BookDetailSkeleton';
