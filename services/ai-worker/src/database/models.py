@@ -37,7 +37,6 @@ class EpisodeType(str, Enum):
 
     MONOLOGUE = "MONOLOGUE"
     DUO = "DUO"
-    GROUP = "GROUP"
 
 
 class EpisodeTheme(str, Enum):
@@ -178,7 +177,7 @@ class Episode(Base):
     # Content configuration
     content_coverage = Column("contentCoverage", String, nullable=False)  # ENTIRE_BOOK, MULTIPLE_CHAPTERS, SINGLE_CHAPTER
     chapters = Column(ARRAY(Integer), default=[])
-    episode_type = Column("episodeType", String, nullable=False)  # MONOLOGUE, DUO, GROUP
+    episode_type = Column("episodeType", String, nullable=False)  # MONOLOGUE, DUO
     episode_theme = Column("episodeTheme", String, nullable=False)  # LECTURE, DISCUSSION, DEBATE
     target_length_min = Column("targetLengthMin", Integer, nullable=False)
     target_length_max = Column("targetLengthMax", Integer, nullable=False)

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Alert, ActivityIndicator, Image } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { router } from 'expo-router';
@@ -7,6 +7,7 @@ import { router } from 'expo-router';
 import AuthInput from '../../components/AuthInput';
 import SocialButton from '../../components/SocialButtons';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAlert } from '../../contexts/AlertContext';
 
 interface ValidationErrors {
   email?: string;
@@ -31,6 +32,7 @@ export default function AuthScreen() {
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
   const { register, login } = useAuth();
+  const { showAlert } = useAlert();
 
   // Validation functions
   const validateEmail = (email: string): string | undefined => {
@@ -122,18 +124,18 @@ export default function AuthScreen() {
     // Check for validation errors
     const hasErrors = Object.values(errors).some(error => error !== undefined);
     if (hasErrors) {
-      Alert.alert('Validation Error', 'Please fix all errors before submitting');
+      showAlert({ title: 'Validation Error', message: 'Please fix all errors before submitting' });
       return;
     }
 
     // Basic validation
     if (!formData.email || !formData.password) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      showAlert({ title: 'Error', message: 'Please fill in all required fields' });
       return;
     }
 
     if (!isLogin && (!formData.firstName || !formData.lastName)) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      showAlert({ title: 'Error', message: 'Please fill in all required fields' });
       return;
     }
 
@@ -149,7 +151,7 @@ export default function AuthScreen() {
           dateOfBirth: formData.dateOfBirth || undefined,
         });
 
-        Alert.alert('Success', 'Registration successful! Please check your email for verification code.');
+        showAlert({ title: 'Success', message: 'Registration successful! Please check your email for verification code.' });
         router.push({
           pathname: '/(auth)/Verification',
           params: { email: response.email },
@@ -161,7 +163,7 @@ export default function AuthScreen() {
         });
 
         if (response.requiresVerification) {
-          Alert.alert('Verification Required', 'Please verify your email. A verification code has been sent.');
+          showAlert({ title: 'Verification Required', message: 'Please verify your email. A verification code has been sent.' });
           router.push({
             pathname: '/(auth)/Verification',
             params: { email: response.email },
@@ -171,7 +173,7 @@ export default function AuthScreen() {
         }
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'An error occurred. Please try again.');
+      showAlert({ title: 'Error', message: error.message || 'An error occurred. Please try again.' });
     } finally {
       setLoading(false);
     }

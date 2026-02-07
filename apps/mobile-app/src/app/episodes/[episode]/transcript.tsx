@@ -18,6 +18,7 @@ import { storageService } from '@/services/storage.service';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { MINI_PLAYER_HEIGHT } from '@/components/MiniPlayer';
 import { resolveCoverUrl } from '@/services/api';
+import { TranscriptSkeleton } from '@/components/skeleton';
 
 const booksIcon = require('@/assets/icons/books_fill.png');
 const backIcon = require('@/assets/icons/back.png');
@@ -302,8 +303,8 @@ export default function TranscriptScreen() {
 
     if (loading) {
         return (
-            <SafeAreaView className="flex-1 bg-brand-beige items-center justify-center">
-                <ActivityIndicator size="large" color={COLORS.accent} />
+            <SafeAreaView className="flex-1 bg-brand-beige">
+                <TranscriptSkeleton />
             </SafeAreaView>
         );
     }

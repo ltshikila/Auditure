@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { podcasterService, Podcaster } from '@/services/podcaster.service';
 import { storageService } from '@/services/storage.service';
 import { TopBar } from '@/components';
+import { StudioSkeleton } from '@/components/skeleton';
 
 export default function Studio() {
     const [podcasters, setPodcasters] = useState<Podcaster[]>([]);
@@ -64,11 +65,17 @@ export default function Studio() {
 
     if (loading) {
         return (
-            <SafeAreaView
-                className="flex-1 bg-brand-beige items-center justify-center"
-                edges={['top', 'left', 'right']}>
-                <ActivityIndicator size="large" color="#BF9A54" />
-                <Text className="font-inter text-gray-500 mt-4">Loading your podcasters...</Text>
+            <SafeAreaView className="flex-1 bg-brand-beige" edges={['top', 'left', 'right']}>
+                <TopBar />
+                <View style={{ padding: 20 }}>
+                    <View className="pb-6">
+                        <Text className="font-inter-bold text-2xl text-brand-black">Studio</Text>
+                        <Text className="font-jakarta text-brand-black text-sm">
+                            Manage your Virtual Podcasters here!
+                        </Text>
+                    </View>
+                </View>
+                <StudioSkeleton />
             </SafeAreaView>
         );
     }

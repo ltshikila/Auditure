@@ -113,11 +113,6 @@ ACCENT_TO_LANGUAGE_CODE: Dict[str, str] = {
     "United Kingdom": "en-GB",
     "Australia": "en-AU",
     "India": "en-IN",
-    # Fallbacks for other English accents
-    "Canada": "en-US",
-    "Ireland": "en-GB",
-    "New Zealand": "en-AU",
-    "South Africa": "en-GB",
     "default": "en-US",
 }
 
@@ -971,7 +966,7 @@ class GeminiTTSClient:
             voice_assignments: Map of speaker labels to Gemini voice names
                 e.g., {"HOST": "Kore", "GUEST": "Charon"}
             voice_configs: Full voice configurations (overrides voice_assignments)
-            episode_type: MONOLOGUE, DUO, or GROUP
+            episode_type: MONOLOGUE or DUO
             language_code: Language/accent code (en-US, en-GB, en-AU, en-IN)
             style_prompt: Optional override for style guidance
 

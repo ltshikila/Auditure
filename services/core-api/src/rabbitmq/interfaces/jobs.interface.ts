@@ -13,7 +13,7 @@ export interface EpisodeGenerationJob {
     title: string;
     contentCoverage: 'ENTIRE_BOOK' | 'MULTIPLE_CHAPTERS' | 'SINGLE_CHAPTER';
     chapters: number[];
-    episodeType: 'MONOLOGUE' | 'DUO' | 'GROUP';
+    episodeType: 'MONOLOGUE' | 'DUO';
     episodeTheme: 'LECTURE' | 'DISCUSSION' | 'DEBATE';
     targetLengthMin: number;
     targetLengthMax: number;

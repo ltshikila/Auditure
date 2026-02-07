@@ -17,7 +17,7 @@ class FallbackRequest:
     book_author: Optional[str]
     episode_title: str
     podcaster_name: str
-    episode_type: str  # MONOLOGUE, DUO, GROUP
+    episode_type: str  # MONOLOGUE, DUO
     episode_theme: str  # LECTURE, DISCUSSION, DEBATE
     target_word_count: int
 
@@ -120,21 +120,12 @@ In this episode, "{request.episode_title}", we're going to explore the key ideas
 
 So settle in, and let's get started."""
 
-        elif request.episode_type == "DUO":
+        else:  # DUO
             return f"""HOST: Welcome back, everyone! I'm {request.podcaster_name}, and today we have a special episode for you. We're discussing "{request.book_title}"{author_mention}.
 
 GUEST: Thanks for having me! I've been really looking forward to talking about this one.
 
 HOST: Same here! For those just tuning in, our episode today is titled "{request.episode_title}". Let's dive right in."""
-
-        else:  # GROUP
-            return f"""HOST: Hello and welcome! I'm {request.podcaster_name}, and you're listening to a special discussion about "{request.book_title}"{author_mention}.
-
-GUEST1: Excited to be here! This book has been on my list for a while.
-
-GUEST2: Same! There's so much to unpack.
-
-HOST: Perfect! Our episode is called "{request.episode_title}". Let's get into it."""
 
     def generate_body(
         self,
@@ -153,7 +144,7 @@ HOST: Perfect! Our episode is called "{request.episode_title}". Let's get into i
                 body_parts.append(commentary)
                 body_parts.append("")  # Blank line for pacing
 
-        elif request.episode_type == "DUO":
+        else:  # DUO
             for i, sentence in enumerate(key_sentences):
                 if i % 2 == 0:
                     transition = self.TRANSITIONS[i % len(self.TRANSITIONS)]
@@ -167,23 +158,6 @@ HOST: Perfect! Our episode is called "{request.episode_title}". Let's get into i
                     body_parts.append(f"GUEST: {reaction} When I read \"{sentence}\", I couldn't help but think about how it applies to our everyday lives.")
                     body_parts.append("")
                     body_parts.append(f"GUEST: {guest_commentary}")
-                body_parts.append("")
-
-        else:  # GROUP
-            speakers = ["HOST", "GUEST1", "GUEST2"]
-            for i, sentence in enumerate(key_sentences):
-                speaker = speakers[i % len(speakers)]
-                commentary = self.COMMENTARY[i % len(self.COMMENTARY)]
-                if speaker == "HOST":
-                    transition = self.TRANSITIONS[i % len(self.TRANSITIONS)]
-                    body_parts.append(f"{speaker}: {transition} this insight: \"{sentence}\"")
-                    body_parts.append("")
-                    body_parts.append(f"{speaker}: {commentary}")
-                else:
-                    reaction = self.GUEST_REACTIONS[i % len(self.GUEST_REACTIONS)]
-                    body_parts.append(f"{speaker}: {reaction} The part where it says \"{sentence}\" really made me think.")
-                    body_parts.append("")
-                    body_parts.append(f"{speaker}: {commentary}")
                 body_parts.append("")
 
         return "\n".join(body_parts)
@@ -202,7 +176,7 @@ I hope this episode gave you some food for thought. If you enjoyed our explorati
 
 Until next time, keep reading, keep thinking, and keep growing. This is {request.podcaster_name}, signing off."""
 
-        elif request.episode_type == "DUO":
+        else:  # DUO
             return f"""HOST: {conclusion_starter} "{request.book_title}" gives us so much to think about.
 
 GUEST: Absolutely. I'm walking away with a lot to reflect on.
@@ -212,21 +186,6 @@ HOST: Thanks so much for joining me today and sharing your insights.
 GUEST: My pleasure! This was a great conversation.
 
 HOST: And thank you all for listening. Don't forget to subscribe if you haven't already. This is {request.podcaster_name}, and we'll catch you next time!"""
-
-        else:  # GROUP
-            return f"""HOST: {conclusion_starter} We've covered a lot of ground with "{request.book_title}" today.
-
-GUEST1: It's been such a rich discussion. I feel like I have new appreciation for the book now.
-
-GUEST2: Same here. Hearing everyone's perspectives really added to my understanding.
-
-HOST: That's what it's all about! Thanks to both of you for sharing your thoughts today.
-
-GUEST1: Thank you for having us!
-
-GUEST2: Always a pleasure!
-
-HOST: And to our listeners, thank you for tuning in. Hit that subscribe button and we'll see you next time. Take care, everyone!"""
 
     def generate_script(self, request: FallbackRequest) -> str:
         """

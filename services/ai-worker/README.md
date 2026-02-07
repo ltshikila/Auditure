@@ -237,7 +237,7 @@ This ensures that faster-speaking podcasters get more words in their scripts, wh
 
 ### Natural Interruptions & Backchannels
 
-Multi-speaker episodes (DUO, GROUP) include verbal cues for natural conversation flow. The frequency and intensity are controlled by the podcaster's **chaos factor** setting.
+Multi-speaker episodes (DUO) include verbal cues for natural conversation flow. The frequency and intensity are controlled by the podcaster's **chaos factor** setting.
 
 #### DISCUSSION Episodes
 

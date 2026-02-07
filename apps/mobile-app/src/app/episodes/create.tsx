@@ -5,7 +5,6 @@ import {
     TextInput,
     TouchableOpacity,
     ActivityIndicator,
-    Alert,
     Modal,
 } from 'react-native';
 import React, { useState, useEffect } from 'react';
@@ -24,6 +23,7 @@ import { subscriptionService, SubscriptionStatus } from '@/services/subscription
 import Slider from '@react-native-community/slider';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { MINI_PLAYER_HEIGHT } from '@/components/MiniPlayer';
+import { useAlert } from '@/contexts/AlertContext';
 
 type BookSourceMode = 'search' | 'upload';
 
@@ -35,6 +35,7 @@ type TabOption<T> = {
 const Create = () => {
     const router = useRouter();
     const { episode } = usePlayback();
+    const { showAlert } = useAlert();
     const isMiniPlayerVisible = !!episode;
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -195,14 +196,14 @@ const Create = () => {
 
     const handleSelectBook = (book: Book) => {
         if (book.extractionStatus !== 'COMPLETED' && book.extractionStatus !== 'PARTIALLY_COMPLETED') {
-            Alert.alert(
-                'Book Not Ready',
-                book.extractionStatus === 'PROCESSING'
+            showAlert({
+                title: 'Book Not Ready',
+                message: book.extractionStatus === 'PROCESSING'
                     ? 'This book is still being processed. Please wait until extraction is complete.'
                     : book.extractionStatus === 'FAILED'
                     ? 'Text extraction failed for this book. Try uploading again.'
-                    : 'This book is pending extraction.'
-            );
+                    : 'This book is pending extraction.',
+            });
             return;
         }
         setSelectedBook(book);
@@ -255,7 +256,7 @@ const Create = () => {
             }
         } catch (error) {
             console.error('Error picking document:', error);
-            Alert.alert('Error', 'Failed to pick document');
+            showAlert({ title: 'Error', message: 'Failed to pick document' });
         }
     };
 
@@ -305,22 +306,22 @@ const Create = () => {
     const handleCreate = async () => {
         // Validation based on mode
         if (bookSourceMode === 'search' && !selectedBookId) {
-            Alert.alert('Validation Error', 'Please select a book');
+            showAlert({ title: 'Validation Error', message: 'Please select a book' });
             return;
         }
 
         if (bookSourceMode === 'upload' && !selectedFile) {
-            Alert.alert('Validation Error', 'Please upload a book file (PDF or EPUB)');
+            showAlert({ title: 'Validation Error', message: 'Please upload a book file (PDF or EPUB)' });
             return;
         }
 
         if (!selectedPodcasterId) {
-            Alert.alert('Validation Error', 'Please select a virtual podcaster');
+            showAlert({ title: 'Validation Error', message: 'Please select a virtual podcaster' });
             return;
         }
 
         if (!episodeTitle.trim()) {
-            Alert.alert('Validation Error', 'Please enter an episode title');
+            showAlert({ title: 'Validation Error', message: 'Please enter an episode title' });
             return;
         }
 
@@ -328,17 +329,17 @@ const Create = () => {
 
         if (contentCoverage !== 'ENTIRE_BOOK') {
             if (chaptersToUse.length === 0) {
-                Alert.alert('Validation Error', 'Please select at least one chapter');
+                showAlert({ title: 'Validation Error', message: 'Please select at least one chapter' });
                 return;
             }
             if (contentCoverage === 'SINGLE_CHAPTER' && chaptersToUse.length > 1) {
-                Alert.alert('Validation Error', 'Single chapter mode only allows one chapter');
+                showAlert({ title: 'Validation Error', message: 'Single chapter mode only allows one chapter' });
                 return;
             }
         }
 
         if (targetLengthMin >= targetLengthMax) {
-            Alert.alert('Validation Error', 'Minimum length must be less than maximum length');
+            showAlert({ title: 'Validation Error', message: 'Minimum length must be less than maximum length' });
             return;
         }
 
@@ -355,10 +356,10 @@ const Create = () => {
             if (bookSourceMode === 'search' && selectedBookId && contentCoverage !== 'ENTIRE_BOOK') {
                 const validation = await bookService.validateChapters(selectedBookId, chaptersToUse, token);
                 if (!validation.valid) {
-                    Alert.alert(
-                        'Invalid Chapters',
-                        `Chapters ${validation.invalidChapters.join(', ')} do not exist in this book. Available: ${validation.availableChapters.join(', ')}`
-                    );
+                    showAlert({
+                        title: 'Invalid Chapters',
+                        message: `Chapters ${validation.invalidChapters.join(', ')} do not exist in this book. Available: ${validation.availableChapters.join(', ')}`,
+                    });
                     setIsSubmitting(false);
                     return;
                 }
@@ -403,11 +404,11 @@ const Create = () => {
                 );
             }
 
-            Alert.alert('Success', 'Episode creation started! You\'ll be notified when it\'s ready.');
+            showAlert({ title: 'Success', message: 'Episode creation started! You\'ll be notified when it\'s ready.' });
             router.back();
         } catch (err: any) {
             console.error('Error creating episode:', err);
-            Alert.alert('Error', err.message || 'Failed to create episode');
+            showAlert({ title: 'Error', message: err.message || 'Failed to create episode' });
         } finally {
             setIsSubmitting(false);
             setUploadProgress(null);

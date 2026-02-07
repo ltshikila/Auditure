@@ -4,7 +4,6 @@ import {
     TextInput,
     TouchableOpacity,
     ActivityIndicator,
-    Alert,
     Image,
 } from 'react-native';
 import React, { useState } from 'react';
@@ -20,6 +19,7 @@ import { podcasterService } from '@/services/podcaster.service';
 import { storageService } from '@/services/storage.service';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { MINI_PLAYER_HEIGHT } from '@/components/MiniPlayer';
+import { useAlert } from '@/contexts/AlertContext';
 
 type VoiceModel = 'custom' | 'conversational' | 'energetic' | 'calm' | 'sarcastic' | 'academic';
 type Gender = 'male' | 'female';
@@ -28,6 +28,7 @@ const Create = () => {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const { episode } = usePlayback();
+    const { showAlert } = useAlert();
     const isMiniPlayerVisible = !!episode;
     const [currentStep, setCurrentStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -574,12 +575,12 @@ const Create = () => {
                         onPress={async () => {
                             // Validation
                             if (!podcastName.trim()) {
-                                Alert.alert('Validation Error', 'Please enter a podcaster name');
+                                showAlert({ title: 'Validation Error', message: 'Please enter a podcaster name' });
                                 return;
                             }
 
                             if (selectedExpertiseTags.length === 0) {
-                                Alert.alert('Validation Error', 'Please select at least one expertise tag');
+                                showAlert({ title: 'Validation Error', message: 'Please select at least one expertise tag' });
                                 return;
                             }
 
@@ -616,11 +617,11 @@ const Create = () => {
 
                                 await podcasterService.create(podcasterData, token);
 
-                                Alert.alert('Success', 'Podcaster created successfully!');
+                                showAlert({ title: 'Success', message: 'Podcaster created successfully!' });
                                 router.replace('/(tabs)/studio');
                             } catch (err: any) {
                                 console.error('Error creating podcaster:', err);
-                                Alert.alert('Error', err.message || 'Failed to create podcaster');
+                                showAlert({ title: 'Error', message: err.message || 'Failed to create podcaster' });
                             } finally {
                                 setIsSubmitting(false);
                             }

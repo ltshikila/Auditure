@@ -5,7 +5,6 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     RefreshControl,
-    Alert,
     ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,6 +19,8 @@ import {
     Pricing,
 } from '@/services/subscription.service';
 import { TopBar } from '@/components';
+import { SubscriptionSkeleton } from '@/components/skeleton';
+import { useAlert } from '@/contexts/AlertContext';
 
 type PricingCardProps = {
     title: string;
@@ -123,6 +124,7 @@ function UsageBar({ used, limit, label }: { used: number; limit: number; label: 
 }
 
 export default function SubscriptionScreen() {
+    const { showAlert } = useAlert();
     const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -135,25 +137,21 @@ export default function SubscriptionScreen() {
 
     useEffect(() => {
         if (status === 'success') {
-            Alert.alert(
-                'Payment Successful!',
-                'Your subscription is now active. Enjoy your premium features!',
-                [{ text: 'OK' }],
-            );
+            showAlert({
+                title: 'Payment Successful!',
+                message: 'Your subscription is now active. Enjoy your premium features!',
+            });
             router.setParams({ status: undefined, reason: undefined });
         } else if (status === 'failed') {
-            Alert.alert(
-                'Payment Failed',
-                reason
+            showAlert({
+                title: 'Payment Failed',
+                message: reason
                     ? `Payment was not completed: ${reason}`
                     : 'Your payment could not be processed. Please try again.',
-                [{ text: 'OK' }],
-            );
+            });
             router.setParams({ status: undefined, reason: undefined });
         } else if (status === 'error') {
-            Alert.alert('Error', 'Something went wrong. Please try again or contact support.', [
-                { text: 'OK' },
-            ]);
+            showAlert({ title: 'Error', message: 'Something went wrong. Please try again or contact support.' });
             router.setParams({ status: undefined, reason: undefined });
         } else if (status === 'cancelled') {
             router.setParams({ status: undefined, reason: undefined });
@@ -216,15 +214,17 @@ export default function SubscriptionScreen() {
             if (result.success) {
                 // Handle re-enabled subscription (same plan, just reactivated)
                 if (result.reEnabled) {
-                    Alert.alert('Subscription Reactivated!', result.message || 'Your subscription is active again.', [
-                        { text: 'OK', onPress: () => fetchSubscription() },
-                    ]);
+                    showAlert({
+                        title: 'Subscription Reactivated!',
+                        message: result.message || 'Your subscription is active again.',
+                        buttons: [{ text: 'OK', onPress: () => fetchSubscription() }],
+                    });
                 } else {
-                    Alert.alert(
-                        'Subscription Activated!',
-                        `Welcome to Auditure ${subscriptionService.getTierDisplayName(selectedTier)}! Enjoy your podcast episodes.`,
-                        [{ text: 'OK', onPress: () => fetchSubscription() }],
-                    );
+                    showAlert({
+                        title: 'Subscription Activated!',
+                        message: `Welcome to Auditure ${subscriptionService.getTierDisplayName(selectedTier)}! Enjoy your podcast episodes.`,
+                        buttons: [{ text: 'OK', onPress: () => fetchSubscription() }],
+                    });
                 }
             } else if (result.cancelled) {
                 console.log('User cancelled checkout');
@@ -255,11 +255,11 @@ export default function SubscriptionScreen() {
             const result = await subscriptionService.startCheckout(token, 'pro', { isUpgrade: true });
 
             if (result.success) {
-                Alert.alert(
-                    'Upgrade Successful!',
-                    'Welcome to Auditure Pro! Enjoy your 100 episodes per month.',
-                    [{ text: 'OK', onPress: () => fetchSubscription() }],
-                );
+                showAlert({
+                    title: 'Upgrade Successful!',
+                    message: 'Welcome to Auditure Pro! Enjoy your 50 episodes per month.',
+                    buttons: [{ text: 'OK', onPress: () => fetchSubscription() }],
+                });
             } else if (result.cancelled) {
                 // User cancelled - their existing subscription remains fully active
                 console.log('User cancelled upgrade - existing subscription unchanged');
@@ -289,11 +289,11 @@ export default function SubscriptionScreen() {
             const result = await subscriptionService.startCheckout(token, 'starter', { isUpgrade: true });
 
             if (result.success) {
-                Alert.alert(
-                    'Plan Changed!',
-                    'You are now on the Starter plan with 30 episodes per month.',
-                    [{ text: 'OK', onPress: () => fetchSubscription() }],
-                );
+                showAlert({
+                    title: 'Plan Changed!',
+                    message: 'You are now on the Starter plan with 30 episodes per month.',
+                    buttons: [{ text: 'OK', onPress: () => fetchSubscription() }],
+                });
             } else if (result.cancelled) {
                 console.log('User cancelled downgrade - existing subscription unchanged');
             } else if (result.error) {
@@ -309,10 +309,10 @@ export default function SubscriptionScreen() {
 
     const handleCancelSubscription = () => {
         // Step 1: Ask why they want to cancel
-        Alert.alert(
-            "We're sorry to see you go",
-            'Before you cancel, could you tell us why?',
-            [
+        showAlert({
+            title: "We're sorry to see you go",
+            message: 'Before you cancel, could you tell us why?',
+            buttons: [
                 { text: 'Keep My Subscription', style: 'cancel' },
                 {
                     text: "It's too expensive",
@@ -327,23 +327,23 @@ export default function SubscriptionScreen() {
                     onPress: () => showFinalConfirmation(),
                 },
             ],
-        );
+        });
     };
 
     const showPauseOffer = () => {
         // Step 2: Offer alternatives
-        Alert.alert(
-            'How about a pause instead?',
-            "We'd hate to lose you! Would you like to pause your subscription for a month instead of cancelling?",
-            [
+        showAlert({
+            title: 'How about a pause instead?',
+            message: "We'd hate to lose you! Would you like to pause your subscription for a month instead of cancelling?",
+            buttons: [
                 { text: 'Keep My Subscription', style: 'cancel' },
                 {
                     text: 'Pause for 1 Month',
                     onPress: () => {
-                        Alert.alert(
-                            'Feature Coming Soon',
-                            "We're working on adding pause functionality. For now, you can cancel and resubscribe anytime.",
-                        );
+                        showAlert({
+                            title: 'Feature Coming Soon',
+                            message: "We're working on adding pause functionality. For now, you can cancel and resubscribe anytime.",
+                        });
                     },
                 },
                 {
@@ -352,15 +352,15 @@ export default function SubscriptionScreen() {
                     onPress: () => showFinalConfirmation(),
                 },
             ],
-        );
+        });
     };
 
     const showFinalConfirmation = () => {
         // Step 3: Final guilt trip
-        Alert.alert(
-            'Are you absolutely sure?',
-            `You'll lose access to:\n\n• ${subscription?.usage.geminiEpisodeLimit ?? 30} monthly episodes\n• Premium voice quality\n• All your saved preferences\n\nYour subscription will remain active until the end of your billing period.`,
-            [
+        showAlert({
+            title: 'Are you absolutely sure?',
+            message: `You'll lose access to:\n\n• ${subscription?.usage.geminiEpisodeLimit ?? 30} monthly episodes\n• Premium voice quality\n• All your saved preferences\n\nYour subscription will remain active until the end of your billing period.`,
+            buttons: [
                 { text: "No, I'll Stay!", style: 'cancel' },
                 {
                     text: 'Yes, Cancel',
@@ -368,7 +368,7 @@ export default function SubscriptionScreen() {
                     onPress: () => performCancellation(),
                 },
             ],
-        );
+        });
     };
 
     const performCancellation = async () => {
@@ -378,10 +378,10 @@ export default function SubscriptionScreen() {
             if (!token) return;
 
             const result = await subscriptionService.cancelSubscription(token);
-            Alert.alert('Subscription Cancelled', result.message);
+            showAlert({ title: 'Subscription Cancelled', message: result.message });
             await fetchSubscription();
         } catch (err: any) {
-            Alert.alert('Error', err.message || 'Failed to cancel subscription');
+            showAlert({ title: 'Error', message: err.message || 'Failed to cancel subscription' });
         } finally {
             setPurchasing(false);
         }
@@ -394,10 +394,10 @@ export default function SubscriptionScreen() {
             if (!token) return;
 
             const result = await subscriptionService.reactivateSubscription(token);
-            Alert.alert('Subscription Reactivated!', result.message);
+            showAlert({ title: 'Subscription Reactivated!', message: result.message });
             await fetchSubscription();
         } catch (err: any) {
-            Alert.alert('Error', err.message || 'Failed to reactivate subscription');
+            showAlert({ title: 'Error', message: err.message || 'Failed to reactivate subscription' });
             await fetchSubscription();
         } finally {
             setPurchasing(false);
@@ -411,10 +411,10 @@ export default function SubscriptionScreen() {
             if (!token) return;
 
             const result = await subscriptionService.cleanupDuplicates(token);
-            Alert.alert('Cleanup Complete', result.message);
+            showAlert({ title: 'Cleanup Complete', message: result.message });
             await fetchSubscription();
         } catch (err: any) {
-            Alert.alert('Error', err.message || 'Failed to cleanup duplicates');
+            showAlert({ title: 'Error', message: err.message || 'Failed to cleanup duplicates' });
         } finally {
             setPurchasing(false);
         }
@@ -431,11 +431,9 @@ export default function SubscriptionScreen() {
 
     if (loading) {
         return (
-            <SafeAreaView
-                className="flex-1 bg-brand-beige items-center justify-center"
-                edges={['top', 'left', 'right']}>
-                <ActivityIndicator size="large" color="#BF9A54" />
-                <Text className="font-inter text-gray-500 mt-4">Loading subscription...</Text>
+            <SafeAreaView className="flex-1 bg-brand-beige" edges={['top', 'left', 'right']}>
+                <TopBar showBackButton title="Subscription" />
+                <SubscriptionSkeleton />
             </SafeAreaView>
         );
     }
@@ -785,17 +783,17 @@ export default function SubscriptionScreen() {
 
                             <TouchableOpacity
                                 onPress={() => {
-                                    Alert.alert(
-                                        'Switch to Starter?',
-                                        'You will be taken to checkout to subscribe to Starter. Your Pro subscription will be cancelled after payment.',
-                                        [
+                                    showAlert({
+                                        title: 'Switch to Starter?',
+                                        message: 'You will be taken to checkout to subscribe to Starter. Your Pro subscription will be cancelled after payment.',
+                                        buttons: [
                                             { text: 'Cancel', style: 'cancel' },
                                             {
                                                 text: 'Continue',
                                                 onPress: handleDowngrade,
                                             },
                                         ],
-                                    );
+                                    });
                                 }}
                                 disabled={purchasing}
                                 className="bg-brand-gold py-3 rounded-xl items-center flex-row justify-center">

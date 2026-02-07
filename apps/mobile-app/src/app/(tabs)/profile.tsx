@@ -7,7 +7,6 @@ import {
     RefreshControl,
     Switch,
     TextInput,
-    Alert,
     Modal,
     Platform,
     Image,
@@ -19,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAlert } from '@/contexts/AlertContext';
 import { storageService } from '@/services/storage.service';
 import {
     userService,
@@ -29,6 +29,7 @@ import {
     UpdateSettingsData,
 } from '@/services/user.service';
 import { TopBar } from '@/components';
+import { ProfileSkeleton } from '@/components/skeleton';
 import { notificationService } from '@/services/notification.service';
 
 const avatarIcon = require('@/assets/icons/avatar.png');
@@ -63,6 +64,7 @@ function SettingItem({ icon, label, value, onValueChange, disabled }: SettingIte
 
 export default function Profile() {
     const { logout } = useAuth();
+    const { showAlert } = useAlert();
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [settings, setSettings] = useState<UserSettings | null>(null);
     const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -158,7 +160,7 @@ export default function Profile() {
 
             setIsEditing(false);
         } catch (err: any) {
-            Alert.alert('Error', err.message || 'Failed to update profile');
+            showAlert({ title: 'Error', message: err.message || 'Failed to update profile' });
         } finally {
             setSaving(false);
         }
@@ -177,44 +179,48 @@ export default function Profile() {
         } catch (err: any) {
             // Revert on error
             fetchData();
-            Alert.alert('Error', err.message || 'Failed to update setting');
+            showAlert({ title: 'Error', message: err.message || 'Failed to update setting' });
         }
     };
 
     const handleLogout = async () => {
-        Alert.alert('Logout', 'Are you sure you want to logout?', [
-            { text: 'Cancel', style: 'cancel' },
-            {
-                text: 'Logout',
-                style: 'destructive',
-                onPress: async () => {
-                    try {
-                        const token = await storageService.getAccessToken();
-                        if (token) {
-                            // Clear push token before logout
-                            try {
-                                await notificationService.clearPushToken(token);
-                            } catch (e) {
-                                console.log('Failed to clear push token:', e);
+        showAlert({
+            title: 'Logout',
+            message: 'Are you sure you want to logout?',
+            buttons: [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Logout',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            const token = await storageService.getAccessToken();
+                            if (token) {
+                                // Clear push token before logout
+                                try {
+                                    await notificationService.clearPushToken(token);
+                                } catch (e) {
+                                    console.log('Failed to clear push token:', e);
+                                }
+                                await userService.logout(token);
                             }
-                            await userService.logout(token);
+                            await logout();
+                            router.replace('/(auth)/Auth');
+                        } catch (err: any) {
+                            console.error('Logout error:', err);
+                            // Still logout locally even if server fails
+                            await logout();
+                            router.replace('/(auth)/Auth');
                         }
-                        await logout();
-                        router.replace('/(auth)/Auth');
-                    } catch (err: any) {
-                        console.error('Logout error:', err);
-                        // Still logout locally even if server fails
-                        await logout();
-                        router.replace('/(auth)/Auth');
-                    }
+                    },
                 },
-            },
-        ]);
+            ],
+        });
     };
 
     const handleDeleteAccount = async () => {
         if (!deletePassword) {
-            Alert.alert('Error', 'Please enter your password to confirm');
+            showAlert({ title: 'Error', message: 'Please enter your password to confirm' });
             return;
         }
 
@@ -228,7 +234,7 @@ export default function Profile() {
             setShowDeleteModal(false);
             router.replace('/(auth)/Auth');
         } catch (err: any) {
-            Alert.alert('Error', err.message || 'Failed to delete account');
+            showAlert({ title: 'Error', message: err.message || 'Failed to delete account' });
         } finally {
             setDeleteLoading(false);
         }
@@ -245,11 +251,9 @@ export default function Profile() {
 
     if (loading) {
         return (
-            <SafeAreaView
-                className="flex-1 bg-brand-beige items-center justify-center"
-                edges={['top', 'left', 'right']}>
-                <ActivityIndicator size="large" color="#BF9A54" />
-                <Text className="font-inter text-gray-500 mt-4">Loading your profile...</Text>
+            <SafeAreaView className="flex-1 bg-brand-beige" edges={['top', 'left', 'right']}>
+                <TopBar />
+                <ProfileSkeleton />
             </SafeAreaView>
         );
     }

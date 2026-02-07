@@ -25,6 +25,7 @@ import {
 } from '@expo-google-fonts/dm-serif-display';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { AlertProvider } from '@/contexts/AlertContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { PlaybackProvider } from '@/contexts/PlaybackContext';
 import { NotificationsProvider } from '@/contexts/NotificationsContext';
@@ -58,6 +59,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <AlertProvider>
       <AuthProvider>
         <NotificationsProvider>
           <PlaybackProvider>
@@ -82,6 +84,7 @@ export default function RootLayout() {
           </PlaybackProvider>
         </NotificationsProvider>
       </AuthProvider>
+      </AlertProvider>
     </GestureHandlerRootView>
   );
 }

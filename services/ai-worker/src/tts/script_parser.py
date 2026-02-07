@@ -34,11 +34,11 @@ class ScriptParser:
         Parse script into speaker segments.
 
         For MONOLOGUE: Returns single segment with all text.
-        For DUO/GROUP: Parses speaker labels or alternates by paragraph.
+        For DUO: Parses speaker labels or alternates by paragraph.
 
         Args:
             script: The podcast script text
-            episode_type: MONOLOGUE, DUO, or GROUP
+            episode_type: MONOLOGUE or DUO
 
         Returns:
             List of SpeakerSegment objects
@@ -107,10 +107,7 @@ class ScriptParser:
         segments: List[SpeakerSegment] = []
 
         # Define speakers based on episode type
-        if episode_type == "DUO":
-            speakers = ["HOST", "GUEST"]
-        else:  # GROUP
-            speakers = ["HOST", "GUEST1", "GUEST2"]
+        speakers = ["HOST", "GUEST"]
 
         # Split into paragraphs
         paragraphs = [p.strip() for p in script.split("\n\n") if p.strip()]

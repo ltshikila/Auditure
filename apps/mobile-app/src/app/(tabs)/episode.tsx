@@ -15,6 +15,7 @@ import { storageService } from '@/services/storage.service';
 import { EpisodeSection } from '@/components/EpisodeSection';
 import { GeneratingEpisodeCard } from '@/components/GeneratingEpisodeCard';
 import { TopBar } from '@/components';
+import { EpisodesSkeleton } from '@/components/skeleton';
 
 export default function EpisodesScreen() {
     const [episodes, setEpisodes] = useState<Episode[]>([]);
@@ -135,9 +136,19 @@ export default function EpisodesScreen() {
 
     if (loading) {
         return (
-            <SafeAreaView className="flex-1 bg-brand-beige items-center justify-center" edges={['top', 'left', 'right']}>
-                <ActivityIndicator size="large" color="#BF9A54" />
-                <Text className="font-inter text-gray-500 mt-4">Loading your episodes...</Text>
+            <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-brand-beige">
+                <TopBar />
+                <View className="px-6 pt-6 pb-6">
+                    <View className="flex-row items-center justify-between">
+                        <View>
+                            <Text className="font-inter-bold text-2xl text-brand-black">Episodes</Text>
+                            <Text className="font-jakarta text-brand-black text-sm">
+                                Manage and view your saved and generated episodes
+                            </Text>
+                        </View>
+                    </View>
+                </View>
+                <EpisodesSkeleton />
             </SafeAreaView>
         );
     }

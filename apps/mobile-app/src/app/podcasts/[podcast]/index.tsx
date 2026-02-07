@@ -9,6 +9,7 @@ import { storageService } from '@/services/storage.service';
 import { EpisodeCard } from '@/components/EpisodeCard';
 import { GeneratingEpisodeCard } from '@/components/GeneratingEpisodeCard';
 import { TopBar } from '@/components/TopBar';
+import { PodcastDetailSkeleton } from '@/components/skeleton';
 
 export default function PodcastDetailsScreen() {
   const { podcast: podcastId } = useLocalSearchParams();
@@ -154,8 +155,9 @@ export default function PodcastDetailsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-brand-beige items-center justify-center">
-        <ActivityIndicator size="large" color="#BF9A54" />
+      <SafeAreaView className="flex-1 bg-brand-beige">
+        <TopBar showBackButton />
+        <PodcastDetailSkeleton />
       </SafeAreaView>
     );
   }

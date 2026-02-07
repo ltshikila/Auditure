@@ -96,7 +96,7 @@ class DebateConfig:
 
         # Generate guest personalities
         guest_personalities = []
-        num_guests = 1 if episode_type == "DUO" else 2
+        num_guests = 1
 
         advocate_flavors = [
             "enthusiastic supporter", "thoughtful believer", "practical implementer",
@@ -138,7 +138,7 @@ class DebateConfig:
                     (DebatePosition.DEVILS_ADVOCATE, 0.1),
                 ]
 
-            # Ensure variety in GROUP debates
+            # Ensure variety in debates with multiple guests
             if num_guests == 2 and i == 1 and guest_personalities:
                 first_pos = guest_personalities[0].position
                 if first_pos == DebatePosition.ADVOCATE:
@@ -272,7 +272,7 @@ class ScriptRequest:
     episode_title: str
     podcaster_name: str
     podcaster_personality: PodcasterPersonality
-    episode_type: str  # MONOLOGUE, DUO, GROUP
+    episode_type: str  # MONOLOGUE, DUO
     episode_theme: str  # LECTURE, DISCUSSION, DEBATE
     target_length_min: int  # minutes
     target_length_max: int  # minutes
@@ -404,20 +404,12 @@ Structure: No speaker labels needed - write as continuous prose.
 Style: First person, intimate, as if speaking to a close friend.
 {tts_markup_guide}"""
 
-        elif episode_type == "DUO":
+        else:  # DUO
             return f"""
 Format: Two-person conversation between HOST and GUEST.
 Structure: Use speaker labels like "HOST:" and "GUEST:" for each speaking turn.
 Style: Natural dialogue with back-and-forth exchange. The guest can challenge or add perspectives.
 Include natural reactions like agreement sounds, laughter, and thoughtful pauses.
-{tts_markup_guide}"""
-
-        else:  # GROUP
-            return f"""
-Format: Group discussion with HOST, GUEST1, and GUEST2 (optionally GUEST3).
-Structure: Use speaker labels like "HOST:", "GUEST1:", "GUEST2:" for each turn.
-Style: Dynamic conversation with multiple viewpoints. Allow for interruptions and building on ideas.
-Include reactions, agreements, and natural conversational sounds.
 {tts_markup_guide}"""
 
     def build_theme_instructions(
@@ -433,7 +425,7 @@ Include reactions, agreements, and natural conversational sounds.
             episode_theme: LECTURE, DISCUSSION, or DEBATE
             chaos_factor: 1-10 scale affecting interruption frequency
             debate_config: Configuration for debate episodes (required for DEBATE theme)
-            episode_type: DUO or GROUP (used for debate speaker instructions)
+            episode_type: DUO (used for debate speaker instructions)
         """
         if episode_theme == "LECTURE":
             return """

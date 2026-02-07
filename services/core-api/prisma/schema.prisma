@@ -242,7 +242,6 @@ enum EpisodeStatus {
 enum EpisodeType {
   MONOLOGUE
   DUO
-  GROUP
 }
 
 // Episode Theme (content approach)

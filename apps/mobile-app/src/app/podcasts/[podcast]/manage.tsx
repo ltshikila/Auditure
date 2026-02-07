@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   TextInput,
-  Alert,
   ActivityIndicator,
   Image,
 } from 'react-native';
@@ -15,9 +14,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { podcasterService, Podcaster } from '@/services/podcaster.service';
 import { storageService } from '@/services/storage.service';
 import { ProfilePictureInput } from '@/components/ProfilePictureInput';
+import { useAlert } from '@/contexts/AlertContext';
+import { PodcastManageSkeleton } from '@/components/skeleton';
 
 export default function ManagePodcaster() {
   const { podcast: podcastId } = useLocalSearchParams();
+  const { showAlert } = useAlert();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -50,7 +52,7 @@ export default function ManagePodcaster() {
       setIsPublic(data.isPublic);
     } catch (err: any) {
       console.error('Error fetching podcaster:', err);
-      Alert.alert('Error', err.message || 'Failed to load podcaster');
+      showAlert({ title: 'Error', message: err.message || 'Failed to load podcaster' });
       router.back();
     } finally {
       setLoading(false);
@@ -59,7 +61,7 @@ export default function ManagePodcaster() {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      Alert.alert('Validation Error', 'Please enter a podcaster name');
+      showAlert({ title: 'Validation Error', message: 'Please enter a podcaster name' });
       return;
     }
 
@@ -82,21 +84,21 @@ export default function ManagePodcaster() {
         token
       );
 
-      Alert.alert('Success', 'Podcaster updated successfully');
+      showAlert({ title: 'Success', message: 'Podcaster updated successfully' });
       router.back();
     } catch (err: any) {
       console.error('Error updating podcaster:', err);
-      Alert.alert('Error', err.message || 'Failed to update podcaster');
+      showAlert({ title: 'Error', message: err.message || 'Failed to update podcaster' });
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = () => {
-    Alert.alert(
-      'Delete Podcaster',
-      'Are you sure you want to delete this podcaster? This action cannot be undone.',
-      [
+    showAlert({
+      title: 'Delete Podcaster',
+      message: 'Are you sure you want to delete this podcaster? This action cannot be undone.',
+      buttons: [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
@@ -111,24 +113,24 @@ export default function ManagePodcaster() {
               }
 
               await podcasterService.delete(podcastId as string, token);
-              Alert.alert('Success', 'Podcaster deleted successfully');
+              showAlert({ title: 'Success', message: 'Podcaster deleted successfully' });
               router.replace('/(tabs)/studio');
             } catch (err: any) {
               console.error('Error deleting podcaster:', err);
-              Alert.alert('Error', err.message || 'Failed to delete podcaster');
+              showAlert({ title: 'Error', message: err.message || 'Failed to delete podcaster' });
             } finally {
               setDeleting(false);
             }
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-brand-beige items-center justify-center">
-        <ActivityIndicator size="large" color="#BF9A54" />
+      <SafeAreaView className="flex-1 bg-brand-beige">
+        <PodcastManageSkeleton />
       </SafeAreaView>
     );
   }

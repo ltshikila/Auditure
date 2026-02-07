@@ -978,8 +978,8 @@ export class SubscriptionsService {
             subscription.userId,
             `Welcome to Auditure ${tierName}!`,
             tier === 'PRO'
-                ? 'Enjoy 100 podcast episodes per month with priority processing!'
-                : 'Enjoy 30 podcast episodes per month!',
+                ? 'Enjoy 50 podcast episodes per month with priority processing!'
+                : 'Enjoy 20 podcast episodes per month!',
         );
     }
 

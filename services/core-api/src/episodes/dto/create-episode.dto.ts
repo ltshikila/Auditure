@@ -14,7 +14,6 @@ import { Transform } from 'class-transformer';
 export enum EpisodeType {
     MONOLOGUE = 'MONOLOGUE',
     DUO = 'DUO',
-    GROUP = 'GROUP',
 }
 
 export enum EpisodeTheme {

@@ -100,7 +100,11 @@
       "Bash(gcloud builds list:*)",
       "WebFetch(domain:core-api-60457656342.us-central1.run.app)",
       "Bash(gcloud projects add-iam-policy-binding:*)",
-      "WebFetch(domain:support.paystack.com)"
+      "WebFetch(domain:support.paystack.com)",
+      "Bash(npx nest build:*)",
+      "Bash(gcloud beta run domain-mappings create:*)",
+      "Bash(gcloud domains verify:*)",
+      "Bash(gcloud auth list:*)"
     ]
   }
 }

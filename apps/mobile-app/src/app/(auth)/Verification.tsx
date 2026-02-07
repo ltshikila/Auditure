@@ -1,14 +1,16 @@
 // apps/mobile-app/src/app/(auth)/Verification.tsx
 import React, { useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAlert } from '../../contexts/AlertContext';
 
 export default function VerificationScreen() {
   const { email } = useLocalSearchParams<{ email: string }>();
   const { verify, resendOTP } = useAuth();
+  const { showAlert } = useAlert();
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
@@ -38,7 +40,7 @@ export default function VerificationScreen() {
     const otpCode = code.join('');
 
     if (otpCode.length !== 6) {
-      Alert.alert('Error', 'Please enter the complete 6-digit code');
+      showAlert({ title: 'Error', message: 'Please enter the complete 6-digit code' });
       return;
     }
 
@@ -50,10 +52,10 @@ export default function VerificationScreen() {
         code: otpCode,
       });
 
-      Alert.alert('Success', 'Email verified successfully!');
+      showAlert({ title: 'Success', message: 'Email verified successfully!' });
       router.replace('/(tabs)/home');
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Invalid verification code. Please try again.');
+      showAlert({ title: 'Error', message: error.message || 'Invalid verification code. Please try again.' });
       setCode(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
     } finally {
@@ -63,7 +65,7 @@ export default function VerificationScreen() {
 
   const handleResendOTP = async () => {
     if (!email) {
-      Alert.alert('Error', 'Email address not found');
+      showAlert({ title: 'Error', message: 'Email address not found' });
       return;
     }
 
@@ -71,11 +73,11 @@ export default function VerificationScreen() {
 
     try {
       await resendOTP(email);
-      Alert.alert('Success', 'A new verification code has been sent to your email');
+      showAlert({ title: 'Success', message: 'A new verification code has been sent to your email' });
       setCode(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to resend code. Please try again.');
+      showAlert({ title: 'Error', message: error.message || 'Failed to resend code. Please try again.' });
     } finally {
       setResending(false);
     }

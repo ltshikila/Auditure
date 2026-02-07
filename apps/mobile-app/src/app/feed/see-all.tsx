@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { FeedListSkeleton } from '@/components/skeleton';
 
 const booksIcon = require('@/assets/icons/books_fill.png');
 import {
@@ -377,9 +378,7 @@ export default function SeeAllScreen() {
 
             {/* Content */}
             {loading ? (
-                <View className="flex-1 items-center justify-center">
-                    <ActivityIndicator size="large" color="#920002" />
-                </View>
+                <FeedListSkeleton />
             ) : error ? (
                 renderErrorState()
             ) : (

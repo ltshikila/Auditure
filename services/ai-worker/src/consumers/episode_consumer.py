@@ -58,7 +58,7 @@ class EpisodeConsumer(BaseConsumer):
             "title": "Episode Title",
             "contentCoverage": "ENTIRE_BOOK" | "MULTIPLE_CHAPTERS" | "SINGLE_CHAPTER",
             "chapters": [1, 2, 3],
-            "episodeType": "MONOLOGUE" | "DUO" | "GROUP",
+            "episodeType": "MONOLOGUE" | "DUO",
             "episodeTheme": "LECTURE" | "DISCUSSION" | "DEBATE",
             "targetLengthMin": 15,
             "targetLengthMax": 25,

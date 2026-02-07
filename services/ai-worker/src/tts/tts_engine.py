@@ -126,7 +126,7 @@ class TTSEngine:
         Args:
             script: The podcast script text
             podcaster_voice: Main podcaster's voice settings
-            episode_type: MONOLOGUE, DUO, or GROUP
+            episode_type: MONOLOGUE or DUO
             voice_tier: Override voice tier for this episode
 
         Returns:

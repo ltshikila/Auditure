@@ -80,7 +80,7 @@ class ScriptGenerator:
             episode_title: Title for this episode
             podcaster_name: Name of the virtual podcaster
             podcaster_personality: Dict with personality traits
-            episode_type: MONOLOGUE, DUO, or GROUP
+            episode_type: MONOLOGUE or DUO
             episode_theme: LECTURE, DISCUSSION, or DEBATE
             target_length_min: Minimum length in minutes
             target_length_max: Maximum length in minutes
@@ -538,7 +538,7 @@ PREVIOUS CONTEXT (continue from here):
         if episode_type == "MONOLOGUE":
             format_instruction = """Write as a single host speaking directly to the audience. No speaker labels needed."""
             format_example = ""
-        elif episode_type == "DUO":
+        else:  # DUO
             format_instruction = """Write as a conversation between two speakers. EVERY line of dialogue MUST start with either "HOST:" or "GUEST:" on its own line."""
             format_example = """
 Example format (FOLLOW THIS EXACTLY):
@@ -549,17 +549,6 @@ GUEST: I'm so excited to discuss this with you. This topic is incredibly relevan
 HOST: Absolutely. Let me start by explaining the first key concept here.
 
 GUEST: That's a great point. I'd add that..."""
-        else:  # GROUP
-            format_instruction = """Write as a group discussion. EVERY line of dialogue MUST start with "HOST:", "GUEST1:", or "GUEST2:" on its own line."""
-            format_example = """
-Example format (FOLLOW THIS EXACTLY):
-HOST: Welcome everyone! We have two great guests today.
-
-GUEST1: Thanks for having us!
-
-GUEST2: Yes, excited to be here and discuss this topic.
-
-HOST: Let's dive right in..."""
 
         prompt = f"""You are {podcaster_name}, creating part {chunk_num} of a {total_chunks}-part podcast episode about "{book_title}"{author_line}.
 
@@ -593,7 +582,6 @@ When you need to EXPAND and add depth, use ONLY these techniques:
 ## Critical Requirements
 - Write EXACTLY around {words_per_chunk} words (this is important!)
 - {"EVERY line must start with HOST: or GUEST: - NO EXCEPTIONS!" if episode_type == "DUO" else ""}
-- {"EVERY line must start with HOST:, GUEST1:, or GUEST2: - NO EXCEPTIONS!" if episode_type == "GROUP" else ""}
 - Use natural speech patterns with pauses and reactions
 
 ## TTS TAGS - ONLY USE THESE OFFICIAL TAGS
@@ -853,12 +841,10 @@ Now write Part {chunk_num}:
         script = "\n".join(cleaned_lines)
 
         # Ensure proper speaker labels for multi-voice
-        if episode_type in ["DUO", "GROUP"]:
+        if episode_type == "DUO":
             # Normalize speaker labels
             script = script.replace("Host:", "HOST:")
             script = script.replace("Guest:", "GUEST:")
-            script = script.replace("Guest 1:", "GUEST1:")
-            script = script.replace("Guest 2:", "GUEST2:")
 
         # Remove unofficial TTS tags that can't be synthesized
         # Keep only: [sigh], [laughing], [chuckling], [clearing throat], [uhm], [uh],

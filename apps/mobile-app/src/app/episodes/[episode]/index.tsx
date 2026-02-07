@@ -9,7 +9,6 @@ import {
     TextInput,
     KeyboardAvoidingView,
     Platform,
-    Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -20,6 +19,8 @@ import { usePlayback } from '@/contexts/PlaybackContext';
 import { playbackService, GenerationProgress } from '@/services/playback.service';
 import { resolveCoverUrl } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAlert } from '@/contexts/AlertContext';
+import { EpisodeDetailSkeleton } from '@/components/skeleton';
 
 const icons = {
     star: require('@/assets/icons/star.png'),
@@ -34,6 +35,7 @@ type TabType = 'summary' | 'details' | 'author' | 'comments';
 export default function EpisodeInfoScreen() {
     const { episode: episodeId } = useLocalSearchParams<{ episode: string }>();
     const { user } = useAuth();
+    const { showAlert } = useAlert();
     const [episode, setEpisode] = useState<Episode | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -173,7 +175,7 @@ export default function EpisodeInfoScreen() {
             setSubmittingComment(true);
             const token = await storageService.getAccessToken();
             if (!token) {
-                Alert.alert('Login Required', 'Please log in to add a comment.');
+                showAlert({ title: 'Login Required', message: 'Please log in to add a comment.' });
                 return;
             }
 
@@ -181,31 +183,35 @@ export default function EpisodeInfoScreen() {
             setComments((prev) => [comment, ...prev]);
             setNewComment('');
         } catch (err: any) {
-            Alert.alert('Error', err.message || 'Failed to add comment');
+            showAlert({ title: 'Error', message: err.message || 'Failed to add comment' });
         } finally {
             setSubmittingComment(false);
         }
     };
 
     const handleDeleteComment = async (commentId: string) => {
-        Alert.alert('Delete Comment', 'Are you sure you want to delete this comment?', [
-            { text: 'Cancel', style: 'cancel' },
-            {
-                text: 'Delete',
-                style: 'destructive',
-                onPress: async () => {
-                    try {
-                        const token = await storageService.getAccessToken();
-                        if (!token) return;
+        showAlert({
+            title: 'Delete Comment',
+            message: 'Are you sure you want to delete this comment?',
+            buttons: [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            const token = await storageService.getAccessToken();
+                            if (!token) return;
 
-                        await episodeService.deleteComment(commentId, token);
-                        setComments((prev) => prev.filter((c) => c.id !== commentId));
-                    } catch (err: any) {
-                        Alert.alert('Error', err.message || 'Failed to delete comment');
-                    }
+                            await episodeService.deleteComment(commentId, token);
+                            setComments((prev) => prev.filter((c) => c.id !== commentId));
+                        } catch (err: any) {
+                            showAlert({ title: 'Error', message: err.message || 'Failed to delete comment' });
+                        }
+                    },
                 },
-            },
-        ]);
+            ],
+        });
     };
 
     const handlePlay = async () => {
@@ -294,8 +300,6 @@ export default function EpisodeInfoScreen() {
                 return 'Solo';
             case 'DUO':
                 return 'Duo';
-            case 'GROUP':
-                return 'Panel';
             default:
                 return type;
         }
@@ -316,8 +320,8 @@ export default function EpisodeInfoScreen() {
 
     if (loading) {
         return (
-            <SafeAreaView className="flex-1 bg-brand-beige items-center justify-center">
-                <ActivityIndicator size="large" color="#BF9A54" />
+            <SafeAreaView className="flex-1 bg-brand-beige">
+                <EpisodeDetailSkeleton />
             </SafeAreaView>
         );
     }

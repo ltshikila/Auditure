@@ -3,6 +3,7 @@ import { View, Text, ScrollView, RefreshControl, TouchableOpacity, ActivityIndic
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { TopBar, EpisodeSection, BookSection, PodcasterSection, FeaturedEpisodeSection, FeaturedBookSection } from '@/components';
+import { HomeSkeleton } from '@/components/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
 import {
     feedService,
@@ -439,9 +440,7 @@ export default function HomeScreen() {
 
             {/* Content */}
             {loading && !refreshing ? (
-                <View className="flex-1 items-center justify-center">
-                    <ActivityIndicator size="large" color="#920002" />
-                </View>
+                <HomeSkeleton activeTab={activeTab} />
             ) : error ? (
                 renderErrorState()
             ) : (

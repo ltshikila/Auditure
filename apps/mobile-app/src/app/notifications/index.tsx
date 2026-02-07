@@ -6,13 +6,14 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     RefreshControl,
-    Alert,
     Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useNotifications } from '@/contexts/NotificationsContext';
+import { useAlert } from '@/contexts/AlertContext';
+import { NotificationsSkeleton } from '@/components/skeleton';
 import { Notification, NotificationType } from '@/services/notification.service';
 
 const getNotificationIcon = (type: NotificationType): keyof typeof Ionicons.glyphMap => {
@@ -95,16 +96,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
     return (
         <TouchableOpacity
             onPress={onPress}
-            onLongPress={() => {
-                Alert.alert(
-                    'Delete Notification',
-                    'Are you sure you want to delete this notification?',
-                    [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Delete', style: 'destructive', onPress: onDelete },
-                    ]
-                );
-            }}
+            onLongPress={onDelete}
             className={`flex-row p-4 mx-4 mb-3 rounded-2xl ${
                 !notification.read ? 'bg-white' : 'bg-[#F5F5F0]'
             }`}
@@ -169,6 +161,7 @@ export default function NotificationsScreen() {
         deleteNotification,
         deleteAllNotifications,
     } = useNotifications();
+    const { showAlert } = useAlert();
 
     useEffect(() => {
         fetchNotifications();
@@ -196,33 +189,42 @@ export default function NotificationsScreen() {
 
     const handleMarkAllAsRead = () => {
         if (unreadCount === 0) return;
-        Alert.alert(
-            'Mark All as Read',
-            'Mark all notifications as read?',
-            [
+        showAlert({
+            title: 'Mark All as Read',
+            message: 'Mark all notifications as read?',
+            buttons: [
                 { text: 'Cancel', style: 'cancel' },
                 { text: 'Mark All', onPress: markAllAsRead },
-            ]
-        );
+            ],
+        });
     };
 
     const handleClearAll = () => {
         if (notifications.length === 0) return;
-        Alert.alert(
-            'Clear All Notifications',
-            'Are you sure you want to delete all notifications?',
-            [
+        showAlert({
+            title: 'Clear All Notifications',
+            message: 'Are you sure you want to delete all notifications?',
+            buttons: [
                 { text: 'Cancel', style: 'cancel' },
                 { text: 'Clear All', style: 'destructive', onPress: deleteAllNotifications },
-            ]
-        );
+            ],
+        });
     };
 
     const renderItem = ({ item }: { item: Notification }) => (
         <NotificationItem
             notification={item}
             onPress={() => handleNotificationPress(item)}
-            onDelete={() => deleteNotification(item.id)}
+            onDelete={() => {
+                showAlert({
+                    title: 'Delete Notification',
+                    message: 'Are you sure you want to delete this notification?',
+                    buttons: [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Delete', style: 'destructive', onPress: () => deleteNotification(item.id) },
+                    ],
+                });
+            }}
         />
     );
 
@@ -302,12 +304,7 @@ export default function NotificationsScreen() {
 
             {/* Loading state */}
             {loading && notifications.length === 0 ? (
-                <View className="flex-1 items-center justify-center">
-                    <ActivityIndicator size="large" color="#BF9A54" />
-                    <Text className="font-inter text-gray-500 mt-4">
-                        Loading notifications...
-                    </Text>
-                </View>
+                <NotificationsSkeleton />
             ) : (
                 <FlatList
                     data={notifications}
