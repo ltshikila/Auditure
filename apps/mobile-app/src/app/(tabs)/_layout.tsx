@@ -11,7 +11,7 @@ const icons = {
   homeFilled: require('@/assets/icons/home_filled.png'),
   episodes: require('@/assets/icons/episodes.png'),
   episodesFilled: require('@/assets/icons/episodes_filled.png'),
-  podcasts: require('@/assets/icons/podcasts_filled.png'),
+  podcasts: require('@/assets/icons/podcast.png'),
   podcastsFilled: require('@/assets/icons/podcast_filled.png'),
   profile: require('@/assets/icons/profile.png'),
   profileFilled: require('@/assets/icons/profile_filled.png'),

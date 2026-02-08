@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlayback } from '@/contexts/PlaybackContext';
-import { router, useSegments } from 'expo-router';
-import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
+import { router, useSegments, usePathname } from 'expo-router';
+// Animated.View with entering/exiting animations breaks absolute positioning on Android
+// import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { resolveCoverUrl } from '@/services/api';
+import { episodeService } from '@/services/episode.service';
+import { storageService } from '@/services/storage.service';
 
 const skipBackIcon = require('@/assets/icons/backward-10-seconds.png');
 const skipForwardIcon = require('@/assets/icons/forward-10-seconds.png');
@@ -32,18 +35,61 @@ export const MiniPlayer: React.FC = () => {
         setPlaybackRate,
     } = usePlayback();
 
-    // Use segments to detect current route - more reliable than usePathname
+    const [isLiked, setIsLiked] = useState(false);
+
+    // Fetch like status when episode changes
+    useEffect(() => {
+        if (!episode) {
+            setIsLiked(false);
+            return;
+        }
+        (async () => {
+            try {
+                const token = await storageService.getAccessToken();
+                if (!token) return;
+                const { isLiked: liked } = await episodeService.getLikeStatus(episode.id, token);
+                setIsLiked(liked);
+            } catch {
+                // non-critical
+            }
+        })();
+    }, [episode?.id]);
+
+    const handleLike = useCallback(async (e: any) => {
+        e.stopPropagation();
+        if (!episode) return;
+        try {
+            const token = await storageService.getAccessToken();
+            if (!token) return;
+            if (isLiked) {
+                await episodeService.unlike(episode.id, token);
+                setIsLiked(false);
+            } else {
+                await episodeService.like(episode.id, token);
+                setIsLiked(true);
+            }
+        } catch {
+            // non-critical
+        }
+    }, [episode?.id, isLiked]);
+
+    // Use both segments and pathname for reliable route detection
     const segments = useSegments();
+    const pathname = usePathname();
 
     // Hide player when no episode or on auth pages (logged out)
-    const isOnAuthPage = (segments as string[])[0] === '(auth)';
+    const isOnAuthPage = (segments as string[])[0] === '(auth)' || pathname.startsWith('/(auth)');
     if (!episode || isOnAuthPage) return null;
 
     // Check if on play or transcript page - show simplified version
     const isPlayerPage = (segments as string[]).includes('play') || (segments as string[]).includes('transcript');
 
     // Check if we're in the (tabs) layout - tab bar is only visible there
-    const isInTabsLayout = (segments as string[])[0] === '(tabs)';
+    // Default to true when segments are empty (app startup race condition before router resolves)
+    const TAB_PATHS = ['/home', '/episode', '/studio', '/profile'];
+    const isInTabsLayout = (segments as string[]).length === 0 ||
+        (segments as string[]).includes('(tabs)') ||
+        TAB_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'));
 
     const handlePress = () => {
         if (!isPlayerPage) {
@@ -84,16 +130,102 @@ export const MiniPlayer: React.FC = () => {
     // Simplified player for play/transcript pages (controls only, centered)
     if (isPlayerPage) {
         return (
-            <Animated.View
-                entering={FadeInDown.duration(300)}
-                exiting={FadeOutDown.duration(300)}
-                className="absolute left-4 right-4"
+            <View
                 style={{
+                    position: 'absolute',
+                    left: 16,
+                    right: 16,
                     bottom: insets.bottom + 8,
                 }}
             >
-                <View
-                    className="bg-[#1A1C1E] rounded-full overflow-hidden"
+                    <View
+                        className="bg-[#1A1C1E] rounded-full overflow-hidden"
+                        style={{
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: 0.3,
+                            shadowRadius: 12,
+                            elevation: 12,
+                        }}
+                    >
+                        <View className="flex-row items-center justify-center px-4 py-3">
+                            {/* Playback Speed */}
+                            <TouchableOpacity
+                                onPress={handleSpeedChange}
+                                className="w-12 h-12 items-center justify-center mr-2"
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                                <Text className="text-white text-sm font-inter-medium">
+                                    {formatSpeed(playbackRate)}
+                                </Text>
+                            </TouchableOpacity>
+
+                            {/* Skip Back */}
+                            <TouchableOpacity
+                                onPress={handleSkipBack}
+                                className="w-12 h-12 items-center justify-center"
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                                <Image source={skipBackIcon} style={{ width: 28, height: 28, tintColor: '#FFFFFF' }} />
+                            </TouchableOpacity>
+
+                            {/* Play/Pause */}
+                            <TouchableOpacity
+                                onPress={handlePlayPause}
+                                className="w-14 h-14 rounded-full bg-brand-red items-center justify-center mx-4"
+                            >
+                                {isLoading ? (
+                                    <ActivityIndicator size="small" color="white" />
+                                ) : (
+                                    <Ionicons
+                                        name={isPlaying ? 'pause' : 'play'}
+                                        size={24}
+                                        color="white"
+                                    />
+                                )}
+                            </TouchableOpacity>
+
+                            {/* Skip Forward */}
+                            <TouchableOpacity
+                                onPress={handleSkipForward}
+                                className="w-12 h-12 items-center justify-center"
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                                <Image source={skipForwardIcon} style={{ width: 28, height: 28, tintColor: '#FFFFFF' }} />
+                            </TouchableOpacity>
+
+                            {/* Heart/Like */}
+                            <TouchableOpacity
+                                onPress={handleLike}
+                                className="w-12 h-12 items-center justify-center ml-2"
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                                <Ionicons
+                                    name={isLiked ? 'heart' : 'heart-outline'}
+                                    size={24}
+                                    color={isLiked ? '#FF4B4B' : '#FFFFFF'}
+                                />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+            </View>
+        );
+    }
+
+    // Full player for other pages (with cover and title)
+    return (
+        <View
+            style={{
+                position: 'absolute',
+                left: 16,
+                right: 16,
+                bottom: isInTabsLayout ? TAB_BAR_BASE_HEIGHT + insets.bottom + 12 : insets.bottom + 8,
+            }}
+        >
+                <TouchableOpacity
+                    onPress={handlePress}
+                    activeOpacity={0.95}
+                    className="bg-[#1A1C1E] rounded-2xl overflow-hidden"
                     style={{
                         shadowColor: '#000',
                         shadowOffset: { width: 0, height: 4 },
@@ -102,169 +234,91 @@ export const MiniPlayer: React.FC = () => {
                         elevation: 12,
                     }}
                 >
-                    <View className="flex-row items-center justify-center px-4 py-3">
-                        {/* Playback Speed */}
-                        <TouchableOpacity
-                            onPress={handleSpeedChange}
-                            className="w-12 h-12 items-center justify-center mr-2"
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        >
-                            <Text className="text-white text-sm font-inter-medium">
-                                {formatSpeed(playbackRate)}
+                    {/* Main content row */}
+                    <View className="flex-row items-center px-4 py-3">
+                        {/* Book cover */}
+                        <View className="rounded-lg overflow-hidden bg-[#2A2C2E] mr-3 items-center justify-center" style={{ width: 36, height: 48 }}>
+                            {resolveCoverUrl(episode.book?.coverImageUrl) ? (
+                                <Image
+                                    source={{ uri: resolveCoverUrl(episode.book?.coverImageUrl)! }}
+                                    style={{ width: 36, height: 48, borderRadius: 2}}
+                                    resizeMode="cover"
+                                />
+                            ) : (
+                                <View className="w-full h-full items-center justify-center">
+                                    <Image source={booksIcon} style={{ width: 20, height: 20, tintColor: '#BF9A54' }} />
+                                </View>
+                            )}
+                        </View>
+
+                        {/* Episode info */}
+                        <View className="flex-1 mr-2">
+                            <Text
+                                className="font-inter-medium text-white text-sm"
+                                numberOfLines={1}
+                            >
+                                {episode.title}
                             </Text>
-                        </TouchableOpacity>
+                            <Text
+                                className="font-inter text-[#858585] text-xs mt-0.5"
+                                numberOfLines={1}
+                            >
+                                {episode.book?.title || 'Unknown book'}
+                            </Text>
+                        </View>
 
-                        {/* Skip Back */}
-                        <TouchableOpacity
-                            onPress={handleSkipBack}
-                            className="w-12 h-12 items-center justify-center"
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        >
-                            <Image source={skipBackIcon} style={{ width: 28, height: 28, tintColor: '#FFFFFF' }} />
-                        </TouchableOpacity>
+                        {/* Controls */}
+                        <View className="flex-row items-center">
+                            {/* Skip Back */}
+                            <TouchableOpacity
+                                onPress={handleSkipBack}
+                                className="w-9 h-9 items-center justify-center"
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                                <Image source={skipBackIcon} style={{ width: 22, height: 22, tintColor: '#FFFFFF' }} />
+                            </TouchableOpacity>
 
-                        {/* Play/Pause */}
-                        <TouchableOpacity
-                            onPress={handlePlayPause}
-                            className="w-14 h-14 rounded-full bg-brand-red items-center justify-center mx-4"
-                        >
-                            {isLoading ? (
-                                <ActivityIndicator size="small" color="white" />
-                            ) : (
+                            {/* Play/Pause */}
+                            <TouchableOpacity
+                                onPress={handlePlayPause}
+                                className="w-11 h-11 rounded-full bg-brand-red items-center justify-center mx-1"
+                            >
+                                {isLoading ? (
+                                    <ActivityIndicator size="small" color="white" />
+                                ) : (
+                                    <Ionicons
+                                        name={isPlaying ? 'pause' : 'play'}
+                                        size={20}
+                                        color="white"
+                                    />
+                                )}
+                            </TouchableOpacity>
+
+                            {/* Skip Forward */}
+                            <TouchableOpacity
+                                onPress={handleSkipForward}
+                                className="w-9 h-9 items-center justify-center"
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                                <Image source={skipForwardIcon} style={{ width: 22, height: 22, tintColor: '#FFFFFF' }} />
+                            </TouchableOpacity>
+
+                            {/* Heart/Like */}
+                            <TouchableOpacity
+                                onPress={handleLike}
+                                className="w-9 h-9 items-center justify-center ml-1"
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
                                 <Ionicons
-                                    name={isPlaying ? 'pause' : 'play'}
-                                    size={24}
-                                    color="white"
-                                />
-                            )}
-                        </TouchableOpacity>
-
-                        {/* Skip Forward */}
-                        <TouchableOpacity
-                            onPress={handleSkipForward}
-                            className="w-12 h-12 items-center justify-center"
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        >
-                            <Image source={skipForwardIcon} style={{ width: 28, height: 28, tintColor: '#FFFFFF' }} />
-                        </TouchableOpacity>
-
-                        {/* Heart/Like */}
-                        <TouchableOpacity
-                            onPress={(e) => e.stopPropagation()}
-                            className="w-12 h-12 items-center justify-center ml-2"
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        >
-                            <Ionicons name="heart-outline" size={24} color="#FFFFFF" />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Animated.View>
-        );
-    }
-
-    // Full player for other pages (with cover and title)
-    return (
-        <Animated.View
-            entering={FadeInDown.duration(300)}
-            exiting={FadeOutDown.duration(300)}
-            className="absolute left-4 right-4"
-            style={{
-                bottom: isInTabsLayout ? TAB_BAR_BASE_HEIGHT + insets.bottom + 16 : insets.bottom + 8,
-            }}
-        >
-            <TouchableOpacity
-                onPress={handlePress}
-                activeOpacity={0.95}
-                className="bg-[#1A1C1E] rounded-2xl overflow-hidden"
-                style={{
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 12,
-                    elevation: 12,
-                }}
-            >
-                {/* Main content row */}
-                <View className="flex-row items-center px-4 py-3">
-                    {/* Book cover */}
-                    <View className="rounded-lg overflow-hidden bg-[#2A2C2E] mr-3 items-center justify-center" style={{ width: 36, height: 48 }}>
-                        {resolveCoverUrl(episode.book?.coverImageUrl) ? (
-                            <Image
-                                source={{ uri: resolveCoverUrl(episode.book?.coverImageUrl)! }}
-                                style={{ width: 36, height: 48, borderRadius: 2}}
-                                resizeMode="cover"
-                            />
-                        ) : (
-                            <View className="w-full h-full items-center justify-center">
-                                <Image source={booksIcon} style={{ width: 20, height: 20, tintColor: '#BF9A54' }} />
-                            </View>
-                        )}
-                    </View>
-
-                    {/* Episode info */}
-                    <View className="flex-1 mr-2">
-                        <Text
-                            className="font-inter-medium text-white text-sm"
-                            numberOfLines={1}
-                        >
-                            {episode.title}
-                        </Text>
-                        <Text
-                            className="font-inter text-[#858585] text-xs mt-0.5"
-                            numberOfLines={1}
-                        >
-                            {episode.book?.title || 'Unknown book'}
-                        </Text>
-                    </View>
-
-                    {/* Controls */}
-                    <View className="flex-row items-center">
-                        {/* Skip Back */}
-                        <TouchableOpacity
-                            onPress={handleSkipBack}
-                            className="w-9 h-9 items-center justify-center"
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        >
-                            <Image source={skipBackIcon} style={{ width: 22, height: 22, tintColor: '#FFFFFF' }} />
-                        </TouchableOpacity>
-
-                        {/* Play/Pause */}
-                        <TouchableOpacity
-                            onPress={handlePlayPause}
-                            className="w-11 h-11 rounded-full bg-brand-red items-center justify-center mx-1"
-                        >
-                            {isLoading ? (
-                                <ActivityIndicator size="small" color="white" />
-                            ) : (
-                                <Ionicons
-                                    name={isPlaying ? 'pause' : 'play'}
+                                    name={isLiked ? 'heart' : 'heart-outline'}
                                     size={20}
-                                    color="white"
+                                    color={isLiked ? '#FF4B4B' : '#FFFFFF'}
                                 />
-                            )}
-                        </TouchableOpacity>
-
-                        {/* Skip Forward */}
-                        <TouchableOpacity
-                            onPress={handleSkipForward}
-                            className="w-9 h-9 items-center justify-center"
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        >
-                            <Image source={skipForwardIcon} style={{ width: 22, height: 22, tintColor: '#FFFFFF' }} />
-                        </TouchableOpacity>
-
-                        {/* Heart/Like */}
-                        <TouchableOpacity
-                            onPress={(e) => e.stopPropagation()}
-                            className="w-9 h-9 items-center justify-center ml-1"
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        >
-                            <Ionicons name="heart-outline" size={20} color="#FFFFFF" />
-                        </TouchableOpacity>
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                </View>
-            </TouchableOpacity>
-        </Animated.View>
+                </TouchableOpacity>
+        </View>
     );
 };
 

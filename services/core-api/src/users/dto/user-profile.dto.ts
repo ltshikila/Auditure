@@ -4,6 +4,7 @@ export class UserProfileResponseDto {
     firstName: string;
     lastName: string;
     dateOfBirth: Date | null;
+    profilePictureUrl: string | null;
     isEmailVerified: boolean;
     createdAt: Date;
     updatedAt: Date;

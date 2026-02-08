@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { FeedListSkeleton } from '@/components/skeleton';
 
 const booksIcon = require('@/assets/icons/books_fill.png');
+const podcastIcon = require('@/assets/icons/podcast.png');
 import {
     feedService,
     EpisodeFeedItem,
@@ -163,7 +164,7 @@ export default function SeeAllScreen() {
     const renderEpisodeItem = ({ item }: { item: EpisodeFeedItem }) => (
         <TouchableOpacity
             onPress={() => handleItemPress(item)}
-            className="flex-row bg-white rounded-xl p-3 mb-3 mx-6 shadow-sm"
+            className="flex-row bg-[#F5F5F0] rounded-xl p-3 mb-3 mx-6 shadow-sm"
         >
             {/* Cover */}
             <View className="w-[70px] h-[90px] rounded-lg overflow-hidden bg-brand-input mr-3">
@@ -174,7 +175,7 @@ export default function SeeAllScreen() {
                         resizeMode="contain"
                     />
                 ) : (
-                    <View className="w-full h-full bg-gradient-to-b from-brand-gold/30 to-brand-gold/10 items-center justify-center">
+                    <View className="w-full h-full bg-brand-gold/20 items-center justify-center">
                         <Ionicons name="musical-notes" size={24} color="#BF9A54" />
                     </View>
                 )}
@@ -220,7 +221,7 @@ export default function SeeAllScreen() {
     const renderBookItem = ({ item }: { item: BookFeedItem }) => (
         <TouchableOpacity
             onPress={() => handleItemPress(item)}
-            className="flex-row bg-white rounded-xl p-3 mb-3 mx-6 shadow-sm"
+            className="flex-row bg-[#F5F5F0] rounded-xl p-3 mb-3 mx-6 shadow-sm"
         >
             {/* Cover */}
             <View className="w-[70px] h-[100px] rounded-lg overflow-hidden bg-brand-input mr-3">
@@ -263,7 +264,7 @@ export default function SeeAllScreen() {
     const renderPodcasterItem = ({ item }: { item: PodcasterFeedItem }) => (
         <TouchableOpacity
             onPress={() => handleItemPress(item)}
-            className="flex-row bg-white rounded-xl p-3 mb-3 mx-6 shadow-sm"
+            className="flex-row bg-[#F5F5F0] rounded-xl p-3 mb-3 mx-6 shadow-sm"
         >
             {/* Profile Picture */}
             <View className="w-[70px] h-[70px] rounded-full overflow-hidden bg-brand-input mr-3">
@@ -274,8 +275,8 @@ export default function SeeAllScreen() {
                         resizeMode="cover"
                     />
                 ) : (
-                    <View className="w-full h-full bg-gradient-to-b from-brand-red/20 to-brand-red/5 items-center justify-center">
-                        <Ionicons name="person" size={28} color="#920002" />
+                    <View className="w-full h-full bg-[#E8E3D6] items-center justify-center">
+                        <Image source={podcastIcon} style={{ width: 28, height: 28, tintColor: '#BF9A54' }} />
                     </View>
                 )}
             </View>

@@ -6,6 +6,7 @@ import {
     Logger,
 } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
+import { StorageService } from '../common/storage.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreatePodcasterDto } from './dto/create-podcaster.dto';
 import { UpdatePodcasterDto } from './dto/update-podcaster.dto';
@@ -19,6 +20,7 @@ export class PodcastersService {
 
     constructor(
         private databaseService: DatabaseService,
+        private storageService: StorageService,
         private notificationsService: NotificationsService,
     ) {}
 
@@ -475,6 +477,71 @@ export class PodcastersService {
             this.logger.error(`Stack: ${error.stack}`);
             throw error;
         }
+    }
+
+    /**
+     * Upload podcaster profile picture
+     */
+    async uploadProfilePicture(id: string, userId: string, file: Express.Multer.File): Promise<PodcasterResponseDto> {
+        this.logger.log(`uploadProfilePicture() called for podcaster ${id} by user ${userId}`);
+
+        const podcaster = await this.databaseService.podcaster.findUnique({
+            where: { id },
+            select: { userId: true, profilePictureKey: true },
+        });
+
+        if (!podcaster) throw new NotFoundException('Podcaster not found');
+        if (podcaster.userId !== userId) throw new ForbiddenException('Not authorized');
+
+        // Delete old picture if exists
+        if (podcaster.profilePictureKey) {
+            await this.storageService
+                .deleteFile(podcaster.profilePictureKey)
+                .catch(e => this.logger.warn(`Failed to delete old profile picture: ${e.message}`));
+        }
+
+        const ext = file.originalname?.split('.').pop() || 'jpg';
+        const key = `podcasters/${id}/profile-picture.${ext}`;
+        await this.storageService.uploadFile(file.buffer, key, file.mimetype);
+
+        const profilePictureUrl = `/api/storage/${key}`;
+
+        const updated = await this.databaseService.podcaster.update({
+            where: { id },
+            data: { profilePictureUrl, profilePictureKey: key },
+        });
+
+        this.logger.log(`Profile picture uploaded for podcaster ${id}`);
+        return updated as PodcasterResponseDto;
+    }
+
+    /**
+     * Remove podcaster profile picture
+     */
+    async removeProfilePicture(id: string, userId: string): Promise<PodcasterResponseDto> {
+        this.logger.log(`removeProfilePicture() called for podcaster ${id} by user ${userId}`);
+
+        const podcaster = await this.databaseService.podcaster.findUnique({
+            where: { id },
+            select: { userId: true, profilePictureKey: true },
+        });
+
+        if (!podcaster) throw new NotFoundException('Podcaster not found');
+        if (podcaster.userId !== userId) throw new ForbiddenException('Not authorized');
+
+        if (podcaster.profilePictureKey) {
+            await this.storageService
+                .deleteFile(podcaster.profilePictureKey)
+                .catch(e => this.logger.warn(`Failed to delete profile picture: ${e.message}`));
+        }
+
+        const updated = await this.databaseService.podcaster.update({
+            where: { id },
+            data: { profilePictureUrl: null, profilePictureKey: null },
+        });
+
+        this.logger.log(`Profile picture removed for podcaster ${id}`);
+        return updated as PodcasterResponseDto;
     }
 
     /**

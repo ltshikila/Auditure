@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ActivityIndicator, Modal, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,6 +47,7 @@ export default function EpisodePlayScreen() {
     const [localEpisode, setLocalEpisode] = useState<Episode | null>(null);
     const [isSeeking, setIsSeeking] = useState(false);
     const [seekValue, setSeekValue] = useState(0);
+    const [showMenu, setShowMenu] = useState(false);
 
     // If we don't have the episode in playback context, fetch it
     useEffect(() => {
@@ -98,6 +99,39 @@ export default function EpisodePlayScreen() {
         setIsSeeking(false);
     };
 
+    const handleShare = async () => {
+        setShowMenu(false);
+        if (!displayEpisode) return;
+        try {
+            await Share.share({
+                message: `Listen to "${displayEpisode.title}" from ${displayEpisode.book?.title || 'Auditure'} on Auditure!`,
+            });
+        } catch {
+            // user cancelled
+        }
+    };
+
+    const handleViewDetails = () => {
+        setShowMenu(false);
+        if (episodeId) {
+            router.push(`/episodes/${episodeId}`);
+        }
+    };
+
+    const handleViewTranscript = () => {
+        setShowMenu(false);
+        if (episodeId) {
+            router.push(`/episodes/${episodeId}/transcript`);
+        }
+    };
+
+    const handleViewBook = () => {
+        setShowMenu(false);
+        if (displayEpisode?.book?.id) {
+            router.push(`/${displayEpisode.book.id}`);
+        }
+    };
+
     const displayEpisode = episode?.id === episodeId ? episode : localEpisode;
     const displayPosition = isSeeking ? seekValue : position;
 
@@ -125,7 +159,9 @@ export default function EpisodePlayScreen() {
                     <Ionicons name="chevron-down" size={28} color="#1A1C1E" />
                 </TouchableOpacity>
                 <Text className="font-inter-medium text-brand-black">Now Playing</Text>
-                <TouchableOpacity className="w-10 h-10 items-center justify-center">
+                <TouchableOpacity
+                    onPress={() => setShowMenu(true)}
+                    className="w-10 h-10 items-center justify-center">
                     <Ionicons name="ellipsis-horizontal" size={24} color="#1A1C1E" />
                 </TouchableOpacity>
             </View>
@@ -237,6 +273,64 @@ export default function EpisodePlayScreen() {
                     </Text>
                 </TouchableOpacity>
             )}
+
+            {/* Options Menu */}
+            <Modal
+                visible={showMenu}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowMenu(false)}
+            >
+                <TouchableOpacity
+                    activeOpacity={1}
+                    onPress={() => setShowMenu(false)}
+                    className="flex-1 bg-black/50 justify-end"
+                >
+                    <View
+                        className="bg-[#F5F0E8] rounded-t-3xl px-6 pt-6 pb-10"
+                        onStartShouldSetResponder={() => true}
+                    >
+                        {/* Handle indicator */}
+                        <View className="w-10 h-1 bg-[#D8D2C2] rounded-full self-center mb-6" />
+
+                        <TouchableOpacity
+                            onPress={handleViewDetails}
+                            className="flex-row items-center py-4"
+                        >
+                            <Ionicons name="information-circle-outline" size={22} color="#1A1C1E" />
+                            <Text className="font-inter-medium text-brand-black text-base ml-4">Episode Details</Text>
+                        </TouchableOpacity>
+
+                        {displayEpisode?.scriptContent && (
+                            <TouchableOpacity
+                                onPress={handleViewTranscript}
+                                className="flex-row items-center py-4"
+                            >
+                                <Ionicons name="document-text-outline" size={22} color="#1A1C1E" />
+                                <Text className="font-inter-medium text-brand-black text-base ml-4">View Transcript</Text>
+                            </TouchableOpacity>
+                        )}
+
+                        {displayEpisode?.book?.id && (
+                            <TouchableOpacity
+                                onPress={handleViewBook}
+                                className="flex-row items-center py-4"
+                            >
+                                <Image source={icons.books} style={{ width: 22, height: 22, tintColor: '#1A1C1E' }} />
+                                <Text className="font-inter-medium text-brand-black text-base ml-4">View Book</Text>
+                            </TouchableOpacity>
+                        )}
+
+                        <TouchableOpacity
+                            onPress={handleShare}
+                            className="flex-row items-center py-4"
+                        >
+                            <Ionicons name="share-outline" size={22} color="#1A1C1E" />
+                            <Text className="font-inter-medium text-brand-black text-base ml-4">Share Episode</Text>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
         </SafeAreaView>
     );
 }

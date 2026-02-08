@@ -46,7 +46,7 @@ export default function AuthInput({
 
       <View className={`flex-row items-center bg-[#F1EEE3] rounded-xl ${focused ? 'border-2 border-brand-gold' : 'border-2 border-transparent'} ${error ? 'border-red-500' : ''}`}>
         <TextInput
-          className="flex-1 font-inter py-5 px-4 text-[#1A1C1E]"
+          className="flex-1 font-inter py-4 px-4 text-[#1A1C1E]"
           value={value}
           onChangeText={onChangeText}
           secureTextEntry={isPasswordField && !isPasswordVisible}

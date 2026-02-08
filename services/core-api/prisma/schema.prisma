@@ -19,6 +19,8 @@ model User {
   firstName        String
   lastName         String
   dateOfBirth      DateTime?
+  profilePictureUrl String?
+  profilePictureKey String?
   isEmailVerified  Boolean      @default(false)
   otpCode          String?
   otpExpiry        DateTime?
@@ -126,6 +128,7 @@ model Podcaster {
   name                    String
   description             String?
   profilePictureUrl       String?
+  profilePictureKey       String?
 
   // Voice Configuration
   voiceModel              VoiceModel

@@ -246,7 +246,7 @@ export default function EpisodesScreen() {
                     episodes={myEpisodes}
                     onEpisodePress={handleEpisodePress}
                     showSeeAll={myEpisodes.length > 3}
-                    onSeeAll={() => router.push('/episodes/my')}
+                    onSeeAll={() => router.push('/episodes/see-all?type=my')}
                 />
 
                 {/* Liked Episodes Section */}
@@ -255,7 +255,7 @@ export default function EpisodesScreen() {
                     episodes={likedEpisodes}
                     onEpisodePress={handleEpisodePress}
                     showSeeAll={likedEpisodes.length > 3}
-                    onSeeAll={() => router.push('/episodes/liked')}
+                    onSeeAll={() => router.push('/episodes/see-all?type=liked')}
                 />
 
                 {/* Downloads Section */}
@@ -264,7 +264,7 @@ export default function EpisodesScreen() {
                     episodes={downloadedEpisodes}
                     onEpisodePress={handleEpisodePress}
                     showSeeAll={downloadedEpisodes.length > 3}
-                    onSeeAll={() => router.push('/episodes/downloads')}
+                    onSeeAll={() => router.push('/episodes/see-all?type=downloads')}
                 />
 
                 {/* Started Episodes Section */}
@@ -273,7 +273,7 @@ export default function EpisodesScreen() {
                     episodes={startedEpisodes}
                     onEpisodePress={handleEpisodePress}
                     showSeeAll={startedEpisodes.length > 3}
-                    onSeeAll={() => router.push('/episodes/started')}
+                    onSeeAll={() => router.push('/episodes/see-all?type=started')}
                 />
 
                 {/* Listen to Later Section */}
@@ -282,7 +282,7 @@ export default function EpisodesScreen() {
                     episodes={listenLaterEpisodes}
                     onEpisodePress={handleEpisodePress}
                     showSeeAll={listenLaterEpisodes.length > 3}
-                    onSeeAll={() => router.push('/episodes/later')}
+                    onSeeAll={() => router.push('/episodes/see-all?type=later')}
                 />
 
                 {/* Bottom padding for tab bar */}

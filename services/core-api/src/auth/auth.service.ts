@@ -182,6 +182,7 @@ export class AuthService {
                     email: user.email,
                     firstName: user.firstName,
                     lastName: user.lastName,
+                    profilePictureUrl: user.profilePictureUrl || null,
                 },
             };
         } catch (error) {
@@ -256,6 +257,7 @@ export class AuthService {
                     email: user.email,
                     firstName: user.firstName,
                     lastName: user.lastName,
+                    profilePictureUrl: user.profilePictureUrl || null,
                 },
             };
         } catch (error) {
@@ -298,6 +300,31 @@ export class AuthService {
             this.logger.error(`Error in refreshToken(): ${error.message}`);
             throw new UnauthorizedException('Invalid refresh token');
         }
+    }
+
+    async getProfile(userId: string) {
+        const user = await this.databaseService.user.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                profilePictureUrl: true,
+            },
+        });
+
+        if (!user) {
+            throw new UnauthorizedException('User not found');
+        }
+
+        return {
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            profilePictureUrl: user.profilePictureUrl || null,
+        };
     }
 
     async resendOTP(email: string) {

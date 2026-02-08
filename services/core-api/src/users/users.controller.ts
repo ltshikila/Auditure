@@ -6,10 +6,14 @@ import {
     Delete,
     Body,
     UseGuards,
+    UseInterceptors,
+    UploadedFile,
     Request,
     HttpCode,
     HttpStatus,
+    BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -40,6 +44,39 @@ export class UsersController {
     @Patch('me')
     updateProfile(@Request() req, @Body() updateProfileDto: UpdateProfileDto) {
         return this.usersService.updateProfile(req.user.userId, updateProfileDto);
+    }
+
+    /**
+     * Upload profile picture
+     * POST /users/me/profile-picture
+     */
+    @Post('me/profile-picture')
+    @UseInterceptors(
+        FileInterceptor('file', {
+            limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+            fileFilter: (req, file, cb) => {
+                if (!file.mimetype.match(/^image\/(jpeg|png|webp|gif)$/)) {
+                    return cb(new BadRequestException('Only image files (JPEG, PNG, WebP, GIF) are allowed'), false);
+                }
+                cb(null, true);
+            },
+        }),
+    )
+    uploadProfilePicture(@Request() req, @UploadedFile() file: Express.Multer.File) {
+        if (!file) {
+            throw new BadRequestException('No file provided');
+        }
+        return this.usersService.uploadProfilePicture(req.user.userId, file);
+    }
+
+    /**
+     * Remove profile picture
+     * DELETE /users/me/profile-picture
+     */
+    @Delete('me/profile-picture')
+    @HttpCode(HttpStatus.OK)
+    removeProfilePicture(@Request() req) {
+        return this.usersService.removeProfilePicture(req.user.userId);
     }
 
     /**

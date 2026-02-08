@@ -10,6 +10,11 @@ export default function EpisodesLayout() {
       />
 
       <Stack.Screen
+        name="see-all"
+        options={{ headerShown: false }}
+      />
+
+      <Stack.Screen
         name="create"
         options={{
           presentation: 'modal',

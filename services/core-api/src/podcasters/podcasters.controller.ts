@@ -7,11 +7,15 @@ import {
     Param,
     Delete,
     UseGuards,
+    UseInterceptors,
+    UploadedFile,
     Request,
     Query,
     HttpCode,
     HttpStatus,
+    BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { PodcastersService } from './podcasters.service';
 import { CreatePodcasterDto } from './dto/create-podcaster.dto';
 import { UpdatePodcasterDto } from './dto/update-podcaster.dto';
@@ -95,6 +99,45 @@ export class PodcastersController {
         @Body() updatePodcasterDto: UpdatePodcasterDto,
     ) {
         return this.podcastersService.update(id, req.user.userId, updatePodcasterDto);
+    }
+
+    /**
+     * Upload podcaster profile picture
+     * POST /podcasters/:id/profile-picture
+     */
+    @Post(':id/profile-picture')
+    @UseGuards(JwtAuthGuard)
+    @UseInterceptors(
+        FileInterceptor('file', {
+            limits: { fileSize: 5 * 1024 * 1024 },
+            fileFilter: (req, file, cb) => {
+                if (!file.mimetype.match(/^image\/(jpeg|png|webp|gif)$/)) {
+                    return cb(new BadRequestException('Only image files (JPEG, PNG, WebP, GIF) are allowed'), false);
+                }
+                cb(null, true);
+            },
+        }),
+    )
+    uploadProfilePicture(
+        @Param('id') id: string,
+        @Request() req,
+        @UploadedFile() file: Express.Multer.File,
+    ) {
+        if (!file) {
+            throw new BadRequestException('No file provided');
+        }
+        return this.podcastersService.uploadProfilePicture(id, req.user.userId, file);
+    }
+
+    /**
+     * Remove podcaster profile picture
+     * DELETE /podcasters/:id/profile-picture
+     */
+    @Delete(':id/profile-picture')
+    @UseGuards(JwtAuthGuard)
+    @HttpCode(HttpStatus.OK)
+    removeProfilePicture(@Param('id') id: string, @Request() req) {
+        return this.podcastersService.removeProfilePicture(id, req.user.userId);
     }
 
     /**

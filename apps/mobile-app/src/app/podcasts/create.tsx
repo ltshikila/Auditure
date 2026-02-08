@@ -280,6 +280,7 @@ const Create = () => {
                         <ProfilePictureInput
                             imageUri={profilePicture}
                             onImageSelected={setProfilePicture}
+                            onImageRemoved={() => setProfilePicture(null)}
                         />
 
                         {/* Voice Model */}
@@ -595,7 +596,6 @@ const Create = () => {
 
                                 const podcasterData = {
                                     name: podcastName.trim(),
-                                    profilePictureUrl: profilePicture || undefined,
                                     voiceModel: selectedVoiceModel.toUpperCase() as any,
                                     gender: selectedGender.toUpperCase() as any,
                                     accent,
@@ -615,7 +615,13 @@ const Create = () => {
                                     isPublic: false,
                                 };
 
-                                await podcasterService.create(podcasterData, token);
+                                const created = await podcasterService.create(podcasterData, token);
+
+                                // Upload profile picture if selected
+                                if (profilePicture) {
+                                    await podcasterService.uploadProfilePicture(created.id, profilePicture, token)
+                                        .catch(e => console.warn('Failed to upload profile picture:', e));
+                                }
 
                                 showAlert({ title: 'Success', message: 'Podcaster created successfully!' });
                                 router.replace('/(tabs)/studio');

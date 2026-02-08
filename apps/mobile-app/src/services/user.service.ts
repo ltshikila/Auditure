@@ -7,6 +7,7 @@ export interface UserProfile {
   firstName: string;
   lastName: string;
   dateOfBirth: string | null;
+  profilePictureUrl: string | null;
   isEmailVerified: boolean;
   createdAt: string;
   updatedAt: string;
@@ -79,6 +80,21 @@ class UserService {
 
   async updateProfile(token: string, data: UpdateProfileData): Promise<UserProfile> {
     return apiClient.patch<UserProfile>('/users/me', data, token);
+  }
+
+  async uploadProfilePicture(token: string, imageUri: string): Promise<UserProfile> {
+    const formData = new FormData();
+    const ext = imageUri.split('.').pop() || 'jpg';
+    formData.append('file', {
+      uri: imageUri,
+      type: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+      name: `profile-picture.${ext}`,
+    } as any);
+    return apiClient.uploadFormData<UserProfile>('/users/me/profile-picture', formData, token);
+  }
+
+  async removeProfilePicture(token: string): Promise<UserProfile> {
+    return apiClient.delete<UserProfile>('/users/me/profile-picture', token);
   }
 
   async deleteAccount(token: string, data: DeleteAccountData): Promise<{ message: string }> {

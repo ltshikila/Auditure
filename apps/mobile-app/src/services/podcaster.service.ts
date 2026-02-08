@@ -144,6 +144,27 @@ class PodcasterService {
   }
 
   /**
+   * Upload podcaster profile picture
+   */
+  async uploadProfilePicture(id: string, imageUri: string, token: string): Promise<Podcaster> {
+    const formData = new FormData();
+    const ext = imageUri.split('.').pop() || 'jpg';
+    formData.append('file', {
+      uri: imageUri,
+      type: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+      name: `profile-picture.${ext}`,
+    } as any);
+    return apiClient.uploadFormData<Podcaster>(`/podcasters/${id}/profile-picture`, formData, token);
+  }
+
+  /**
+   * Remove podcaster profile picture
+   */
+  async removeProfilePicture(id: string, token: string): Promise<Podcaster> {
+    return apiClient.delete<Podcaster>(`/podcasters/${id}/profile-picture`, token);
+  }
+
+  /**
    * Delete a podcaster
    */
   async delete(id: string, token: string): Promise<void> {

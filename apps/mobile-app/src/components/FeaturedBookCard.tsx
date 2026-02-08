@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BookFeedItem } from '@/services/feed.service';
 import { resolveCoverUrl } from '@/services/api';
@@ -8,15 +7,11 @@ import { resolveCoverUrl } from '@/services/api';
 interface FeaturedBookCardProps {
     book: BookFeedItem;
     onPress: () => void;
-    onFavoritePress?: () => void;
-    isFavorited?: boolean;
 }
 
 export const FeaturedBookCard: React.FC<FeaturedBookCardProps> = ({
     book,
     onPress,
-    onFavoritePress,
-    isFavorited = false,
 }) => {
     return (
         <View className="mr-4" style={{ width: 220 }}>
@@ -38,19 +33,6 @@ export const FeaturedBookCard: React.FC<FeaturedBookCardProps> = ({
                         </View>
                     )}
 
-                    {/* Favorite Button */}
-                    <TouchableOpacity
-                        onPress={onFavoritePress}
-                        className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/30 items-center justify-center"
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    >
-                        <Ionicons
-                            name={isFavorited ? 'heart' : 'heart-outline'}
-                            size={20}
-                            color={isFavorited ? '#FF4B4B' : 'white'}
-                        />
-                    </TouchableOpacity>
-
                     {/* Bottom Overlay */}
                     <LinearGradient
                         colors={['transparent', 'rgba(0,0,0,0.7)', 'rgba(0,0,0,0.85)']}
@@ -69,12 +51,6 @@ export const FeaturedBookCard: React.FC<FeaturedBookCardProps> = ({
                 </View>
             </TouchableOpacity>
 
-            {/* Attribution text below card */}
-            {book.author && (
-                <Text className="font-inter text-[#858585] text-xs mt-2 text-center" numberOfLines={1}>
-                    and {book.author.toUpperCase()}
-                </Text>
-            )}
         </View>
     );
 };

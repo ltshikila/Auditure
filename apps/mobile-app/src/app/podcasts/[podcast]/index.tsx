@@ -6,10 +6,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { podcasterService, Podcaster } from '@/services/podcaster.service';
 import { episodeService, Episode } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
+import { resolveCoverUrl } from '@/services/api';
 import { EpisodeCard } from '@/components/EpisodeCard';
 import { GeneratingEpisodeCard } from '@/components/GeneratingEpisodeCard';
 import { TopBar } from '@/components/TopBar';
 import { PodcastDetailSkeleton } from '@/components/skeleton';
+
+const statIcons = {
+  microphone: require('@/assets/icons/microphone.png'),
+  episodes: require('@/assets/icons/episodes.png'),
+  star: require('@/assets/icons/star.png'),
+};
+const podcastIcon = require('@/assets/icons/podcast.png');
 
 export default function PodcastDetailsScreen() {
   const { podcast: podcastId } = useLocalSearchParams();
@@ -192,16 +200,14 @@ export default function PodcastDetailsScreen() {
           {/* Profile Section */}
           <View className="items-center mb-8">
             {/* Profile Picture */}
-            {podcaster.profilePictureUrl ? (
+            {resolveCoverUrl(podcaster.profilePictureUrl) ? (
               <Image
-                source={{ uri: podcaster.profilePictureUrl }}
+                source={{ uri: resolveCoverUrl(podcaster.profilePictureUrl)! }}
                 className="w-32 h-32 rounded-full mb-4"
               />
             ) : (
-              <View className="w-32 h-32 bg-brand-gold rounded-full mb-4 items-center justify-center">
-                <Text className="font-jakarta-bold text-white text-4xl">
-                  {podcaster.name.charAt(0).toUpperCase()}
-                </Text>
+              <View className="w-32 h-32 bg-[#E8E3D6] rounded-full mb-4 items-center justify-center">
+                <Image source={podcastIcon} style={{ width: 56, height: 56, tintColor: '#BF9A54' }} />
               </View>
             )}
 
@@ -216,28 +222,28 @@ export default function PodcastDetailsScreen() {
             <View className="flex-row w-full justify-around px-4 mb-8">
               <View className="items-center">
                 <View className="flex-row items-center gap-1">
-                  <Ionicons name="mic-outline" size={16} color="#BF9A54" />
+                  <Image source={statIcons.microphone} style={{ width: 18, height: 18, tintColor: '#E8847C' }} resizeMode="contain" />
                   <Text className="font-jakarta-bold text-lg text-gray-900">{episodes.length}</Text>
                 </View>
                 <Text className="font-inter text-xs text-gray-500">Episodes</Text>
               </View>
               <View className="items-center">
                 <View className="flex-row items-center gap-1">
-                  <Ionicons name="heart" size={16} color="#E8847C" />
+                  <Ionicons name="heart" size={18} color="#E8847C" />
                   <Text className="font-jakarta-bold text-lg text-gray-900">{podcaster.likeCount}</Text>
                 </View>
                 <Text className="font-inter text-xs text-gray-500">Likes</Text>
               </View>
               <View className="items-center">
                 <View className="flex-row items-center gap-1">
-                  <Ionicons name="play-circle" size={16} color="#4CAF50" />
+                  <Ionicons name="play-circle" size={18} color="#E8847C" />
                   <Text className="font-jakarta-bold text-lg text-gray-900">{podcaster.playCount}</Text>
                 </View>
                 <Text className="font-inter text-xs text-gray-500">Plays</Text>
               </View>
               <TouchableOpacity onPress={openRatingModal} className="items-center">
                 <View className="flex-row items-center gap-1">
-                  <Ionicons name="star" size={16} color="#FFD700" />
+                  <Image source={statIcons.star} style={{ width: 18, height: 18, tintColor: '#E8847C' }} resizeMode="contain" />
                   <Text className="font-jakarta-bold text-lg text-gray-900">
                     {podcaster.averageRating > 0 ? podcaster.averageRating.toFixed(1) : '-'}
                   </Text>
@@ -342,17 +348,15 @@ export default function PodcastDetailsScreen() {
 
             {/* Podcaster Avatar */}
             <View className="items-center mb-6">
-              {podcaster.profilePictureUrl ? (
+              {resolveCoverUrl(podcaster.profilePictureUrl) ? (
                 <Image
-                  source={{ uri: podcaster.profilePictureUrl }}
+                  source={{ uri: resolveCoverUrl(podcaster.profilePictureUrl)! }}
                   className="w-28 h-28 rounded-2xl"
                   resizeMode="cover"
                 />
               ) : (
-                <View className="w-28 h-28 bg-brand-gold rounded-2xl items-center justify-center">
-                  <Text className="font-jakarta-bold text-white text-3xl">
-                    {podcaster.name.charAt(0).toUpperCase()}
-                  </Text>
+                <View className="w-28 h-28 bg-[#E8E3D6] rounded-2xl items-center justify-center">
+                  <Image source={podcastIcon} style={{ width: 48, height: 48, tintColor: '#BF9A54' }} />
                 </View>
               )}
             </View>

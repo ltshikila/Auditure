@@ -13,8 +13,11 @@ import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { podcasterService, Podcaster } from '@/services/podcaster.service';
 import { storageService } from '@/services/storage.service';
+import { resolveCoverUrl } from '@/services/api';
 import { TopBar } from '@/components';
 import { StudioSkeleton } from '@/components/skeleton';
+
+const podcastIcon = require('@/assets/icons/podcast.png');
 
 export default function Studio() {
     const [podcasters, setPodcasters] = useState<Podcaster[]>([]);
@@ -159,16 +162,14 @@ export default function Studio() {
                                     elevation: 14,
                                 }}>
                                 {/* Avatar */}
-                                {podcaster.profilePictureUrl ? (
+                                {resolveCoverUrl(podcaster.profilePictureUrl) ? (
                                     <Image
-                                        source={{ uri: podcaster.profilePictureUrl }}
+                                        source={{ uri: resolveCoverUrl(podcaster.profilePictureUrl)! }}
                                         className="w-16 h-16 rounded-full mb-3"
                                     />
                                 ) : (
-                                    <View className="w-16 h-16 bg-brand-gold rounded-full mb-3 items-center justify-center">
-                                        <Text className="font-jakarta-bold text-white text-xl">
-                                            {podcaster.name.charAt(0).toUpperCase()}
-                                        </Text>
+                                    <View className="w-16 h-16 bg-[#E8E3D6] rounded-full mb-3 items-center justify-center">
+                                        <Image source={podcastIcon} style={{ width: 28, height: 28, tintColor: '#BF9A54' }} />
                                     </View>
                                 )}
 

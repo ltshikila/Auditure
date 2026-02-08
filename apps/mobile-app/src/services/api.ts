@@ -25,7 +25,6 @@ export function resolveCoverUrl(coverImageUrl: string | null | undefined): strin
     resolved = `${API_BASE_URL}/${coverImageUrl}`;
   }
 
-  console.log('[API] Resolved cover URL:', coverImageUrl, '->', resolved);
   return resolved;
 }
 

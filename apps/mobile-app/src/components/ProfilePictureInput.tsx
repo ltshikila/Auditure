@@ -2,28 +2,32 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useAlert } from '@/contexts/AlertContext';
+import { resolveCoverUrl } from '@/services/api';
 
 interface ProfilePictureInputProps {
     imageUri: string | null;
     onImageSelected: (uri: string) => void;
+    onImageRemoved?: () => void;
 }
 
 export const ProfilePictureInput: React.FC<ProfilePictureInputProps> = ({
     imageUri,
     onImageSelected,
+    onImageRemoved,
 }) => {
+    const { showAlert } = useAlert();
+
     const pickImage = async () => {
-        // Request permissions
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
         if (status !== 'granted') {
-            alert('Sorry, we need camera roll permissions to select a profile picture.');
+            showAlert({ title: 'Permission Required', message: 'Sorry, we need camera roll permissions to select a profile picture.' });
             return;
         }
 
-        // Launch image picker
         const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            mediaTypes: ['images'],
             allowsEditing: true,
             aspect: [1, 1],
             quality: 0.8,
@@ -34,55 +38,58 @@ export const ProfilePictureInput: React.FC<ProfilePictureInputProps> = ({
         }
     };
 
+    // imageUri can be a local file:// URI (from picker) or a server path (/api/storage/...)
+    const resolvedUri = imageUri?.startsWith('file://') || imageUri?.startsWith('content://')
+        ? imageUri
+        : resolveCoverUrl(imageUri);
+
+    const handlePress = () => {
+        if (resolvedUri) {
+            showAlert({
+                title: 'Profile Picture',
+                message: 'What would you like to do?',
+                buttons: [
+                    { text: 'Choose New Photo', onPress: pickImage },
+                    ...(onImageRemoved
+                        ? [{ text: 'Remove Photo', onPress: onImageRemoved, style: 'destructive' as const }]
+                        : []),
+                    { text: 'Cancel', style: 'cancel' as const },
+                ],
+            });
+        } else {
+            pickImage();
+        }
+    };
+
     return (
         <View className="mb-6">
-            <Text className="font-inter-medium text-base text-[#1A1C1E] mb-3">
+            {/* <Text className="font-inter-medium text-lg text-[#1A1C1E] mb-4">
                 Profile Picture
-            </Text>
-            <TouchableOpacity
-                onPress={pickImage}
-                className="items-center justify-center"
-                activeOpacity={0.7}>
-                <View
-                    className="w-32 h-32 rounded-full bg-[#F5F5F0] items-center justify-center border-2 border-dashed border-[#E8E3D6]"
-                    style={{
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.05,
-                        shadowRadius: 4,
-                        elevation: 2,
-                    }}>
-                    {imageUri ? (
-                        <Image
-                            source={{ uri: imageUri }}
-                            className="w-full h-full rounded-full"
-                            resizeMode="cover"
-                        />
-                    ) : (
-                        <View className="items-center">
-                            <Ionicons name="camera" size={32} color="#C9C3B0" />
-                            <Text className="font-inter text-xs text-[#8C8577] mt-2">
-                                Add Photo
-                            </Text>
-                        </View>
-                    )}
-                </View>
-                {imageUri && (
-                    <View className="absolute bottom-0 right-[calc(50%-64px)] w-10 h-10 rounded-full bg-brand-gold items-center justify-center"
-                        style={{
-                            shadowColor: '#000',
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.1,
-                            shadowRadius: 4,
-                            elevation: 4,
-                        }}>
-                        <Ionicons name="pencil" size={18} color="#FFFFFF" />
+            </Text> */}
+            <View className="items-center">
+                <TouchableOpacity onPress={handlePress} activeOpacity={0.7}>
+                    <View className="w-24 h-24 rounded-full items-center justify-center overflow-hidden bg-[#E8E3D6] mb-2">
+                        {resolvedUri ? (
+                            <Image
+                                key={resolvedUri}
+                                source={{ uri: resolvedUri, cache: 'reload' }}
+                                style={{ width: 96, height: 96 }}
+                                resizeMode="cover"
+                            />
+                        ) : (
+                            <Image
+                                source={require('../assets/icons/podcast.png')}
+                                style={{ width: 40, height: 40, tintColor: '#BF9A54' }}
+                                resizeMode="contain"
+                            />
+                        )}
                     </View>
-                )}
-            </TouchableOpacity>
-            <Text className="font-inter text-xs text-[#8C8577] text-center mt-2">
-                Optional - Upload a profile picture for your podcaster
-            </Text>
+                    {/* Camera badge */}
+                    <View className="absolute bottom-1 right-0 w-8 h-8 rounded-full bg-[#920002] items-center justify-center border-2 border-brand-beige">
+                        <Ionicons name="camera" size={14} color="#FFFFFF" />
+                    </View>
+                </TouchableOpacity>
+            </View>
         </View>
     );
 };

@@ -2,6 +2,9 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Podcaster } from '@/services/podcaster.service';
+import { resolveCoverUrl } from '@/services/api';
+
+const podcastIcon = require('@/assets/icons/podcast.png');
 
 interface PodcasterSelectorProps {
     podcasters: Podcaster[];
@@ -68,15 +71,15 @@ export const PodcasterSelector: React.FC<PodcasterSelectorProps> = ({
                                     isSelected ? 'border-2 border-brand-gold' : 'border border-[#E8E3D6]'
                                 }`}
                             >
-                                {podcaster.profilePictureUrl ? (
+                                {resolveCoverUrl(podcaster.profilePictureUrl) ? (
                                     <Image
-                                        source={{ uri: podcaster.profilePictureUrl }}
+                                        source={{ uri: resolveCoverUrl(podcaster.profilePictureUrl)! }}
                                         className="w-full h-full"
                                         resizeMode="cover"
                                     />
                                 ) : (
-                                    <View className="w-full h-full bg-brand-input items-center justify-center">
-                                        <Ionicons name="person" size={24} color="#BF9A54" />
+                                    <View className="w-full h-full bg-[#E8E3D6] items-center justify-center">
+                                        <Image source={podcastIcon} style={{ width: 24, height: 24, tintColor: '#BF9A54' }} />
                                     </View>
                                 )}
                             </View>

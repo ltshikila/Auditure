@@ -28,6 +28,7 @@ const icons = {
     microphone: require('@/assets/icons/microphone.png'),
     books: require('@/assets/icons/books_fill.png'),
     back: require('@/assets/icons/back.png'),
+    profile: require('@/assets/icons/profile.png'),
 };
 
 type TabType = 'summary' | 'details' | 'author' | 'comments';
@@ -407,6 +408,25 @@ export default function EpisodeInfoScreen() {
                     </View>
                 </View>
 
+                {/* Book Inspiration */}
+                {episode.book && (
+                    <TouchableOpacity
+                        onPress={() => router.push(`/${episode.book!.id}`)}
+                        className="flex-row items-center py-3 border-b border-gray-200"
+                    >
+                        <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
+                            <Image source={icons.books} style={{ width: 16, height: 16, tintColor: '#BF9A54' }} />
+                        </View>
+                        <View className="flex-1">
+                            <Text className="font-inter text-xs text-gray-500">Book Inspiration</Text>
+                            <Text className="font-inter-medium text-brand-black">
+                                {episode.book.title}{episode.book.author ? ` by ${episode.book.author}` : ''}
+                            </Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={16} color="#BF9A54" />
+                    </TouchableOpacity>
+                )}
+
                 {/* Episode Type */}
                 <View className="flex-row items-center py-3 border-b border-gray-200">
                     <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
@@ -606,10 +626,16 @@ export default function EpisodeInfoScreen() {
             <View className="px-6 mt-4 mb-32">
                 {/* Add Comment Input */}
                 <View className="flex-row items-center mb-4">
-                    <View className="w-10 h-10 bg-brand-gold rounded-full items-center justify-center mr-3">
-                        <Text className="font-jakarta-bold text-white">
-                            {user?.firstName?.charAt(0)?.toUpperCase() || '?'}
-                        </Text>
+                    <View className="w-10 h-10 rounded-full items-center justify-center mr-3 overflow-hidden bg-brand-gold">
+                        {resolveCoverUrl(user?.profilePictureUrl) ? (
+                            <Image source={{ uri: resolveCoverUrl(user!.profilePictureUrl)! }} style={{ width: 40, height: 40 }} resizeMode="cover" />
+                        ) : user?.firstName ? (
+                            <Text className="font-jakarta-bold text-white">
+                                {user.firstName.charAt(0).toUpperCase()}
+                            </Text>
+                        ) : (
+                            <Image source={icons.profile} style={{ width: 20, height: 20, tintColor: 'white' }} />
+                        )}
                     </View>
                     <View className="flex-1 flex-row bg-[#F5F5F0] rounded-full items-center pr-2">
                         <TextInput
@@ -670,11 +696,15 @@ export default function EpisodeInfoScreen() {
                         {comments.map((comment) => (
                             <View key={comment.id} className="mb-4">
                                 <View className="flex-row items-start">
-                                    <View className="w-10 h-10 bg-brand-gold/80 rounded-full items-center justify-center mr-3">
-                                        <Text className="font-jakarta-bold text-white text-sm">
-                                            {comment.user.firstName.charAt(0).toUpperCase()}
-                                            {comment.user.lastName.charAt(0).toUpperCase()}
-                                        </Text>
+                                    <View className="w-10 h-10 rounded-full items-center justify-center mr-3 overflow-hidden bg-brand-gold/80">
+                                        {resolveCoverUrl(comment.user.profilePictureUrl) ? (
+                                            <Image source={{ uri: resolveCoverUrl(comment.user.profilePictureUrl)! }} style={{ width: 40, height: 40 }} resizeMode="cover" />
+                                        ) : (
+                                            <Text className="font-jakarta-bold text-white text-sm">
+                                                {comment.user.firstName.charAt(0).toUpperCase()}
+                                                {comment.user.lastName.charAt(0).toUpperCase()}
+                                            </Text>
+                                        )}
                                     </View>
                                     <View className="flex-1">
                                         <View className="flex-row items-center justify-between">
@@ -729,7 +759,7 @@ export default function EpisodeInfoScreen() {
                             <Ionicons
                                 name={isLiked ? 'heart' : 'heart-outline'}
                                 size={24}
-                                color="#E8847C"
+                                color={isLiked ? '#E8847C' : '#B8B2A3'}
                             />
                         </TouchableOpacity>
                     </View>

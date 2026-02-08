@@ -23,6 +23,8 @@ import {
     PodcasterSearchResult,
     SearchScope,
 } from '@/services/search.service';
+import { episodeService } from '@/services/episode.service';
+import { storageService } from '@/services/storage.service';
 import { resolveCoverUrl } from '@/services/api';
 
 const RECENT_SEARCHES_KEY = 'recent_searches';
@@ -40,7 +42,7 @@ const TABS: { key: TabType; label: string }[] = [
 // Asset icons
 const starIcon = require('../../assets/icons/star.png');
 const searchIcon = require('../../assets/icons/search-normal.png');
-const profileIcon = require('../../assets/icons/profile.png');
+const podcastIcon = require('../../assets/icons/podcast.png');
 const booksIcon = require('../../assets/icons/books_fill.png');
 
 // Helper to render star ratings
@@ -161,6 +163,9 @@ export default function SearchScreen() {
             const results = await searchService.searchAll(searchQuery, token || undefined);
             setSearchResults(results);
             saveRecentSearch(searchQuery);
+            if (results.episodes.results.length > 0) {
+                fetchLikeStatuses(results.episodes.results);
+            }
         } catch (error) {
             console.error('Search failed:', error);
             setSearchResults(null);
@@ -181,16 +186,65 @@ export default function SearchScreen() {
         searchInputRef.current?.focus();
     };
 
-    const toggleLike = (episodeId: string) => {
+    const fetchLikeStatuses = async (episodes: EpisodeSearchResult[]) => {
+        try {
+            const token = await storageService.getAccessToken();
+            if (!token || episodes.length === 0) return;
+
+            const statuses = await Promise.all(
+                episodes.map((ep) =>
+                    episodeService
+                        .getLikeStatus(ep.id, token)
+                        .then((res) => ({ id: ep.id, isLiked: res.isLiked }))
+                        .catch(() => ({ id: ep.id, isLiked: false }))
+                )
+            );
+
+            const likedSet = new Set<string>();
+            statuses.forEach((s) => {
+                if (s.isLiked) likedSet.add(s.id);
+            });
+            setLikedEpisodes(likedSet);
+        } catch {
+            // non-critical
+        }
+    };
+
+    const toggleLike = async (episodeId: string) => {
+        const token = await storageService.getAccessToken();
+        if (!token) return;
+
+        const wasLiked = likedEpisodes.has(episodeId);
+
+        // Optimistic update
         setLikedEpisodes((prev) => {
             const newSet = new Set(prev);
-            if (newSet.has(episodeId)) {
+            if (wasLiked) {
                 newSet.delete(episodeId);
             } else {
                 newSet.add(episodeId);
             }
             return newSet;
         });
+
+        try {
+            if (wasLiked) {
+                await episodeService.unlike(episodeId, token);
+            } else {
+                await episodeService.like(episodeId, token);
+            }
+        } catch {
+            // Revert on error
+            setLikedEpisodes((prev) => {
+                const newSet = new Set(prev);
+                if (wasLiked) {
+                    newSet.add(episodeId);
+                } else {
+                    newSet.delete(episodeId);
+                }
+                return newSet;
+            });
+        }
     };
 
     // Navigation handlers
@@ -246,7 +300,7 @@ export default function SearchScreen() {
                     <Ionicons
                         name={isLiked ? 'heart' : 'heart-outline'}
                         size={24}
-                        color={isLiked ? '#EF4444' : '#9CA3AF'}
+                        color={isLiked ? '#E8847C' : '#B8B2A3'}
                     />
                 </TouchableOpacity>
             </TouchableOpacity>
@@ -294,19 +348,19 @@ export default function SearchScreen() {
                 {resolveCoverUrl(podcaster.profilePictureUrl) ? (
                     <Image
                         source={{ uri: resolveCoverUrl(podcaster.profilePictureUrl)! }}
-                        className="w-14 h-20 rounded bg-gray-200"
+                        className="w-14 h-14 rounded-full bg-[#E8E3D6]"
                         resizeMode="cover"
                     />
                 ) : (
-                    <View className="w-14 h-20 rounded bg-gray-200 items-center justify-center">
-                        <Image source={profileIcon} style={{ width: 24, height: 24, tintColor: '#9CA3AF' }} />
+                    <View className="w-14 h-14 rounded-full bg-[#E8E3D6] items-center justify-center">
+                        <Image source={podcastIcon} style={{ width: 24, height: 24, tintColor: '#BF9A54' }} />
                     </View>
                 )}
                 <View className="flex-1 ml-3">
                     <Text className="font-jakarta-semibold text-base text-gray-900" numberOfLines={1}>
                         {podcaster.name}
                     </Text>
-                    <Text className="font-inter text-sm text-gray-500 mb-1" numberOfLines={1}>
+                    <Text className="font-inter text-sm text-[#858585] mb-1" numberOfLines={1}>
                         {podcaster.expertiseTags.length > 0
                             ? podcaster.expertiseTags.slice(0, 2).join(', ')
                             : 'Genre(s)'}
@@ -484,7 +538,7 @@ export default function SearchScreen() {
 
             {/* Search Bar */}
             <View className="px-4 pb-4">
-                <View className="flex-row items-center bg-[#E7E0CB] rounded-full px-4 py-2">
+                <View className="flex-row items-center bg-[#E7E0CB] rounded-full px-4 py-1">
                     <Image source={searchIcon} style={{ width: 20, height: 20, tintColor: '#2F2F2F' }} />
                     <TextInput
                         ref={searchInputRef}

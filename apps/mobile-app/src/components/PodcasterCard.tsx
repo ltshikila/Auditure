@@ -4,6 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { PodcasterFeedItem } from '@/services/feed.service';
 import { resolveCoverUrl } from '@/services/api';
 
+const podcastIcon = require('@/assets/icons/podcast.png');
+
 interface PodcasterCardProps {
     podcaster: PodcasterFeedItem;
     onPress: () => void;
@@ -35,8 +37,8 @@ export const PodcasterCard: React.FC<PodcasterCardProps> = ({ podcaster, onPress
                         resizeMode="cover"
                     />
                 ) : (
-                    <View className="w-full h-full bg-gradient-to-b from-brand-red/20 to-brand-red/5 items-center justify-center">
-                        <Ionicons name="person" size={40} color="#920002" />
+                    <View className="w-full h-full bg-[#E8E3D6] items-center justify-center">
+                        <Image source={podcastIcon} style={{ width: 40, height: 40, tintColor: '#BF9A54' }} />
                     </View>
                 )}
             </View>

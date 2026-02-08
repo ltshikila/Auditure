@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { TopBar } from '@/components/TopBar';
 import { EpisodeSection } from '@/components/EpisodeSection';
 import { BookDetailSkeleton } from '@/components/skeleton';
@@ -10,6 +9,13 @@ import { bookService, BookDetailResponse, BookDetailEpisode } from '@/services/b
 import { Episode } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
 import { resolveCoverUrl } from '@/services/api';
+import { Ionicons } from '@expo/vector-icons';
+
+const bookIcons = {
+    microphone: require('@/assets/icons/microphone.png'),
+    books: require('@/assets/icons/books_fill.png'),
+    language: require('@/assets/icons/language.png'),
+};
 
 export default function BookDetailScreen() {
     const { book: bookId } = useLocalSearchParams<{ book: string }>();
@@ -121,11 +127,13 @@ export default function BookDetailScreen() {
                 {/* Book Header */}
                 <View style={{ alignItems: 'center', marginTop: 16, marginBottom: 20 }}>
                     {coverUrl ? (
-                        <Image
-                            source={{ uri: coverUrl }}
-                            style={{ width: 154, height: 230, borderRadius: 12 }}
-                            resizeMode="contain"
-                        />
+                        <View style={{ width: 154, height: 230, borderRadius: 12, overflow: 'hidden' }}>
+                            <Image
+                                source={{ uri: coverUrl }}
+                                style={{ width: 154, height: 230 }}
+                                resizeMode="cover"
+                            />
+                        </View>
                     ) : (
                         <View style={{ width: 154, height: 230, borderRadius: 12, overflow: 'hidden' }}>
                             <View className="w-full h-full bg-brand-gold/20 items-center justify-center">
@@ -149,14 +157,14 @@ export default function BookDetailScreen() {
                 <View className="flex-row justify-around px-6 mb-8">
                     <View className="items-center">
                         <View className="flex-row items-center gap-1">
-                            <Ionicons name="mic-outline" size={16} color="#BF9A54" />
+                            <Image source={bookIcons.microphone} style={{ width: 16, height: 16, tintColor: '#E8847C' }} />
                             <Text className="font-jakarta-bold text-lg text-gray-900">{book.episodeCount}</Text>
                         </View>
                         <Text className="font-inter text-xs text-gray-500">Episodes</Text>
                     </View>
                     <View className="items-center">
                         <View className="flex-row items-center gap-1">
-                            <Ionicons name="play-circle" size={16} color="#4CAF50" />
+                            <Ionicons name="play-circle" size={18} color="#E8847C" />
                             <Text className="font-jakarta-bold text-lg text-gray-900">{book.totalPlayCount}</Text>
                         </View>
                         <Text className="font-inter text-xs text-gray-500">Plays</Text>
@@ -164,7 +172,7 @@ export default function BookDetailScreen() {
                     {book.pageCount && (
                         <View className="items-center">
                             <View className="flex-row items-center gap-1">
-                                <Ionicons name="document-text-outline" size={16} color="#BF9A54" />
+                                <Image source={bookIcons.books} style={{ width: 16, height: 16, tintColor: '#E8847C' }} />
                                 <Text className="font-jakarta-bold text-lg text-gray-900">{book.pageCount}</Text>
                             </View>
                             <Text className="font-inter text-xs text-gray-500">Pages</Text>
@@ -173,7 +181,7 @@ export default function BookDetailScreen() {
                     {book.language && (
                         <View className="items-center">
                             <View className="flex-row items-center gap-1">
-                                <Ionicons name="globe-outline" size={16} color="#BF9A54" />
+                                <Image source={bookIcons.language} style={{ width: 16, height: 16, tintColor: '#E8847C' }} />
                                 <Text className="font-jakarta-bold text-lg text-gray-900">{book.language.toUpperCase()}</Text>
                             </View>
                             <Text className="font-inter text-xs text-gray-500">Language</Text>

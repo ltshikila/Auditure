@@ -59,6 +59,40 @@ export default function ManagePodcaster() {
     }
   };
 
+  // Upload immediately on pick (same pattern as user profile picture)
+  const handleImageSelected = async (imageUri: string) => {
+    try {
+      const token = await storageService.getAccessToken();
+      if (!token) return;
+
+      const updated = await podcasterService.uploadProfilePicture(podcastId as string, imageUri, token);
+      // Append cache-buster so RN Image doesn't serve stale cached version
+      const url = updated.profilePictureUrl
+        ? `${updated.profilePictureUrl}?t=${Date.now()}`
+        : null;
+      setProfilePicture(url);
+      setPodcaster(updated);
+    } catch (err: any) {
+      console.error('Error uploading profile picture:', err);
+      showAlert({ title: 'Error', message: err.message || 'Failed to upload profile picture' });
+    }
+  };
+
+  // Remove immediately (same pattern as user profile picture)
+  const handleImageRemoved = async () => {
+    try {
+      const token = await storageService.getAccessToken();
+      if (!token) return;
+
+      const updated = await podcasterService.removeProfilePicture(podcastId as string, token);
+      setProfilePicture(updated.profilePictureUrl || null);
+      setPodcaster(updated);
+    } catch (err: any) {
+      console.error('Error removing profile picture:', err);
+      showAlert({ title: 'Error', message: err.message || 'Failed to remove profile picture' });
+    }
+  };
+
   const handleSave = async () => {
     if (!name.trim()) {
       showAlert({ title: 'Validation Error', message: 'Please enter a podcaster name' });
@@ -78,7 +112,6 @@ export default function ManagePodcaster() {
         {
           name: name.trim(),
           description: description.trim() || undefined,
-          profilePictureUrl: profilePicture || undefined,
           isPublic,
         },
         token
@@ -164,12 +197,16 @@ export default function ManagePodcaster() {
         </View>
 
         {/* Profile Picture */}
-        <ProfilePictureInput imageUri={profilePicture} onImageSelected={setProfilePicture} />
+        <ProfilePictureInput
+          imageUri={profilePicture}
+          onImageSelected={handleImageSelected}
+          onImageRemoved={handleImageRemoved}
+        />
 
         {/* Name */}
         <View className="mb-6">
           <Text className="text-[#1A1C1E] font-inter-medium text-lg mb-2">Podcaster Name</Text>
-          <View className="flex-row items-center bg-brand-input rounded-xl px-4 py-3">
+          <View className="flex-row items-center bg-brand-input rounded-xl px-4 py-2">
             <TextInput
               className="flex-1 font-inter text-[#1A1C1E]"
               value={name}
@@ -265,7 +302,7 @@ export default function ManagePodcaster() {
         <TouchableOpacity
           onPress={handleDelete}
           disabled={saving || deleting}
-          className={`border-2 border-red-500 rounded-full py-4 ${
+          className={`border-2 border-red-500 rounded-full py-4 mb-6 ${
             saving || deleting ? 'opacity-50' : ''
           }`}
         >

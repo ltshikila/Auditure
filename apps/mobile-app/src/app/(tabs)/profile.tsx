@@ -17,6 +17,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAlert } from '@/contexts/AlertContext';
 import { storageService } from '@/services/storage.service';
@@ -28,11 +29,10 @@ import {
     UpdateProfileData,
     UpdateSettingsData,
 } from '@/services/user.service';
+import { resolveCoverUrl } from '@/services/api';
 import { TopBar } from '@/components';
 import { ProfileSkeleton } from '@/components/skeleton';
 import { notificationService } from '@/services/notification.service';
-
-const avatarIcon = require('@/assets/icons/avatar.png');
 
 type SettingItemProps = {
     icon: keyof typeof Ionicons.glyphMap;
@@ -63,7 +63,7 @@ function SettingItem({ icon, label, value, onValueChange, disabled }: SettingIte
 }
 
 export default function Profile() {
-    const { logout } = useAuth();
+    const { logout, updateUser } = useAuth();
     const { showAlert } = useAlert();
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [settings, setSettings] = useState<UserSettings | null>(null);
@@ -79,6 +79,8 @@ export default function Profile() {
     const [editLastName, setEditLastName] = useState('');
     const [editDateOfBirth, setEditDateOfBirth] = useState<Date | null>(null);
     const [showDatePicker, setShowDatePicker] = useState(false);
+
+    const [uploadingPicture, setUploadingPicture] = useState(false);
 
     // Delete account state
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -156,6 +158,7 @@ export default function Profile() {
             if (Object.keys(updateData).length > 0) {
                 const updatedProfile = await userService.updateProfile(token, updateData);
                 setProfile(updatedProfile);
+                updateUser({ firstName: updatedProfile.firstName, lastName: updatedProfile.lastName });
             }
 
             setIsEditing(false);
@@ -163,6 +166,69 @@ export default function Profile() {
             showAlert({ title: 'Error', message: err.message || 'Failed to update profile' });
         } finally {
             setSaving(false);
+        }
+    };
+
+    const pickAndUploadPicture = async () => {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            showAlert({ title: 'Permission Required', message: 'We need camera roll permissions to select a profile picture.' });
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+        });
+
+        if (result.canceled || !result.assets[0]) return;
+
+        try {
+            setUploadingPicture(true);
+            const token = await storageService.getAccessToken();
+            if (!token) return;
+
+            const updatedProfile = await userService.uploadProfilePicture(token, result.assets[0].uri);
+            setProfile(updatedProfile);
+            updateUser({ profilePictureUrl: updatedProfile.profilePictureUrl });
+        } catch (err: any) {
+            showAlert({ title: 'Error', message: err.message || 'Failed to upload profile picture' });
+        } finally {
+            setUploadingPicture(false);
+        }
+    };
+
+    const handleRemoveProfilePicture = async () => {
+        try {
+            setUploadingPicture(true);
+            const token = await storageService.getAccessToken();
+            if (!token) return;
+
+            const updatedProfile = await userService.removeProfilePicture(token);
+            setProfile(updatedProfile);
+            updateUser({ profilePictureUrl: updatedProfile.profilePictureUrl || null });
+        } catch (err: any) {
+            showAlert({ title: 'Error', message: err.message || 'Failed to remove profile picture' });
+        } finally {
+            setUploadingPicture(false);
+        }
+    };
+
+    const handlePickProfilePicture = () => {
+        if (resolveCoverUrl(profile?.profilePictureUrl)) {
+            showAlert({
+                title: 'Profile Picture',
+                message: 'What would you like to do?',
+                buttons: [
+                    { text: 'Choose New Photo', onPress: pickAndUploadPicture },
+                    { text: 'Remove Photo', onPress: handleRemoveProfilePicture, style: 'destructive' },
+                    { text: 'Cancel', style: 'cancel' },
+                ],
+            });
+        } else {
+            pickAndUploadPicture();
         }
     };
 
@@ -339,9 +405,29 @@ export default function Profile() {
 
                     {/* Avatar */}
                     <View className="items-center mb-6">
-                        <View className="w-20 h-20 bg-brand-gold rounded-full items-center justify-center mb-2 overflow-hidden">
-                            <Image source={avatarIcon} style={{ width: 48, height: 48, tintColor: '#FFFFFF' }} resizeMode="contain" />
-                        </View>
+                        <TouchableOpacity onPress={handlePickProfilePicture} activeOpacity={0.7}>
+                            <View className="w-20 h-20 bg-brand-gold rounded-full items-center justify-center mb-2 overflow-hidden">
+                                {uploadingPicture ? (
+                                    <ActivityIndicator color="#FFFFFF" />
+                                ) : resolveCoverUrl(profile?.profilePictureUrl) ? (
+                                    <Image
+                                        source={{ uri: resolveCoverUrl(profile!.profilePictureUrl)! }}
+                                        style={{ width: 80, height: 80 }}
+                                        resizeMode="cover"
+                                    />
+                                ) : (
+                                    <Text className="font-jakarta-bold text-white text-2xl">
+                                        {profile?.firstName?.charAt(0)?.toUpperCase() || '?'}
+                                    </Text>
+                                )}
+                            </View>
+                            {/* Camera badge */}
+                            <View
+                                className="absolute bottom-1 right-0 w-7 h-7 rounded-full bg-[#920002] items-center justify-center border-2 border-[#F5F5F0]"
+                            >
+                                <Ionicons name="camera" size={13} color="#FFFFFF" />
+                            </View>
+                        </TouchableOpacity>
                         <Text className="font-inter text-gray-500">{profile?.email}</Text>
                         {profile?.isEmailVerified && (
                             <View className="flex-row items-center mt-1">

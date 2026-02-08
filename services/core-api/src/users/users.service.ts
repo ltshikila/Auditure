@@ -34,6 +34,7 @@ export class UsersService {
                 firstName: true,
                 lastName: true,
                 dateOfBirth: true,
+                profilePictureUrl: true,
                 isEmailVerified: true,
                 createdAt: true,
                 updatedAt: true,
@@ -65,6 +66,7 @@ export class UsersService {
                 firstName: true,
                 lastName: true,
                 dateOfBirth: true,
+                profilePictureUrl: true,
                 isEmailVerified: true,
                 createdAt: true,
                 updatedAt: true,
@@ -72,6 +74,84 @@ export class UsersService {
         });
 
         this.logger.log(`Profile updated for user ${userId}`);
+        return user;
+    }
+
+    async uploadProfilePicture(userId: string, file: Express.Multer.File): Promise<UserProfileResponseDto> {
+        this.logger.log(`uploadProfilePicture() called for user ${userId}`);
+
+        // Delete old profile picture if exists
+        const existing = await this.databaseService.user.findUnique({
+            where: { id: userId },
+            select: { profilePictureKey: true },
+        });
+
+        if (existing?.profilePictureKey) {
+            await this.storageService
+                .deleteFile(existing.profilePictureKey)
+                .catch(e => this.logger.warn(`Failed to delete old profile picture: ${e.message}`));
+        }
+
+        // Upload new picture
+        const ext = file.originalname?.split('.').pop() || 'jpg';
+        const key = `${userId}/profile-picture.${ext}`;
+        await this.storageService.uploadFile(file.buffer, key, file.mimetype);
+
+        // Store as relative path so the frontend resolves it with the correct base URL
+        const profilePictureUrl = `/api/storage/${key}`;
+
+        // Update user record
+        const user = await this.databaseService.user.update({
+            where: { id: userId },
+            data: { profilePictureUrl, profilePictureKey: key },
+            select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                dateOfBirth: true,
+                profilePictureUrl: true,
+                isEmailVerified: true,
+                createdAt: true,
+                updatedAt: true,
+            },
+        });
+
+        this.logger.log(`Profile picture uploaded for user ${userId}`);
+        return user;
+    }
+
+    async removeProfilePicture(userId: string): Promise<UserProfileResponseDto> {
+        this.logger.log(`removeProfilePicture() called for user ${userId}`);
+
+        const existing = await this.databaseService.user.findUnique({
+            where: { id: userId },
+            select: { profilePictureKey: true },
+        });
+
+        if (existing?.profilePictureKey) {
+            await this.storageService
+                .deleteFile(existing.profilePictureKey)
+                .catch(e => this.logger.warn(`Failed to delete profile picture: ${e.message}`));
+        }
+
+        const user = await this.databaseService.user.update({
+            where: { id: userId },
+            data: { profilePictureUrl: null, profilePictureKey: null },
+            select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                dateOfBirth: true,
+                profilePictureUrl: true,
+                isEmailVerified: true,
+                createdAt: true,
+                updatedAt: true,
+            },
+        });
+
+        this.logger.log(`Profile picture removed for user ${userId}`);
         return user;
     }
 
@@ -124,6 +204,17 @@ export class UsersService {
 
     private async cleanupUserStorage(userId: string): Promise<void> {
         this.logger.log(`Cleaning up storage for user ${userId}`);
+
+        // Delete profile picture
+        const user = await this.databaseService.user.findUnique({
+            where: { id: userId },
+            select: { profilePictureKey: true },
+        });
+        if (user?.profilePictureKey) {
+            await this.storageService
+                .deleteFile(user.profilePictureKey)
+                .catch(e => this.logger.warn(`Failed to delete profile picture: ${e.message}`));
+        }
 
         // Get all books to delete their files
         const books = await this.databaseService.book.findMany({

@@ -12,6 +12,7 @@ interface AuthContextType {
   verify: (data: VerifyData) => Promise<void>;
   logout: () => Promise<void>;
   resendOTP: (email: string) => Promise<void>;
+  updateUser: (updates: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -107,6 +108,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     await authService.resendOTP(email);
   };
 
+  const updateUser = (updates: Partial<User>) => {
+    setUser(prev => prev ? { ...prev, ...updates } : prev);
+  };
+
   const getAccessToken = async (): Promise<string | null> => {
     return storageService.getAccessToken();
   };
@@ -123,6 +128,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         verify,
         logout,
         resendOTP,
+        updateUser,
       }}
     >
       {children}
