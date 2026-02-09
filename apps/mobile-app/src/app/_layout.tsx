@@ -1,4 +1,5 @@
 // apps/mobile-app/src/app/_layout.tsx
+import * as Sentry from '@sentry/react-native';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -8,6 +9,15 @@ import { View } from 'react-native';
 import 'react-native-reanimated';
 import '../../global.css'
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
+const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
+if (SENTRY_DSN) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    tracesSampleRate: __DEV__ ? 1.0 : 0.2,
+    debug: __DEV__,
+  });
+}
 // 1. Import font hooks and specific weights
 import {
   useFonts,
@@ -33,7 +43,7 @@ import { MiniPlayer } from '@/components/MiniPlayer';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+function RootLayout() {
   const colorScheme = useColorScheme();
 
   // 2. Load the fonts
@@ -88,3 +98,5 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+export default Sentry.wrap(RootLayout);

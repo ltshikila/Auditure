@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PodcastersService } from './podcasters.service';
 import { DatabaseService } from '../database/database.service';
+import { StorageService } from '../common/storage.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import {
@@ -20,6 +21,12 @@ describe('PodcastersService', () => {
     let service: PodcastersService;
     let databaseService: DatabaseService;
 
+    const mockStorageService = {
+        uploadFile: jest.fn().mockResolvedValue('uploaded-key'),
+        deleteFile: jest.fn().mockResolvedValue(undefined),
+        fileExists: jest.fn().mockResolvedValue(true),
+    };
+
     const mockNotificationsService = {
         notifyNewRating: jest.fn().mockResolvedValue({}),
         notifyMilestone: jest.fn().mockResolvedValue({}),
@@ -32,6 +39,10 @@ describe('PodcastersService', () => {
                 {
                     provide: DatabaseService,
                     useValue: mockPrismaClient,
+                },
+                {
+                    provide: StorageService,
+                    useValue: mockStorageService,
                 },
                 {
                     provide: NotificationsService,
@@ -514,15 +525,12 @@ describe('PodcastersService', () => {
     });
 
     describe('decrementLikeCount', () => {
-        it('should decrement like count', async () => {
-            mockPrismaClient.podcaster.update.mockResolvedValue({});
+        it('should decrement like count using raw SQL to prevent negative values', async () => {
+            mockPrismaClient.$executeRaw.mockResolvedValue(1);
 
             await service.decrementLikeCount('podcaster-id');
 
-            expect(databaseService.podcaster.update).toHaveBeenCalledWith({
-                where: { id: 'podcaster-id' },
-                data: { likeCount: { decrement: 1 } },
-            });
+            expect(mockPrismaClient.$executeRaw).toHaveBeenCalled();
         });
     });
 

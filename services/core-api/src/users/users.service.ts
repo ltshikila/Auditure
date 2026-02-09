@@ -470,44 +470,54 @@ Last updated: January 2025`,
      * @returns true if quota available (and consumed), false if exceeded
      */
     async checkAndConsumeQuota(userId: string, voiceTier: 'GEMINI' | 'STANDARD'): Promise<boolean> {
-        const subscription = await this.getSubscription(userId);
+        // Ensure subscription exists and usage period is current
+        await this.getSubscription(userId);
 
-        if (subscription.isPaid) {
-            // Paid tiers use unified limit: total episodes across both types
-            const totalUsed =
-                subscription.usage.geminiEpisodes.used + subscription.usage.standardEpisodes.used;
-            const totalLimit = subscription.usage.geminiEpisodes.limit; // Same as standard for paid
-            if (totalUsed >= totalLimit) {
-                this.logger.warn(
-                    `User ${userId} has exceeded unified episode quota (${totalUsed}/${totalLimit})`,
-                );
+        // Atomic check-and-consume within a transaction to prevent race conditions
+        return this.databaseService.$transaction(async (tx) => {
+            const sub = await tx.subscription.findUnique({
+                where: { userId },
+            });
+
+            if (!sub) {
+                this.logger.warn(`No subscription found for user ${userId}`);
                 return false;
             }
-        } else {
-            // Free tier: check individual limits (1 Gemini, 2 Standard)
-            const usage =
-                voiceTier === 'GEMINI'
-                    ? subscription.usage.geminiEpisodes
-                    : subscription.usage.standardEpisodes;
 
-            if (usage.remaining <= 0) {
-                this.logger.warn(`User ${userId} has exceeded ${voiceTier} quota`);
-                return false;
+            const isPaid = sub.tier === 'STARTER' || sub.tier === 'PRO';
+
+            if (isPaid) {
+                // Paid tiers use unified limit: total episodes across both types
+                const totalUsed = sub.geminiEpisodesUsed + sub.standardEpisodesUsed;
+                const totalLimit = sub.geminiEpisodeLimit;
+                if (totalUsed >= totalLimit) {
+                    this.logger.warn(
+                        `User ${userId} has exceeded unified episode quota (${totalUsed}/${totalLimit})`,
+                    );
+                    return false;
+                }
+            } else {
+                // Free tier: check individual limits (1 Gemini, 2 Standard)
+                const used = voiceTier === 'GEMINI' ? sub.geminiEpisodesUsed : sub.standardEpisodesUsed;
+                const limit = voiceTier === 'GEMINI' ? sub.geminiEpisodeLimit : sub.standardEpisodeLimit;
+
+                if (used >= limit) {
+                    this.logger.warn(`User ${userId} has exceeded ${voiceTier} quota`);
+                    return false;
+                }
             }
-        }
 
-        await this.incrementUsage(userId, voiceTier);
-        return true;
-    }
+            // Increment within the same transaction
+            await tx.subscription.update({
+                where: { userId },
+                data:
+                    voiceTier === 'GEMINI'
+                        ? { geminiEpisodesUsed: { increment: 1 } }
+                        : { standardEpisodesUsed: { increment: 1 } },
+            });
 
-    private async incrementUsage(userId: string, voiceTier: 'GEMINI' | 'STANDARD'): Promise<void> {
-        await this.databaseService.subscription.update({
-            where: { userId },
-            data:
-                voiceTier === 'GEMINI'
-                    ? { geminiEpisodesUsed: { increment: 1 } }
-                    : { standardEpisodesUsed: { increment: 1 } },
+            this.logger.log(`Incremented ${voiceTier} usage for user ${userId}`);
+            return true;
         });
-        this.logger.log(`Incremented ${voiceTier} usage for user ${userId}`);
     }
 }

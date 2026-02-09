@@ -672,14 +672,11 @@ export class PodcastersService {
         this.logger.log(`decrementLikeCount() called for podcaster ${id}`);
 
         try {
-            await this.databaseService.podcaster.update({
-                where: { id },
-                data: {
-                    likeCount: {
-                        decrement: 1,
-                    },
-                },
-            });
+            // Prevent likeCount from going negative using GREATEST
+            await this.databaseService.$executeRaw`
+                UPDATE "podcasters" SET "likeCount" = GREATEST("likeCount" - 1, 0), "updatedAt" = NOW()
+                WHERE "id" = ${id}
+            `;
             this.logger.log(`Like count decremented for podcaster ${id}`);
         } catch (error) {
             this.logger.error(`Error in decrementLikeCount(): ${error.message}`);

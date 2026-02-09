@@ -4,6 +4,7 @@ import request = require('supertest');
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { AuthRateLimitGuard } from '../common/guards/auth-rate-limit.guard';
 import {
     createVerifiedMockUser,
     mockRegisterDto,
@@ -21,6 +22,7 @@ describe('AuthController (Integration)', () => {
         verify: jest.fn(),
         refreshToken: jest.fn(),
         resendOTP: jest.fn(),
+        getProfile: jest.fn(),
     };
 
     beforeEach(async () => {
@@ -41,6 +43,8 @@ describe('AuthController (Integration)', () => {
                     return true;
                 }),
             })
+            .overrideGuard(AuthRateLimitGuard)
+            .useValue({ canActivate: () => true })
             .compile();
 
         app = module.createNestApplication();
@@ -246,6 +250,13 @@ describe('AuthController (Integration)', () => {
 
     describe('GET /auth/me (Protected)', () => {
         it('should return current user profile', () => {
+            mockAuthService.getProfile.mockResolvedValue({
+                userId: 'test-user-id',
+                email: 'test@example.com',
+                firstName: 'Test',
+                lastName: 'User',
+            });
+
             return request(app.getHttpServer())
                 .get('/auth/me')
                 .set('Authorization', 'Bearer mock-jwt-token')

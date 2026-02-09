@@ -5,7 +5,6 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view
 import { router } from 'expo-router';
 
 import AuthInput from '../../components/AuthInput';
-import SocialButton from '../../components/SocialButtons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAlert } from '../../contexts/AlertContext';
 
@@ -299,25 +298,6 @@ export default function AuthScreen() {
             <Text className="text-white font-inter-medium text-base">{isLogin ? 'Log In' : 'Register'}</Text>
           )}
         </TouchableOpacity>
-
-        {/* Divider */}
-        {isLogin && (
-          <View className="flex-row items-center mb-8">
-            <View className="flex-1 h-[1px] bg-brand-gold" />
-            <Text className="mx-4 text-gray-400">Or login with</Text>
-            <View className="flex-1 h-[1px] bg-brand-gold" />
-          </View>
-        )}
-
-        {/* Social Buttons */}
-        {isLogin && (
-          <View className="flex-row justify-center mb-6">
-            <SocialButton icon={require('../../assets/icons/google-fill.png')} />
-            <SocialButton icon={require('../../assets/icons/facebook-circle-fill.png')} />
-            <SocialButton icon={require('../../assets/icons/apple_fill.png')} />
-            <SocialButton icon={require('../../assets/icons/smartphone-fill.png')} />
-          </View>
-        )}
 
       </KeyboardAwareScrollView>
     </SafeAreaView>

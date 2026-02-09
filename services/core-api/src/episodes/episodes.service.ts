@@ -1115,9 +1115,8 @@ export class EpisodesService {
             throw new NotFoundException('Audio file not found in storage');
         }
 
-        // Download the audio file
-        const audioBuffer = await this.storageService.downloadFile(episode.audioFileKey);
-        const fileSize = audioBuffer.length;
+        // Get file size without downloading entire file
+        const fileSize = await this.storageService.getFileSize(episode.audioFileKey);
 
         // Determine content type based on format
         const contentType = episode.audioFormat === 'wav' ? 'audio/wav' : 'audio/mpeg';
@@ -1137,17 +1136,20 @@ export class EpisodesService {
                 'Content-Type': contentType,
             });
 
-            return new StreamableFile(audioBuffer.subarray(start, end + 1));
+            // Stream only the requested byte range — no full file in memory
+            const stream = this.storageService.createReadStream(episode.audioFileKey, { start, end });
+            return new StreamableFile(stream);
         }
 
-        // Full file response
+        // Full file response — streamed, not buffered
         res.set({
             'Accept-Ranges': 'bytes',
             'Content-Length': fileSize,
             'Content-Type': contentType,
         });
 
-        return new StreamableFile(audioBuffer);
+        const stream = this.storageService.createReadStream(episode.audioFileKey);
+        return new StreamableFile(stream);
     }
 
     /**

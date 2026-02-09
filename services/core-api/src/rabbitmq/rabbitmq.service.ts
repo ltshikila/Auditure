@@ -37,10 +37,14 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
         }
     }
 
+    isConnected(): boolean {
+        return !!this.channel;
+    }
+
     async publishBookExtractionJob(job: BookExtractionJob): Promise<void> {
         if (!this.channel) {
-            this.logger.error('RabbitMQ channel not available, skipping job queue');
-            return;
+            this.logger.error('RabbitMQ channel not available, cannot publish job');
+            throw new Error('Message queue unavailable - book extraction job cannot be queued');
         }
 
         await this.channel.sendToQueue('book_extraction', Buffer.from(JSON.stringify(job)), {
@@ -87,8 +91,8 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
 
     async publishEpisodeGenerationJob(job: EpisodeGenerationJob): Promise<void> {
         if (!this.channel) {
-            this.logger.error('RabbitMQ channel not available, skipping job queue');
-            return;
+            this.logger.error('RabbitMQ channel not available, cannot publish job');
+            throw new Error('Message queue unavailable - episode generation job cannot be queued');
         }
 
         await this.channel.sendToQueue('episode_generation', Buffer.from(JSON.stringify(job)), {

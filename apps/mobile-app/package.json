@@ -7,6 +7,9 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "test": "jest --config jest.config.js",
+    "test:watch": "jest --config jest.config.js --watch",
+    "test:coverage": "jest --config jest.config.js --coverage",
     "test:integration": "jest --config jest.integration.config.js",
     "test:integration:watch": "jest --config jest.integration.config.js --watch",
     "test:integration:coverage": "jest --config jest.integration.config.js --coverage"
@@ -20,6 +23,7 @@
     "@react-native-community/slider": "^5.1.1",
     "@react-native-vector-icons/material-design-icons": "^12.0.0",
     "@react-navigation/native": "^7.1.6",
+    "@sentry/react-native": "~6.14.0",
     "date-fns": "^4.1.0",
     "expo": "~53.0.9",
     "expo-av": "~15.1.7",

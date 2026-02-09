@@ -7,6 +7,7 @@ import { StorageService } from '../common/storage.service';
 import { BooksService } from '../books/books.service';
 import { UsersService } from '../users/users.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PodcastersService } from '../podcasters/podcasters.service';
 import { NotFoundException, ForbiddenException, StreamableFile } from '@nestjs/common';
 import {
     createMockEpisode,
@@ -63,6 +64,14 @@ describe('EpisodesService', () => {
         notifyNewLike: jest.fn().mockResolvedValue({}),
     };
 
+    const mockPodcastersService = {
+        findOne: jest.fn().mockResolvedValue({}),
+        incrementPlayCount: jest.fn().mockResolvedValue({}),
+        incrementShareCount: jest.fn().mockResolvedValue({}),
+        incrementLikeCount: jest.fn().mockResolvedValue({}),
+        decrementLikeCount: jest.fn().mockResolvedValue({}),
+    };
+
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
             providers: [
@@ -95,6 +104,10 @@ describe('EpisodesService', () => {
                     provide: NotificationsService,
                     useValue: mockNotificationsService,
                 },
+                {
+                    provide: PodcastersService,
+                    useValue: mockPodcastersService,
+                },
             ],
         }).compile();
 
@@ -112,13 +125,16 @@ describe('EpisodesService', () => {
     });
 
     describe('streamAudio', () => {
+        const mockStream = { pipe: jest.fn(), on: jest.fn() };
+
         it('should stream full audio file successfully', async () => {
             const mockEpisode = createCompletedMockEpisode({ userId: mockUserId });
             const mockRes = createMockResponse();
 
             mockPrismaClient.episode.findUnique.mockResolvedValue(mockEpisode);
             mockStorageService.fileExists.mockResolvedValue(true);
-            mockStorageService.downloadFile.mockResolvedValue(mockAudioBuffer);
+            mockStorageService.getFileSize.mockResolvedValue(mockAudioBuffer.length);
+            mockStorageService.createReadStream.mockReturnValue(mockStream);
 
             const result = await service.streamAudio(
                 mockEpisode.id,
@@ -133,6 +149,7 @@ describe('EpisodesService', () => {
                 'Content-Length': mockAudioBuffer.length,
                 'Content-Type': 'audio/mpeg',
             });
+            expect(mockStorageService.createReadStream).toHaveBeenCalledWith(mockEpisode.audioFileKey);
         });
 
         it('should handle range requests for seeking', async () => {
@@ -142,7 +159,8 @@ describe('EpisodesService', () => {
 
             mockPrismaClient.episode.findUnique.mockResolvedValue(mockEpisode);
             mockStorageService.fileExists.mockResolvedValue(true);
-            mockStorageService.downloadFile.mockResolvedValue(mockAudioBuffer);
+            mockStorageService.getFileSize.mockResolvedValue(mockAudioBuffer.length);
+            mockStorageService.createReadStream.mockReturnValue(mockStream);
 
             const result = await service.streamAudio(
                 mockEpisode.id,
@@ -159,6 +177,10 @@ describe('EpisodesService', () => {
                 'Content-Length': 1024,
                 'Content-Type': 'audio/mpeg',
             });
+            expect(mockStorageService.createReadStream).toHaveBeenCalledWith(
+                mockEpisode.audioFileKey,
+                { start: 0, end: 1023 },
+            );
         });
 
         it('should handle range request without end byte', async () => {
@@ -168,7 +190,8 @@ describe('EpisodesService', () => {
 
             mockPrismaClient.episode.findUnique.mockResolvedValue(mockEpisode);
             mockStorageService.fileExists.mockResolvedValue(true);
-            mockStorageService.downloadFile.mockResolvedValue(mockAudioBuffer);
+            mockStorageService.getFileSize.mockResolvedValue(mockAudioBuffer.length);
+            mockStorageService.createReadStream.mockReturnValue(mockStream);
 
             const result = await service.streamAudio(
                 mockEpisode.id,
@@ -198,7 +221,8 @@ describe('EpisodesService', () => {
 
             mockPrismaClient.episode.findUnique.mockResolvedValue(mockEpisode);
             mockStorageService.fileExists.mockResolvedValue(true);
-            mockStorageService.downloadFile.mockResolvedValue(mockAudioBuffer);
+            mockStorageService.getFileSize.mockResolvedValue(mockAudioBuffer.length);
+            mockStorageService.createReadStream.mockReturnValue(mockStream);
 
             await service.streamAudio(mockEpisode.id, mockUserId, undefined, mockRes as any);
 
@@ -238,7 +262,8 @@ describe('EpisodesService', () => {
 
             mockPrismaClient.episode.findUnique.mockResolvedValue(mockEpisode);
             mockStorageService.fileExists.mockResolvedValue(true);
-            mockStorageService.downloadFile.mockResolvedValue(mockAudioBuffer);
+            mockStorageService.getFileSize.mockResolvedValue(mockAudioBuffer.length);
+            mockStorageService.createReadStream.mockReturnValue(mockStream);
 
             const result = await service.streamAudio(
                 mockEpisode.id,
@@ -402,11 +427,10 @@ describe('EpisodesService', () => {
     });
 
     describe('incrementPlayCount', () => {
-        it('should increment play count', async () => {
+        it('should increment play count and podcaster play count', async () => {
             const mockEpisode = createPublicMockEpisode();
             mockPrismaClient.episode.update.mockResolvedValue({
-                ...mockEpisode,
-                playCount: mockEpisode.playCount + 1,
+                podcasterId: mockEpisode.podcasterId,
             });
 
             await service.incrementPlayCount(mockEpisode.id);
@@ -418,6 +442,7 @@ describe('EpisodesService', () => {
                         increment: 1,
                     },
                 },
+                select: { podcasterId: true },
             });
         });
     });

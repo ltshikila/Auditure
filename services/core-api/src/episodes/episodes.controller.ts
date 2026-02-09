@@ -30,14 +30,16 @@ import { CreateCommentDto } from './dto/comment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 
+const logger = new Logger('EpisodesController');
+
 const bookFileFilter = (req, file, callback) => {
-    console.log('[Multer] fileFilter called:', file?.originalname, file?.mimetype);
+    logger.debug(`fileFilter called: ${file?.originalname} ${file?.mimetype}`);
     const allowedMimes = ['application/pdf', 'application/epub+zip'];
     if (!allowedMimes.includes(file.mimetype)) {
-        console.log('[Multer] File rejected - invalid mimetype:', file.mimetype);
+        logger.warn(`File rejected - invalid mimetype: ${file.mimetype}`);
         return callback(new BadRequestException('Only PDF and EPUB files are allowed'), false);
     }
-    console.log('[Multer] File accepted');
+    logger.debug('File accepted');
     callback(null, true);
 };
 
@@ -218,10 +220,11 @@ export class EpisodesController {
     }
 
     /**
-     * Increment play count (public endpoint)
+     * Increment play count (requires authentication)
      * POST /episodes/:id/play
      */
     @Post(':id/play')
+    @UseGuards(JwtAuthGuard)
     @HttpCode(HttpStatus.NO_CONTENT)
     async incrementPlayCount(@Param('id') id: string) {
         await this.episodesService.incrementPlayCount(id);
@@ -261,10 +264,11 @@ export class EpisodesController {
     }
 
     /**
-     * Share an episode (public endpoint)
+     * Share an episode (requires authentication)
      * POST /episodes/:id/share
      */
     @Post(':id/share')
+    @UseGuards(JwtAuthGuard)
     @HttpCode(HttpStatus.NO_CONTENT)
     async share(@Param('id') id: string) {
         await this.episodesService.incrementShareCount(id);

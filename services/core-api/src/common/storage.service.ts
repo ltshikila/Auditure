@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { promises as fs } from 'fs';
+import { promises as fs, createReadStream as fsCreateReadStream, statSync } from 'fs';
+import { Readable } from 'stream';
 import * as path from 'path';
 import { StorageBackend } from './interfaces/storage-backend.interface';
 import { GcsStorageBackend } from './gcs-storage.backend';
@@ -79,6 +80,17 @@ class LocalStorageBackend implements StorageBackend {
             return false;
         }
     }
+
+    async getFileSize(key: string): Promise<number> {
+        const fullPath = path.join(this.basePath, key);
+        const stats = await fs.stat(fullPath);
+        return stats.size;
+    }
+
+    createReadStream(key: string, options?: { start?: number; end?: number }): Readable {
+        const fullPath = path.join(this.basePath, key);
+        return fsCreateReadStream(fullPath, options);
+    }
 }
 
 @Injectable()
@@ -149,6 +161,14 @@ export class StorageService {
             this.logger.error(`fileExists failed: ${error.message}`);
             throw error;
         }
+    }
+
+    async getFileSize(key: string): Promise<number> {
+        return this.backend.getFileSize(key);
+    }
+
+    createReadStream(key: string, options?: { start?: number; end?: number }): Readable {
+        return this.backend.createReadStream(key, options);
     }
 
     isGcsBackend(): boolean {

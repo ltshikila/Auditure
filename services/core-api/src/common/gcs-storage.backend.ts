@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { Readable } from 'stream';
 import { Storage, Bucket } from '@google-cloud/storage';
 import { StorageBackend } from './interfaces/storage-backend.interface';
 
@@ -51,6 +52,15 @@ export class GcsStorageBackend implements StorageBackend {
     async fileExists(key: string): Promise<boolean> {
         const [exists] = await this.bucket.file(key).exists();
         return exists;
+    }
+
+    async getFileSize(key: string): Promise<number> {
+        const [metadata] = await this.bucket.file(key).getMetadata();
+        return parseInt(metadata.size as string, 10);
+    }
+
+    createReadStream(key: string, options?: { start?: number; end?: number }): Readable {
+        return this.bucket.file(key).createReadStream(options);
     }
 
     async getSignedUrl(

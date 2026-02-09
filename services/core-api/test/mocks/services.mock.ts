@@ -9,6 +9,8 @@ export const mockStorageService = {
     downloadFile: jest.fn().mockResolvedValue(Buffer.from('mock file content')),
     deleteFile: jest.fn().mockResolvedValue(undefined),
     fileExists: jest.fn().mockResolvedValue(true),
+    getFileSize: jest.fn().mockResolvedValue(1024),
+    createReadStream: jest.fn().mockReturnValue({ pipe: jest.fn(), on: jest.fn() }),
 };
 
 export const mockRabbitMQService = {

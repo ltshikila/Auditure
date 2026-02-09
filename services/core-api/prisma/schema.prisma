@@ -342,6 +342,7 @@ model Episode {
   @@index([title])                                    // Search index
   @@index([isPublic, generationStatus, playCount])    // Composite for public completed episodes sorted by popularity
   @@index([userId, generationStatus])                 // Composite for user's episodes by status
+  @@index([createdAt])                                // For sorting by newest
   @@map("episodes")
 }
 
@@ -440,6 +441,7 @@ model Subscription {
   @@index([tier])
   @@index([usagePeriodStart])
   @@index([paystackCustomerCode])
+  @@index([paystackSubscriptionCode])                 // Subscription lookup by Paystack code
   @@map("subscriptions")
 }
 

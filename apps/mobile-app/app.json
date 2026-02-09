@@ -9,6 +9,7 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
     "ios": {
+      "bundleIdentifier": "com.auditure.app",
       "supportsTablet": true,
       "infoPlist": {
         "UIBackgroundModes": [
@@ -61,7 +62,14 @@
           "defaultChannel": "default"
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "auditure-studios",
+          "project": "mobile-app"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

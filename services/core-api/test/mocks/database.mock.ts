@@ -71,6 +71,8 @@ export const mockPrismaClient = {
         }
         return Promise.resolve(cb);
     }),
+    $executeRaw: jest.fn().mockResolvedValue(1),
+    $queryRaw: jest.fn().mockResolvedValue([]),
     $connect: jest.fn(),
     $disconnect: jest.fn(),
 };

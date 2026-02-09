@@ -1,8 +1,10 @@
-import { Controller, Get, Param, Res, NotFoundException, Logger } from '@nestjs/common';
+import { Controller, Get, Param, Res, NotFoundException, Logger, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { StorageService } from './storage.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('api/storage')
+@UseGuards(JwtAuthGuard)
 export class StorageController {
     private readonly logger = new Logger(StorageController.name);
 

@@ -20,7 +20,7 @@ COPY package*.json ./
 COPY prisma ./prisma/
 
 # Install all dependencies (including dev for build)
-RUN npm install
+RUN npm ci
 
 # Generate Prisma client
 RUN npx prisma generate
@@ -45,14 +45,25 @@ RUN apk add --no-cache \
 
 WORKDIR /app
 
+# Copy package files for production install
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/prisma ./prisma/
+
+# Install production dependencies only
+RUN npm ci --omit=dev
+
+# Regenerate Prisma client for production
+RUN npx prisma generate
+
 # Copy built application
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/package*.json ./
 
-# Create storage directory
-RUN mkdir -p /storage
+# Create non-root user
+RUN adduser --disabled-password --gecos '' appuser \
+    && mkdir -p /storage \
+    && chown -R appuser:appuser /app /storage
+
+USER appuser
 
 # Set environment variables
 ENV NODE_ENV=production

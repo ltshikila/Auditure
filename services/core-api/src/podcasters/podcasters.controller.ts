@@ -152,10 +152,11 @@ export class PodcastersController {
     }
 
     /**
-     * Increment play count (public endpoint)
+     * Increment play count (requires authentication)
      * POST /podcasters/:id/play
      */
     @Post(':id/play')
+    @UseGuards(JwtAuthGuard)
     @HttpCode(HttpStatus.NO_CONTENT)
     async incrementPlayCount(@Param('id') id: string) {
         await this.podcastersService.incrementPlayCount(id);
@@ -184,10 +185,11 @@ export class PodcastersController {
     }
 
     /**
-     * Share a podcaster (public endpoint)
+     * Share a podcaster (requires authentication)
      * POST /podcasters/:id/share
      */
     @Post(':id/share')
+    @UseGuards(JwtAuthGuard)
     @HttpCode(HttpStatus.NO_CONTENT)
     async share(@Param('id') id: string) {
         await this.podcastersService.incrementShareCount(id);

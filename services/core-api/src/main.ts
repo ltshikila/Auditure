@@ -1,33 +1,45 @@
 import 'dotenv/config';
+import './instrument';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
+import * as Sentry from '@sentry/nestjs';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
-    console.log(`[Bootstrap] Starting NestJS application (PID: ${process.pid}, PORT: ${process.env.PORT ?? 3000})`);
-    console.log(`[Bootstrap] NODE_ENV: ${process.env.NODE_ENV}`);
-    console.log(`[Bootstrap] Creating NestJS application...`);
+    const logger = new Logger('Bootstrap');
+
+    logger.log(`Starting NestJS application (PID: ${process.pid}, PORT: ${process.env.PORT ?? 3000})`);
+    logger.log(`NODE_ENV: ${process.env.NODE_ENV}`);
 
     const app = await NestFactory.create(AppModule, {
         logger: ['log', 'error', 'warn', 'debug', 'verbose'],
-        // Enable raw body for Stripe webhook signature verification
         rawBody: true,
     });
 
-    console.log(`[Bootstrap] NestJS application created, configuring...`);
+    // Security headers
+    app.use(helmet());
 
     // Increase server timeouts for large file uploads
     const server = app.getHttpServer();
     server.setTimeout(600000); // 10 minutes
-    server.keepAliveTimeout = 620000; // Slightly longer than setTimeout
-    server.headersTimeout = 621000; // Slightly longer than keepAliveTimeout
+    server.keepAliveTimeout = 620000;
+    server.headersTimeout = 621000;
+
+    // CORS configuration
+    const defaultOrigins = ['http://localhost:8081', 'exp://192.168.1.*', 'http://localhost:19006'];
+    const corsOrigins = process.env.CORS_ORIGINS
+        ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
+        : defaultOrigins;
 
     app.enableCors({
-        origin: ['http://localhost:8081', 'exp://192.168.1.*', 'http://localhost:19006'],
+        origin: corsOrigins,
         credentials: true,
     });
 
+    // Global validation
     app.useGlobalPipes(
         new ValidationPipe({
             whitelist: true,
@@ -36,14 +48,16 @@ async function bootstrap() {
         }),
     );
 
-    // Enable global request logging
+    // Global exception filter — prevents leaking internals
+    app.useGlobalFilters(new GlobalExceptionFilter());
+
+    // Global request logging
     app.useGlobalInterceptors(new LoggingInterceptor());
 
     await app.listen(process.env.PORT ?? 3000);
 
-    const logger = new Logger('Bootstrap');
     logger.log(`Application is running on: http://localhost:${process.env.PORT ?? 3000}`);
+    logger.log(`CORS origins: ${corsOrigins.join(', ')}`);
     logger.log(`Server timeout set to 10 minutes for large file uploads`);
-    logger.log(`All HTTP requests will be logged`);
 }
 bootstrap();
