@@ -1311,7 +1311,7 @@ export class EpisodesService {
         // 1. Verify episode exists, is completed, and user has access
         const episode = await this.findOne(episodeId, userId);
 
-        if (episode.generationStatus !== 'COMPLETED' || !episode.audioFileKey) {
+        if (episode.generationStatus !== EpisodeStatus.COMPLETED || !episode.audioFileKey) {
             throw new NotFoundException('Audio file not available for this episode');
         }
 

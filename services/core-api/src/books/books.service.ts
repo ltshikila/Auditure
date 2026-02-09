@@ -343,7 +343,7 @@ export class BooksService {
 
         // Strip scriptContent from episodes
         const clean = (episodes: any[]) =>
-            episodes.map(({ scriptContent, ...rest }) => rest);
+            episodes.map(({ scriptContent: _scriptContent, ...rest }) => rest);
 
         return {
             book: {
