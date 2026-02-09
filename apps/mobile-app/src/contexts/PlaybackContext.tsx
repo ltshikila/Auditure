@@ -20,6 +20,7 @@ import { Episode } from '@/services/episode.service';
 import { playbackService } from '@/services/playback.service';
 import { storageService } from '@/services/storage.service';
 import { resolveCoverUrl } from '@/services/api';
+import { userService } from '@/services/user.service';
 import { useAuth } from './AuthContext';
 
 interface PlaybackState {
@@ -29,6 +30,8 @@ interface PlaybackState {
     position: number; // in milliseconds
     duration: number; // in milliseconds
     playbackRate: number;
+    queue: Episode[];
+    queueIndex: number; // -1 = no queue
 }
 
 interface PlaybackContextType extends PlaybackState {
@@ -40,6 +43,12 @@ interface PlaybackContextType extends PlaybackState {
     skipBackward: (seconds?: number) => Promise<void>;
     setPlaybackRate: (rate: number) => Promise<void>;
     stop: () => Promise<void>;
+    setQueue: (episodes: Episode[]) => void;
+    playNext: () => Promise<void>;
+    playPrevious: () => Promise<void>;
+    clearQueue: () => void;
+    hasNext: boolean;
+    hasPrevious: boolean;
 }
 
 const PlaybackContext = createContext<PlaybackContextType | undefined>(undefined);
@@ -118,6 +127,30 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
     const [playbackRate, setPlaybackRateState] = useState(1.0);
     const [isLoading, setIsLoading] = useState(false);
 
+    // Queue state
+    const [queue, setQueueState] = useState<Episode[]>([]);
+    const [queueIndex, setQueueIndex] = useState<number>(-1);
+
+    // Refs to avoid stale closures in RNTP event handlers
+    const queueRef = useRef<Episode[]>([]);
+    const queueIndexRef = useRef<number>(-1);
+    const autoPlayEnabledRef = useRef<boolean>(false);
+    const preserveQueueRef = useRef<boolean>(false);
+    const playRef = useRef<(ep: Episode) => Promise<void>>();
+
+    // Keep refs in sync with state
+    useEffect(() => {
+        queueRef.current = queue;
+    }, [queue]);
+
+    useEffect(() => {
+        queueIndexRef.current = queueIndex;
+    }, [queueIndex]);
+
+    // Computed queue properties
+    const hasNext = queueIndex >= 0 && queueIndex < queue.length - 1;
+    const hasPrevious = queueIndex > 0;
+
     // RNTP hooks for reactive state
     const playbackState = usePlaybackState();
     const progress = useProgress(500);
@@ -133,6 +166,23 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
     useEffect(() => {
         episodeRef.current = episode;
     }, [episode]);
+
+    // Fetch autoPlay setting on auth
+    useEffect(() => {
+        if (isAuthenticated) {
+            (async () => {
+                try {
+                    const token = await storageService.getAccessToken();
+                    if (token) {
+                        const settings = await userService.getSettings(token);
+                        autoPlayEnabledRef.current = settings.autoPlayEnabled;
+                    }
+                } catch (error) {
+                    console.error('Error fetching autoPlay setting:', error);
+                }
+            })();
+        }
+    }, [isAuthenticated]);
 
     // Setup player on mount
     useEffect(() => {
@@ -152,14 +202,35 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
         );
     }, [playbackState.state]);
 
-    // Handle track ending
+    // Handle track ending - auto-advance if queue has next
     useTrackPlayerEvents(
         [Event.PlaybackQueueEnded],
         async (event) => {
             if (event.track !== undefined) {
                 await saveProgress();
-                setEpisode(null);
-                episodeRef.current = null;
+
+                const currentQueue = queueRef.current;
+                const currentIndex = queueIndexRef.current;
+
+                if (
+                    autoPlayEnabledRef.current &&
+                    currentIndex >= 0 &&
+                    currentIndex < currentQueue.length - 1
+                ) {
+                    const nextEpisode = currentQueue[currentIndex + 1];
+                    setQueueIndex(currentIndex + 1);
+                    queueIndexRef.current = currentIndex + 1;
+                    preserveQueueRef.current = true;
+                    // Small delay for clean state transition
+                    setTimeout(() => {
+                        if (playRef.current) {
+                            playRef.current(nextEpisode);
+                        }
+                    }, 500);
+                } else {
+                    setEpisode(null);
+                    episodeRef.current = null;
+                }
             }
         }
     );
@@ -218,6 +289,23 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
             console.error('Error resetting TrackPlayer:', error);
         }
     };
+
+    // ---- Queue Methods ----
+
+    const setQueue = useCallback((episodes: Episode[]) => {
+        setQueueState(episodes);
+        queueRef.current = episodes;
+        // Don't set queueIndex here - it's set when play() is called
+        setQueueIndex(-1);
+        queueIndexRef.current = -1;
+    }, []);
+
+    const clearQueue = useCallback(() => {
+        setQueueState([]);
+        setQueueIndex(-1);
+        queueRef.current = [];
+        queueIndexRef.current = -1;
+    }, []);
 
     // ---- Playback Actions ----
 
@@ -279,6 +367,25 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
             await TrackPlayer.play();
             startProgressSaving();
 
+            // Update queue index
+            if (preserveQueueRef.current) {
+                // Queue index was already set by playNext/playPrevious/auto-advance
+                preserveQueueRef.current = false;
+            } else {
+                // Check if this episode is in the current queue
+                const idx = queueRef.current.findIndex(q => q.id === ep.id);
+                if (idx !== -1) {
+                    setQueueIndex(idx);
+                    queueIndexRef.current = idx;
+                } else {
+                    // Standalone play - clear queue
+                    setQueueState([]);
+                    setQueueIndex(-1);
+                    queueRef.current = [];
+                    queueIndexRef.current = -1;
+                }
+            }
+
             // Increment play count (once per session)
             if (!hasIncrementedPlayCount.current) {
                 await playbackService.incrementPlayCount(ep.id);
@@ -291,6 +398,33 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
             episodeRef.current = null;
         }
     }, [playbackRate, saveProgress, startProgressSaving, stopProgressSaving]);
+
+    // Keep playRef in sync so the RNTP event handler can call play
+    useEffect(() => {
+        playRef.current = play;
+    }, [play]);
+
+    const playNext = useCallback(async () => {
+        if (queueIndexRef.current >= 0 && queueIndexRef.current < queueRef.current.length - 1) {
+            const nextIndex = queueIndexRef.current + 1;
+            const nextEpisode = queueRef.current[nextIndex];
+            setQueueIndex(nextIndex);
+            queueIndexRef.current = nextIndex;
+            preserveQueueRef.current = true;
+            await play(nextEpisode);
+        }
+    }, [play]);
+
+    const playPrevious = useCallback(async () => {
+        if (queueIndexRef.current > 0) {
+            const prevIndex = queueIndexRef.current - 1;
+            const prevEpisode = queueRef.current[prevIndex];
+            setQueueIndex(prevIndex);
+            queueIndexRef.current = prevIndex;
+            preserveQueueRef.current = true;
+            await play(prevEpisode);
+        }
+    }, [play]);
 
     const pause = useCallback(async () => {
         try {
@@ -356,6 +490,11 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
         setEpisode(null);
         episodeRef.current = null;
         setPlaybackRateState(1.0);
+        // Clear queue on stop
+        setQueueState([]);
+        setQueueIndex(-1);
+        queueRef.current = [];
+        queueIndexRef.current = -1;
     }, [saveProgress, stopProgressSaving]);
 
     return (
@@ -367,6 +506,10 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
                 position: positionMs,
                 duration: durationMs,
                 playbackRate,
+                queue,
+                queueIndex,
+                hasNext,
+                hasPrevious,
                 play,
                 pause,
                 resume,
@@ -375,6 +518,10 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
                 skipBackward,
                 setPlaybackRate,
                 stop: stopPlayback,
+                setQueue,
+                playNext,
+                playPrevious,
+                clearQueue,
             }}
         >
             {children}

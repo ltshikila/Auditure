@@ -9,6 +9,7 @@ import { bookService, BookDetailResponse, BookDetailEpisode } from '@/services/b
 import { Episode } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
 import { resolveCoverUrl } from '@/services/api';
+import { usePlayback } from '@/contexts/PlaybackContext';
 import { Ionicons } from '@expo/vector-icons';
 
 const bookIcons = {
@@ -54,7 +55,20 @@ export default function BookDetailScreen() {
         fetchBookDetail(true);
     };
 
-    const handleEpisodePress = (episode: Episode) => {
+    const { setQueue } = usePlayback();
+
+    const handleTopEpisodePress = (episode: Episode) => {
+        setQueue(adaptEpisodes(sections?.top || []));
+        router.push(`/episodes/${episode.id}`);
+    };
+
+    const handleRecentEpisodePress = (episode: Episode) => {
+        setQueue(adaptEpisodes(sections?.recent || []));
+        router.push(`/episodes/${episode.id}`);
+    };
+
+    const handleTrendingEpisodePress = (episode: Episode) => {
+        setQueue(adaptEpisodes(sections?.trending || []));
         router.push(`/episodes/${episode.id}`);
     };
 
@@ -195,17 +209,17 @@ export default function BookDetailScreen() {
                         <EpisodeSection
                             title="Top Episodes"
                             episodes={adaptEpisodes(sections.top)}
-                            onEpisodePress={handleEpisodePress}
+                            onEpisodePress={handleTopEpisodePress}
                         />
                         <EpisodeSection
                             title="Recent Episodes"
                             episodes={adaptEpisodes(sections.recent)}
-                            onEpisodePress={handleEpisodePress}
+                            onEpisodePress={handleRecentEpisodePress}
                         />
                         <EpisodeSection
                             title="Trending"
                             episodes={adaptEpisodes(sections.trending)}
-                            onEpisodePress={handleEpisodePress}
+                            onEpisodePress={handleTrendingEpisodePress}
                         />
                     </>
                 ) : (

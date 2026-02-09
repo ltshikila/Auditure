@@ -627,7 +627,7 @@ export default function Profile() {
                             </View>
 
                             {/* Reset/Expires info - only show for paid tiers */}
-                            {subscription.isPremium && subscription.periodStart && (
+                            {subscription.isPaid && subscription.periodStart && (
                                 <Text className="font-inter text-gray-500 text-xs mt-3">
                                     {(() => {
                                         const periodStart = new Date(subscription.periodStart);
@@ -651,7 +651,7 @@ export default function Profile() {
                             onPress={() => router.push('/subscription')}
                             className="mt-4 bg-brand-gold py-3 rounded-xl items-center">
                             <Text className="font-inter-medium text-white">
-                                {subscription.isPremium ? 'Manage Subscription' : 'View Plans'}
+                                {subscription.isPaid ? 'Manage Subscription' : 'View Plans'}
                             </Text>
                         </TouchableOpacity>
                     </View>
@@ -678,52 +678,6 @@ export default function Profile() {
                             value={settings.pushNotificationsEnabled}
                             onValueChange={value =>
                                 handleUpdateSetting('pushNotificationsEnabled', value)
-                            }
-                        />
-                        <SettingItem
-                            icon="mail"
-                            label="Email Notifications"
-                            value={settings.emailNotificationsEnabled}
-                            onValueChange={value =>
-                                handleUpdateSetting('emailNotificationsEnabled', value)
-                            }
-                        />
-                        <SettingItem
-                            icon="megaphone"
-                            label="Marketing Emails"
-                            value={settings.marketingEmailsEnabled}
-                            onValueChange={value =>
-                                handleUpdateSetting('marketingEmailsEnabled', value)
-                            }
-                        />
-                    </View>
-                )}
-
-                {/* Privacy Settings */}
-                {settings && (
-                    <View
-                        className="bg-[#F5F5F0] rounded-2xl p-5 mb-6"
-                        style={{
-                            shadowColor: '#000',
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.1,
-                            shadowRadius: 10,
-                            elevation: 8,
-                        }}>
-                        <Text className="font-inter-bold text-lg text-gray-900 mb-2">Privacy</Text>
-
-                        <SettingItem
-                            icon="globe"
-                            label="Public Profile"
-                            value={settings.profilePublic}
-                            onValueChange={value => handleUpdateSetting('profilePublic', value)}
-                        />
-                        <SettingItem
-                            icon="eye"
-                            label="Show Listening Activity"
-                            value={settings.showListeningActivity}
-                            onValueChange={value =>
-                                handleUpdateSetting('showListeningActivity', value)
                             }
                         />
                     </View>

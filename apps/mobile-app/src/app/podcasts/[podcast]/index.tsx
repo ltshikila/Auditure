@@ -7,6 +7,7 @@ import { podcasterService, Podcaster } from '@/services/podcaster.service';
 import { episodeService, Episode } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
 import { resolveCoverUrl } from '@/services/api';
+import { usePlayback } from '@/contexts/PlaybackContext';
 import { GeneratingEpisodeCard } from '@/components/GeneratingEpisodeCard';
 import { TopBar } from '@/components/TopBar';
 import { PodcastDetailSkeleton } from '@/components/skeleton';
@@ -32,6 +33,8 @@ export default function PodcastDetailsScreen() {
   const [isRating, setIsRating] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [selectedRating, setSelectedRating] = useState<number>(0);
+
+  const { setQueue } = usePlayback();
 
   useEffect(() => {
     fetchPodcaster();
@@ -320,7 +323,14 @@ export default function PodcastDetailsScreen() {
               .map((episode, index) => (
                 <TouchableOpacity
                   key={episode.id}
-                  onPress={() => router.push(`/episodes/${episode.id}`)}
+                  onPress={() => {
+                    const sorted = [...completedEpisodes].sort((a, b) => {
+                      if (sortBy === 'popular') return b.playCount - a.playCount;
+                      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                    });
+                    setQueue(sorted);
+                    router.push(`/episodes/${episode.id}`);
+                  }}
                   className="flex-row items-center py-4"
                   activeOpacity={0.6}
                   style={index > 0 ? { borderTopWidth: 1, borderTopColor: '#E8E3D6' } : undefined}

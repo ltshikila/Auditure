@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Episode, episodeService } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
 import { downloadService } from '@/services/download.service';
+import { usePlayback } from '@/contexts/PlaybackContext';
 import { EpisodeSection } from '@/components/EpisodeSection';
 import { GeneratingEpisodeCard } from '@/components/GeneratingEpisodeCard';
 import { TopBar } from '@/components';
@@ -29,6 +30,8 @@ export default function EpisodesScreen() {
     const [likedEpisodes, setLikedEpisodes] = useState<Episode[]>([]);
     const [downloadedEpisodes, setDownloadedEpisodes] = useState<Episode[]>([]);
     const [startedEpisodes, setStartedEpisodes] = useState<Episode[]>([]);
+
+    const { setQueue } = usePlayback();
 
     const fetchEpisodes = async (isRefreshing: boolean = false) => {
         try {
@@ -117,7 +120,23 @@ export default function EpisodesScreen() {
         fetchEpisodes(true);
     };
 
-    const handleEpisodePress = (episode: Episode) => {
+    const handleMyEpisodePress = (episode: Episode) => {
+        setQueue(myEpisodes);
+        router.push(`/episodes/${episode.id}`);
+    };
+
+    const handleLikedEpisodePress = (episode: Episode) => {
+        setQueue(likedEpisodes);
+        router.push(`/episodes/${episode.id}`);
+    };
+
+    const handleDownloadedEpisodePress = (episode: Episode) => {
+        setQueue(downloadedEpisodes);
+        router.push(`/episodes/${episode.id}`);
+    };
+
+    const handleStartedEpisodePress = (episode: Episode) => {
+        setQueue(startedEpisodes);
         router.push(`/episodes/${episode.id}`);
     };
 
@@ -242,7 +261,7 @@ export default function EpisodesScreen() {
                                 <GeneratingEpisodeCard
                                     key={episode.id}
                                     episode={episode}
-                                    onPress={() => handleEpisodePress(episode)}
+                                    onPress={() => router.push(`/episodes/${episode.id}`)}
                                     onRetry={() => handleRetryEpisode(episode)}
                                     onCancel={() => handleCancelEpisode(episode)}
                                 />
@@ -255,7 +274,7 @@ export default function EpisodesScreen() {
                 <EpisodeSection
                     title="My Episodes"
                     episodes={myEpisodes}
-                    onEpisodePress={handleEpisodePress}
+                    onEpisodePress={handleMyEpisodePress}
                     showSeeAll={myEpisodes.length > 3}
                     onSeeAll={() => router.push('/episodes/see-all?type=my')}
                 />
@@ -264,7 +283,7 @@ export default function EpisodesScreen() {
                 <EpisodeSection
                     title="Liked Episodes"
                     episodes={likedEpisodes}
-                    onEpisodePress={handleEpisodePress}
+                    onEpisodePress={handleLikedEpisodePress}
                     showSeeAll={likedEpisodes.length > 3}
                     onSeeAll={() => router.push('/episodes/see-all?type=liked')}
                 />
@@ -273,7 +292,7 @@ export default function EpisodesScreen() {
                 <EpisodeSection
                     title="Downloads"
                     episodes={downloadedEpisodes}
-                    onEpisodePress={handleEpisodePress}
+                    onEpisodePress={handleDownloadedEpisodePress}
                     showSeeAll={downloadedEpisodes.length > 3}
                     onSeeAll={() => router.push('/episodes/see-all?type=downloads')}
                 />
@@ -282,7 +301,7 @@ export default function EpisodesScreen() {
                 <EpisodeSection
                     title="Started episodes"
                     episodes={startedEpisodes}
-                    onEpisodePress={handleEpisodePress}
+                    onEpisodePress={handleStartedEpisodePress}
                     showSeeAll={startedEpisodes.length > 3}
                     onSeeAll={() => router.push('/episodes/see-all?type=started')}
                 />

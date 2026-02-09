@@ -49,7 +49,7 @@ export interface UpdateSettingsData {
   downloadOverWifiOnly?: boolean;
 }
 
-export type SubscriptionTier = 'FREE' | 'PREMIUM';
+export type SubscriptionTier = 'FREE' | 'STARTER' | 'PRO';
 
 export interface EpisodeUsage {
   used: number;
@@ -59,7 +59,7 @@ export interface EpisodeUsage {
 
 export interface Subscription {
   tier: SubscriptionTier;
-  isPremium: boolean;
+  isPaid: boolean;
   usage: {
     geminiEpisodes: EpisodeUsage;
     standardEpisodes: EpisodeUsage;
