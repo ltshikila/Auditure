@@ -16,6 +16,7 @@ import { storageService } from '@/services/storage.service';
 import { resolveCoverUrl } from '@/services/api';
 import { TopBar } from '@/components';
 import { StudioSkeleton } from '@/components/skeleton';
+import { formatCount } from '@/utils/formatCount';
 
 const podcastIcon = require('@/assets/icons/podcast.png');
 
@@ -185,7 +186,7 @@ export default function Studio() {
                                     <View className="flex-row items-center mt-2">
                                         <Ionicons name="play" size={10} color="#8C8577" />
                                         <Text className="font-inter text-[10px] text-gray-500 ml-1">
-                                            {podcaster.playCount}
+                                            {formatCount(podcaster.playCount)}
                                         </Text>
                                     </View>
                                 )}

@@ -1,3 +1,5 @@
+import { storageService } from './storage.service';
+
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
 // Debug: Log the API base URL at startup
@@ -97,14 +99,62 @@ const getUserFriendlyMessage = (statusCode: number, apiMessage: string, _error?:
 
 class ApiClient {
   private baseUrl: string;
+  private refreshPromise: Promise<string | null> | null = null;
+  private onAuthFailure: (() => void) | null = null;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
   }
 
+  setOnAuthFailure(callback: (() => void) | null) {
+    this.onAuthFailure = callback;
+  }
+
+  private async attemptTokenRefresh(): Promise<string | null> {
+    // If already refreshing, piggyback on the existing request
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+
+    this.refreshPromise = (async () => {
+      try {
+        const refreshToken = await storageService.getRefreshToken();
+        if (!refreshToken) {
+          console.log('[API] No refresh token available');
+          return null;
+        }
+
+        console.log('[API] Attempting token refresh...');
+        const response = await fetch(`${this.baseUrl}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        });
+
+        if (!response.ok) {
+          console.log('[API] Token refresh failed:', response.status);
+          return null;
+        }
+
+        const data = await response.json();
+        await storageService.saveTokens(data.accessToken, data.refreshToken);
+        console.log('[API] Token refresh successful');
+        return data.accessToken as string;
+      } catch (error) {
+        console.error('[API] Token refresh error:', error);
+        return null;
+      } finally {
+        this.refreshPromise = null;
+      }
+    })();
+
+    return this.refreshPromise;
+  }
+
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    isRetry = false
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
 
@@ -128,6 +178,28 @@ class ApiClient {
       const data = await response.json();
 
       if (!response.ok) {
+        // If 401 with an auth token, try refreshing (once)
+        const headers = options.headers as Record<string, string> | undefined;
+        if (response.status === 401 && !isRetry && headers?.['Authorization']) {
+          const newAccessToken = await this.attemptTokenRefresh();
+          if (newAccessToken) {
+            return this.request<T>(
+              endpoint,
+              {
+                ...options,
+                headers: {
+                  ...headers,
+                  Authorization: `Bearer ${newAccessToken}`,
+                },
+              },
+              true
+            );
+          } else {
+            // Refresh failed — force logout
+            this.onAuthFailure?.();
+          }
+        }
+
         // Log the technical error for developers
         console.error(`[API Error] ${response.status}: ${data.message}`, data);
 
@@ -214,6 +286,16 @@ class ApiClient {
     console.log(`[API] POST (multipart) ${url}`);
     console.log(`[API] Using XMLHttpRequest for better large file upload handling`);
 
+    return this.executeUpload<T>(url, formData, token, onProgress);
+  }
+
+  private executeUpload<T>(
+    url: string,
+    formData: FormData,
+    token?: string,
+    onProgress?: (progress: number) => void,
+    isRetry = false
+  ): Promise<T> {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
 
@@ -228,8 +310,23 @@ class ApiClient {
         }
       };
 
-      xhr.onload = () => {
+      xhr.onload = async () => {
         console.log(`[API] Response received: ${xhr.status}`);
+
+        // Handle 401 with token refresh (once)
+        if (xhr.status === 401 && !isRetry && token) {
+          try {
+            const newToken = await this.attemptTokenRefresh();
+            if (newToken) {
+              resolve(await this.executeUpload<T>(url, formData, newToken, onProgress, true));
+              return;
+            } else {
+              this.onAuthFailure?.();
+            }
+          } catch {
+            // Fall through to normal error handling
+          }
+        }
 
         try {
           const data = JSON.parse(xhr.responseText);

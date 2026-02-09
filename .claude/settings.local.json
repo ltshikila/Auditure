@@ -105,7 +105,8 @@
       "Bash(gcloud beta run domain-mappings create:*)",
       "Bash(gcloud domains verify:*)",
       "Bash(gcloud auth list:*)",
-      "WebFetch(domain:rntp.dev)"
+      "WebFetch(domain:rntp.dev)",
+      "Bash(gcloud storage buckets describe:*)"
     ]
   }
 }

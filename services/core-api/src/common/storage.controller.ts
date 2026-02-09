@@ -32,7 +32,14 @@ export class StorageController {
                 throw new NotFoundException(`File not found: ${key}`);
             }
 
-            // Download file
+            // For GCS backend, redirect to signed URL instead of proxying bytes
+            if (this.storageService.isGcsBackend()) {
+                const signedUrl = await this.storageService.getSignedUrl(key, 60);
+                this.logger.log(`Redirecting ${key} to signed URL`);
+                return res.redirect(signedUrl);
+            }
+
+            // Local backend: proxy the file bytes
             const buffer = await this.storageService.downloadFile(key);
 
             // Determine content type from extension

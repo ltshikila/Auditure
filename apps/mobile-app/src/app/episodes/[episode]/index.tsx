@@ -15,12 +15,14 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Episode, EpisodeComment, AuthorInfo, episodeService } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
+import { downloadService } from '@/services/download.service';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { playbackService, GenerationProgress } from '@/services/playback.service';
 import { resolveCoverUrl } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAlert } from '@/contexts/AlertContext';
 import { EpisodeDetailSkeleton } from '@/components/skeleton';
+import { formatCount } from '@/utils/formatCount';
 
 const icons = {
     star: require('@/assets/icons/star.png'),
@@ -53,6 +55,11 @@ export default function EpisodeInfoScreen() {
     const [commentsError, setCommentsError] = useState<string | null>(null);
     const [newComment, setNewComment] = useState('');
     const [submittingComment, setSubmittingComment] = useState(false);
+
+    // Download state
+    const [isDownloaded, setIsDownloaded] = useState(false);
+    const [downloading, setDownloading] = useState(false);
+    const [downloadProgress, setDownloadProgress] = useState(0);
 
     // Author state
     const [authorInfo, setAuthorInfo] = useState<AuthorInfo | null>(null);
@@ -134,6 +141,32 @@ export default function EpisodeInfoScreen() {
             setError(err.message || 'Failed to load episode');
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Check download status when episode loads
+    useEffect(() => {
+        if (episode?.generationStatus === 'COMPLETED' && episode.audioFormat) {
+            downloadService.isDownloaded(episode.id, episode.audioFormat || 'mp3').then(setIsDownloaded);
+        }
+    }, [episode?.id, episode?.generationStatus]);
+
+    const handleDownload = async () => {
+        if (!episode) return;
+
+        try {
+            setDownloading(true);
+            setDownloadProgress(0);
+            await downloadService.downloadEpisode(episode, (progress) => {
+                setDownloadProgress(progress);
+            });
+            setIsDownloaded(true);
+            showAlert({ title: 'Downloaded', message: 'Episode saved for offline listening.' });
+        } catch (err: any) {
+            showAlert({ title: 'Download Failed', message: err.message || 'Could not download episode.' });
+        } finally {
+            setDownloading(false);
+            setDownloadProgress(0);
         }
     };
 
@@ -474,7 +507,7 @@ export default function EpisodeInfoScreen() {
                     <View className="flex-1">
                         <Text className="font-inter text-xs text-gray-500">Total Plays</Text>
                         <Text className="font-inter-medium text-brand-black">
-                            {episode.playCount.toLocaleString()}
+                            {formatCount(episode.playCount)}
                         </Text>
                     </View>
                 </View>
@@ -487,7 +520,7 @@ export default function EpisodeInfoScreen() {
                     <View className="flex-1">
                         <Text className="font-inter text-xs text-gray-500">Likes</Text>
                         <Text className="font-inter-medium text-brand-black">
-                            {episode.likeCount.toLocaleString()}
+                            {formatCount(episode.likeCount)}
                         </Text>
                     </View>
                 </View>
@@ -589,7 +622,7 @@ export default function EpisodeInfoScreen() {
                             )}
                             {authorInfo.works && (
                                 <Text className="font-inter text-brand-gold text-sm">
-                                    {authorInfo.works.toLocaleString()} known works
+                                    {formatCount(authorInfo.works)} known works
                                 </Text>
                             )}
                         </View>
@@ -803,15 +836,62 @@ export default function EpisodeInfoScreen() {
                         </View>
 
                         {!isGenerating && episode.generationStatus !== 'FAILED' && (
-                            <TouchableOpacity
-                                onPress={handlePlay}
-                                className="w-14 h-14 rounded-full bg-brand-red items-center justify-center shadow-lg">
-                                <Ionicons
-                                    name={isCurrentlyPlaying ? 'pause' : 'play'}
-                                    size={24}
-                                    color="white"
-                                />
-                            </TouchableOpacity>
+                            <View className="flex-row items-center gap-3">
+                                {/* Download Button */}
+                                {episode.generationStatus === 'COMPLETED' && (
+                                    <TouchableOpacity
+                                        onPress={handleDownload}
+                                        disabled={downloading || isDownloaded}
+                                        className="w-11 h-11 items-center justify-center">
+                                        {/* Progress ring when downloading */}
+                                        {downloading && (
+                                            <View
+                                                style={{
+                                                    position: 'absolute',
+                                                    width: 44,
+                                                    height: 44,
+                                                    borderRadius: 22,
+                                                    borderWidth: 2.5,
+                                                    borderColor: '#E8E3D6',
+                                                }}
+                                            />
+                                        )}
+                                        {downloading && (
+                                            <View
+                                                style={{
+                                                    position: 'absolute',
+                                                    width: 44,
+                                                    height: 44,
+                                                    borderRadius: 22,
+                                                    borderWidth: 2.5,
+                                                    borderColor: 'transparent',
+                                                    borderTopColor: '#BF9A54',
+                                                    borderRightColor: downloadProgress > 25 ? '#BF9A54' : 'transparent',
+                                                    borderBottomColor: downloadProgress > 50 ? '#BF9A54' : 'transparent',
+                                                    borderLeftColor: downloadProgress > 75 ? '#BF9A54' : 'transparent',
+                                                    transform: [{ rotate: '-90deg' }],
+                                                }}
+                                            />
+                                        )}
+                                        <Ionicons
+                                            name={isDownloaded ? 'arrow-down-circle' : 'arrow-down-circle-outline'}
+                                            size={24}
+                                            color="#BF9A54"
+                                        />
+                                    </TouchableOpacity>
+                                )}
+
+                                {/* Play Button */}
+                                <TouchableOpacity
+                                    onPress={handlePlay}
+                                    className="w-14 h-14 rounded-full bg-brand-red items-center justify-center shadow-lg">
+                                    <Ionicons
+                                        name={isCurrentlyPlaying ? 'pause' : 'play'}
+                                        size={24}
+                                        color="white"
+                                    />
+                                </TouchableOpacity>
+                            </View>
                         )}
                     </View>
 

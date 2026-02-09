@@ -7,10 +7,10 @@ import { podcasterService, Podcaster } from '@/services/podcaster.service';
 import { episodeService, Episode } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
 import { resolveCoverUrl } from '@/services/api';
-import { EpisodeCard } from '@/components/EpisodeCard';
 import { GeneratingEpisodeCard } from '@/components/GeneratingEpisodeCard';
 import { TopBar } from '@/components/TopBar';
 import { PodcastDetailSkeleton } from '@/components/skeleton';
+import { formatCount } from '@/utils/formatCount';
 
 const statIcons = {
   microphone: require('@/assets/icons/microphone.png'),
@@ -25,6 +25,7 @@ export default function PodcastDetailsScreen() {
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [generatingEpisodes, setGeneratingEpisodes] = useState<Episode[]>([]);
   const [completedEpisodes, setCompletedEpisodes] = useState<Episode[]>([]);
+  const [sortBy, setSortBy] = useState<'recent' | 'popular'>('recent');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userRating, setUserRating] = useState<number | null>(null);
@@ -223,21 +224,21 @@ export default function PodcastDetailsScreen() {
               <View className="items-center">
                 <View className="flex-row items-center gap-1">
                   <Image source={statIcons.microphone} style={{ width: 18, height: 18, tintColor: '#E8847C' }} resizeMode="contain" />
-                  <Text className="font-jakarta-bold text-lg text-gray-900">{episodes.length}</Text>
+                  <Text className="font-jakarta-bold text-lg text-gray-900">{formatCount(completedEpisodes.length)}</Text>
                 </View>
                 <Text className="font-inter text-xs text-gray-500">Episodes</Text>
               </View>
               <View className="items-center">
                 <View className="flex-row items-center gap-1">
                   <Ionicons name="heart" size={18} color="#E8847C" />
-                  <Text className="font-jakarta-bold text-lg text-gray-900">{podcaster.likeCount}</Text>
+                  <Text className="font-jakarta-bold text-lg text-gray-900">{formatCount(episodes.reduce((sum, ep) => sum + (ep.likeCount || 0), 0))}</Text>
                 </View>
                 <Text className="font-inter text-xs text-gray-500">Likes</Text>
               </View>
               <View className="items-center">
                 <View className="flex-row items-center gap-1">
                   <Ionicons name="play-circle" size={18} color="#E8847C" />
-                  <Text className="font-jakarta-bold text-lg text-gray-900">{podcaster.playCount}</Text>
+                  <Text className="font-jakarta-bold text-lg text-gray-900">{formatCount(episodes.reduce((sum, ep) => sum + (ep.playCount || 0), 0))}</Text>
                 </View>
                 <Text className="font-inter text-xs text-gray-500">Plays</Text>
               </View>
@@ -265,8 +266,8 @@ export default function PodcastDetailsScreen() {
         </View>
 
         {/* Episodes Section */}
-        <View className="mb-8">
-          <View className="flex-row justify-between items-center px-6 mb-4">
+        <View className="mb-24 px-6">
+          <View className="flex-row justify-between items-center mb-4">
             <Text className="font-jakarta-bold text-xl text-gray-900">Episodes</Text>
             <TouchableOpacity
               onPress={() => router.push('/episodes/create')}
@@ -276,38 +277,106 @@ export default function PodcastDetailsScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Generating Episodes */}
-          {generatingEpisodes.length > 0 && (
-            <View className="px-6 mb-4">
-              {generatingEpisodes.map((episode) => (
-                <GeneratingEpisodeCard
-                  key={episode.id}
-                  episode={episode}
-                  onPress={() => router.push(`/episodes/${episode.id}`)}
-                  onRetry={() => handleRetryEpisode(episode)}
-                  onCancel={() => handleCancelEpisode(episode)}
-                />
-              ))}
+          {/* Sort Controls */}
+          {completedEpisodes.length > 1 && (
+            <View className="flex-row mb-4">
+              <TouchableOpacity
+                onPress={() => setSortBy('recent')}
+                className={`px-4 py-2 rounded-full mr-2 ${sortBy === 'recent' ? 'bg-[#1A1C1E]' : 'bg-[#F5F0E8] border border-[#E0D9CC]'}`}
+              >
+                <Text className={`font-inter-medium text-xs ${sortBy === 'recent' ? 'text-white' : 'text-gray-600'}`}>
+                  Most recent
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setSortBy('popular')}
+                className={`px-4 py-2 rounded-full ${sortBy === 'popular' ? 'bg-[#1A1C1E]' : 'bg-[#F5F0E8] border border-[#E0D9CC]'}`}
+              >
+                <Text className={`font-inter-medium text-xs ${sortBy === 'popular' ? 'text-white' : 'text-gray-600'}`}>
+                  Most popular
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
 
-          {/* Completed Episodes */}
+          {/* Generating Episodes */}
+          {generatingEpisodes.map((episode) => (
+            <GeneratingEpisodeCard
+              key={episode.id}
+              episode={episode}
+              onPress={() => router.push(`/episodes/${episode.id}`)}
+              onRetry={() => handleRetryEpisode(episode)}
+              onCancel={() => handleCancelEpisode(episode)}
+            />
+          ))}
+
+          {/* Completed Episodes - List */}
           {completedEpisodes.length > 0 ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingLeft: 24, paddingRight: 8 }}
-            >
-              {completedEpisodes.map((episode) => (
-                <EpisodeCard
+            [...completedEpisodes]
+              .sort((a, b) => {
+                if (sortBy === 'popular') return b.playCount - a.playCount;
+                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+              })
+              .map((episode, index) => (
+                <TouchableOpacity
                   key={episode.id}
-                  episode={episode}
                   onPress={() => router.push(`/episodes/${episode.id}`)}
-                />
-              ))}
-            </ScrollView>
+                  className="flex-row items-center py-4"
+                  activeOpacity={0.6}
+                  style={index > 0 ? { borderTopWidth: 1, borderTopColor: '#E8E3D6' } : undefined}
+                >
+                  {/* Index Number */}
+                  <Text className="font-inter text-sm text-[#B0A898] w-6">{index + 1}</Text>
+
+                  {/* Book Cover */}
+                  <View className="w-[50px] h-[72px] rounded-lg overflow-hidden bg-brand-input mr-3 items-center justify-center"
+                    style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2 }}
+                  >
+                    {resolveCoverUrl(episode.book?.coverImageUrl) ? (
+                      <Image
+                        source={{ uri: resolveCoverUrl(episode.book?.coverImageUrl)! }}
+                        style={{ width: 50, height: 72 }}
+                        resizeMode="contain"
+                      />
+                    ) : (
+                      <View className="w-full h-full bg-[#E8E3D6] items-center justify-center">
+                        <Ionicons name="book-outline" size={22} color="#BF9A54" />
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Info */}
+                  <View className="flex-1 mr-3">
+                    <Text className="font-inter-medium text-[15px] text-[#1A1C1E]" numberOfLines={1}>
+                      {episode.title}
+                    </Text>
+                    <Text className="font-inter text-xs text-[#858585] mt-1" numberOfLines={1}>
+                      {episode.book?.title || 'Unknown Book'}
+                    </Text>
+                    <View className="flex-row items-center mt-1.5">
+                      <View className="flex-row items-center bg-[#EDE8DE] rounded-full px-2 py-0.5 mr-2">
+                        <Ionicons name="play" size={9} color="#BF9A54" />
+                        <Text className="font-inter-medium text-[10px] text-[#9A8C6E] ml-1">{formatCount(episode.playCount)}</Text>
+                      </View>
+                      {episode.duration ? (
+                        <View className="flex-row items-center bg-[#EDE8DE] rounded-full px-2 py-0.5">
+                          <Ionicons name="time-outline" size={9} color="#BF9A54" />
+                          <Text className="font-inter-medium text-[10px] text-[#9A8C6E] ml-1">
+                            {Math.round(episode.duration / 60)} min
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  </View>
+
+                  {/* Play Button */}
+                  <View className="w-9 h-9 rounded-full bg-[#EDE8DE] items-center justify-center">
+                    <Ionicons name="play" size={16} color="#BF9A54" />
+                  </View>
+                </TouchableOpacity>
+              ))
           ) : generatingEpisodes.length === 0 ? (
-            <View className="px-6 py-8 items-center">
+            <View className="py-8 items-center">
               <View className="w-16 h-16 bg-brand-gold/20 rounded-full items-center justify-center mb-3">
                 <Ionicons name="headset" size={32} color="#BF9A54" />
               </View>
@@ -317,14 +386,6 @@ export default function PodcastDetailsScreen() {
               </Text>
             </View>
           ) : null}
-        </View>
-
-        {/* Analytics Section (Empty as requested) */}
-        <View className="px-6 mb-24">
-           <Text className="font-jakarta-bold text-xl text-gray-900 mb-4">Analytics</Text>
-           <View className="h-40 bg-white/50 rounded-xl border border-dashed border-gray-300 items-center justify-center">
-              <Text className="text-gray-400 font-inter">Analytics Data Placeholder</Text>
-           </View>
         </View>
 
       </ScrollView>

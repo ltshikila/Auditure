@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authService, User, RegisterData, LoginData, VerifyData } from '../services/auth.service';
 import { storageService } from '../services/storage.service';
+import { apiClient } from '../services/api';
 
 interface AuthContextType {
   user: User | null;
@@ -35,6 +36,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     checkAuthStatus();
+
+    // When refresh token is also expired/invalid, force logout
+    apiClient.setOnAuthFailure(async () => {
+      await storageService.clearAll();
+      setUser(null);
+    });
   }, []);
 
   const checkAuthStatus = async () => {

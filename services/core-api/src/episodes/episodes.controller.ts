@@ -159,6 +159,31 @@ export class EpisodesController {
     }
 
     /**
+     * Download episode audio (requires authentication + paid subscription)
+     * GET /episodes/:id/download
+     */
+    @Get(':id/download')
+    @UseGuards(JwtAuthGuard)
+    async download(@Param('id') id: string, @Request() req, @Res() res: Response) {
+        const result = await this.episodesService.downloadEpisode(id, req.user.userId);
+
+        if (result.downloadUrl) {
+            // GCS backend: redirect to signed URL
+            return res.json({ downloadUrl: result.downloadUrl });
+        }
+
+        // Local backend: send file bytes
+        const contentType = result.format === 'wav' ? 'audio/wav' : 'audio/mpeg';
+        const buffer = result.buffer!;
+        res.set({
+            'Content-Type': contentType,
+            'Content-Disposition': `attachment; filename="episode.${result.format}"`,
+            'Content-Length': buffer.length,
+        });
+        return res.send(buffer);
+    }
+
+    /**
      * Get a specific episode by ID
      * GET /episodes/:id
      * Public episodes are accessible to everyone

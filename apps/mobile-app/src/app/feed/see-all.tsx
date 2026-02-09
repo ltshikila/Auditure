@@ -13,6 +13,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { FeedListSkeleton } from '@/components/skeleton';
+import { formatCount } from '@/utils/formatCount';
 
 const booksIcon = require('@/assets/icons/books_fill.png');
 const podcastIcon = require('@/assets/icons/podcast.png');
@@ -153,13 +154,6 @@ export default function SeeAllScreen() {
         return `${minutes}m`;
     };
 
-    // Format number
-    const formatNumber = (num: number): string => {
-        if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-        if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-        return num.toString();
-    };
-
     // Render episode item
     const renderEpisodeItem = ({ item }: { item: EpisodeFeedItem }) => (
         <TouchableOpacity
@@ -200,7 +194,7 @@ export default function SeeAllScreen() {
                     )}
                     <Ionicons name="headset-outline" size={14} color="#858585" />
                     <Text className="font-inter text-[#858585] text-xs ml-1">
-                        {formatNumber(item.playCount)}
+                        {formatCount(item.playCount)}
                     </Text>
                 </View>
             </View>
@@ -302,7 +296,7 @@ export default function SeeAllScreen() {
                     )}
                     <Ionicons name="headset-outline" size={14} color="#858585" />
                     <Text className="font-inter text-[#858585] text-xs ml-1">
-                        {formatNumber(item.playCount)}
+                        {formatCount(item.playCount)}
                     </Text>
                 </View>
                 {item.expertiseTags && item.expertiseTags.length > 0 && (

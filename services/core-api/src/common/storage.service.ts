@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import { StorageBackend } from './interfaces/storage-backend.interface';
+import { GcsStorageBackend } from './gcs-storage.backend';
 
 class LocalStorageBackend implements StorageBackend {
     private basePath: string;
@@ -92,10 +93,15 @@ export class StorageService {
         this.logger.log(`Initializing storage service with backend: ${backendType}`);
         this.logger.log(`Storage path: ${storagePath}`);
 
-        if (backendType === 'local') {
+        if (backendType === 'gcs') {
+            const bucketName = process.env.GCS_BUCKET_NAME;
+            if (!bucketName) {
+                throw new Error('GCS_BUCKET_NAME environment variable is required when STORAGE_BACKEND=gcs');
+            }
+            this.backend = new GcsStorageBackend(bucketName);
+        } else {
             this.backend = new LocalStorageBackend(storagePath);
         }
-        // Future: Add S3StorageBackend here
     }
 
     async uploadFile(file: Buffer, key: string, mimeType: string): Promise<string> {
@@ -143,5 +149,16 @@ export class StorageService {
             this.logger.error(`fileExists failed: ${error.message}`);
             throw error;
         }
+    }
+
+    isGcsBackend(): boolean {
+        return this.backend instanceof GcsStorageBackend;
+    }
+
+    async getSignedUrl(key: string, expiresInMinutes: number = 60): Promise<string> {
+        if (!(this.backend instanceof GcsStorageBackend)) {
+            throw new Error('Signed URLs are only available with GCS backend');
+        }
+        return this.backend.getSignedUrl(key, expiresInMinutes);
     }
 }

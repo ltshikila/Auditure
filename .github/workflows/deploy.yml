@@ -83,7 +83,7 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --port 3000 \
-            --set-env-vars "NODE_ENV=production" \
+            --set-env-vars "NODE_ENV=production,STORAGE_BACKEND=gcs,GCS_BUCKET_NAME=auditure-storage-prod" \
             --set-secrets "DATABASE_URL=DATABASE_URL:latest,JWT_ACCESS_SECRET=JWT_ACCESS_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,PAYSTACK_SECRET_KEY=PAYSTACK_SECRET_KEY:latest,RESEND_API_KEY=RESEND_API_KEY:latest,RABBITMQ_URL=RABBITMQ_URL:latest" \
             --add-cloudsql-instances ${{ env.PROJECT_ID }}:${{ env.REGION }}:auditure-db \
             --min-instances 0 \
@@ -130,6 +130,7 @@ jobs:
             --region ${{ env.REGION }} \
             --platform managed \
             --no-allow-unauthenticated \
+            --set-env-vars "STORAGE_BACKEND=gcs,GCS_BUCKET_NAME=auditure-storage-prod" \
             --set-secrets "DATABASE_URL=DATABASE_URL:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,RABBITMQ_URL=RABBITMQ_URL:latest" \
             --add-cloudsql-instances ${{ env.PROJECT_ID }}:${{ env.REGION }}:auditure-db \
             --min-instances 0 \
@@ -183,5 +184,6 @@ jobs:
 
           # Resolve any previously failed migrations so they can be re-applied
           npx prisma migrate resolve --rolled-back 20260207000000_add_episode_likes_and_notification_types 2>/dev/null || true
+          npx prisma migrate resolve --rolled-back 20260209000000_add_episode_downloads 2>/dev/null || true
 
           npx prisma migrate deploy

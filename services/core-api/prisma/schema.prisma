@@ -38,6 +38,7 @@ model User {
   episodeComments  EpisodeComment[]
   notifications    Notification[]
   episodeLikes     EpisodeLike[]
+  episodeDownloads EpisodeDownload[]
 
   @@map("users")
 }
@@ -331,6 +332,7 @@ model Episode {
   book                  Book           @relation(fields: [bookId], references: [id], onDelete: Cascade)
   comments              EpisodeComment[]
   likes                 EpisodeLike[]
+  downloads             EpisodeDownload[]
 
   @@index([userId])
   @@index([podcasterId])
@@ -417,6 +419,10 @@ model Subscription {
   geminiEpisodeLimit        Int              @default(1)
   standardEpisodeLimit      Int              @default(2)
 
+  // Download Tracking (reset monthly)
+  downloadCount             Int              @default(0)
+  downloadPeriodStart       DateTime         @default(now())
+
   // Paystack integration
   paystackCustomerCode      String?          // Paystack customer code (CUS_xxx)
   paystackSubscriptionCode  String?          // Paystack subscription code (SUB_xxx)
@@ -497,4 +503,20 @@ model Notification {
 
   @@index([userId, read, createdAt(sort: Desc)])
   @@map("notifications")
+}
+
+model EpisodeDownload {
+  id           String   @id @default(uuid())
+  episodeId    String
+  userId       String
+  downloadedAt DateTime @default(now())
+
+  // Relations
+  episode      Episode  @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([episodeId])
+  @@index([userId, downloadedAt])
+  @@map("episode_downloads")
 }

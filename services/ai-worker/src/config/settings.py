@@ -47,6 +47,8 @@ class Settings(BaseSettings):
     tts_voice_tier: str = "gemini"  # Default to Gemini Pro for paying users
 
     # Storage
+    storage_backend: str = "local"  # "local" or "gcs"
+    gcs_bucket_name: Optional[str] = None
     local_storage_path: str = "./storage"
 
     # Processing

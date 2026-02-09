@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Episode, episodeService } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
 import { resolveCoverUrl } from '@/services/api';
+import { formatCount } from '@/utils/formatCount';
 import { FeedListSkeleton } from '@/components/skeleton';
 
 const backIcon = require('@/assets/icons/back.png');
@@ -101,12 +102,6 @@ export default function EpisodesSeeAllScreen() {
         return `${minutes}m`;
     };
 
-    const formatNumber = (num: number): string => {
-        if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-        if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-        return num.toString();
-    };
-
     const renderEpisodeItem = ({ item }: { item: Episode }) => (
         <TouchableOpacity
             onPress={() => handleEpisodePress(item)}
@@ -146,7 +141,7 @@ export default function EpisodesSeeAllScreen() {
                     )}
                     <Ionicons name="headset-outline" size={14} color="#858585" />
                     <Text className="font-inter text-[#858585] text-xs ml-1">
-                        {formatNumber(item.playCount)}
+                        {formatCount(item.playCount)}
                     </Text>
                 </View>
             </View>

@@ -4,7 +4,6 @@ import {
     Text,
     ScrollView,
     TouchableOpacity,
-    ActivityIndicator,
     RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,6 +11,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Episode, episodeService } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
+import { downloadService } from '@/services/download.service';
 import { EpisodeSection } from '@/components/EpisodeSection';
 import { GeneratingEpisodeCard } from '@/components/GeneratingEpisodeCard';
 import { TopBar } from '@/components';
@@ -29,7 +29,6 @@ export default function EpisodesScreen() {
     const [likedEpisodes, setLikedEpisodes] = useState<Episode[]>([]);
     const [downloadedEpisodes, setDownloadedEpisodes] = useState<Episode[]>([]);
     const [startedEpisodes, setStartedEpisodes] = useState<Episode[]>([]);
-    const [listenLaterEpisodes, setListenLaterEpisodes] = useState<Episode[]>([]);
 
     const fetchEpisodes = async (isRefreshing: boolean = false) => {
         try {
@@ -62,7 +61,7 @@ export default function EpisodesScreen() {
         }
     };
 
-    const categorizeEpisodes = (allEpisodes: Episode[]) => {
+    const categorizeEpisodes = async (allEpisodes: Episode[]) => {
         // Episodes currently being generated
         const generating = allEpisodes.filter(ep =>
             ['PENDING', 'SCRIPT_GENERATING', 'SCRIPT_GENERATED', 'AUDIO_GENERATING', 'FAILED'].includes(ep.generationStatus)
@@ -73,11 +72,23 @@ export default function EpisodesScreen() {
         const completed = allEpisodes.filter(ep => ep.generationStatus === 'COMPLETED');
         setMyEpisodes(completed);
 
-        // For now, we'll use some placeholder logic for other categories
-        // In a real app, these would be stored locally or fetched from user preferences
-        setDownloadedEpisodes(completed.slice(0, 3)); // Placeholder
-        setStartedEpisodes(completed.filter(ep => ep.playCount > 0).slice(0, 3));
-        setListenLaterEpisodes(completed.slice(0, 3)); // Placeholder
+        // Started episodes (played at least once, within the last 30 days)
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
+        setStartedEpisodes(
+            completed
+                .filter(ep => ep.playCount > 0 && new Date(ep.updatedAt) >= oneMonthAgo)
+                .slice(0, 10)
+        );
+
+        // Check which episodes are actually downloaded locally
+        const downloaded: Episode[] = [];
+        for (const ep of completed) {
+            const format = ep.audioFormat || 'mp3';
+            const isLocal = await downloadService.isDownloaded(ep.id, format);
+            if (isLocal) downloaded.push(ep);
+        }
+        setDownloadedEpisodes(downloaded);
     };
 
     useEffect(() => {
@@ -267,22 +278,13 @@ export default function EpisodesScreen() {
                     onSeeAll={() => router.push('/episodes/see-all?type=downloads')}
                 />
 
-                {/* Started Episodes Section */}
+                {/* Pick up where you left off */}
                 <EpisodeSection
                     title="Started episodes"
                     episodes={startedEpisodes}
                     onEpisodePress={handleEpisodePress}
                     showSeeAll={startedEpisodes.length > 3}
                     onSeeAll={() => router.push('/episodes/see-all?type=started')}
-                />
-
-                {/* Listen to Later Section */}
-                <EpisodeSection
-                    title="Listen to later"
-                    episodes={listenLaterEpisodes}
-                    onEpisodePress={handleEpisodePress}
-                    showSeeAll={listenLaterEpisodes.length > 3}
-                    onSeeAll={() => router.push('/episodes/see-all?type=later')}
                 />
 
                 {/* Bottom padding for tab bar */}

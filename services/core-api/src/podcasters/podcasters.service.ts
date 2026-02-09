@@ -47,6 +47,15 @@ export class PodcastersService {
                 'Science',
                 'Business',
                 'Art & Culture',
+                'Technology',
+                'Education',
+                'Health & Wellness',
+                'Spirituality',
+                'Economics',
+                'Sociology',
+                'Religion',
+                'Mathematics',
+                'Mindfulness',
             ];
 
             const invalidTags = createPodcasterDto.expertiseTags.filter(
@@ -401,6 +410,15 @@ export class PodcastersService {
                     'Science',
                     'Business',
                     'Art & Culture',
+                    'Technology',
+                    'Education',
+                    'Health & Wellness',
+                    'Spirituality',
+                    'Economics',
+                    'Sociology',
+                    'Religion',
+                    'Mathematics',
+                    'Mindfulness',
                 ];
 
                 const invalidTags = updatePodcasterDto.expertiseTags.filter(

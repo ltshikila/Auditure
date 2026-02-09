@@ -318,6 +318,13 @@ class EpisodeService {
     async getAuthorInfo(id: string, token?: string): Promise<AuthorInfo | null> {
         return apiClient.get<AuthorInfo | null>(`/episodes/${id}/author-info`, token);
     }
+
+    /**
+     * Get a download URL for an episode (requires paid subscription)
+     */
+    async getDownloadUrl(id: string, token: string): Promise<{ downloadUrl?: string; format: string }> {
+        return apiClient.get<{ downloadUrl?: string; format: string }>(`/episodes/${id}/download`, token);
+    }
 }
 
 export const episodeService = new EpisodeService();

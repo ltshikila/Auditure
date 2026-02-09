@@ -12,6 +12,9 @@ openai>=1.0.0                  # OpenAI API client
 # TTS - Google Cloud Text-to-Speech (Standard voices)
 google-cloud-texttospeech>=2.14.0  # Google Cloud TTS API
 
+# Storage - Google Cloud Storage
+google-cloud-storage>=2.14.0       # GCS for audio file storage
+
 # TTS - Gemini 2.5 Pro (Multi-speaker, podcast-optimized)
 google-genai>=1.0.0                # New Gemini API SDK for TTS
 

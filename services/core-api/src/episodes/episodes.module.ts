@@ -6,6 +6,7 @@ import { CommonModule } from '../common/common.module';
 import { BooksModule } from '../books/books.module';
 import { UsersModule } from '../users/users.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { PodcastersModule } from '../podcasters/podcasters.module';
 
 // Note: Script generation and TTS are now handled by the Python ai-worker service.
 // The ai-worker consumes jobs from RabbitMQ and processes them independently.
@@ -17,6 +18,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
         forwardRef(() => BooksModule),
         UsersModule,
         NotificationsModule,
+        PodcastersModule,
     ],
     controllers: [EpisodesController],
     providers: [EpisodesService],

@@ -16,6 +16,7 @@ import { StorageService } from '../common/storage.service';
 import { BooksService } from '../books/books.service';
 import { UsersService } from '../users/users.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PodcastersService } from '../podcasters/podcasters.service';
 import {
     CreateEpisodeDto,
     CreateEpisodeWithFileDto,
@@ -43,6 +44,7 @@ export class EpisodesService {
         private booksService: BooksService,
         private usersService: UsersService,
         private notificationsService: NotificationsService,
+        private podcastersService: PodcastersService,
     ) {}
 
     /**
@@ -837,14 +839,22 @@ export class EpisodesService {
      * Increment play count
      */
     async incrementPlayCount(id: string): Promise<void> {
-        await this.databaseService.episode.update({
+        const episode = await this.databaseService.episode.update({
             where: { id },
             data: {
                 playCount: {
                     increment: 1,
                 },
             },
+            select: { podcasterId: true },
         });
+
+        // Also increment the podcaster's play count
+        try {
+            await this.podcastersService.incrementPlayCount(episode.podcasterId);
+        } catch (error) {
+            this.logger.error(`Failed to increment podcaster play count: ${error.message}`);
+        }
     }
 
     /**
@@ -865,9 +875,16 @@ export class EpisodesService {
             return tx.episode.update({
                 where: { id: episodeId },
                 data: { likeCount: { increment: 1 } },
-                select: { userId: true, title: true },
+                select: { userId: true, title: true, podcasterId: true },
             });
         });
+
+        // Also increment the podcaster's like count
+        try {
+            await this.podcastersService.incrementLikeCount(episode.podcasterId);
+        } catch (error) {
+            this.logger.error(`Failed to increment podcaster like count: ${error.message}`);
+        }
 
         // Notify episode owner (don't notify yourself)
         if (episode.userId !== userId) {
@@ -900,15 +917,23 @@ export class EpisodesService {
         if (!existing) return; // Not liked, no-op
 
         // Delete like + decrement count in transaction
-        await this.databaseService.$transaction(async tx => {
+        const episode = await this.databaseService.$transaction(async tx => {
             await tx.episodeLike.delete({
                 where: { episodeId_userId: { episodeId, userId } },
             });
-            await tx.episode.update({
+            return tx.episode.update({
                 where: { id: episodeId },
                 data: { likeCount: { decrement: 1 } },
+                select: { podcasterId: true },
             });
         });
+
+        // Also decrement the podcaster's like count
+        try {
+            await this.podcastersService.decrementLikeCount(episode.podcasterId);
+        } catch (error) {
+            this.logger.error(`Failed to decrement podcaster like count: ${error.message}`);
+        }
     }
 
     /**
@@ -1270,6 +1295,88 @@ export class EpisodesService {
         await this.databaseService.episodeComment.delete({
             where: { id: commentId },
         });
+    }
+
+    /**
+     * Download an episode audio file.
+     * Gated by subscription tier:
+     *   FREE → 403
+     *   STARTER → 50 downloads/month
+     *   PRO → unlimited
+     */
+    async downloadEpisode(
+        episodeId: string,
+        userId: string,
+    ): Promise<{ downloadUrl?: string; buffer?: Buffer; format: string }> {
+        // 1. Verify episode exists, is completed, and user has access
+        const episode = await this.findOne(episodeId, userId);
+
+        if (episode.generationStatus !== 'COMPLETED' || !episode.audioFileKey) {
+            throw new NotFoundException('Audio file not available for this episode');
+        }
+
+        // 2. Check subscription tier
+        let subscription = await this.databaseService.subscription.findUnique({
+            where: { userId },
+        });
+
+        if (!subscription || subscription.tier === 'FREE') {
+            throw new ForbiddenException(
+                'Upgrade to Starter or Pro to download episodes for offline listening.',
+            );
+        }
+
+        // 3. Reset download count if new billing period
+        const now = new Date();
+        const periodStart = new Date(subscription.downloadPeriodStart);
+        const monthsSinceStart =
+            (now.getFullYear() - periodStart.getFullYear()) * 12 +
+            (now.getMonth() - periodStart.getMonth());
+
+        if (monthsSinceStart >= 1) {
+            subscription = await this.databaseService.subscription.update({
+                where: { userId },
+                data: {
+                    downloadCount: 0,
+                    downloadPeriodStart: now,
+                },
+            });
+        }
+
+        // 4. Check monthly limit (STARTER = 50, PRO = unlimited)
+        if (subscription.tier === 'STARTER' && subscription.downloadCount >= 50) {
+            throw new ForbiddenException(
+                'You have reached your monthly download limit (50). Upgrade to Pro for unlimited downloads.',
+            );
+        }
+
+        // 5. Verify file exists in storage
+        const exists = await this.storageService.fileExists(episode.audioFileKey);
+        if (!exists) {
+            throw new NotFoundException('Audio file not found in storage');
+        }
+
+        // 6. Record the download
+        await this.databaseService.$transaction([
+            this.databaseService.episodeDownload.create({
+                data: { episodeId, userId },
+            }),
+            this.databaseService.subscription.update({
+                where: { userId },
+                data: { downloadCount: { increment: 1 } },
+            }),
+        ]);
+
+        // 7. Return signed URL (GCS) or buffer (local)
+        const format = episode.audioFormat || 'mp3';
+
+        if (this.storageService.isGcsBackend()) {
+            const downloadUrl = await this.storageService.getSignedUrl(episode.audioFileKey, 15);
+            return { downloadUrl, format };
+        }
+
+        const buffer = await this.storageService.downloadFile(episode.audioFileKey);
+        return { buffer, format };
     }
 
     /**

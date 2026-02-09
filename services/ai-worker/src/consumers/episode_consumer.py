@@ -7,7 +7,7 @@ from src.config import get_settings
 from src.database import get_database_client, EpisodeRepository, EpisodeStatus
 from src.generators import ScriptGenerator, DurationMismatchError
 from src.tts import TTSEngine, PodcasterVoice
-from src.storage import LocalStorage
+from src.storage import get_storage
 from src.redis import get_redis_client
 from .base_consumer import BaseConsumer
 
@@ -40,7 +40,7 @@ class EpisodeConsumer(BaseConsumer):
         self.repository = EpisodeRepository(self.db_client)
         self.script_generator = ScriptGenerator()
         self.tts_engine = TTSEngine()
-        self.storage = LocalStorage()
+        self.storage = get_storage()
         self.redis_client = get_redis_client()
 
         self.max_content_chars = settings.max_book_content_chars
