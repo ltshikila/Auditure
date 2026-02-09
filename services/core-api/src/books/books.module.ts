@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { BooksController } from './books.controller';
 import { BooksService } from './books.service';
 import { TextExtractionService } from './services/text-extraction.service';
@@ -10,8 +11,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 @Module({
     imports: [
         MulterModule.register({
-            // eslint-disable-next-line @typescript-eslint/no-require-imports
-            storage: require('multer').memoryStorage(), // Store in memory for processing
+            storage: memoryStorage(),
         }),
         NotificationsModule,
     ],
