@@ -20,7 +20,8 @@ COPY package*.json ./
 COPY prisma ./prisma/
 
 # Install all dependencies (including dev for build)
-RUN npm ci
+# Using npm install (not ci) — monorepo lockfile lives at repo root, outside Docker context
+RUN npm install
 
 # Generate Prisma client
 RUN npx prisma generate
@@ -50,7 +51,7 @@ COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/prisma ./prisma/
 
 # Install production dependencies only
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # Regenerate Prisma client for production
 RUN npx prisma generate

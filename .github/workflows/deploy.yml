@@ -169,7 +169,7 @@ jobs:
       - name: Run Prisma migrations
         working-directory: services/core-api
         run: |
-          npm ci
+          npm install
           npx prisma generate
 
           # Start Cloud SQL Auth Proxy in background (proxy is in repo root, 2 levels up)
