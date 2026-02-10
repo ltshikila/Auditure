@@ -15,15 +15,15 @@ import io
 import logging
 import os
 import re
-import uuid
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 
 from google.cloud import texttospeech
 from google.oauth2 import service_account
 from pydub import AudioSegment
 
 from src.config import get_settings
+
 from .voice_mapper import VoiceConfig
 
 logger = logging.getLogger(__name__)
@@ -89,7 +89,7 @@ class GoogleTTSClient:
         """Ensure temp directory exists."""
         self.temp_dir.mkdir(parents=True, exist_ok=True)
 
-    def _split_text_into_chunks(self, text: str, max_bytes: int = MAX_CHUNK_BYTES) -> List[str]:
+    def _split_text_into_chunks(self, text: str, max_bytes: int = MAX_CHUNK_BYTES) -> list[str]:
         """
         Split text into chunks that fit within the byte limit.
 
@@ -201,7 +201,7 @@ class GoogleTTSClient:
         # Strip Gemini-specific tags that Standard TTS would read aloud
         text = self._strip_gemini_tags(text)
 
-        logger.info(f"Generating audio with Google Cloud Standard TTS")
+        logger.info("Generating audio with Google Cloud Standard TTS")
         logger.info(f"Voice: {voice_config.voice_id}")
         logger.info(f"Text length: {len(text)} chars ({len(text.encode('utf-8'))} bytes)")
 

@@ -5,7 +5,7 @@ import logging
 import signal
 import time
 from abc import ABC, abstractmethod
-from typing import Callable, Optional, Any, Dict
+from typing import Any, Optional
 
 import pika
 from pika.adapters.blocking_connection import BlockingChannel
@@ -202,7 +202,7 @@ class BaseConsumer(ABC):
         logger.info(f"Message sent to DLQ: {self.dlq_name}")
 
     @abstractmethod
-    def process_message(self, message: Dict[str, Any]) -> None:
+    def process_message(self, message: dict[str, Any]) -> None:
         """
         Process a message. Must be implemented by subclasses.
 

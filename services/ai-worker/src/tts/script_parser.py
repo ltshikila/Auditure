@@ -3,7 +3,6 @@
 import logging
 import re
 from dataclasses import dataclass
-from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +28,7 @@ class ScriptParser:
         self,
         script: str,
         episode_type: str,
-    ) -> List[SpeakerSegment]:
+    ) -> list[SpeakerSegment]:
         """
         Parse script into speaker segments.
 
@@ -56,7 +55,7 @@ class ScriptParser:
         logger.info("No speaker labels found, alternating by paragraphs")
         return self._parse_by_paragraphs(script, episode_type)
 
-    def _parse_monologue(self, script: str) -> List[SpeakerSegment]:
+    def _parse_monologue(self, script: str) -> list[SpeakerSegment]:
         """Parse monologue script (single speaker)."""
         # Remove any speaker labels that might be present
         clean_script = self.SPEAKER_PATTERN.sub("", script)
@@ -64,9 +63,9 @@ class ScriptParser:
 
         return [SpeakerSegment(speaker="HOST", text=clean_script)]
 
-    def _parse_labeled_script(self, script: str) -> List[SpeakerSegment]:
+    def _parse_labeled_script(self, script: str) -> list[SpeakerSegment]:
         """Parse script with speaker labels."""
-        segments: List[SpeakerSegment] = []
+        segments: list[SpeakerSegment] = []
 
         # Split by speaker pattern while keeping the delimiter
         parts = self.SPEAKER_PATTERN.split(script)
@@ -102,9 +101,9 @@ class ScriptParser:
         self,
         script: str,
         episode_type: str,
-    ) -> List[SpeakerSegment]:
+    ) -> list[SpeakerSegment]:
         """Parse script by alternating paragraphs between speakers."""
-        segments: List[SpeakerSegment] = []
+        segments: list[SpeakerSegment] = []
 
         # Define speakers based on episode type
         speakers = ["HOST", "GUEST"]
@@ -122,7 +121,7 @@ class ScriptParser:
 
         return segments
 
-    def get_unique_speakers(self, segments: List[SpeakerSegment]) -> List[str]:
+    def get_unique_speakers(self, segments: list[SpeakerSegment]) -> list[str]:
         """Get list of unique speakers in order of appearance."""
         seen = set()
         speakers = []
@@ -134,7 +133,7 @@ class ScriptParser:
 
     def estimate_duration(
         self,
-        segments: List[SpeakerSegment],
+        segments: list[SpeakerSegment],
         words_per_minute: int = 185,  # Gemini TTS speaks at ~185 wpm
     ) -> int:
         """

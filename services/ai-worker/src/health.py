@@ -1,9 +1,9 @@
 """Simple health check HTTP server for Cloud Run."""
 
 import logging
-import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
 import os
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 logger = logging.getLogger(__name__)
 

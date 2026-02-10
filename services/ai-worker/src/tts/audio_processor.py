@@ -4,7 +4,7 @@ import logging
 import subprocess
 import uuid
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from src.config import get_settings
 
@@ -32,7 +32,7 @@ class AudioProcessor:
 
     def concatenate_audio_files(
         self,
-        file_paths: List[Path],
+        file_paths: list[Path],
         output_path: Optional[Path] = None,
         re_encode: bool = False,
     ) -> Path:
@@ -122,7 +122,7 @@ class AudioProcessor:
 
     def concatenate_audio_buffers(
         self,
-        audio_buffers: List[bytes],
+        audio_buffers: list[bytes],
         re_encode: bool = True,
     ) -> bytes:
         """
@@ -145,7 +145,7 @@ class AudioProcessor:
         if len(audio_buffers) == 1:
             return audio_buffers[0]
 
-        temp_files: List[Path] = []
+        temp_files: list[Path] = []
         output_file: Optional[Path] = None
 
         try:
@@ -293,7 +293,7 @@ class AudioProcessor:
             if temp_file.exists():
                 temp_file.unlink()
 
-    def cleanup_temp_files(self, file_paths: List[Path]) -> None:
+    def cleanup_temp_files(self, file_paths: list[Path]) -> None:
         """Clean up temporary files."""
         for file_path in file_paths:
             try:

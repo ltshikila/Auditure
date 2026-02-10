@@ -1,14 +1,15 @@
 """Episode generation consumer - full pipeline."""
 
 import logging
-from typing import Dict, Any
+from typing import Any
 
 from src.config import get_settings
-from src.database import get_database_client, EpisodeRepository, EpisodeStatus
-from src.generators import ScriptGenerator, DurationMismatchError
-from src.tts import TTSEngine, PodcasterVoice
-from src.storage import get_storage
+from src.database import EpisodeRepository, EpisodeStatus, get_database_client
+from src.generators import DurationMismatchError, ScriptGenerator
 from src.redis import get_redis_client
+from src.storage import get_storage
+from src.tts import PodcasterVoice, TTSEngine
+
 from .base_consumer import BaseConsumer
 
 logger = logging.getLogger(__name__)
@@ -45,7 +46,7 @@ class EpisodeConsumer(BaseConsumer):
 
         self.max_content_chars = settings.max_book_content_chars
 
-    def process_message(self, message: Dict[str, Any]) -> None:
+    def process_message(self, message: dict[str, Any]) -> None:
         """
         Process episode generation job.
 

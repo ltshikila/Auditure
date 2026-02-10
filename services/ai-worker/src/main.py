@@ -8,9 +8,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.config import get_settings
-from src.utils import setup_logging
 from src.consumers import EpisodeConsumer
 from src.health import start_health_server
+from src.utils import setup_logging
 
 logger = logging.getLogger(__name__)
 

@@ -1,19 +1,17 @@
 """SQLAlchemy models matching Prisma schema."""
 
-import json
 from datetime import datetime
 from enum import Enum
-from typing import Optional, List
 from uuid import uuid4
 
 from sqlalchemy import (
-    Column,
-    String,
-    Integer,
-    Boolean,
-    DateTime,
-    Text,
     ARRAY,
+    Boolean,
+    Column,
+    DateTime,
+    Integer,
+    String,
+    Text,
 )
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import declarative_base

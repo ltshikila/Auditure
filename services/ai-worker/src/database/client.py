@@ -1,8 +1,8 @@
 """Database client using SQLAlchemy."""
 
 import logging
+from collections.abc import Generator
 from functools import lru_cache
-from typing import Generator
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker

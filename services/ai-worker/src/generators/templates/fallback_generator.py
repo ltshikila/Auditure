@@ -2,8 +2,8 @@
 
 import logging
 import re
-from typing import List, Optional
 from dataclasses import dataclass
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +79,7 @@ class FallbackGenerator:
         self,
         content: str,
         count: int = 12,
-    ) -> List[str]:
+    ) -> list[str]:
         """Extract meaningful sentences from book content."""
         # Split into sentences - handle multiple sentence-ending patterns
         sentences = re.split(r'(?<=[.!?])\s+', content)
@@ -130,7 +130,7 @@ HOST: Same here! For those just tuning in, our episode today is titled "{request
     def generate_body(
         self,
         request: FallbackRequest,
-        key_sentences: List[str],
+        key_sentences: list[str],
     ) -> str:
         """Generate the main body of the episode."""
         body_parts = []
@@ -204,16 +204,16 @@ HOST: And thank you all for listening. Don't forget to subscribe if you haven't 
         # Intro + conclusion ≈ 250 words
         # Each body section generates ~100 words (quote ~40 + transition ~10 + commentary ~50)
         # To meet target, we need: (target_words - 250) / 100 sections
-        INTRO_CONCLUSION_WORDS = 250
-        WORDS_PER_SECTION = 100
+        intro_conclusion_words = 250
+        words_per_section = 100
 
-        body_words_needed = max(500, request.target_word_count - INTRO_CONCLUSION_WORDS)
-        target_sections = max(6, body_words_needed // WORDS_PER_SECTION)
+        body_words_needed = max(500, request.target_word_count - intro_conclusion_words)
+        target_sections = max(6, body_words_needed // words_per_section)
 
         # Cap at reasonable maximum but allow up to 25 sections for longer episodes
         target_sections = min(25, target_sections)
 
-        logger.info(f"Targeting {target_sections} body sections for ~{body_words_needed + INTRO_CONCLUSION_WORDS} words")
+        logger.info(f"Targeting {target_sections} body sections for ~{body_words_needed + intro_conclusion_words} words")
 
         key_sentences = self.extract_key_sentences(
             request.book_content,

@@ -2,11 +2,12 @@
 
 import logging
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import Optional
 
 from src.config import get_settings
-from .llm_client import HuggingFaceClient, HuggingFaceAPIError
-from .prompt_builder import PromptBuilder, ScriptRequest, PodcasterPersonality, DebateConfig
+
+from .llm_client import HuggingFaceAPIError, HuggingFaceClient
+from .prompt_builder import DebateConfig, PodcasterPersonality, PromptBuilder, ScriptRequest
 from .templates.fallback_generator import FallbackGenerator, FallbackRequest
 
 logger = logging.getLogger(__name__)
@@ -222,11 +223,11 @@ class ScriptGenerator:
         # After 1 retry, accept 70% of user's minimum
         # No retry: require full user minimum
         # Absolute floor: 5 minutes (anything less is unacceptable)
-        ABSOLUTE_MIN_MINUTES = 5.0
+        absolute_min_minutes = 5.0
         if retry_count >= 2:
-            effective_min = max(ABSOLUTE_MIN_MINUTES, target_length_min * 0.5)
+            effective_min = max(absolute_min_minutes, target_length_min * 0.5)
         elif retry_count == 1:
-            effective_min = max(ABSOLUTE_MIN_MINUTES, target_length_min * 0.7)
+            effective_min = max(absolute_min_minutes, target_length_min * 0.7)
         else:
             effective_min = float(target_length_min)
 
@@ -380,8 +381,8 @@ class ScriptGenerator:
         - Final chunk: Wrap up and conclusion
         """
         # Calculate number of chunks needed (aim for ~1200-1400 words per chunk)
-        WORDS_PER_CHUNK = 1300
-        num_chunks = max(2, (target_words + WORDS_PER_CHUNK - 1) // WORDS_PER_CHUNK)
+        target_words_per_chunk = 1300
+        num_chunks = max(2, (target_words + target_words_per_chunk - 1) // target_words_per_chunk)
         words_per_chunk = target_words // num_chunks
 
         logger.info(
@@ -391,7 +392,7 @@ class ScriptGenerator:
 
         chunks = []
         previous_summary = ""
-        topics_covered: List[str] = []  # Track topics to avoid repetition
+        topics_covered: list[str] = []  # Track topics to avoid repetition
 
         for chunk_num in range(num_chunks):
             is_first = chunk_num == 0
@@ -462,7 +463,7 @@ class ScriptGenerator:
         is_first: bool,
         is_last: bool,
         expansion_ratio: float,
-        topics_covered: Optional[List[str]] = None,
+        topics_covered: Optional[list[str]] = None,
         content_scope: str = "the book",
         debate_config: Optional[DebateConfig] = None,
     ) -> str:
@@ -594,7 +595,7 @@ Now write Part {chunk_num}:
 """
         return prompt
 
-    def _combine_chunks(self, chunks: List[str], episode_type: str) -> str:
+    def _combine_chunks(self, chunks: list[str], episode_type: str) -> str:
         """Combine multiple script chunks into a cohesive script."""
         if not chunks:
             return ""
@@ -737,7 +738,7 @@ Now write Part {chunk_num}:
         logger.info(f"Template generated {len(script.split())} words")
         return script
 
-    def _extract_topics_from_chunk(self, chunk_script: str) -> List[str]:
+    def _extract_topics_from_chunk(self, chunk_script: str) -> list[str]:
         """Extract key topics, concepts, AND examples discussed in a chunk to avoid repetition.
 
         Uses heuristics to identify main discussion points and the examples/scenarios used.

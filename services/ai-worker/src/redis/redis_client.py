@@ -3,11 +3,9 @@
 import json
 import logging
 from datetime import datetime
-from functools import lru_cache
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import redis
-
 from src.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -136,7 +134,7 @@ class RedisClient:
         notification_type: str,
         title: str,
         body: str,
-        data: Optional[Dict[str, Any]] = None,
+        data: Optional[dict[str, Any]] = None,
     ) -> None:
         """
         Add a notification to the Redis Stream for push delivery.

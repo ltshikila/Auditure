@@ -6,9 +6,9 @@ from typing import Optional
 from openai import OpenAI
 from tenacity import (
     retry,
+    retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
-    retry_if_exception_type,
 )
 
 from src.config import get_settings
@@ -83,7 +83,7 @@ class OpenAIClient:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
-        logger.info(f"[LLM] Calling OpenAI API...")
+        logger.info("[LLM] Calling OpenAI API...")
         logger.info(f"[LLM] Model: {self.model}")
         logger.info(f"[LLM] Prompt length: {len(prompt)} chars")
         logger.info(f"[LLM] Max tokens: {max_tokens}, Temperature: {temperature}")
@@ -114,7 +114,7 @@ class OpenAIClient:
         except Exception as e:
             error_msg = f"OpenAI API error: {str(e)}"
             logger.error(error_msg)
-            raise LLMAPIError(error_msg)
+            raise LLMAPIError(error_msg) from e
 
     def generate_script(
         self,

@@ -2,12 +2,10 @@
 
 import logging
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Any, Optional
 
-from sqlalchemy.orm import Session
-
-from .models import Episode, Podcaster, Book, Chapter, EpisodeStatus, Notification
 from .client import DatabaseClient
+from .models import Book, Chapter, Episode, EpisodeStatus, Notification, Podcaster
 
 logger = logging.getLogger(__name__)
 
@@ -65,9 +63,9 @@ class EpisodeRepository:
         self,
         book_id: str,
         content_coverage: str,
-        chapter_numbers: List[int],
+        chapter_numbers: list[int],
         max_chars: int = 8000,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get book content based on coverage type.
 
@@ -192,7 +190,7 @@ class EpisodeRepository:
     def get_episode_with_relations(
         self,
         episode_id: str,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[dict[str, Any]]:
         """
         Get episode with podcaster and book data.
 
@@ -224,7 +222,7 @@ class EpisodeRepository:
         notification_type: str,
         title: str,
         body: str,
-        data: Optional[Dict[str, Any]] = None,
+        data: Optional[dict[str, Any]] = None,
     ) -> Optional[str]:
         """
         Create a notification in the database.

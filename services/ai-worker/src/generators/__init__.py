@@ -1,8 +1,8 @@
 """Script generation module."""
 
-from .script_generator import ScriptGenerator, ScriptResult, DurationMismatchError
 from .llm_client import HuggingFaceClient
 from .prompt_builder import PromptBuilder
+from .script_generator import DurationMismatchError, ScriptGenerator, ScriptResult
 
 __all__ = [
     "ScriptGenerator",

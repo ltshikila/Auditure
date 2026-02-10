@@ -29,9 +29,9 @@ Reference: https://docs.cloud.google.com/text-to-speech/docs/gemini-tts#markup_t
 
 import logging
 import random
-from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional
+from dataclasses import dataclass
 from enum import Enum
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ class GuestPersonality:
 class DebateConfig:
     """Configuration for debate-style episodes with randomized elements."""
     host_position: DebatePosition
-    guest_personalities: List[GuestPersonality]
+    guest_personalities: list[GuestPersonality]
     outcome: DebateOutcome
     formality_level: int  # 1-10: 1-3=formal, 4-6=conversational, 7-10=heated
     tension_arc: str  # Description of how tension evolves
@@ -187,7 +187,7 @@ class DebateConfig:
     @staticmethod
     def _determine_outcome(
         host_position: DebatePosition,
-        guest_personalities: List[GuestPersonality],
+        guest_personalities: list[GuestPersonality],
     ) -> DebateOutcome:
         """Randomly determine debate outcome."""
         positions = [host_position] + [g.position for g in guest_personalities]
@@ -259,7 +259,7 @@ class PodcasterPersonality:
     conversational_depth: int  # 1-10
     chaos_factor: int  # 1-10
     intellectual_angle: Optional[str] = None
-    expertise_tags: Optional[List[str]] = None
+    expertise_tags: Optional[list[str]] = None
 
 
 @dataclass
@@ -324,7 +324,7 @@ class PromptBuilder:
     def _get_trait_description(
         self,
         value: int,
-        trait_map: Dict[tuple, str],
+        trait_map: dict[tuple, str],
     ) -> str:
         """Get description for a trait value."""
         for (low, high), description in trait_map.items():

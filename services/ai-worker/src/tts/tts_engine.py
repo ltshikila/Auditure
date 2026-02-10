@@ -13,14 +13,15 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import Optional
 
 from src.config import get_settings
-from .voice_mapper import VoiceMapper, VoiceConfig
-from .google_tts_client import GoogleTTSClient
-from .gemini_tts_client import GeminiTTSClient
-from .script_parser import ScriptParser, SpeakerSegment
+
 from .audio_processor import AudioProcessor
+from .gemini_tts_client import GeminiTTSClient, GeminiVoiceConfig
+from .google_tts_client import GoogleTTSClient
+from .script_parser import ScriptParser, SpeakerSegment
+from .voice_mapper import VoiceConfig, VoiceMapper
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +99,7 @@ class TTSEngine:
         self.temp_dir = Path(settings.tts_temp_dir)
 
         # Log available providers
-        logger.info(f"TTS Engine initialized:")
+        logger.info("TTS Engine initialized:")
         logger.info(f"  Default tier: {self.default_voice_tier}")
         logger.info(f"  Gemini available: {self.has_gemini}")
         logger.info(f"  Google Cloud available: {self.has_google}")
@@ -166,7 +167,7 @@ class TTSEngine:
     def _generate_with_gemini(
         self,
         script: str,
-        segments: List[SpeakerSegment],
+        segments: list[SpeakerSegment],
         podcaster_voice: PodcasterVoice,
         episode_type: str,
     ) -> TTSResult:
@@ -231,7 +232,7 @@ class TTSEngine:
     def _generate_with_google(
         self,
         script: str,
-        segments: List[SpeakerSegment],
+        segments: list[SpeakerSegment],
         podcaster_voice: PodcasterVoice,
         episode_type: str,
     ) -> TTSResult:
@@ -257,9 +258,9 @@ class TTSEngine:
 
     def _assign_gemini_voices(
         self,
-        speakers: List[str],
+        speakers: list[str],
         main_podcaster: PodcasterVoice,
-    ) -> Dict[str, "GeminiVoiceConfig"]:
+    ) -> dict[str, GeminiVoiceConfig]:
         """Assign Gemini voices to speakers using podcaster settings.
 
         Voice assignment strategy:
@@ -273,9 +274,9 @@ class TTSEngine:
         Returns:
             Dict mapping speaker labels to GeminiVoiceConfig objects
         """
-        from .gemini_tts_client import GeminiVoiceConfig, GEMINI_VOICES
+        from .gemini_tts_client import GEMINI_VOICES
 
-        assignments: Dict[str, GeminiVoiceConfig] = {}
+        assignments: dict[str, GeminiVoiceConfig] = {}
         guest_index = 0
 
         for speaker in speakers:
@@ -328,7 +329,7 @@ class TTSEngine:
 
     def _generate_google_monologue(
         self,
-        segments: List[SpeakerSegment],
+        segments: list[SpeakerSegment],
         podcaster_voice: PodcasterVoice,
     ) -> TTSResult:
         """Generate audio for monologue (single voice) using Google Cloud Standard TTS."""
@@ -363,7 +364,7 @@ class TTSEngine:
 
     def _generate_google_multi_voice(
         self,
-        segments: List[SpeakerSegment],
+        segments: list[SpeakerSegment],
         main_podcaster: PodcasterVoice,
     ) -> TTSResult:
         """Generate audio for multi-voice episodes using Google Cloud Standard TTS."""
@@ -375,8 +376,8 @@ class TTSEngine:
         voice_configs = self._assign_google_voices(speakers, main_podcaster)
 
         # Generate audio for each segment
-        audio_buffers: List[bytes] = []
-        temp_files: List[Path] = []
+        audio_buffers: list[bytes] = []
+        temp_files: list[Path] = []
 
         try:
             for i, segment in enumerate(segments):
@@ -417,11 +418,11 @@ class TTSEngine:
 
     def _assign_google_voices(
         self,
-        speakers: List[str],
+        speakers: list[str],
         main_podcaster: PodcasterVoice,
-    ) -> Dict[str, VoiceConfig]:
+    ) -> dict[str, VoiceConfig]:
         """Assign Google Cloud Standard TTS voice configs to each speaker."""
-        voice_configs: Dict[str, VoiceConfig] = {}
+        voice_configs: dict[str, VoiceConfig] = {}
 
         # Main podcaster's voice config
         main_config = self.voice_mapper.get_voice_config(

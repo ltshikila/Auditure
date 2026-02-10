@@ -28,13 +28,13 @@ import re
 import wave
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Any, Optional
 
 from tenacity import (
     retry,
+    retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
-    retry_if_exception_type,
 )
 
 from src.config import get_settings
@@ -64,7 +64,7 @@ class GeminiVoiceConfig:
 #   (perceived_speed, perceived_pitch, gender)
 # where speed/pitch are 1-10 scale to match frontend inputs
 #
-GEMINI_VOICES: Dict[str, Dict[str, Any]] = {
+GEMINI_VOICES: dict[str, dict[str, Any]] = {
     # FEMALE voices
     "Zephyr": {"gender": "FEMALE", "style": "Bright", "speed": 6, "pitch": 8},
     "Kore": {"gender": "FEMALE", "style": "Firm", "speed": 5, "pitch": 5},
@@ -108,7 +108,7 @@ LANGUAGE_CODE_TO_ACCENT_DESCRIPTION = {
     "en-AU": "Australian English accent",
     "en-IN": "Indian English accent",
 }
-ACCENT_TO_LANGUAGE_CODE: Dict[str, str] = {
+ACCENT_TO_LANGUAGE_CODE: dict[str, str] = {
     "United States": "en-US",
     "United Kingdom": "en-GB",
     "Australia": "en-AU",
@@ -118,7 +118,7 @@ ACCENT_TO_LANGUAGE_CODE: Dict[str, str] = {
 
 # Voice model to preferred Gemini voice styles mapping
 # Each voice model maps to a list of preferred styles (in order of preference)
-VOICE_MODEL_TO_STYLES: Dict[str, List[str]] = {
+VOICE_MODEL_TO_STYLES: dict[str, list[str]] = {
     "CONVERSATIONAL": ["Easy-going", "Friendly", "Casual", "Warm", "Breezy"],
     "ENERGETIC": ["Bright", "Upbeat", "Excitable", "Lively", "Forward"],
     "CALM": ["Smooth", "Gentle", "Soft", "Even", "Mature"],
@@ -162,7 +162,7 @@ def _pcm_to_wav(
 
 
 def _crossfade_pcm_chunks(
-    chunks: List[bytes],
+    chunks: list[bytes],
     sample_rate: int = 24000,
     sample_width: int = 2,
     crossfade_ms: int = 50,
@@ -424,7 +424,7 @@ class GeminiTTSClient:
 
         # Calculate score for each voice (lower is better)
         # Style matching gives a significant bonus (reduces score)
-        def voice_score(voice_info: Dict) -> float:
+        def voice_score(voice_info: dict) -> float:
             # Base: Euclidean distance for speed/pitch
             speed_diff = abs(voice_info["speed"] - speed)
             pitch_diff = abs(voice_info["pitch"] - pitch)
@@ -537,7 +537,7 @@ class GeminiTTSClient:
 
     def _build_speaker_configs(
         self,
-        voice_assignments: Dict[str, str],
+        voice_assignments: dict[str, str],
     ) -> list:
         """Build speaker voice configs for multi-speaker TTS."""
         from google.genai import types
@@ -559,7 +559,7 @@ class GeminiTTSClient:
     def _format_script_for_gemini(
         self,
         script: str,
-        voice_assignments: Dict[str, str],
+        voice_assignments: dict[str, str],
         language_code: str = "en-US",
     ) -> str:
         """
@@ -610,7 +610,7 @@ class GeminiTTSClient:
         """Check if script needs to be split into chunks."""
         return len(script) > self.MAX_CHUNK_CHARS
 
-    def _split_script_into_chunks(self, script: str) -> List[str]:
+    def _split_script_into_chunks(self, script: str) -> list[str]:
         """
         Split a long script into chunks that fit within Gemini's output limit.
 
@@ -656,7 +656,7 @@ class GeminiTTSClient:
     def _generate_single_chunk(
         self,
         script: str,
-        voice_assignments: Dict[str, str],
+        voice_assignments: dict[str, str],
         episode_type: str,
         language_code: str,
     ) -> bytes:
@@ -766,7 +766,7 @@ class GeminiTTSClient:
     def _generate_segment_by_segment(
         self,
         script: str,
-        voice_assignments: Dict[str, str],
+        voice_assignments: dict[str, str],
         language_code: str,
     ) -> bytes:
         """
@@ -922,7 +922,7 @@ class GeminiTTSClient:
                     if attempt < max_retries - 1:
                         logger.warning(f"[Gemini TTS] Turn {i+1} failed (attempt {attempt+1}), retrying: {e}")
                         continue
-                    raise GeminiTTSError(f"Failed to generate turn {i+1}: {str(e)}")
+                    raise GeminiTTSError(f"Failed to generate turn {i+1}: {str(e)}") from e
 
             if pcm_data is None:
                 raise GeminiTTSError(f"Failed to generate audio for turn {i+1} after {max_retries} attempts")
@@ -952,8 +952,8 @@ class GeminiTTSClient:
     def generate_audio(
         self,
         script: str,
-        voice_assignments: Optional[Dict[str, str]] = None,
-        voice_configs: Optional[Dict[str, GeminiVoiceConfig]] = None,
+        voice_assignments: Optional[dict[str, str]] = None,
+        voice_configs: Optional[dict[str, GeminiVoiceConfig]] = None,
         episode_type: str = "MONOLOGUE",
         language_code: str = "en-US",
         style_prompt: Optional[str] = None,
@@ -1086,7 +1086,7 @@ class GeminiTTSClient:
                     actual_speakers.add(match.group(1))
 
             # Determine if multi-speaker or single-speaker
-            unique_speakers = set(voice_assignments.keys())
+            set(voice_assignments.keys())
             is_multi_speaker = len(actual_speakers) > 1 and episode_type != "MONOLOGUE"
 
             # Gemini multi-speaker API only supports exactly 2 speakers
@@ -1166,7 +1166,7 @@ class GeminiTTSClient:
                                 try:
                                     ascii_preview = raw_data[:50].decode('ascii', errors='replace')
                                     logger.info(f"[Gemini TTS] First 50 bytes (ascii): {ascii_preview[:50]}")
-                                except:
+                                except Exception:
                                     pass
 
                             # Handle base64-encoded data
@@ -1217,13 +1217,13 @@ class GeminiTTSClient:
         except Exception as e:
             error_msg = f"Gemini TTS generation failed: {str(e)}"
             logger.error(error_msg)
-            raise GeminiTTSError(error_msg)
+            raise GeminiTTSError(error_msg) from e
 
     def generate_audio_to_file(
         self,
         script: str,
         output_path: Path,
-        voice_assignments: Optional[Dict[str, str]] = None,
+        voice_assignments: Optional[dict[str, str]] = None,
         episode_type: str = "MONOLOGUE",
         language_code: str = "en-US",
         style_prompt: Optional[str] = None,

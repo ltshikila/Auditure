@@ -14,7 +14,6 @@ Reference: https://cloud.google.com/text-to-speech/docs/reference/rest/v1/AudioC
 
 import logging
 from dataclasses import dataclass
-from typing import Optional, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +40,7 @@ class VoiceMapper:
     """
 
     # Google Cloud TTS Standard voice mapping by gender and accent
-    VOICE_MAP: Dict[str, Dict[str, str]] = {
+    VOICE_MAP: dict[str, dict[str, str]] = {
         "MALE": {
             "United States": "en-US-Standard-A",
             "United Kingdom": "en-GB-Standard-B",
@@ -59,7 +58,7 @@ class VoiceMapper:
     }
 
     # Standard voice variants for multi-speaker episodes
-    VOICE_VARIANTS: Dict[str, List[str]] = {
+    VOICE_VARIANTS: dict[str, list[str]] = {
         "MALE": ["en-US-Standard-A", "en-US-Standard-B", "en-US-Standard-D", "en-US-Standard-I"],
         "FEMALE": ["en-US-Standard-C", "en-US-Standard-E", "en-US-Standard-F", "en-US-Standard-G"],
     }
