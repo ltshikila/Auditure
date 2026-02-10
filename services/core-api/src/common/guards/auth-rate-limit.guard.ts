@@ -24,6 +24,8 @@ export class AuthRateLimitGuard implements CanActivate {
         verify: { max: 5, windowSeconds: 600 }, // 5 per 10 min
         'resend-otp': { max: 3, windowSeconds: 900 }, // 3 per 15 min
         register: { max: 3, windowSeconds: 900 }, // 3 per 15 min
+        'forgot-password': { max: 3, windowSeconds: 900 }, // 3 per 15 min
+        'reset-password': { max: 5, windowSeconds: 600 }, // 5 per 10 min
     };
 
     constructor(private redisService: RedisService) {}
@@ -75,6 +77,8 @@ export class AuthRateLimitGuard implements CanActivate {
         if (path.includes('verify')) return 'verify';
         if (path.includes('resend-otp')) return 'resend-otp';
         if (path.includes('register')) return 'register';
+        if (path.includes('forgot-password')) return 'forgot-password';
+        if (path.includes('reset-password')) return 'reset-password';
         return '';
     }
 }

@@ -5,6 +5,8 @@ import { LoginDto } from './dto/login.dto';
 import { VerifyDto } from './dto/verify.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthRateLimitGuard } from '../common/guards/auth-rate-limit.guard';
 
@@ -39,6 +41,22 @@ export class AuthController {
     @UseGuards(AuthRateLimitGuard)
     resendOTP(@Body() resendOtpDto: ResendOtpDto) {
         return this.authService.resendOTP(resendOtpDto.email);
+    }
+
+    @Post('forgot-password')
+    @UseGuards(AuthRateLimitGuard)
+    forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+        return this.authService.forgotPassword(forgotPasswordDto.email);
+    }
+
+    @Post('reset-password')
+    @UseGuards(AuthRateLimitGuard)
+    resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+        return this.authService.resetPassword(
+            resetPasswordDto.email,
+            resetPasswordDto.code,
+            resetPasswordDto.newPassword,
+        );
     }
 
     @UseGuards(JwtAuthGuard)

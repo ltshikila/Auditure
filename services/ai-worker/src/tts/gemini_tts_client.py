@@ -321,18 +321,17 @@ class GeminiTTSClient:
     """
 
     # Gemini model for TTS
-    MODEL_NAME = "gemini-2.5-flash-preview-tts"
+    MODEL_NAME = "gemini-2.5-pro-preview-tts"
 
     # Audio output configuration (Gemini outputs PCM 16-bit 24kHz)
     SAMPLE_RATE = 24000
     SAMPLE_WIDTH = 2  # 16-bit
     CHANNELS = 1
 
-    # Pricing (per 1M tokens) - Gemini 2.5 Flash TTS
+    # Pricing (per 1M tokens) - Gemini 2.5 Pro TTS
     # Reference: https://ai.google.dev/gemini-api/docs/pricing
-    # Updated 2026-01-09: Corrected to actual API pricing
-    INPUT_PRICE_PER_M = 0.50    # $0.50 per 1M text tokens
-    OUTPUT_PRICE_PER_M = 10.00  # $10.00 per 1M audio tokens
+    INPUT_PRICE_PER_M = 1.00    # $1.00 per 1M text tokens
+    OUTPUT_PRICE_PER_M = 20.00  # $20.00 per 1M audio tokens
     TOKENS_PER_SECOND = 25      # Audio tokens per second of output
 
     # Chunking configuration - Gemini TTS has ~10-11 min output limit

@@ -20,7 +20,7 @@ import { episodeService, EpisodeType, EpisodeTheme, ContentCoverage, FileUpload,
 import { bookService, Book, Chapter } from '@/services/book.service';
 import { storageService } from '@/services/storage.service';
 import { subscriptionService, SubscriptionStatus } from '@/services/subscription.service';
-import Slider from '@react-native-community/slider';
+import { SliderTrack } from '@/components/CustomSlider';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { MINI_PLAYER_HEIGHT } from '@/components/MiniPlayer';
 import { useAlert } from '@/contexts/AlertContext';
@@ -40,6 +40,8 @@ const Create = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+    const [showUploadModal, setShowUploadModal] = useState(false);
+    const [showUploadDisclaimer, setShowUploadDisclaimer] = useState(false);
 
     // Podcasters
     const [podcasters, setPodcasters] = useState<Podcaster[]>([]);
@@ -107,12 +109,12 @@ const Create = () => {
     // Voice tier options with descriptions
     const voiceTierOptions: TabOption<VoiceTier>[] = [
         { value: 'STANDARD', label: 'Standard' },
-        { value: 'GEMINI', label: 'Gemini Pro' },
+        { value: 'GEMINI', label: 'Pro' },
     ];
 
     const voiceTierDescriptions: Record<VoiceTier, string> = {
-        STANDARD: 'Google Cloud Standard TTS. Good quality at a lower cost ($4/1M chars). Ideal for free tier usage.',
-        GEMINI: 'Gemini 2.5 Pro TTS with natural multi-speaker synthesis (~$0.32/10-min). Premium listening experience.',
+        STANDARD: 'Clear, natural speech quality. Included with all subscription tiers — great for everyday listening.',
+        GEMINI: 'Premium voice quality with natural multi-speaker synthesis. Rich, immersive listening experience.',
     };
 
     // Load user's podcasters and subscription tier
@@ -366,9 +368,10 @@ const Create = () => {
             }
 
             if (bookSourceMode === 'upload' && selectedFile) {
-                // Create with file upload - track progress
+                // Create with file upload - track progress asynchronously
                 setUploadProgress(0);
-                await episodeService.createWithFile(
+                setShowUploadModal(true);
+                episodeService.createWithFile(
                     selectedFile,
                     {
                         podcasterId: selectedPodcasterId,
@@ -383,8 +386,20 @@ const Create = () => {
                     },
                     token,
                     (progress) => setUploadProgress(progress)
-                );
-                setUploadProgress(null);
+                ).then(() => {
+                    setUploadProgress(null);
+                    setShowUploadModal(false);
+                    setIsSubmitting(false);
+                    showAlert({ title: 'Success', message: 'Episode creation started! You\'ll be notified when it\'s ready.' });
+                    router.back();
+                }).catch((err: any) => {
+                    console.error('Error uploading file:', err);
+                    setUploadProgress(null);
+                    setShowUploadModal(false);
+                    setIsSubmitting(false);
+                    showAlert({ title: 'Error', message: err.message || 'Failed to upload book' });
+                });
+                return; // Don't continue to the finally block — async upload handles cleanup
             } else if (selectedBookId) {
                 // Create with existing book
                 await episodeService.create(
@@ -480,6 +495,51 @@ const Create = () => {
                     {/* Upload File Mode */}
                     {bookSourceMode === 'upload' && (
                         <View>
+                            {/* Upload Disclaimer Modal */}
+                            <Modal
+                                visible={showUploadDisclaimer}
+                                transparent
+                                animationType="fade"
+                            >
+                                <View className="flex-1 bg-black/50 items-center justify-center px-8">
+                                    <View className="bg-brand-beige rounded-2xl p-6 w-full max-w-sm">
+                                        <View className="items-center mb-4">
+                                            <View className="bg-brand-gold/20 rounded-full p-4 mb-3">
+                                                <Ionicons name="information-circle-outline" size={32} color="#BF9A54" />
+                                            </View>
+                                            <Text className="font-jakarta-bold text-lg text-[#1A1C1E] text-center">
+                                                Before You Upload
+                                            </Text>
+                                        </View>
+
+                                        <Text className="font-inter text-[#1A1C1E] text-sm text-center leading-5 mb-2">
+                                            For the best experience, we recommend uploading a{' '}
+                                            <Text className="font-inter-medium">clean, official copy</Text>{' '}
+                                            of the book.
+                                        </Text>
+                                        <Text className="font-inter text-[#858585] text-xs text-center leading-4 mb-5">
+                                            Unofficial or low-quality files can cause issues like wrong book details, missing covers, or chapters not being picked up correctly.
+                                        </Text>
+
+                                        <TouchableOpacity
+                                            onPress={() => {
+                                                setShowUploadDisclaimer(false);
+                                                handlePickFile();
+                                            }}
+                                            className="bg-brand-gold rounded-full py-3.5 items-center mb-2"
+                                        >
+                                            <Text className="text-white font-inter-medium text-sm">I Understand, Continue</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            onPress={() => setShowUploadDisclaimer(false)}
+                                            className="py-3 items-center"
+                                        >
+                                            <Text className="text-[#858585] font-inter text-sm">Cancel</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            </Modal>
+
                             {selectedFile ? (
                                 <View className="bg-brand-input rounded-xl px-4 py-4">
                                     <View className="flex-row items-center">
@@ -505,8 +565,16 @@ const Create = () => {
                                 </View>
                             ) : (
                                 <TouchableOpacity
-                                    onPress={handlePickFile}
-                                    className="bg-brand-input rounded-xl px-4 py-6 items-center border-2 border-dashed border-[#E8E3D6]"
+                                    onPress={() => setShowUploadDisclaimer(true)}
+                                    activeOpacity={0.7}
+                                    className="rounded-2xl px-4 py-6 items-center bg-[#F5F5F0]"
+                                    style={{
+                                        shadowColor: '#000',
+                                        shadowOffset: { width: 0, height: 2 },
+                                        shadowOpacity: 0.08,
+                                        shadowRadius: 4,
+                                        elevation: 6,
+                                    }}
                                 >
                                     <View className="bg-brand-gold/20 rounded-full p-3 mb-3">
                                         <Ionicons name="cloud-upload-outline" size={28} color="#BF9A54" />
@@ -832,44 +900,28 @@ const Create = () => {
                     </View>
 
                     {/* Min slider */}
-                    <View className="mb-4">
-                        <Slider
+                    <View className="mb-2">
+                        <SliderTrack
                             value={targetLengthMin}
-                            onValueChange={(value) => {
-                                const newValue = Math.round(value);
-                                if (newValue < targetLengthMax) {
-                                    setTargetLengthMin(newValue);
-                                }
+                            onValueChange={(v) => {
+                                if (v < targetLengthMax) setTargetLengthMin(v);
                             }}
                             minimumValue={5}
                             maximumValue={maxDuration}
                             step={1}
-                            minimumTrackTintColor="#BF9A54"
-                            maximumTrackTintColor="#E8E3D6"
-                            thumbTintColor="#BF9A54"
-                            style={{ width: '100%', height: 40 }}
                         />
                     </View>
 
                     {/* Max slider */}
-                    <View>
-                        <Slider
-                            value={targetLengthMax}
-                            onValueChange={(value) => {
-                                const newValue = Math.round(value);
-                                if (newValue > targetLengthMin) {
-                                    setTargetLengthMax(newValue);
-                                }
-                            }}
-                            minimumValue={5}
-                            maximumValue={maxDuration}
-                            step={1}
-                            minimumTrackTintColor="#BF9A54"
-                            maximumTrackTintColor="#E8E3D6"
-                            thumbTintColor="#BF9A54"
-                            style={{ width: '100%', height: 40 }}
-                        />
-                    </View>
+                    <SliderTrack
+                        value={targetLengthMax}
+                        onValueChange={(v) => {
+                            if (v > targetLengthMin) setTargetLengthMax(v);
+                        }}
+                        minimumValue={5}
+                        maximumValue={maxDuration}
+                        step={1}
+                    />
 
                     {/* Tick marks */}
                     <View className="flex-row justify-between px-2 mt-1">
@@ -905,12 +957,20 @@ const Create = () => {
 
             {/* Upload Progress Modal */}
             <Modal
-                visible={uploadProgress !== null}
+                visible={showUploadModal}
                 transparent
                 animationType="fade"
             >
                 <View className="flex-1 bg-black/50 items-center justify-center px-8">
-                    <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
+                    <View className="bg-brand-beige rounded-2xl p-6 w-full max-w-sm">
+                        {/* Close button */}
+                        <TouchableOpacity
+                            onPress={() => setShowUploadModal(false)}
+                            className="absolute top-3 right-3 z-10 p-1"
+                        >
+                            <Ionicons name="close" size={22} color="#858585" />
+                        </TouchableOpacity>
+
                         <View className="items-center mb-4">
                             <View className="bg-brand-gold/20 rounded-full p-4 mb-3">
                                 <Ionicons name="cloud-upload" size={32} color="#BF9A54" />
@@ -942,7 +1002,7 @@ const Create = () => {
                                             {displayProgress}% uploaded
                                         </Text>
                                         <Text className="font-inter text-[#858585] text-xs">
-                                            Please wait...
+                                            Upload continues in background
                                         </Text>
                                     </View>
                                 </>

@@ -282,7 +282,7 @@ export default function AuthScreen() {
 
         {/* Forgot Password Link */}
         {isLogin && (
-          <TouchableOpacity className="items-end mb-6">
+          <TouchableOpacity className="items-end mb-6" onPress={() => router.push('/(auth)/ForgotPassword')}>
             <Text className="text-brand-gold font-jakarta-medium text-sm">Forgot Password ?</Text>
           </TouchableOpacity>
         )}

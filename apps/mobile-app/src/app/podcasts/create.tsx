@@ -59,7 +59,7 @@ const Create = () => {
     const [intellectualAngle, setIntellectualAngle] = useState('Skeptical');
     const [viewpointBehavior, setViewpointBehavior] = useState(5);
 
-    // Accents supported by Gemini TTS (en-US, en-GB, en-AU, en-IN)
+    // Supported accent options
     const accentOptions = [
         { label: 'United States', value: 'United States' },
         { label: 'United Kingdom', value: 'United Kingdom' },
@@ -285,14 +285,9 @@ const Create = () => {
 
                         {/* Voice Model */}
                         <View className="mb-6">
-                            <View className="flex-row items-center justify-between mb-3">
-                                <Text className="text-[#1A1C1E] font-inter-medium text-lg mb-2">
-                                    Voice Model
-                                </Text>
-                                <View className="bg-brand-red rounded-full w-10 h-10 items-center justify-center">
-                                    <Ionicons name="play" size={18} color="white" />
-                                </View>
-                            </View>
+                            <Text className="text-[#1A1C1E] font-inter-medium text-lg mb-3">
+                                Voice Model
+                            </Text>
 
                             <View className="flex-row flex-wrap justify-between">
                                 {voiceModels.map(model => (

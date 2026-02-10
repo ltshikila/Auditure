@@ -1,11 +1,13 @@
 // apps/mobile-app/src/app/(auth)/Verification.tsx
 import React, { useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAlert } from '../../contexts/AlertContext';
+
+const backIcon = require('../../assets/icons/back.png');
 
 export default function VerificationScreen() {
   const { email } = useLocalSearchParams<{ email: string }>();
@@ -92,8 +94,8 @@ export default function VerificationScreen() {
         extraScrollHeight={20}
       >
         {/* Back Button */}
-        <TouchableOpacity onPress={() => router.back()} className="mt-8 mb-6">
-          <Text className="text-2xl">←</Text>
+        <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 justify-center items-center -ml-2 mt-4 mb-4">
+          <Image source={backIcon} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
         </TouchableOpacity>
 
         <Text className="font-inter-medium text-4xl text-gray-900 mb-4">Verification</Text>

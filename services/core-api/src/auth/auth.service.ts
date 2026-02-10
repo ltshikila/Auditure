@@ -335,6 +335,112 @@ export class AuthService {
         };
     }
 
+    async forgotPassword(email: string) {
+        this.logger.log(`forgotPassword() called for email: ${email}`);
+
+        try {
+            const user = await this.databaseService.user.findUnique({
+                where: { email },
+            });
+
+            // Always return the same message to prevent email enumeration
+            const successMessage = {
+                message:
+                    'If an account with that email exists, a password reset code has been sent.',
+            };
+
+            if (!user) {
+                this.logger.log(`Forgot password: no user found for ${email} (silent success)`);
+                return successMessage;
+            }
+
+            const otp = this.generateOTP();
+            const otpExpiry = new Date();
+            otpExpiry.setMinutes(
+                otpExpiry.getMinutes() + parseInt(process.env.OTP_EXPIRY_MINUTES || '10'),
+            );
+
+            await this.databaseService.user.update({
+                where: { id: user.id },
+                data: {
+                    otpCode: otp,
+                    otpExpiry,
+                },
+            });
+
+            try {
+                await this.emailService.sendPasswordResetOTP(user.email, otp);
+                this.logger.log(`Password reset OTP sent to: ${email}`);
+            } catch (emailError) {
+                this.logger.error(`Failed to send password reset email: ${emailError.message}`);
+            }
+
+            return successMessage;
+        } catch (error) {
+            this.logger.error(`Error in forgotPassword(): ${error.message}`);
+            this.logger.error(`Stack: ${error.stack}`);
+            throw error;
+        }
+    }
+
+    async resetPassword(email: string, code: string, newPassword: string) {
+        this.logger.log(`resetPassword() called for email: ${email}`);
+
+        try {
+            const user = await this.databaseService.user.findUnique({
+                where: { email },
+            });
+
+            if (!user) {
+                this.logger.warn(`Reset password failed: User not found - ${email}`);
+                throw new BadRequestException('Invalid reset code');
+            }
+
+            if (!user.otpCode || !user.otpExpiry) {
+                this.logger.warn(`Reset password failed: No OTP found for - ${email}`);
+                throw new BadRequestException(
+                    'No reset code found. Please request a new one.',
+                );
+            }
+
+            if (new Date() > user.otpExpiry) {
+                this.logger.warn(`Reset password failed: OTP expired for - ${email}`);
+                throw new BadRequestException(
+                    'Reset code has expired. Please request a new one.',
+                );
+            }
+
+            if (user.otpCode !== code) {
+                this.logger.warn(`Reset password failed: Invalid OTP for - ${email}`);
+                throw new BadRequestException('Invalid reset code');
+            }
+
+            const hashedPassword = await this.hashPassword(newPassword);
+
+            await this.databaseService.user.update({
+                where: { id: user.id },
+                data: {
+                    password: hashedPassword,
+                    otpCode: null,
+                    otpExpiry: null,
+                    refreshToken: null,
+                },
+            });
+
+            this.logger.log(`Password reset successfully for user: ${user.id}`);
+            return {
+                message: 'Password has been reset successfully. Please log in with your new password.',
+            };
+        } catch (error) {
+            if (error instanceof BadRequestException) {
+                throw error;
+            }
+            this.logger.error(`Error in resetPassword(): ${error.message}`);
+            this.logger.error(`Stack: ${error.stack}`);
+            throw error;
+        }
+    }
+
     async resendOTP(email: string) {
         this.logger.log(`resendOTP() called for email: ${email}`);
 

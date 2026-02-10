@@ -69,6 +69,24 @@
           "organization": "auditure-studios",
           "project": "mobile-app"
         }
+      ],
+      [
+        "@react-native-community/datetimepicker",
+        {
+          "android": {
+            "datePicker": {
+              "colorAccent": {
+                "light": "#BF9A54"
+              },
+              "colorControlActivated": {
+                "light": "#BF9A54"
+              },
+              "textColorPrimary": {
+                "light": "#2F2F2F"
+              }
+            }
+          }
+        }
       ]
     ],
     "experiments": {

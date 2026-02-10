@@ -566,11 +566,11 @@ export default function Profile() {
                                 Monthly Usage
                             </Text>
 
-                            {/* Gemini Episodes */}
+                            {/* Pro Episodes */}
                             <View className="mb-3">
                                 <View className="flex-row justify-between mb-1">
                                     <Text className="font-inter text-gray-600 text-sm">
-                                        Gemini Episodes
+                                        Pro Episodes
                                     </Text>
                                     <Text className="font-inter text-gray-900 text-sm">
                                         {subscription.usage.geminiEpisodes.used}

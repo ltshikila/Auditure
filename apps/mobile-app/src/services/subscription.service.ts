@@ -227,7 +227,7 @@ class SubscriptionService {
                 episodesPerMonth: 20,
                 features: [
                     '20 episodes per month',
-                    'Gemini Pro voice quality',
+                    'Pro voice quality',
                     'Episodes up to 30 minutes',
                     'Monologue & Duo episodes',
                     '10 podcaster personalities',
@@ -240,7 +240,7 @@ class SubscriptionService {
                 episodesPerMonth: 50,
                 features: [
                     '50 episodes per month',
-                    'Gemini Pro voice quality',
+                    'Pro voice quality',
                     'Episodes up to 30 minutes',
                     'Monologue & Duo episodes',
                     'Unlimited podcaster personalities',

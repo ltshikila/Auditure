@@ -541,10 +541,10 @@ export default function SubscriptionScreen() {
                             limit={subscription?.usage.geminiEpisodeLimit ?? 20}
                         />
                     ) : (
-                        /* Free tier: separate Gemini + Standard counters */
+                        /* Free tier: separate Pro + Standard counters */
                         <>
                             <UsageBar
-                                label="Gemini Episodes"
+                                label="Pro Episodes"
                                 used={subscription?.usage.geminiEpisodesUsed ?? 0}
                                 limit={subscription?.usage.geminiEpisodeLimit ?? 1}
                             />

@@ -104,6 +104,9 @@ export default function AuthInput({
           onChange={handleDateChange}
           maximumDate={new Date()}
           minimumDate={new Date(1900, 0, 1)}
+          accentColor="#BF9A54"
+          positiveButton={{ textColor: '#BF9A54' }}
+          negativeButton={{ textColor: '#920002' }}
         />
       )}
     </View>

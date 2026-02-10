@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Podcaster } from '@/services/podcaster.service';
 import { resolveCoverUrl } from '@/services/api';
@@ -40,34 +40,25 @@ export const PodcasterSelector: React.FC<PodcasterSelectorProps> = ({
             </View>
 
             {/* Podcaster List */}
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ paddingVertical: 8 }}
-            >
+            <View className="flex-row flex-wrap justify-between">
                 {podcasters.map((podcaster) => {
                     const isSelected = selectedId === podcaster.id;
                     return (
                         <TouchableOpacity
                             key={podcaster.id}
                             onPress={() => onSelect(podcaster.id)}
-                            className={`items-center mr-4 rounded-xl p-2 ${
-                                isSelected ? 'bg-[#F5F5F0]' : ''
+                            className={`w-[30%] rounded-2xl p-4 py-5 items-center mb-3 justify-center ${
+                                isSelected ? 'bg-[#F5F5F0] border-2 border-brand-gold/40' : 'bg-[#F5F5F0]'
                             }`}
-                            style={[
-                                { width: 94 },
-                                isSelected && {
-                                    shadowColor: '#000',
-                                    shadowOffset: { width: 0, height: 2 },
-                                    shadowOpacity: 0.1,
-                                    shadowRadius: 4,
-                                    elevation: 4,
-                                },
-                            ]}
+                            style={
+                                isSelected
+                                    ? { transform: [{ scale: 1.03 }] }
+                                    : { transform: [{ scale: 1 }] }
+                            }
                         >
                             {/* Avatar */}
                             <View
-                                className={`w-16 h-16 rounded-full overflow-hidden mb-2 ${
+                                className={`w-14 h-14 rounded-full overflow-hidden mb-2 ${
                                     isSelected ? 'border-2 border-brand-gold' : 'border border-[#E8E3D6]'
                                 }`}
                             >
@@ -86,7 +77,7 @@ export const PodcasterSelector: React.FC<PodcasterSelectorProps> = ({
 
                             {/* Name */}
                             <Text
-                                className={`font-inter text-xs text-center ${
+                                className={`font-inter text-center ${
                                     isSelected ? 'text-brand-gold font-inter-medium' : 'text-[#1A1C1E]'
                                 }`}
                                 numberOfLines={2}
@@ -97,14 +88,13 @@ export const PodcasterSelector: React.FC<PodcasterSelectorProps> = ({
                     );
                 })}
 
-                {/* Empty state or placeholder */}
+                {/* Empty state */}
                 {podcasters.length === 0 && (
                     <TouchableOpacity
                         onPress={onAddNew}
-                        className="items-center"
-                        style={{ width: 90 }}
+                        className="w-[30%] rounded-2xl p-4 py-5 items-center mb-3 justify-center"
                     >
-                        <View className="w-16 h-16 rounded-full bg-[#E8E3D6] items-center justify-center mb-2 border border-dashed border-brand-gold">
+                        <View className="w-14 h-14 rounded-full bg-[#E8E3D6] items-center justify-center mb-2 border border-dashed border-brand-gold">
                             <Ionicons name="add" size={24} color="#BF9A54" />
                         </View>
                         <Text className="font-inter text-xs text-center text-[#858585]">
@@ -112,7 +102,7 @@ export const PodcasterSelector: React.FC<PodcasterSelectorProps> = ({
                         </Text>
                     </TouchableOpacity>
                 )}
-            </ScrollView>
+            </View>
         </View>
     );
 };

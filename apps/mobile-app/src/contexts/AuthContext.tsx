@@ -14,6 +14,8 @@ interface AuthContextType {
   logout: () => Promise<void>;
   resendOTP: (email: string) => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
+  forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (email: string, code: string, newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -115,6 +117,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     await authService.resendOTP(email);
   };
 
+  const forgotPassword = async (email: string) => {
+    await authService.forgotPassword(email);
+  };
+
+  const resetPassword = async (email: string, code: string, newPassword: string) => {
+    await authService.resetPassword({ email, code, newPassword });
+  };
+
   const updateUser = (updates: Partial<User>) => {
     setUser(prev => prev ? { ...prev, ...updates } : prev);
   };
@@ -136,6 +146,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         logout,
         resendOTP,
         updateUser,
+        forgotPassword,
+        resetPassword,
       }}
     >
       {children}

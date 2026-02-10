@@ -52,6 +52,20 @@ export interface VerifyResponse {
   user: User;
 }
 
+export interface ForgotPasswordResponse {
+  message: string;
+}
+
+export interface ResetPasswordData {
+  email: string;
+  code: string;
+  newPassword: string;
+}
+
+export interface ResetPasswordResponse {
+  message: string;
+}
+
 class AuthService {
   async register(data: RegisterData): Promise<RegisterResponse> {
     return apiClient.post<RegisterResponse>('/auth/register', data);
@@ -75,6 +89,14 @@ class AuthService {
 
   async getProfile(token: string): Promise<User> {
     return apiClient.get<User>('/auth/me', token);
+  }
+
+  async forgotPassword(email: string): Promise<ForgotPasswordResponse> {
+    return apiClient.post<ForgotPasswordResponse>('/auth/forgot-password', { email });
+  }
+
+  async resetPassword(data: ResetPasswordData): Promise<ResetPasswordResponse> {
+    return apiClient.post<ResetPasswordResponse>('/auth/reset-password', data);
   }
 }
 
