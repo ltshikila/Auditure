@@ -17,7 +17,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         const ctx = host.switchToHttp();
         const response = ctx.getResponse<Response>();
 
-        let status = HttpStatus.INTERNAL_SERVER_ERROR;
+        let status: number = HttpStatus.INTERNAL_SERVER_ERROR;
         let message = 'An unexpected error occurred';
         let error = 'Internal Server Error';
 

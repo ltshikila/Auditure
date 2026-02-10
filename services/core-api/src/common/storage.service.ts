@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { promises as fs, createReadStream as fsCreateReadStream, statSync } from 'fs';
+import { promises as fs, createReadStream as fsCreateReadStream } from 'fs';
 import { Readable } from 'stream';
 import * as path from 'path';
 import { StorageBackend } from './interfaces/storage-backend.interface';
@@ -108,7 +108,9 @@ export class StorageService {
         if (backendType === 'gcs') {
             const bucketName = process.env.GCS_BUCKET_NAME;
             if (!bucketName) {
-                throw new Error('GCS_BUCKET_NAME environment variable is required when STORAGE_BACKEND=gcs');
+                throw new Error(
+                    'GCS_BUCKET_NAME environment variable is required when STORAGE_BACKEND=gcs',
+                );
             }
             this.backend = new GcsStorageBackend(bucketName);
         } else {

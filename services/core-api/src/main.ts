@@ -2,7 +2,6 @@ import 'dotenv/config';
 import './instrument';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
-import * as Sentry from '@sentry/nestjs';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
@@ -11,7 +10,9 @@ import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 async function bootstrap() {
     const logger = new Logger('Bootstrap');
 
-    logger.log(`Starting NestJS application (PID: ${process.pid}, PORT: ${process.env.PORT ?? 3000})`);
+    logger.log(
+        `Starting NestJS application (PID: ${process.pid}, PORT: ${process.env.PORT ?? 3000})`,
+    );
     logger.log(`NODE_ENV: ${process.env.NODE_ENV}`);
 
     const app = await NestFactory.create(AppModule, {
