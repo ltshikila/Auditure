@@ -57,8 +57,8 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 /generated/prisma
 
-# Storage
-storage/
+# Storage data directory (root level only, not src/storage/ Python package)
+/storage/
 
 # Google Cloud credentials
 google-credentials.json

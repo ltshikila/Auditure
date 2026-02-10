@@ -1,6 +1,7 @@
 """Unit tests for script parser."""
 
 import pytest
+
 from src.tts.script_parser import ScriptParser, SpeakerSegment
 
 

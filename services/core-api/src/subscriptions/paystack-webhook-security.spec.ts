@@ -106,10 +106,7 @@ describe('Paystack Webhook Signature Verification', () => {
 
         it('should return false when signed with the public key instead of secret key', () => {
             const payload = JSON.stringify({ event: 'charge.success' });
-            const signature = computeSignature(
-                payload,
-                'pk_test_yyyyyyyyyyyyyyyyyyyyyyyy',
-            );
+            const signature = computeSignature(payload, 'pk_test_yyyyyyyyyyyyyyyyyyyyyyyy');
 
             expect(service.verifyWebhookSignature(payload, signature)).toBe(false);
         });

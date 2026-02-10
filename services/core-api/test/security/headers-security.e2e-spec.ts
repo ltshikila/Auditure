@@ -42,7 +42,8 @@ describe('Security: HTTP Headers & CORS (e2e)', () => {
     beforeAll(async () => {
         // Ensure env is set for test
         process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-key';
-        process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'test-refresh-secret-key';
+        process.env.JWT_REFRESH_SECRET =
+            process.env.JWT_REFRESH_SECRET || 'test-refresh-secret-key';
 
         // Clear CORS_ORIGINS so the app falls back to its default origins list
         delete process.env.CORS_ORIGINS;
@@ -104,23 +105,20 @@ describe('Security: HTTP Headers & CORS (e2e)', () => {
             it('should NOT expose X-Powered-By header on any response', async () => {
                 const response = await request(app.getHttpServer())
                     .get('/')
-                    .expect((res) => {
+                    .expect(res => {
                         // helmet removes X-Powered-By: Express
                         expect(res.headers['x-powered-by']).toBeUndefined();
                     });
             });
 
             it('should NOT expose X-Powered-By on a 404 route', async () => {
-                const response = await request(app.getHttpServer())
-                    .get('/nonexistent-route-12345');
+                const response = await request(app.getHttpServer()).get('/nonexistent-route-12345');
 
                 expect(response.headers['x-powered-by']).toBeUndefined();
             });
 
             it('should NOT expose X-Powered-By on POST routes', async () => {
-                const response = await request(app.getHttpServer())
-                    .post('/auth/register')
-                    .send({});
+                const response = await request(app.getHttpServer()).post('/auth/register').send({});
 
                 expect(response.headers['x-powered-by']).toBeUndefined();
             });
@@ -152,9 +150,7 @@ describe('Security: HTTP Headers & CORS (e2e)', () => {
             });
 
             it('should NOT include Access-Control-Allow-Origin for null origin', async () => {
-                const response = await request(app.getHttpServer())
-                    .get('/')
-                    .set('Origin', 'null');
+                const response = await request(app.getHttpServer()).get('/').set('Origin', 'null');
 
                 expect(response.headers['access-control-allow-origin']).toBeUndefined();
             });
@@ -221,8 +217,7 @@ describe('Security: HTTP Headers & CORS (e2e)', () => {
 
     describe('Server Information Leakage Prevention', () => {
         it('should not reveal framework details in error responses', async () => {
-            const response = await request(app.getHttpServer())
-                .get('/nonexistent-route-xyz');
+            const response = await request(app.getHttpServer()).get('/nonexistent-route-xyz');
 
             const body = JSON.stringify(response.body);
 
@@ -234,9 +229,7 @@ describe('Security: HTTP Headers & CORS (e2e)', () => {
 
         it('should not expose stack traces in error responses', async () => {
             // Trigger a validation error
-            const response = await request(app.getHttpServer())
-                .post('/auth/register')
-                .send({});
+            const response = await request(app.getHttpServer()).post('/auth/register').send({});
 
             const body = JSON.stringify(response.body);
 

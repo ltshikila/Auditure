@@ -1,8 +1,10 @@
 """Integration tests for script generator."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from src.generators.script_generator import ScriptGenerator, ScriptResult, DurationMismatchError
+
+from src.generators.script_generator import DurationMismatchError, ScriptGenerator, ScriptResult
 
 
 class TestScriptGeneratorIntegration:

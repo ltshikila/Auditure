@@ -47,9 +47,9 @@ htmlcov/
 .env.*
 !.env.example
 
-# Storage (will be mounted as volume)
-storage/
-temp/
+# Storage data directory (root level only, not src/storage/ Python package)
+/storage/
+/temp/
 
 # Git
 .git/

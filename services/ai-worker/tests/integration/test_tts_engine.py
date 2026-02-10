@@ -1,9 +1,10 @@
 """Integration tests for TTS engine."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock, AsyncMock
-from pathlib import Path
-from src.tts.tts_engine import TTSEngine, TTSResult, PodcasterVoice
+
+from src.tts.tts_engine import PodcasterVoice, TTSEngine, TTSResult
 
 
 class TestTTSEngineIntegration:

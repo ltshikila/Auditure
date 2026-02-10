@@ -1137,7 +1137,10 @@ export class EpisodesService {
             });
 
             // Stream only the requested byte range — no full file in memory
-            const stream = this.storageService.createReadStream(episode.audioFileKey, { start, end });
+            const stream = this.storageService.createReadStream(episode.audioFileKey, {
+                start,
+                end,
+            });
             return new StreamableFile(stream);
         }
 

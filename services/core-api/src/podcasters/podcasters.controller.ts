@@ -112,7 +112,12 @@ export class PodcastersController {
             limits: { fileSize: 5 * 1024 * 1024 },
             fileFilter: (req, file, cb) => {
                 if (!file.mimetype.match(/^image\/(jpeg|png|webp|gif)$/)) {
-                    return cb(new BadRequestException('Only image files (JPEG, PNG, WebP, GIF) are allowed'), false);
+                    return cb(
+                        new BadRequestException(
+                            'Only image files (JPEG, PNG, WebP, GIF) are allowed',
+                        ),
+                        false,
+                    );
                 }
                 cb(null, true);
             },

@@ -500,7 +500,11 @@ export class PodcastersService {
     /**
      * Upload podcaster profile picture
      */
-    async uploadProfilePicture(id: string, userId: string, file: Express.Multer.File): Promise<PodcasterResponseDto> {
+    async uploadProfilePicture(
+        id: string,
+        userId: string,
+        file: Express.Multer.File,
+    ): Promise<PodcasterResponseDto> {
         this.logger.log(`uploadProfilePicture() called for podcaster ${id} by user ${userId}`);
 
         const podcaster = await this.databaseService.podcaster.findUnique({

@@ -1,7 +1,8 @@
 """Unit tests for voice mapper."""
 
 import pytest
-from src.tts.voice_mapper import VoiceMapper, VoiceConfig
+
+from src.tts.voice_mapper import VoiceConfig, VoiceMapper
 
 
 class TestVoiceMapper:

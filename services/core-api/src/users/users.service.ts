@@ -77,7 +77,10 @@ export class UsersService {
         return user;
     }
 
-    async uploadProfilePicture(userId: string, file: Express.Multer.File): Promise<UserProfileResponseDto> {
+    async uploadProfilePicture(
+        userId: string,
+        file: Express.Multer.File,
+    ): Promise<UserProfileResponseDto> {
         this.logger.log(`uploadProfilePicture() called for user ${userId}`);
 
         // Delete old profile picture if exists
@@ -474,7 +477,7 @@ Last updated: January 2025`,
         await this.getSubscription(userId);
 
         // Atomic check-and-consume within a transaction to prevent race conditions
-        return this.databaseService.$transaction(async (tx) => {
+        return this.databaseService.$transaction(async tx => {
             const sub = await tx.subscription.findUnique({
                 where: { userId },
             });
@@ -498,8 +501,10 @@ Last updated: January 2025`,
                 }
             } else {
                 // Free tier: check individual limits (1 Gemini, 2 Standard)
-                const used = voiceTier === 'GEMINI' ? sub.geminiEpisodesUsed : sub.standardEpisodesUsed;
-                const limit = voiceTier === 'GEMINI' ? sub.geminiEpisodeLimit : sub.standardEpisodeLimit;
+                const used =
+                    voiceTier === 'GEMINI' ? sub.geminiEpisodesUsed : sub.standardEpisodesUsed;
+                const limit =
+                    voiceTier === 'GEMINI' ? sub.geminiEpisodeLimit : sub.standardEpisodeLimit;
 
                 if (used >= limit) {
                     this.logger.warn(`User ${userId} has exceeded ${voiceTier} quota`);

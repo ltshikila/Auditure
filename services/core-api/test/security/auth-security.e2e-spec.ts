@@ -177,9 +177,7 @@ describe('Security: Authentication & JWT Token Attacks (e2e)', () => {
 
         describe('Reject no Authorization header', () => {
             it('should return 401 when no Authorization header is provided on GET /auth/me', async () => {
-                await request(app.getHttpServer())
-                    .get('/auth/me')
-                    .expect(401);
+                await request(app.getHttpServer()).get('/auth/me').expect(401);
             });
         });
 
@@ -247,9 +245,7 @@ describe('Security: Authentication & JWT Token Attacks (e2e)', () => {
                 // The @IsEmail() validator rejects this as an invalid email
                 expect(response.body.statusCode).toBe(400);
                 expect(response.body.message).toEqual(
-                    expect.arrayContaining([
-                        expect.stringContaining('email'),
-                    ]),
+                    expect.arrayContaining([expect.stringContaining('email')]),
                 );
             });
 
@@ -300,9 +296,7 @@ describe('Security: Authentication & JWT Token Attacks (e2e)', () => {
 
                 expect(response.body.statusCode).toBe(400);
                 expect(response.body.message).toEqual(
-                    expect.arrayContaining([
-                        expect.stringContaining('isAdmin'),
-                    ]),
+                    expect.arrayContaining([expect.stringContaining('isAdmin')]),
                 );
             });
 
@@ -321,9 +315,7 @@ describe('Security: Authentication & JWT Token Attacks (e2e)', () => {
 
                 expect(response.body.statusCode).toBe(400);
                 expect(response.body.message).toEqual(
-                    expect.arrayContaining([
-                        expect.stringContaining('role'),
-                    ]),
+                    expect.arrayContaining([expect.stringContaining('role')]),
                 );
             });
 
@@ -342,9 +334,7 @@ describe('Security: Authentication & JWT Token Attacks (e2e)', () => {
 
                 expect(response.body.statusCode).toBe(400);
                 expect(response.body.message).toEqual(
-                    expect.arrayContaining([
-                        expect.stringContaining('subscriptionTier'),
-                    ]),
+                    expect.arrayContaining([expect.stringContaining('subscriptionTier')]),
                 );
             });
         });
@@ -363,9 +353,7 @@ describe('Security: Authentication & JWT Token Attacks (e2e)', () => {
 
                 expect(response.body.statusCode).toBe(400);
                 expect(response.body.message).toEqual(
-                    expect.arrayContaining([
-                        expect.stringContaining('email'),
-                    ]),
+                    expect.arrayContaining([expect.stringContaining('email')]),
                 );
             });
 
@@ -382,9 +370,7 @@ describe('Security: Authentication & JWT Token Attacks (e2e)', () => {
 
                 expect(response.body.statusCode).toBe(400);
                 expect(response.body.message).toEqual(
-                    expect.arrayContaining([
-                        expect.stringContaining('password'),
-                    ]),
+                    expect.arrayContaining([expect.stringContaining('password')]),
                 );
             });
 
@@ -401,9 +387,7 @@ describe('Security: Authentication & JWT Token Attacks (e2e)', () => {
 
                 expect(response.body.statusCode).toBe(400);
                 expect(response.body.message).toEqual(
-                    expect.arrayContaining([
-                        expect.stringContaining('firstName'),
-                    ]),
+                    expect.arrayContaining([expect.stringContaining('firstName')]),
                 );
             });
 
@@ -420,9 +404,7 @@ describe('Security: Authentication & JWT Token Attacks (e2e)', () => {
 
                 expect(response.body.statusCode).toBe(400);
                 expect(response.body.message).toEqual(
-                    expect.arrayContaining([
-                        expect.stringContaining('lastName'),
-                    ]),
+                    expect.arrayContaining([expect.stringContaining('lastName')]),
                 );
             });
 
@@ -439,17 +421,12 @@ describe('Security: Authentication & JWT Token Attacks (e2e)', () => {
 
                 expect(response.body.statusCode).toBe(400);
                 expect(response.body.message).toEqual(
-                    expect.arrayContaining([
-                        expect.stringContaining('dateOfBirth'),
-                    ]),
+                    expect.arrayContaining([expect.stringContaining('dateOfBirth')]),
                 );
             });
 
             it('should reject completely empty body', async () => {
-                await request(app.getHttpServer())
-                    .post('/auth/register')
-                    .send({})
-                    .expect(400);
+                await request(app.getHttpServer()).post('/auth/register').send({}).expect(400);
             });
 
             it('should reject password shorter than 6 characters', async () => {
@@ -466,9 +443,7 @@ describe('Security: Authentication & JWT Token Attacks (e2e)', () => {
 
                 expect(response.body.statusCode).toBe(400);
                 expect(response.body.message).toEqual(
-                    expect.arrayContaining([
-                        expect.stringContaining('password'),
-                    ]),
+                    expect.arrayContaining([expect.stringContaining('password')]),
                 );
             });
 
@@ -486,9 +461,7 @@ describe('Security: Authentication & JWT Token Attacks (e2e)', () => {
 
                 expect(response.body.statusCode).toBe(400);
                 expect(response.body.message).toEqual(
-                    expect.arrayContaining([
-                        expect.stringContaining('dateOfBirth'),
-                    ]),
+                    expect.arrayContaining([expect.stringContaining('dateOfBirth')]),
                 );
             });
         });

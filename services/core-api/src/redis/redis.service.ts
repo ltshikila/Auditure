@@ -13,7 +13,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
             maxRetriesPerRequest: 3,
             connectTimeout: 10_000, // 10s connection timeout
             lazyConnect: true,
-            retryStrategy: (times) => {
+            retryStrategy: times => {
                 if (times > 3) {
                     this.logger.warn('Redis max connection retries reached, giving up');
                     return null; // Stop retrying

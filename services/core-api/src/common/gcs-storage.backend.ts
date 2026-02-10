@@ -16,11 +16,7 @@ export class GcsStorageBackend implements StorageBackend {
         this.logger.log(`Initialized with bucket: ${bucketName}`);
     }
 
-    async uploadFile(
-        file: Buffer,
-        key: string,
-        mimeType: string,
-    ): Promise<string> {
+    async uploadFile(file: Buffer, key: string, mimeType: string): Promise<string> {
         const blob = this.bucket.file(key);
         await blob.save(file, {
             contentType: mimeType,
@@ -63,10 +59,7 @@ export class GcsStorageBackend implements StorageBackend {
         return this.bucket.file(key).createReadStream(options);
     }
 
-    async getSignedUrl(
-        key: string,
-        expiresInMinutes: number = 60,
-    ): Promise<string> {
+    async getSignedUrl(key: string, expiresInMinutes: number = 60): Promise<string> {
         const [url] = await this.bucket.file(key).getSignedUrl({
             action: 'read',
             expires: Date.now() + expiresInMinutes * 60 * 1000,

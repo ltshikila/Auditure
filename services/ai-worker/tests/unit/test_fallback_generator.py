@@ -1,6 +1,7 @@
 """Unit tests for fallback template generator."""
 
 import pytest
+
 from src.generators.templates.fallback_generator import FallbackGenerator, FallbackRequest
 
 

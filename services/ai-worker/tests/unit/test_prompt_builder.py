@@ -1,9 +1,10 @@
 """Unit tests for prompt builder."""
 
 import pytest
+
 from src.generators.prompt_builder import (
-    PromptBuilder,
     PodcasterPersonality,
+    PromptBuilder,
     ScriptRequest,
 )
 

@@ -20,10 +20,10 @@ export class AuthRateLimitGuard implements CanActivate {
     private readonly logger = new Logger(AuthRateLimitGuard.name);
 
     private readonly LIMITS: Record<string, { max: number; windowSeconds: number }> = {
-        login: { max: 5, windowSeconds: 900 },       // 5 per 15 min
-        verify: { max: 5, windowSeconds: 600 },       // 5 per 10 min
+        login: { max: 5, windowSeconds: 900 }, // 5 per 15 min
+        verify: { max: 5, windowSeconds: 600 }, // 5 per 10 min
         'resend-otp': { max: 3, windowSeconds: 900 }, // 3 per 15 min
-        register: { max: 3, windowSeconds: 900 },     // 3 per 15 min
+        register: { max: 3, windowSeconds: 900 }, // 3 per 15 min
     };
 
     constructor(private redisService: RedisService) {}

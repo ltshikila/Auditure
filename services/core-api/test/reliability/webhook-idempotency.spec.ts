@@ -279,9 +279,7 @@ describe('Webhook Idempotency', () => {
         it('should not throw when no matching subscription record exists', async () => {
             mockDb.subscription.findFirst.mockResolvedValue(null);
 
-            await expect(
-                service.handleSubscriptionDisable(disableData),
-            ).resolves.not.toThrow();
+            await expect(service.handleSubscriptionDisable(disableData)).resolves.not.toThrow();
             expect(mockNotifications.notifySystem).not.toHaveBeenCalled();
         });
 
@@ -319,9 +317,7 @@ describe('Webhook Idempotency', () => {
         it('should not throw when no matching subscription record exists', async () => {
             mockDb.subscription.findFirst.mockResolvedValue(null);
 
-            await expect(
-                service.handleSubscriptionNotRenew(notRenewData),
-            ).resolves.not.toThrow();
+            await expect(service.handleSubscriptionNotRenew(notRenewData)).resolves.not.toThrow();
             expect(mockNotifications.notifySystem).not.toHaveBeenCalled();
         });
     });
@@ -359,9 +355,7 @@ describe('Webhook Idempotency', () => {
         it('should not throw when no matching subscription record exists', async () => {
             mockDb.subscription.findFirst.mockResolvedValue(null);
 
-            await expect(
-                service.handleInvoicePaymentFailed(failedData),
-            ).resolves.not.toThrow();
+            await expect(service.handleInvoicePaymentFailed(failedData)).resolves.not.toThrow();
             expect(mockNotifications.notifySystem).not.toHaveBeenCalled();
         });
     });

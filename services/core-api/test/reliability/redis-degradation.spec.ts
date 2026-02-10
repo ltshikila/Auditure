@@ -35,9 +35,7 @@ describe('RedisService - Degraded Mode (Redis Disconnected)', () => {
         });
 
         it('deleteJobProgress should not throw when Redis is disconnected', async () => {
-            await expect(
-                service.deleteJobProgress('job-123'),
-            ).resolves.toBeUndefined();
+            await expect(service.deleteJobProgress('job-123')).resolves.toBeUndefined();
         });
     });
 
@@ -141,7 +139,10 @@ describe('RedisService - Degraded Mode (Redis Disconnected)', () => {
         });
 
         it('claimNotifications should return 0 when Redis is disconnected', async () => {
-            const result = await service.claimNotifications('consumer-1', 60000, ['msg-1', 'msg-2']);
+            const result = await service.claimNotifications('consumer-1', 60000, [
+                'msg-1',
+                'msg-2',
+            ]);
             expect(result).toBe(0);
         });
 

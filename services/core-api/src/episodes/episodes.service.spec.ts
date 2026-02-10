@@ -149,7 +149,9 @@ describe('EpisodesService', () => {
                 'Content-Length': mockAudioBuffer.length,
                 'Content-Type': 'audio/mpeg',
             });
-            expect(mockStorageService.createReadStream).toHaveBeenCalledWith(mockEpisode.audioFileKey);
+            expect(mockStorageService.createReadStream).toHaveBeenCalledWith(
+                mockEpisode.audioFileKey,
+            );
         });
 
         it('should handle range requests for seeking', async () => {

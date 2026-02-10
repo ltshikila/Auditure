@@ -10,7 +10,10 @@
  * internal `channel` remains undefined.
  */
 import { RabbitMQService } from '../../src/rabbitmq/rabbitmq.service';
-import { BookExtractionJob, EpisodeGenerationJob } from '../../src/rabbitmq/interfaces/jobs.interface';
+import {
+    BookExtractionJob,
+    EpisodeGenerationJob,
+} from '../../src/rabbitmq/interfaces/jobs.interface';
 
 describe('RabbitMQService - Degraded Mode (Channel Unavailable)', () => {
     let service: RabbitMQService;

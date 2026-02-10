@@ -1,7 +1,6 @@
 """Local file storage for audio files."""
 
 import logging
-import os
 from pathlib import Path
 from typing import Optional
 
@@ -68,7 +67,7 @@ class LocalStorage:
 
         except Exception as e:
             logger.error(f"Failed to save file: {e}")
-            raise StorageError(f"Failed to save file: {e}")
+            raise StorageError(f"Failed to save file: {e}") from e
 
     def get(self, key: str) -> bytes:
         """
@@ -93,7 +92,7 @@ class LocalStorage:
                 return f.read()
         except Exception as e:
             logger.error(f"Failed to read file: {e}")
-            raise StorageError(f"Failed to read file: {e}")
+            raise StorageError(f"Failed to read file: {e}") from e
 
     def delete(self, key: str) -> bool:
         """

@@ -44,7 +44,11 @@ export class AuthService {
         const accessToken = this.jwtService.sign(payload);
 
         const refreshToken = this.jwtService.sign(payload, {
-            secret: process.env.JWT_REFRESH_SECRET ?? (() => { throw new Error('JWT_REFRESH_SECRET environment variable is required'); })(),
+            secret:
+                process.env.JWT_REFRESH_SECRET ??
+                (() => {
+                    throw new Error('JWT_REFRESH_SECRET environment variable is required');
+                })(),
             expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN || '7d') as any,
         });
 
@@ -275,7 +279,11 @@ export class AuthService {
 
         try {
             const payload = this.jwtService.verify(refreshToken, {
-                secret: process.env.JWT_REFRESH_SECRET ?? (() => { throw new Error('JWT_REFRESH_SECRET environment variable is required'); })(),
+                secret:
+                    process.env.JWT_REFRESH_SECRET ??
+                    (() => {
+                        throw new Error('JWT_REFRESH_SECRET environment variable is required');
+                    })(),
             });
 
             const user = await this.databaseService.user.findUnique({
