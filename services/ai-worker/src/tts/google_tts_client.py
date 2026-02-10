@@ -13,7 +13,6 @@ Reference: https://docs.cloud.google.com/text-to-speech/docs/voices
 
 import io
 import logging
-import os
 import re
 from pathlib import Path
 from typing import Optional
@@ -73,12 +72,15 @@ class GoogleTTSClient:
                 settings.google_cloud_credentials_path
             )
             self.client = texttospeech.TextToSpeechClient(credentials=credentials)
-        elif os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
-            # Use default credentials from environment
-            self.client = texttospeech.TextToSpeechClient()
         else:
-            self.client = None
-            logger.warning("Google Cloud TTS not configured - no credentials found")
+            # Use Application Default Credentials (Cloud Run service account,
+            # GOOGLE_APPLICATION_CREDENTIALS env var, or local gcloud auth)
+            try:
+                self.client = texttospeech.TextToSpeechClient()
+                logger.info("Google Cloud TTS initialized with default credentials")
+            except Exception as e:
+                self.client = None
+                logger.warning(f"Google Cloud TTS not configured: {e}")
 
     @property
     def is_available(self) -> bool:

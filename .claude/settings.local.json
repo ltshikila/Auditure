@@ -106,7 +106,11 @@
       "Bash(gcloud domains verify:*)",
       "Bash(gcloud auth list:*)",
       "WebFetch(domain:rntp.dev)",
-      "Bash(gcloud storage buckets describe:*)"
+      "Bash(gcloud storage buckets describe:*)",
+      "Bash(git rm:*)",
+      "Bash(xargs git rm:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gcloud run services logs read:*)"
     ]
   }
 }
