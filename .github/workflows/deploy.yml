@@ -84,7 +84,7 @@ jobs:
             --allow-unauthenticated \
             --port 3000 \
             --set-env-vars "NODE_ENV=production,STORAGE_BACKEND=gcs,GCS_BUCKET_NAME=auditure-storage-prod" \
-            --set-secrets "DATABASE_URL=DATABASE_URL:latest,JWT_ACCESS_SECRET=JWT_ACCESS_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,PAYSTACK_SECRET_KEY=PAYSTACK_SECRET_KEY:latest,RESEND_API_KEY=RESEND_API_KEY:latest,RABBITMQ_URL=RABBITMQ_URL:latest" \
+            --set-secrets "DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_ACCESS_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,PAYSTACK_SECRET_KEY=PAYSTACK_SECRET_KEY:latest,RESEND_API_KEY=RESEND_API_KEY:latest,RABBITMQ_URL=RABBITMQ_URL:latest" \
             --add-cloudsql-instances ${{ env.PROJECT_ID }}:${{ env.REGION }}:auditure-db \
             --min-instances 0 \
             --max-instances 10 \

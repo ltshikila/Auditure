@@ -58,17 +58,16 @@ When `SENTRY_DSN` is not set, Sentry is completely disabled — no SDK overhead,
 
 ### Sampling Rates
 
-| Environment | Traces | Profiles |
-|-------------|--------|----------|
-| Production | 20% | 20% |
-| Development | 100% | 100% |
+| Environment | Traces |
+|-------------|--------|
+| Production | 20% |
+| Development | 100% |
 
 Adjust in `instrument.ts` if needed. In production, 20% provides good visibility without excessive cost.
 
 ### Packages
 
 - `@sentry/nestjs` — NestJS-specific SDK with module integration
-- `@sentry/profiling-node` — Node.js profiling (CPU flame graphs in Sentry)
 
 ---
 
