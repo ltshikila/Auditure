@@ -46,12 +46,12 @@ RUN apk add --no-cache \
 
 WORKDIR /app
 
-# Copy package files for production install
+# Copy node_modules from builder and prune dev dependencies
+# (avoids rebuilding native modules like canvas in the runner stage)
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/prisma ./prisma/
-
-# Install production dependencies only
-RUN npm install --omit=dev
+RUN npm prune --omit=dev
 
 # Regenerate Prisma client for production
 RUN npx prisma generate
