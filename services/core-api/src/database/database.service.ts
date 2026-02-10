@@ -14,12 +14,15 @@ export class DatabaseService extends PrismaClient implements OnModuleInit, OnMod
             process.env.DATABASE_URL || 'postgresql://admin:password@localhost:5432/auditure_db';
         const url = new URL(dbUrl);
 
+        // Cloud SQL on Cloud Run uses Unix sockets via ?host=/cloudsql/project:region:instance
+        // pg.Pool needs host set to the socket directory path (starts with /)
+        const socketHost = url.searchParams.get('host');
         const pool = new Pool({
-            host: url.hostname,
-            port: parseInt(url.port) || 5432,
+            host: socketHost || url.hostname,
+            port: socketHost ? undefined : parseInt(url.port) || 5432,
             database: url.pathname.slice(1), // Remove leading '/'
             user: url.username,
-            password: url.password,
+            password: decodeURIComponent(url.password),
             connectionTimeoutMillis: 10_000, // 10s connection timeout
         });
         const adapter = new PrismaPg(pool);
