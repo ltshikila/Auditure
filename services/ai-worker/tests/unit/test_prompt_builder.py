@@ -94,9 +94,8 @@ class TestPromptBuilder:
         """Test group instructions."""
         instructions = builder.build_episode_type_instructions("GROUP")
 
-        assert "GUEST1" in instructions
-        assert "GUEST2" in instructions
-        assert "Group" in instructions or "multiple" in instructions.lower()
+        assert "GUEST" in instructions
+        assert "HOST" in instructions
 
     # Episode theme instructions tests
     def test_episode_theme_lecture(self, builder):

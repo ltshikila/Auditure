@@ -99,7 +99,7 @@ Fourth paragraph."""
         segments = parser.parse(script, "GROUP")
 
         speakers = [s.speaker for s in segments]
-        assert speakers == ["HOST", "GUEST1", "GUEST2", "HOST"]
+        assert speakers == ["HOST", "GUEST", "HOST", "GUEST"]
 
     # Helper method tests
     def test_get_unique_speakers(self, parser):

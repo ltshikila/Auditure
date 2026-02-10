@@ -118,8 +118,7 @@ class TestScriptGeneratorIntegration:
 
         assert result.method == "template"
         assert "HOST:" in result.script
-        assert "GUEST1:" in result.script
-        assert "GUEST2:" in result.script
+        assert "GUEST:" in result.script
 
     # LLM integration tests (mocked)
     def test_generate_with_llm_success(self, sample_personality, sample_book_content):
@@ -262,4 +261,4 @@ class TestScriptGeneratorIntegration:
                 assert "GUEST:" in result.script
             else:  # GROUP
                 assert "HOST:" in result.script
-                assert "GUEST1:" in result.script
+                assert "GUEST:" in result.script

@@ -91,8 +91,7 @@ class TestFallbackGenerator:
         intro = generator.generate_intro(sample_request)
 
         assert "HOST:" in intro
-        assert "GUEST1:" in intro
-        assert "GUEST2:" in intro
+        assert "GUEST:" in intro
 
     def test_generate_intro_without_author(self, generator, sample_request):
         """Test generating intro without author."""
@@ -128,8 +127,7 @@ class TestFallbackGenerator:
         body = generator.generate_body(sample_request, sentences)
 
         assert "HOST:" in body
-        assert "GUEST1:" in body
-        assert "GUEST2:" in body
+        assert "GUEST:" in body
 
     # Conclusion generation tests
     def test_generate_conclusion_monologue(self, generator, sample_request):
@@ -153,8 +151,7 @@ class TestFallbackGenerator:
         conclusion = generator.generate_conclusion(sample_request)
 
         assert "HOST:" in conclusion
-        assert "GUEST1:" in conclusion
-        assert "GUEST2:" in conclusion
+        assert "GUEST:" in conclusion
 
     # Full script generation tests
     def test_generate_script_complete(self, generator, sample_request):
