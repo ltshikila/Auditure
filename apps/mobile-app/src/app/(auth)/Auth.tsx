@@ -225,6 +225,8 @@ export default function AuthScreen() {
                 onChangeText={(text: string) => handleFieldChange('firstName', text)}
                 error={touched.firstName ? errors.firstName : undefined}
                 type="text"
+                textContentType="givenName"
+                autoComplete="name-given"
               />
             </View>
             <View className="w-[48%]">
@@ -235,6 +237,8 @@ export default function AuthScreen() {
                 onChangeText={(text: string) => handleFieldChange('lastName', text)}
                 error={touched.lastName ? errors.lastName : undefined}
                 type="text"
+                textContentType="familyName"
+                autoComplete="name-family"
               />
             </View>
           </View>
@@ -247,6 +251,8 @@ export default function AuthScreen() {
           onChangeText={(text: string) => handleFieldChange('email', text)}
           error={touched.email ? errors.email : undefined}
           type="email"
+          textContentType="emailAddress"
+          autoComplete="email"
         />
 
         {!isLogin && (
@@ -267,6 +273,8 @@ export default function AuthScreen() {
           value={formData.password}
           onChangeText={(text: string) => handleFieldChange('password', text)}
           error={touched.password ? errors.password : undefined}
+          textContentType={isLogin ? 'password' : 'newPassword'}
+          autoComplete={isLogin ? 'password' : 'password-new'}
         />
 
         {!isLogin && (
@@ -277,6 +285,8 @@ export default function AuthScreen() {
             value={formData.confirmPassword}
             onChangeText={(text: string) => handleFieldChange('confirmPassword', text)}
             error={touched.confirmPassword ? errors.confirmPassword : undefined}
+            textContentType="newPassword"
+            autoComplete="password-new"
           />
         )}
 

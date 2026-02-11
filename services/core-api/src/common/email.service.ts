@@ -21,6 +21,9 @@ export class EmailService {
         const from = process.env.EMAIL_FROM || 'Auditure <noreply@auditure.app>';
         const expiryMinutes = process.env.OTP_EXPIRY_MINUTES || '10';
 
+        const logoUrl = process.env.EMAIL_LOGO_URL || '';
+        const logoHtml = logoUrl ? `<img src="${logoUrl}" alt="Auditure" width="60" height="60" style="margin-bottom: 10px;" />` : '';
+
         const htmlContent = `
         <!DOCTYPE html>
         <html>
@@ -28,15 +31,16 @@ export class EmailService {
           <style>
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background-color: #4F46E5; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
-            .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 5px 5px; }
-            .otp-code { background-color: #fff; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #4F46E5; margin: 20px 0; border: 2px dashed #4F46E5; border-radius: 5px; }
+            .header { background-color: #920002; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+            .content { background-color: #FBF8F2; padding: 30px; border-radius: 0 0 5px 5px; }
+            .otp-code { background-color: #fff; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #920002; margin: 20px 0; border: 2px dashed #BF9A54; border-radius: 5px; }
             .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #666; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
+              ${logoHtml}
               <h1>Auditure Verification</h1>
             </div>
             <div class="content">
@@ -87,6 +91,8 @@ export class EmailService {
     async sendPasswordResetOTP(email: string, otp: string): Promise<void> {
         const from = process.env.EMAIL_FROM || 'Auditure <noreply@auditure.app>';
         const expiryMinutes = process.env.OTP_EXPIRY_MINUTES || '10';
+        const logoUrl = process.env.EMAIL_LOGO_URL || '';
+        const logoHtml = logoUrl ? `<img src="${logoUrl}" alt="Auditure" width="60" height="60" style="margin-bottom: 10px;" />` : '';
 
         const htmlContent = `
         <!DOCTYPE html>
@@ -104,6 +110,7 @@ export class EmailService {
         <body>
           <div class="container">
             <div class="header">
+              ${logoHtml}
               <h1>Reset Your Password</h1>
             </div>
             <div class="content">

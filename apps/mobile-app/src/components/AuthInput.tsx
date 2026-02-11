@@ -13,6 +13,8 @@ interface AuthInputProps {
   error?: string;
   type?: 'text' | 'email' | 'password' | 'date';
   keyboardType?: 'default' | 'email-address' | 'numeric';
+  textContentType?: TextInput['props']['textContentType'];
+  autoComplete?: TextInput['props']['autoComplete'];
 }
 
 export default function AuthInput({
@@ -23,7 +25,9 @@ export default function AuthInput({
   placeholder,
   error,
   type = 'text',
-  keyboardType = 'default'
+  keyboardType = 'default',
+  textContentType,
+  autoComplete,
 }: AuthInputProps) {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -54,6 +58,8 @@ export default function AuthInput({
           placeholderTextColor="#858585"
           keyboardType={type === 'email' ? 'email-address' : keyboardType}
           autoCapitalize={type === 'email' ? 'none' : 'sentences'}
+          textContentType={textContentType}
+          autoComplete={autoComplete}
           onFocus={() => {
             setFocused(true);
             if (isDateField) setShowDatePicker(true);
