@@ -47,7 +47,7 @@ describe('EpisodesService', () => {
     };
 
     const mockUsersService = {
-        checkAndConsumeQuota: jest.fn().mockResolvedValue(true),
+        checkQuota: jest.fn().mockResolvedValue(true),
         getSubscription: jest.fn().mockResolvedValue({
             tier: 'FREE',
             isPaid: false,

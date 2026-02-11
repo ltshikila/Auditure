@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any, Optional
 
 from .client import DatabaseClient
-from .models import Book, Chapter, Episode, EpisodeStatus, Notification, Podcaster
+from .models import Book, Chapter, Episode, EpisodeStatus, Notification, Podcaster, Subscription
 
 logger = logging.getLogger(__name__)
 
@@ -247,5 +247,51 @@ class EpisodeRepository:
             session.rollback()
             logger.error(f"[DB] Failed to create notification: {e}")
             return None
+        finally:
+            session.close()
+
+    def consume_quota(self, user_id: str, voice_tier: str) -> bool:
+        """
+        Increment episode usage for a user after successful generation.
+
+        Called only when an episode COMPLETES successfully.
+
+        Args:
+            user_id: User UUID
+            voice_tier: GEMINI or STANDARD
+
+        Returns:
+            True if quota was consumed, False on error
+        """
+        session = self.db_client.create_session()
+        try:
+            sub = session.query(Subscription).filter(
+                Subscription.user_id == user_id
+            ).first()
+
+            if not sub:
+                logger.error(f"[DB] No subscription found for user {user_id}")
+                return False
+
+            if voice_tier.upper() == "GEMINI":
+                sub.gemini_episodes_used += 1
+                logger.info(
+                    f"[DB] Incremented Gemini usage for user {user_id}: "
+                    f"{sub.gemini_episodes_used}/{sub.gemini_episode_limit}"
+                )
+            else:
+                sub.standard_episodes_used += 1
+                logger.info(
+                    f"[DB] Incremented Standard usage for user {user_id}: "
+                    f"{sub.standard_episodes_used}/{sub.standard_episode_limit}"
+                )
+
+            sub.updated_at = datetime.utcnow()
+            session.commit()
+            return True
+        except Exception as e:
+            session.rollback()
+            logger.error(f"[DB] Failed to consume quota: {e}")
+            return False
         finally:
             session.close()

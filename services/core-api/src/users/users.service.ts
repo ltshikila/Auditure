@@ -464,65 +464,52 @@ Last updated: January 2025`,
     }
 
     /**
-     * Check if user has quota and consume it.
-     * Used by EpisodesService before creating an episode.
+     * Check if user has quota available (does NOT consume it).
+     * Quota is consumed by the ai-worker only on successful episode generation.
      *
      * Free tier: separate limits (1 Gemini, 2 Standard)
      * Paid tiers: unified limit (20 Starter, 50 Pro - total across both types)
      *
-     * @returns true if quota available (and consumed), false if exceeded
+     * @returns true if quota available, false if exceeded
      */
-    async checkAndConsumeQuota(userId: string, voiceTier: 'GEMINI' | 'STANDARD'): Promise<boolean> {
+    async checkQuota(userId: string, voiceTier: 'GEMINI' | 'STANDARD'): Promise<boolean> {
         // Ensure subscription exists and usage period is current
         await this.getSubscription(userId);
 
-        // Atomic check-and-consume within a transaction to prevent race conditions
-        return this.databaseService.$transaction(async tx => {
-            const sub = await tx.subscription.findUnique({
-                where: { userId },
-            });
+        const sub = await this.databaseService.subscription.findUnique({
+            where: { userId },
+        });
 
-            if (!sub) {
-                this.logger.warn(`No subscription found for user ${userId}`);
+        if (!sub) {
+            this.logger.warn(`No subscription found for user ${userId}`);
+            return false;
+        }
+
+        const isPaid = sub.tier === 'STARTER' || sub.tier === 'PRO';
+
+        if (isPaid) {
+            // Paid tiers use unified limit: total episodes across both types
+            const totalUsed = sub.geminiEpisodesUsed + sub.standardEpisodesUsed;
+            const totalLimit = sub.geminiEpisodeLimit;
+            if (totalUsed >= totalLimit) {
+                this.logger.warn(
+                    `User ${userId} has exceeded unified episode quota (${totalUsed}/${totalLimit})`,
+                );
                 return false;
             }
+        } else {
+            // Free tier: check individual limits (1 Gemini, 2 Standard)
+            const used =
+                voiceTier === 'GEMINI' ? sub.geminiEpisodesUsed : sub.standardEpisodesUsed;
+            const limit =
+                voiceTier === 'GEMINI' ? sub.geminiEpisodeLimit : sub.standardEpisodeLimit;
 
-            const isPaid = sub.tier === 'STARTER' || sub.tier === 'PRO';
-
-            if (isPaid) {
-                // Paid tiers use unified limit: total episodes across both types
-                const totalUsed = sub.geminiEpisodesUsed + sub.standardEpisodesUsed;
-                const totalLimit = sub.geminiEpisodeLimit;
-                if (totalUsed >= totalLimit) {
-                    this.logger.warn(
-                        `User ${userId} has exceeded unified episode quota (${totalUsed}/${totalLimit})`,
-                    );
-                    return false;
-                }
-            } else {
-                // Free tier: check individual limits (1 Gemini, 2 Standard)
-                const used =
-                    voiceTier === 'GEMINI' ? sub.geminiEpisodesUsed : sub.standardEpisodesUsed;
-                const limit =
-                    voiceTier === 'GEMINI' ? sub.geminiEpisodeLimit : sub.standardEpisodeLimit;
-
-                if (used >= limit) {
-                    this.logger.warn(`User ${userId} has exceeded ${voiceTier} quota`);
-                    return false;
-                }
+            if (used >= limit) {
+                this.logger.warn(`User ${userId} has exceeded ${voiceTier} quota`);
+                return false;
             }
+        }
 
-            // Increment within the same transaction
-            await tx.subscription.update({
-                where: { userId },
-                data:
-                    voiceTier === 'GEMINI'
-                        ? { geminiEpisodesUsed: { increment: 1 } }
-                        : { standardEpisodesUsed: { increment: 1 } },
-            });
-
-            this.logger.log(`Incremented ${voiceTier} usage for user ${userId}`);
-            return true;
-        });
+        return true;
     }
 }

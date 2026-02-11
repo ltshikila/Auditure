@@ -182,7 +182,7 @@ export class EpisodesService {
 
             // Check subscription quota before creating
             const voiceTier = createEpisodeDto.voiceTier || 'STANDARD';
-            const hasQuota = await this.usersService.checkAndConsumeQuota(userId, voiceTier);
+            const hasQuota = await this.usersService.checkQuota(userId, voiceTier);
             if (!hasQuota) {
                 const tierLabel = String(voiceTier) === 'GEMINI' ? 'Gemini' : 'Standard';
                 throw new BadRequestException(
@@ -307,7 +307,7 @@ export class EpisodesService {
 
             // Check subscription quota before processing
             const voiceTier = createEpisodeDto.voiceTier || 'STANDARD';
-            const hasQuota = await this.usersService.checkAndConsumeQuota(userId, voiceTier);
+            const hasQuota = await this.usersService.checkQuota(userId, voiceTier);
             if (!hasQuota) {
                 const tierLabel = String(voiceTier) === 'GEMINI' ? 'Gemini' : 'Standard';
                 throw new BadRequestException(

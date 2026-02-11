@@ -206,6 +206,26 @@ class Episode(Base):
     updated_at = Column("updatedAt", DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class Subscription(Base):
+    """Subscription model - user subscription and usage tracking."""
+
+    __tablename__ = "subscriptions"
+
+    id = Column(String, primary_key=True)
+    user_id = Column("userId", String, nullable=False, unique=True)
+    tier = Column(String, nullable=False, default="FREE")
+
+    # Episode usage
+    gemini_episodes_used = Column("geminiEpisodesUsed", Integer, default=0)
+    standard_episodes_used = Column("standardEpisodesUsed", Integer, default=0)
+    gemini_episode_limit = Column("geminiEpisodeLimit", Integer, default=1)
+    standard_episode_limit = Column("standardEpisodeLimit", Integer, default=2)
+
+    # Timestamps
+    created_at = Column("createdAt", DateTime, default=datetime.utcnow)
+    updated_at = Column("updatedAt", DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class Notification(Base):
     """Notification model - user notifications for push delivery."""
 

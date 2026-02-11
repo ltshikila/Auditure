@@ -228,6 +228,13 @@ class EpisodeConsumer(BaseConsumer):
             )
             self._update_progress(episode_id, PROGRESS_COMPLETE, "COMPLETED")
 
+            # Consume quota only on successful generation
+            logger.info("[QUOTA] Consuming episode quota for successful generation...")
+            self.repository.consume_quota(
+                user_id=message["userId"],
+                voice_tier=voice_tier,
+            )
+
             # Notify user that episode is ready
             self._send_notification(
                 user_id=message["userId"],
