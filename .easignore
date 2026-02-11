@@ -1,0 +1,40 @@
+# Backend services (not needed for mobile builds)
+/services/
+
+# Dependencies (EAS installs these during build)
+node_modules/
+
+# Generated native folders
+apps/mobile-app/android/
+apps/mobile-app/ios/
+
+# Infrastructure and docs
+infra/
+docs/
+DEPLOYMENT_PLAN.md
+
+# Git
+.git/
+
+# Temp files
+tmpclaude-*
+nul
+
+# Build artifacts
+dist/
+build/
+.expo/
+web-build/
+
+# IDE
+.vscode/
+.idea/
+
+# Debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# OS
+.DS_Store
+*.pem
