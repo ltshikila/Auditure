@@ -189,7 +189,7 @@ export default function AuthScreen() {
 
         {/* Header Logo */}
         <View className="flex-row items-center justify-center mt-8 mb-6">
-          <Image source={require('../../assets/icons/logo_1.png')} className="w-32 h-32" resizeMode="contain" />
+          <Image source={require('../../assets/icons/logo_1_hd.png')} className="w-32 h-32" resizeMode="contain" />
           {/* <Text className="font-dm-serif text-4xl text-brand-black">Auditure</Text> */}
         </View>
 
@@ -289,7 +289,7 @@ export default function AuthScreen() {
 
         {/* Main Action Button */}
         <TouchableOpacity
-          className="bg-brand-red p-4 rounded-xl items-center mb-8"
+          className="bg-brand-red p-4 rounded-xl items-center mb-4"
           onPress={handleSubmit}
           disabled={loading}>
           {loading ? (
@@ -298,6 +298,24 @@ export default function AuthScreen() {
             <Text className="text-white font-inter-medium text-base">{isLogin ? 'Log In' : 'Register'}</Text>
           )}
         </TouchableOpacity>
+
+        {/* Terms & Privacy */}
+        {!isLogin && (
+          <Text className="font-inter text-xs text-center text-[#6C7278] mb-8 px-4">
+            By signing up, you agree to our{' '}
+            <Text
+              className="text-brand-gold font-inter-medium"
+              onPress={() => router.push('/legal/terms')}>
+              Terms of Service
+            </Text>
+            {' '}and{' '}
+            <Text
+              className="text-brand-gold font-inter-medium"
+              onPress={() => router.push('/legal/privacy')}>
+              Privacy Policy
+            </Text>
+          </Text>
+        )}
 
       </KeyboardAwareScrollView>
     </SafeAreaView>

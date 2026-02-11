@@ -4,7 +4,7 @@
     "slug": "Auditure",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./src/assets/images/icon.png",
+    "icon": "./src/assets/icons/logo_app_hd.png",
     "scheme": "auditure",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
@@ -22,8 +22,8 @@
       "package": "com.auditure.app",
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./src/assets/images/android-icon-foreground.png",
+        "backgroundColor": "#F5F5F0",
+        "foregroundImage": "./src/assets/icons/logo_1_hd.png",
         "backgroundImage": "./src/assets/images/android-icon-background.png",
         "monochromeImage": "./src/assets/images/android-icon-monochrome.png"
       },
@@ -36,7 +36,7 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./src/assets/images/favicon.png",
+      "favicon": "./src/assets/icons/logo_app_sd.png",
       "bundler": "metro"
     },
     "plugins": [
@@ -44,12 +44,13 @@
       [
         "expo-splash-screen",
         {
-          "image": "./src/assets/images/splash-icon.png",
+          "image": "./src/assets/icons/logo_1_hd.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#F5F5F0",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#1A1A1A",
+            "image": "./src/assets/icons/logo_1_hd.png"
           }
         }
       ],
@@ -57,7 +58,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./src/assets/images/icon.png",
+          "icon": "./src/assets/icons/logo_app_sd.png",
           "color": "#BF9A54",
           "defaultChannel": "default"
         }

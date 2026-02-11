@@ -777,6 +777,43 @@ export default function Profile() {
                     </TouchableOpacity>
                 </View>
 
+                {/* Legal */}
+                <View
+                    className="bg-[#F5F5F0] rounded-2xl p-5 mb-6"
+                    style={{
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 10,
+                        elevation: 8,
+                    }}>
+                    <Text className="font-inter-bold text-lg text-gray-900 mb-4">Legal</Text>
+
+                    <TouchableOpacity
+                        onPress={() => router.push('/legal/terms')}
+                        className="flex-row items-center justify-between py-4 border-b border-gray-100">
+                        <View className="flex-row items-center">
+                            <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
+                                <Ionicons name="document-text" size={16} color="#BF9A54" />
+                            </View>
+                            <Text className="font-inter text-gray-900">Terms of Service</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => router.push('/legal/privacy')}
+                        className="flex-row items-center justify-between py-4">
+                        <View className="flex-row items-center">
+                            <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
+                                <Ionicons name="shield-checkmark" size={16} color="#BF9A54" />
+                            </View>
+                            <Text className="font-inter text-gray-900">Privacy Policy</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+                    </TouchableOpacity>
+                </View>
+
                 {/* App Info */}
                 <View className="items-center py-4">
                     <Text className="font-inter text-gray-400 text-sm">Auditure v1.0.0</Text>

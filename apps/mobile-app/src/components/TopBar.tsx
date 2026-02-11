@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useNotifications } from '@/contexts/NotificationsContext';
 
-const logoIcon = require('@/assets/icons/logo_1.png');
+const logoIcon = require('@/assets/icons/logo_1_hd.png');
 const notificationIcon = require('@/assets/icons/notification.png');
 const searchIcon = require('@/assets/icons/search-normal.png');
 const backIcon = require('@/assets/icons/back.png');
