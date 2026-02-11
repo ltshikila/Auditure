@@ -44,6 +44,35 @@ def main() -> None:
     Path(settings.local_storage_path).mkdir(parents=True, exist_ok=True)
     Path(settings.tts_temp_dir).mkdir(parents=True, exist_ok=True)
 
+    # Network connectivity diagnostics
+    if settings.has_llm_api:
+        logger.info("[DIAG] Running OpenAI connectivity test...")
+        try:
+            import httpx
+            r = httpx.get(
+                "https://api.openai.com/v1/models",
+                headers={"Authorization": f"Bearer {settings.openai_api_key}"},
+                timeout=15.0,
+            )
+            logger.info(f"[DIAG] OpenAI connectivity OK: HTTP {r.status_code}")
+        except Exception as diag_e:
+            logger.error(f"[DIAG] OpenAI connectivity FAILED: {type(diag_e).__name__}: {diag_e}")
+            import traceback
+            logger.error(f"[DIAG] Full error:\n{traceback.format_exc()}")
+            # Try raw DNS resolution
+            try:
+                import socket
+                ips = socket.getaddrinfo("api.openai.com", 443)
+                logger.info(f"[DIAG] DNS resolution OK: {ips[0][4][0]}")
+            except Exception as dns_e:
+                logger.error(f"[DIAG] DNS resolution FAILED: {dns_e}")
+            # Try a simple HTTPS request to a known endpoint
+            try:
+                r2 = httpx.get("https://httpbin.org/get", timeout=10.0)
+                logger.info(f"[DIAG] General HTTPS OK: HTTP {r2.status_code}")
+            except Exception as https_e:
+                logger.error(f"[DIAG] General HTTPS FAILED: {type(https_e).__name__}: {https_e}")
+
     # Start health check server for Cloud Run
     start_health_server()
 

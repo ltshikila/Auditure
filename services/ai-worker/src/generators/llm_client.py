@@ -1,6 +1,7 @@
 """OpenAI GPT-4o mini client for script generation."""
 
 import logging
+import traceback
 from typing import Optional
 
 from openai import OpenAI
@@ -114,6 +115,16 @@ class OpenAIClient:
         except Exception as e:
             error_msg = f"OpenAI API error: {str(e)}"
             logger.error(error_msg)
+            logger.error(f"Exception type: {type(e).__name__}")
+            logger.error(f"Exception chain: {repr(e)}")
+            # Log the full cause chain for connection errors
+            cause = e.__cause__
+            depth = 0
+            while cause and depth < 5:
+                logger.error(f"  Caused by [{depth}]: {type(cause).__name__}: {cause}")
+                cause = getattr(cause, '__cause__', None) or getattr(cause, '__context__', None)
+                depth += 1
+            logger.error(f"Full traceback:\n{traceback.format_exc()}")
             raise LLMAPIError(error_msg) from e
 
     def generate_script(
