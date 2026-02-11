@@ -211,23 +211,25 @@ export default function SubscriptionScreen() {
 
             const result = await subscriptionService.startCheckout(token, selectedTier);
 
+            // Always refresh subscription status after checkout returns
+            // (payment may have succeeded even if the redirect back to app failed)
+            await fetchSubscription();
+
             if (result.success) {
                 // Handle re-enabled subscription (same plan, just reactivated)
                 if (result.reEnabled) {
                     showAlert({
                         title: 'Subscription Reactivated!',
                         message: result.message || 'Your subscription is active again.',
-                        buttons: [{ text: 'OK', onPress: () => fetchSubscription() }],
                     });
                 } else {
                     showAlert({
                         title: 'Subscription Activated!',
                         message: `Welcome to Auditure ${subscriptionService.getTierDisplayName(selectedTier)}! Enjoy your podcast episodes.`,
-                        buttons: [{ text: 'OK', onPress: () => fetchSubscription() }],
                     });
                 }
             } else if (result.cancelled) {
-                console.log('User cancelled checkout');
+                console.log('User cancelled or dismissed checkout');
             } else if (result.error) {
                 setError(result.error);
             }
@@ -254,14 +256,14 @@ export default function SubscriptionScreen() {
             // The old subscription will be cancelled AFTER successful payment (server-side)
             const result = await subscriptionService.startCheckout(token, 'pro', { isUpgrade: true });
 
+            await fetchSubscription();
+
             if (result.success) {
                 showAlert({
                     title: 'Upgrade Successful!',
                     message: 'Welcome to Auditure Pro! Enjoy your 50 episodes per month.',
-                    buttons: [{ text: 'OK', onPress: () => fetchSubscription() }],
                 });
             } else if (result.cancelled) {
-                // User cancelled - their existing subscription remains fully active
                 console.log('User cancelled upgrade - existing subscription unchanged');
             } else if (result.error) {
                 setError(result.error);
@@ -288,11 +290,12 @@ export default function SubscriptionScreen() {
             // Start checkout for Starter - old PRO subscription will be cancelled after successful payment
             const result = await subscriptionService.startCheckout(token, 'starter', { isUpgrade: true });
 
+            await fetchSubscription();
+
             if (result.success) {
                 showAlert({
                     title: 'Plan Changed!',
                     message: 'You are now on the Starter plan with 30 episodes per month.',
-                    buttons: [{ text: 'OK', onPress: () => fetchSubscription() }],
                 });
             } else if (result.cancelled) {
                 console.log('User cancelled downgrade - existing subscription unchanged');

@@ -83,7 +83,7 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --port 3000 \
-            --set-env-vars "NODE_ENV=production,STORAGE_BACKEND=gcs,GCS_BUCKET_NAME=auditure-storage-prod,REDIS_HOST=10.3.19.75,REDIS_PORT=6379,PAYSTACK_PLAN_CODE_STARTER=PLN_7ld0inlpvyfek2m,PAYSTACK_PLAN_CODE_PRO=PLN_s9gmi5hedwpwtfv,EMAIL_LOGO_URL=https://storage.googleapis.com/auditure-storage-prod/branding/logo_1_hd.png,MOBILE_APP_SCHEME=auditure" \
+            --set-env-vars "NODE_ENV=production,STORAGE_BACKEND=gcs,GCS_BUCKET_NAME=auditure-storage-prod,REDIS_HOST=10.3.19.75,REDIS_PORT=6379,PAYSTACK_PLAN_CODE_STARTER=PLN_7ld0inlpvyfek2m,PAYSTACK_PLAN_CODE_PRO=PLN_s9gmi5hedwpwtfv,EMAIL_LOGO_URL=https://storage.googleapis.com/auditure-storage-prod/branding/logo_1_hd.png,MOBILE_APP_SCHEME=auditure,APP_URL=https://api.auditure.app" \
             --set-secrets "DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_ACCESS_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,PAYSTACK_SECRET_KEY=PAYSTACK_SECRET_KEY:latest,RESEND_API_KEY=RESEND_API_KEY:latest,RABBITMQ_URL=RABBITMQ_URL:latest,SENTRY_DSN=SENTRY_DSN:latest" \
             --add-cloudsql-instances ${{ env.PROJECT_ID }}:${{ env.REGION }}:auditure-db \
             --vpc-connector projects/${{ env.PROJECT_ID }}/locations/${{ env.REGION }}/connectors/auditure-connector \

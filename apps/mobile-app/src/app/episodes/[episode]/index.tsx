@@ -605,9 +605,7 @@ export default function EpisodeInfoScreen() {
                             />
                         ) : (
                             <View className="w-16 h-16 bg-brand-gold rounded-full items-center justify-center">
-                                <Text className="font-jakarta-bold text-white text-xl">
-                                    {authorInfo.name.charAt(0).toUpperCase()}
-                                </Text>
+                                <Ionicons name="person" size={28} color="white" />
                             </View>
                         )}
                         <View className="ml-4 flex-1">

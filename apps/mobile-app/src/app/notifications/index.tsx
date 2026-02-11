@@ -174,16 +174,9 @@ export default function NotificationsScreen() {
     );
 
     const handleNotificationPress = async (notification: Notification) => {
-        // Mark as read
+        // Mark as read only — no navigation
         if (!notification.read) {
             await markAsRead(notification.id);
-        }
-
-        // Navigate based on notification data
-        if (notification.data?.route) {
-            router.push(notification.data.route as any);
-        } else if (notification.data?.episodeId) {
-            router.push(`/episodes/${notification.data.episodeId}` as any);
         }
     };
 

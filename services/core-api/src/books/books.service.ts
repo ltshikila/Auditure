@@ -273,7 +273,7 @@ export class BooksService {
         };
     }
 
-    async getBookDetail(bookId: string, sectionLimit: number = 6) {
+    async getBookDetail(bookId: string, sectionLimit: number = 6, userId?: string) {
         const book = await this.databaseService.book.findUnique({
             where: { id: bookId },
             select: {
@@ -292,10 +292,14 @@ export class BooksService {
             throw new NotFoundException('Book not found');
         }
 
+        // Show public episodes + the current user's own completed episodes
         const episodeWhere = {
             bookId,
-            isPublic: true,
             generationStatus: 'COMPLETED' as const,
+            OR: [
+                { isPublic: true },
+                ...(userId ? [{ userId }] : []),
+            ],
         };
 
         const episodeInclude = {

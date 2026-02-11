@@ -1,10 +1,23 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Image, Animated, Easing } from 'react-native';
+import { View, Text, TouchableOpacity, Image, Animated, Easing, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Episode, EpisodeStatus } from '@/services/episode.service';
 import { resolveCoverUrl } from '@/services/api';
 
+const CARD_WIDTH = Dimensions.get('window').width * 0.8;
+
 const booksIcon = require('@/assets/icons/books_fill.png');
+
+/** Shorten verbose backend error messages into concise user-friendly text */
+const shortenError = (error: string): string => {
+    if (error.includes('insufficient source content') || error.includes('approximately')) {
+        return 'Not enough content. Try more chapters or a shorter duration.';
+    }
+    if (error.includes('Podcaster not found') || error.includes('Book not found')) {
+        return 'Missing data. Please try again.';
+    }
+    return 'Generation failed. Please try again.';
+};
 
 interface GeneratingEpisodeCardProps {
     episode: Episode;
@@ -87,8 +100,9 @@ export const GeneratingEpisodeCard: React.FC<GeneratingEpisodeCardProps> = ({
     return (
         <TouchableOpacity
             onPress={onPress}
-            className=" bg-[#F5F5F0] rounded-2xl p-4 items-center mb-3  justify-center shadow-md"
+            className="bg-[#F5F5F0] rounded-2xl p-4 mb-3 shadow-md mr-3"
             style={{
+                width: CARD_WIDTH,
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.1,
@@ -173,8 +187,8 @@ export const GeneratingEpisodeCard: React.FC<GeneratingEpisodeCardProps> = ({
                 {isFailed && (
                     <>
                         {episode.generationError && (
-                            <Text className="font-inter text-xs text-red-500 mt-1" numberOfLines={2}>
-                                {episode.generationError}
+                            <Text className="font-inter text-xs text-red-500 mt-1" numberOfLines={1}>
+                                {shortenError(episode.generationError)}
                             </Text>
                         )}
                         <View className="flex-row mt-2 gap-2">

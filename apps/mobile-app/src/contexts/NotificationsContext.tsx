@@ -10,7 +10,6 @@ import React, {
 import * as ExpoNotifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform, AppState, AppStateStatus } from 'react-native';
-import { router } from 'expo-router';
 import {
     notificationService,
     Notification,
@@ -75,18 +74,12 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({ ch
     const responseListener = useRef<ExpoNotifications.EventSubscription | null>(null);
     const appState = useRef(AppState.currentState);
 
-    // Handle notification taps (deep linking)
+    // Handle push notification taps — just refresh notifications, no navigation
     const handleNotificationResponse = useCallback(
-        (response: ExpoNotifications.NotificationResponse) => {
-            const data = response.notification.request.content.data as any;
-
-            if (data?.route) {
-                router.push(data.route as any);
-            } else if (data?.episodeId) {
-                router.push(`/episodes/${data.episodeId}` as any);
-            }
+        (_response: ExpoNotifications.NotificationResponse) => {
+            fetchNotifications(true);
         },
-        []
+        [fetchNotifications]
     );
 
     // Register for push notifications

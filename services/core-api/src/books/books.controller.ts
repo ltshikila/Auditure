@@ -55,8 +55,8 @@ export class BooksController {
     }
 
     @Get(':id/detail')
-    async getBookDetail(@Param('id') id: string, @Query('limit') limit?: string) {
-        return this.booksService.getBookDetail(id, limit ? Number(limit) : 6);
+    async getBookDetail(@Request() req, @Param('id') id: string, @Query('limit') limit?: string) {
+        return this.booksService.getBookDetail(id, limit ? Number(limit) : 6, req.user.userId);
     }
 
     @Get(':id')
