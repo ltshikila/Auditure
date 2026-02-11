@@ -75,10 +75,21 @@ class Settings(BaseSettings):
 
     @property
     def has_google_tts(self) -> bool:
-        """Check if Google Cloud TTS is configured."""
-        return (
-            self.google_cloud_project_id is not None
-            and len(self.google_cloud_project_id) > 0
+        """Check if Google Cloud TTS is available.
+
+        Returns True if explicit credentials are configured OR if running
+        in a GCP environment (Cloud Run) where ADC is available.
+        """
+        # Explicit credentials path always works
+        if self.google_cloud_credentials_path:
+            return True
+        # On Cloud Run / GCP, ADC is available without explicit config
+        # We optimistically return True and let the client handle errors
+        import os
+        return bool(
+            self.google_cloud_project_id
+            or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+            or os.environ.get("K_SERVICE")  # Cloud Run sets this
         )
 
     @property
