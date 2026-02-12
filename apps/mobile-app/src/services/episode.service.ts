@@ -33,6 +33,8 @@ export interface Episode {
     playCount: number;
     likeCount: number;
     shareCount: number;
+    averageRating: number;
+    ratingCount: number;
     createdAt: string;
     updatedAt: string;
 
@@ -289,6 +291,20 @@ class EpisodeService {
      */
     async share(id: string): Promise<void> {
         return apiClient.post<void>(`/episodes/${id}/share`, {});
+    }
+
+    /**
+     * Rate an episode (1-5 stars)
+     */
+    async rateEpisode(id: string, rating: number, token: string): Promise<{ averageRating: number; ratingCount: number; userRating: number }> {
+        return apiClient.post(`/episodes/${id}/rate`, { rating }, token);
+    }
+
+    /**
+     * Get user's rating for an episode
+     */
+    async getEpisodeRating(id: string, token: string): Promise<{ averageRating: number; ratingCount: number; userRating: number | null }> {
+        return apiClient.get(`/episodes/${id}/rating`, token);
     }
 
     /**

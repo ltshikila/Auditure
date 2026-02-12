@@ -202,6 +202,16 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
         );
     }, [playbackState.state]);
 
+    // Handle playback errors (e.g. stream failures, missing audio files)
+    useTrackPlayerEvents(
+        [Event.PlaybackError],
+        async (event) => {
+            console.error('[Playback] Error:', (event as any).message || event);
+            setIsLoading(false);
+            stopProgressSaving();
+        }
+    );
+
     // Handle track ending - auto-advance if queue has next
     useTrackPlayerEvents(
         [Event.PlaybackQueueEnded],

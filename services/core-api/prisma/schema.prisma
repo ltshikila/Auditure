@@ -39,6 +39,7 @@ model User {
   notifications    Notification[]
   episodeLikes     EpisodeLike[]
   episodeDownloads EpisodeDownload[]
+  episodeRatings   EpisodeRating[]
 
   @@map("users")
 }
@@ -321,6 +322,8 @@ model Episode {
   playCount             Int            @default(0)
   likeCount             Int            @default(0)
   shareCount            Int            @default(0)
+  averageRating         Float          @default(0)
+  ratingCount           Int            @default(0)
 
   // Timestamps
   createdAt             DateTime       @default(now())
@@ -333,6 +336,7 @@ model Episode {
   comments              EpisodeComment[]
   likes                 EpisodeLike[]
   downloads             EpisodeDownload[]
+  ratings               EpisodeRating[]
 
   @@index([userId])
   @@index([podcasterId])
@@ -364,6 +368,26 @@ model EpisodeComment {
   @@index([userId])
   @@index([createdAt])
   @@map("episode_comments")
+}
+
+model EpisodeRating {
+  id          String    @id @default(uuid())
+  episodeId   String
+  userId      String
+  rating      Int       // 1-5 stars
+
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  episode     Episode   @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([episodeId, userId]) // One rating per user per episode
+  @@index([episodeId])
+  @@index([userId])
+  @@map("episode_ratings")
 }
 
 model UserSettings {

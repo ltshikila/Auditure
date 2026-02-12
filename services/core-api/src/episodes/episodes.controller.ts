@@ -264,6 +264,30 @@ export class EpisodesController {
     }
 
     /**
+     * Rate an episode (1-5 stars)
+     * POST /episodes/:id/rate
+     */
+    @Post(':id/rate')
+    @UseGuards(JwtAuthGuard)
+    async rateEpisode(
+        @Param('id') id: string,
+        @Request() req,
+        @Body('rating') rating: number,
+    ) {
+        return this.episodesService.rateEpisode(id, req.user.userId, rating);
+    }
+
+    /**
+     * Get user's rating for an episode
+     * GET /episodes/:id/rating
+     */
+    @Get(':id/rating')
+    @UseGuards(JwtAuthGuard)
+    async getEpisodeRating(@Param('id') id: string, @Request() req) {
+        return this.episodesService.getEpisodeRating(id, req.user.userId);
+    }
+
+    /**
      * Share an episode (requires authentication)
      * POST /episodes/:id/share
      */

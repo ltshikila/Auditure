@@ -974,6 +974,62 @@ export class EpisodesService {
     }
 
     /**
+     * Rate an episode (1-5 stars). Creates or updates the user's rating.
+     */
+    async rateEpisode(episodeId: string, userId: string, rating: number) {
+        if (!rating || rating < 1 || rating > 5 || !Number.isInteger(rating)) {
+            throw new BadRequestException('Rating must be an integer from 1 to 5');
+        }
+
+        await this.databaseService.episodeRating.upsert({
+            where: { episodeId_userId: { episodeId, userId } },
+            create: { episodeId, userId, rating },
+            update: { rating },
+        });
+
+        // Recalculate average rating
+        const aggregate = await this.databaseService.episodeRating.aggregate({
+            where: { episodeId },
+            _avg: { rating: true },
+            _count: { rating: true },
+        });
+
+        await this.databaseService.episode.update({
+            where: { id: episodeId },
+            data: {
+                averageRating: Math.round((aggregate._avg.rating || 0) * 10) / 10,
+                ratingCount: aggregate._count.rating,
+            },
+        });
+
+        return {
+            averageRating: Math.round((aggregate._avg.rating || 0) * 10) / 10,
+            ratingCount: aggregate._count.rating,
+            userRating: rating,
+        };
+    }
+
+    /**
+     * Get the current user's rating for an episode
+     */
+    async getEpisodeRating(episodeId: string, userId: string) {
+        const existing = await this.databaseService.episodeRating.findUnique({
+            where: { episodeId_userId: { episodeId, userId } },
+        });
+
+        const episode = await this.databaseService.episode.findUnique({
+            where: { id: episodeId },
+            select: { averageRating: true, ratingCount: true },
+        });
+
+        return {
+            averageRating: episode?.averageRating || 0,
+            ratingCount: episode?.ratingCount || 0,
+            userRating: existing?.rating || null,
+        };
+    }
+
+    /**
      * Increment share count
      */
     async incrementShareCount(id: string): Promise<void> {

@@ -9,6 +9,7 @@ import {
     TextInput,
     KeyboardAvoidingView,
     Platform,
+    Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -66,6 +67,12 @@ export default function EpisodeInfoScreen() {
     const [authorLoading, setAuthorLoading] = useState(false);
     const [authorError, setAuthorError] = useState<string | null>(null);
     const [authorImageFailed, setAuthorImageFailed] = useState(false);
+
+    // Rating state
+    const [showRatingModal, setShowRatingModal] = useState(false);
+    const [userRating, setUserRating] = useState<number | null>(null);
+    const [selectedRating, setSelectedRating] = useState(0);
+    const [submittingRating, setSubmittingRating] = useState(false);
 
     const isGenerating =
         episode &&
@@ -128,7 +135,7 @@ export default function EpisodeInfoScreen() {
             const data = await episodeService.getEpisode(episodeId, token || undefined);
             setEpisode(data);
 
-            // Fetch like status for the current user
+            // Fetch like status and rating for the current user
             if (token) {
                 try {
                     const { isLiked: liked } = await episodeService.getLikeStatus(episodeId, token);
@@ -136,12 +143,42 @@ export default function EpisodeInfoScreen() {
                 } catch {
                     // Ignore — like status is non-critical
                 }
+                try {
+                    const rating = await episodeService.getEpisodeRating(episodeId, token);
+                    setUserRating(rating.userRating);
+                } catch {
+                    // Ignore — rating is non-critical
+                }
             }
         } catch (err: any) {
             setError(err.message || 'Failed to load episode');
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleSubmitRating = async () => {
+        if (!episodeId || selectedRating === 0) return;
+        try {
+            setSubmittingRating(true);
+            const token = await storageService.getAccessToken();
+            if (!token) return;
+            const result = await episodeService.rateEpisode(episodeId, selectedRating, token);
+            setUserRating(result.userRating);
+            if (episode) {
+                setEpisode({ ...episode, averageRating: result.averageRating, ratingCount: result.ratingCount });
+            }
+            setShowRatingModal(false);
+        } catch (err: any) {
+            showAlert({ title: 'Error', message: err.message || 'Failed to submit rating' });
+        } finally {
+            setSubmittingRating(false);
+        }
+    };
+
+    const openRatingModal = () => {
+        setSelectedRating(userRating || 0);
+        setShowRatingModal(true);
     };
 
     // Check download status when episode loads
@@ -895,14 +932,16 @@ export default function EpisodeInfoScreen() {
 
                     {/* Stats Row */}
                     <View className="flex-row items-center px-6 mt-6 gap-4">
-                        <View className="flex-row items-center gap-1">
+                        <TouchableOpacity onPress={openRatingModal} className="flex-row items-center gap-1">
                             <Image
                                 source={icons.star}
                                 style={{ width: 20, height: 20 }}
                                 resizeMode="contain"
                             />
-                            <Text className="font-jakarta text-brand-black">4.5</Text>
-                        </View>
+                            <Text className="font-jakarta text-brand-black">
+                                {episode.averageRating > 0 ? episode.averageRating.toFixed(1) : 'Rate'}
+                            </Text>
+                        </TouchableOpacity>
 
                         <View className="flex-row items-center gap-1">
                             <Image
@@ -1023,6 +1062,64 @@ export default function EpisodeInfoScreen() {
                     {renderTabContent()}
                 </ScrollView>
             </KeyboardAvoidingView>
+
+            {/* Rating Modal */}
+            <Modal
+                visible={showRatingModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowRatingModal(false)}
+            >
+                <TouchableOpacity
+                    activeOpacity={1}
+                    onPress={() => setShowRatingModal(false)}
+                    className="flex-1 bg-black/50 items-center justify-center"
+                >
+                    <View
+                        className="bg-[#F5F0E8] rounded-3xl p-6 mx-8 w-[85%]"
+                        onStartShouldSetResponder={() => true}
+                    >
+                        <Text className="font-inter-bold text-xl text-brand-black text-center mb-2">
+                            Rate this Episode
+                        </Text>
+                        <Text className="font-inter text-gray-500 text-center text-sm mb-6">
+                            {episode?.title}
+                        </Text>
+
+                        {/* Star Selection */}
+                        <View className="flex-row justify-center gap-3 mb-6">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <TouchableOpacity
+                                    key={star}
+                                    onPress={() => setSelectedRating(star)}
+                                    hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                                >
+                                    <Ionicons
+                                        name={star <= selectedRating ? 'star' : 'star-outline'}
+                                        size={36}
+                                        color={star <= selectedRating ? '#BF9A54' : '#D1D5DB'}
+                                    />
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        {/* Submit Button */}
+                        <TouchableOpacity
+                            onPress={handleSubmitRating}
+                            disabled={selectedRating === 0 || submittingRating}
+                            className={`bg-brand-gold py-3 rounded-xl items-center ${selectedRating === 0 ? 'opacity-50' : ''}`}
+                        >
+                            {submittingRating ? (
+                                <ActivityIndicator color="white" />
+                            ) : (
+                                <Text className="font-inter-bold text-white text-base">
+                                    {userRating ? 'Update Rating' : 'Submit Rating'}
+                                </Text>
+                            )}
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
         </SafeAreaView>
     );
 }

@@ -48,6 +48,10 @@ export default function EpisodePlayScreen() {
     const [isSeeking, setIsSeeking] = useState(false);
     const [seekValue, setSeekValue] = useState(0);
     const [showMenu, setShowMenu] = useState(false);
+    const [showRatingModal, setShowRatingModal] = useState(false);
+    const [userRating, setUserRating] = useState<number | null>(null);
+    const [selectedRating, setSelectedRating] = useState(0);
+    const [submittingRating, setSubmittingRating] = useState(false);
 
     // If we don't have the episode in playback context, fetch it
     useEffect(() => {
@@ -64,6 +68,14 @@ export default function EpisodePlayScreen() {
             const fetchedEpisode = await episodeService.getEpisode(episodeId, token || undefined);
             setLocalEpisode(fetchedEpisode);
 
+            // Fetch user's rating
+            if (token) {
+                try {
+                    const rating = await episodeService.getEpisodeRating(episodeId, token);
+                    setUserRating(rating.userRating);
+                } catch { /* non-critical */ }
+            }
+
             // Auto-play if episode is ready
             if (fetchedEpisode.generationStatus === 'COMPLETED') {
                 await play(fetchedEpisode);
@@ -71,6 +83,30 @@ export default function EpisodePlayScreen() {
         } catch (error) {
             console.error('Error fetching episode:', error);
         }
+    };
+
+    const handleSubmitRating = async () => {
+        if (!episodeId || selectedRating === 0) return;
+        try {
+            setSubmittingRating(true);
+            const token = await storageService.getAccessToken();
+            if (!token) return;
+            const result = await episodeService.rateEpisode(episodeId, selectedRating, token);
+            setUserRating(result.userRating);
+            if (localEpisode) {
+                setLocalEpisode({ ...localEpisode, averageRating: result.averageRating, ratingCount: result.ratingCount });
+            }
+            setShowRatingModal(false);
+        } catch {
+            // non-critical
+        } finally {
+            setSubmittingRating(false);
+        }
+    };
+
+    const openRatingModal = () => {
+        setSelectedRating(userRating || 0);
+        setShowRatingModal(true);
     };
 
     const formatTime = (ms: number) => {
@@ -199,14 +235,16 @@ export default function EpisodePlayScreen() {
 
             {/* Stats Row */}
             <View className="flex-row items-center justify-center mt-4 gap-4">
-                <View className="flex-row items-center gap-1">
+                <TouchableOpacity onPress={openRatingModal} className="flex-row items-center gap-1">
                     <Image
                         source={icons.star}
                         style={{ width: 20, height: 20 }}
                         resizeMode="contain"
                     />
-                    <Text className="font-jakarta text-brand-black">4.5</Text>
-                </View>
+                    <Text className="font-jakarta text-brand-black">
+                        {displayEpisode.averageRating > 0 ? displayEpisode.averageRating.toFixed(1) : 'Rate'}
+                    </Text>
+                </TouchableOpacity>
                 <View className="flex-row items-center gap-1">
                     <Image
                         source={icons.language}
@@ -321,12 +359,69 @@ export default function EpisodePlayScreen() {
                             </TouchableOpacity>
                         )}
 
-                        <TouchableOpacity
+                        {/* Share Episode - hidden until deep linking is set up */}
+                        {/* <TouchableOpacity
                             onPress={handleShare}
                             className="flex-row items-center py-4"
                         >
                             <Ionicons name="share-outline" size={22} color="#1A1C1E" />
                             <Text className="font-inter-medium text-brand-black text-base ml-4">Share Episode</Text>
+                        </TouchableOpacity> */}
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+
+            {/* Rating Modal */}
+            <Modal
+                visible={showRatingModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowRatingModal(false)}
+            >
+                <TouchableOpacity
+                    activeOpacity={1}
+                    onPress={() => setShowRatingModal(false)}
+                    className="flex-1 bg-black/50 items-center justify-center"
+                >
+                    <View
+                        className="bg-[#F5F0E8] rounded-3xl p-6 mx-8 w-[85%]"
+                        onStartShouldSetResponder={() => true}
+                    >
+                        <Text className="font-inter-bold text-xl text-brand-black text-center mb-2">
+                            Rate this Episode
+                        </Text>
+                        <Text className="font-inter text-gray-500 text-center text-sm mb-6" numberOfLines={2}>
+                            {displayEpisode?.title}
+                        </Text>
+
+                        <View className="flex-row justify-center gap-3 mb-6">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <TouchableOpacity
+                                    key={star}
+                                    onPress={() => setSelectedRating(star)}
+                                    hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                                >
+                                    <Ionicons
+                                        name={star <= selectedRating ? 'star' : 'star-outline'}
+                                        size={36}
+                                        color={star <= selectedRating ? '#BF9A54' : '#D1D5DB'}
+                                    />
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <TouchableOpacity
+                            onPress={handleSubmitRating}
+                            disabled={selectedRating === 0 || submittingRating}
+                            className={`bg-brand-gold py-3 rounded-xl items-center ${selectedRating === 0 ? 'opacity-50' : ''}`}
+                        >
+                            {submittingRating ? (
+                                <ActivityIndicator color="white" />
+                            ) : (
+                                <Text className="font-inter-bold text-white text-base">
+                                    {userRating ? 'Update Rating' : 'Submit Rating'}
+                                </Text>
+                            )}
                         </TouchableOpacity>
                     </View>
                 </TouchableOpacity>

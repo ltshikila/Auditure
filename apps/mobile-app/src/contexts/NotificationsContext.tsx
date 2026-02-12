@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import * as ExpoNotifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { Platform, AppState, AppStateStatus } from 'react-native';
 import {
     notificationService,
@@ -105,8 +106,11 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({ ch
             }
 
             // Get the Expo push token
+            const projectId =
+                process.env.EXPO_PUBLIC_PROJECT_ID ||
+                Constants.expoConfig?.extra?.eas?.projectId;
             const tokenResponse = await ExpoNotifications.getExpoPushTokenAsync({
-                projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
+                projectId,
             });
             const expoPushToken = tokenResponse.data;
             console.log('[Notifications] Expo push token:', expoPushToken);
