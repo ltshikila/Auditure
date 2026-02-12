@@ -32,6 +32,7 @@ export class ExpoPushService {
     private readonly MAX_BATCH_SIZE = 100; // Expo recommends max 100 per request
     private readonly MAX_RETRIES = 3;
     private readonly RETRY_DELAY_MS = 1000;
+    private readonly expoAccessToken = process.env.EXPO_ACCESS_TOKEN || '';
 
     /**
      * Validates if a token is a valid Expo push token.
@@ -139,13 +140,18 @@ export class ExpoPushService {
         attempt: number = 1,
     ): Promise<ExpoPushTicket[]> {
         try {
+            const headers: Record<string, string> = {
+                Accept: 'application/json',
+                'Accept-Encoding': 'gzip, deflate',
+                'Content-Type': 'application/json',
+            };
+            if (this.expoAccessToken) {
+                headers['Authorization'] = `Bearer ${this.expoAccessToken}`;
+            }
+
             const response = await fetch(this.EXPO_PUSH_URL, {
                 method: 'POST',
-                headers: {
-                    Accept: 'application/json',
-                    'Accept-Encoding': 'gzip, deflate',
-                    'Content-Type': 'application/json',
-                },
+                headers,
                 body: JSON.stringify(messages),
             });
 
@@ -220,12 +226,17 @@ export class ExpoPushService {
             const batch = ticketIds.slice(i, i + batchSize);
 
             try {
+                const receiptHeaders: Record<string, string> = {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                };
+                if (this.expoAccessToken) {
+                    receiptHeaders['Authorization'] = `Bearer ${this.expoAccessToken}`;
+                }
+
                 const response = await fetch(this.EXPO_RECEIPTS_URL, {
                     method: 'POST',
-                    headers: {
-                        Accept: 'application/json',
-                        'Content-Type': 'application/json',
-                    },
+                    headers: receiptHeaders,
                     body: JSON.stringify({ ids: batch }),
                 });
 

@@ -1,14 +1,18 @@
 import { Redirect } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
-import { View, ActivityIndicator } from 'react-native';
+import { View, Image } from 'react-native';
 
 export default function Index() {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F5F0' }}>
+        <Image
+          source={require('../assets/icons/logo_1_hd.png')}
+          style={{ width: 160, height: 160 }}
+          resizeMode="contain"
+        />
       </View>
     );
   }

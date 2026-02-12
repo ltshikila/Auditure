@@ -191,8 +191,12 @@ export default function Profile() {
             if (!token) return;
 
             const updatedProfile = await userService.uploadProfilePicture(token, result.assets[0].uri);
-            setProfile(updatedProfile);
-            updateUser({ profilePictureUrl: updatedProfile.profilePictureUrl });
+            // Append cache-buster so RN Image doesn't serve stale cached version
+            const cacheBustedUrl = updatedProfile.profilePictureUrl
+                ? `${updatedProfile.profilePictureUrl}?t=${Date.now()}`
+                : updatedProfile.profilePictureUrl;
+            setProfile({ ...updatedProfile, profilePictureUrl: cacheBustedUrl });
+            updateUser({ profilePictureUrl: cacheBustedUrl });
         } catch (err: any) {
             showAlert({ title: 'Error', message: err.message || 'Failed to upload profile picture' });
         } finally {
@@ -566,65 +570,47 @@ export default function Profile() {
                                 Monthly Usage
                             </Text>
 
-                            {/* Pro Episodes */}
-                            <View className="mb-3">
-                                <View className="flex-row justify-between mb-1">
-                                    <Text className="font-inter text-gray-600 text-sm">
-                                        Pro Episodes
-                                    </Text>
-                                    <Text className="font-inter text-gray-900 text-sm">
-                                        {subscription.usage.geminiEpisodes.used}
-                                        {subscription.usage.geminiEpisodes.limit !== null
-                                            ? ` / ${subscription.usage.geminiEpisodes.limit}`
-                                            : ' (Unlimited)'}
-                                    </Text>
-                                </View>
-                                {subscription.usage.geminiEpisodes.limit !== null && (
-                                    <View className="bg-gray-200 rounded-full h-2">
-                                        <View
-                                            className="bg-brand-gold rounded-full h-2"
-                                            style={{
-                                                width: `${Math.min(
-                                                    (subscription.usage.geminiEpisodes.used /
-                                                        subscription.usage.geminiEpisodes.limit) *
-                                                        100,
-                                                    100,
-                                                )}%`,
-                                            }}
-                                        />
-                                    </View>
-                                )}
-                            </View>
+                            {/* Episodes (unified) */}
+                            {(() => {
+                                const totalUsed =
+                                    subscription.usage.geminiEpisodes.used +
+                                    subscription.usage.standardEpisodes.used;
+                                const totalLimit =
+                                    subscription.usage.geminiEpisodes.limit !== null &&
+                                    subscription.usage.standardEpisodes.limit !== null
+                                        ? subscription.usage.geminiEpisodes.limit +
+                                          subscription.usage.standardEpisodes.limit
+                                        : null;
 
-                            {/* Standard Episodes */}
-                            <View>
-                                <View className="flex-row justify-between mb-1">
-                                    <Text className="font-inter text-gray-600 text-sm">
-                                        Standard Episodes
-                                    </Text>
-                                    <Text className="font-inter text-gray-900 text-sm">
-                                        {subscription.usage.standardEpisodes.used}
-                                        {subscription.usage.standardEpisodes.limit !== null
-                                            ? ` / ${subscription.usage.standardEpisodes.limit}`
-                                            : ' (Unlimited)'}
-                                    </Text>
-                                </View>
-                                {subscription.usage.standardEpisodes.limit !== null && (
-                                    <View className="bg-gray-200 rounded-full h-2">
-                                        <View
-                                            className="bg-brand-gold rounded-full h-2"
-                                            style={{
-                                                width: `${Math.min(
-                                                    (subscription.usage.standardEpisodes.used /
-                                                        subscription.usage.standardEpisodes.limit) *
-                                                        100,
-                                                    100,
-                                                )}%`,
-                                            }}
-                                        />
+                                return (
+                                    <View>
+                                        <View className="flex-row justify-between mb-1">
+                                            <Text className="font-inter text-gray-600 text-sm">
+                                                Episodes
+                                            </Text>
+                                            <Text className="font-inter text-gray-900 text-sm">
+                                                {totalUsed}
+                                                {totalLimit !== null
+                                                    ? ` / ${totalLimit}`
+                                                    : ' (Unlimited)'}
+                                            </Text>
+                                        </View>
+                                        {totalLimit !== null && (
+                                            <View className="bg-gray-200 rounded-full h-2">
+                                                <View
+                                                    className="bg-brand-gold rounded-full h-2"
+                                                    style={{
+                                                        width: `${Math.min(
+                                                            (totalUsed / totalLimit) * 100,
+                                                            100,
+                                                        )}%`,
+                                                    }}
+                                                />
+                                            </View>
+                                        )}
                                     </View>
-                                )}
-                            </View>
+                                );
+                            })()}
 
                             {/* Reset/Expires info - only show for paid tiers */}
                             {subscription.isPaid && subscription.periodStart && (

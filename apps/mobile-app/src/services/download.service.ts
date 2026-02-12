@@ -5,6 +5,9 @@ import { storageService } from './storage.service';
 const DOWNLOADS_DIR = `${FileSystem.documentDirectory}downloads/`;
 
 class DownloadService {
+    private activeDownload: FileSystem.DownloadResumable | null = null;
+    private activeEpisodeId: string | null = null;
+
     /**
      * Ensure downloads directory exists
      */
@@ -72,12 +75,45 @@ class DownloadService {
             },
         );
 
-        const result = await downloadResumable.downloadAsync();
-        if (!result || result.status !== 200) {
-            throw new Error('Download failed. Please try again.');
-        }
+        this.activeDownload = downloadResumable;
+        this.activeEpisodeId = episode.id;
 
-        return result.uri;
+        try {
+            const result = await downloadResumable.downloadAsync();
+            if (!result || result.status !== 200) {
+                throw new Error('Download failed. Please try again.');
+            }
+            return result.uri;
+        } finally {
+            this.activeDownload = null;
+            this.activeEpisodeId = null;
+        }
+    }
+
+    /**
+     * Cancel the current active download
+     */
+    async cancelDownload(): Promise<void> {
+        if (this.activeDownload) {
+            try {
+                await this.activeDownload.pauseAsync();
+            } catch {
+                // Ignore pause errors
+            }
+            // Clean up the partial file
+            if (this.activeEpisodeId) {
+                const formats = ['mp3', 'wav', 'ogg'];
+                for (const fmt of formats) {
+                    const path = this.getLocalPath(this.activeEpisodeId, fmt);
+                    const info = await FileSystem.getInfoAsync(path);
+                    if (info.exists) {
+                        await FileSystem.deleteAsync(path, { idempotent: true });
+                    }
+                }
+            }
+            this.activeDownload = null;
+            this.activeEpisodeId = null;
+        }
     }
 
     /**
