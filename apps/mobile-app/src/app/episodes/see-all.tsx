@@ -93,10 +93,9 @@ export default function EpisodesSeeAllScreen() {
         router.push(`/episodes/${episode.id}`);
     };
 
-    const formatDuration = (ms?: number): string => {
-        if (!ms) return '';
-        const totalSeconds = Math.floor(ms / 1000);
-        const minutes = Math.floor(totalSeconds / 60);
+    const formatDuration = (seconds?: number): string => {
+        if (!seconds) return '';
+        const minutes = Math.floor(seconds / 60);
         const hours = Math.floor(minutes / 60);
         if (hours > 0) return `${hours}h ${minutes % 60}m`;
         return `${minutes}m`;

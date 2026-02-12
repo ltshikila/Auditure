@@ -576,11 +576,9 @@ export default function Profile() {
                                     subscription.usage.geminiEpisodes.used +
                                     subscription.usage.standardEpisodes.used;
                                 const totalLimit =
-                                    subscription.usage.geminiEpisodes.limit !== null &&
-                                    subscription.usage.standardEpisodes.limit !== null
-                                        ? subscription.usage.geminiEpisodes.limit +
-                                          subscription.usage.standardEpisodes.limit
-                                        : null;
+                                    subscription.usage.geminiEpisodes.limit !== null
+                                        ? subscription.usage.geminiEpisodes.limit
+                                        : subscription.usage.standardEpisodes.limit;
 
                                 return (
                                     <View>

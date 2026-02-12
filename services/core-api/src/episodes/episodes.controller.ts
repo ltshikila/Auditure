@@ -171,7 +171,7 @@ export class EpisodesController {
 
         if (result.downloadUrl) {
             // GCS backend: redirect to signed URL
-            return res.json({ downloadUrl: result.downloadUrl });
+            return res.json({ downloadUrl: result.downloadUrl, format: result.format });
         }
 
         // Local backend: send file bytes

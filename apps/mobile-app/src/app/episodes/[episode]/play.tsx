@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, Image, ActivityIndicator, Modal, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -47,6 +47,7 @@ export default function EpisodePlayScreen() {
     const [localEpisode, setLocalEpisode] = useState<Episode | null>(null);
     const [isSeeking, setIsSeeking] = useState(false);
     const [seekValue, setSeekValue] = useState(0);
+    const isSeekingRef = useRef(false);
     const [showMenu, setShowMenu] = useState(false);
     const [showRatingModal, setShowRatingModal] = useState(false);
     const [userRating, setUserRating] = useState<number | null>(null);
@@ -122,6 +123,7 @@ export default function EpisodePlayScreen() {
     };
 
     const handleSliderStart = () => {
+        isSeekingRef.current = true;
         setIsSeeking(true);
         setSeekValue(position);
     };
@@ -132,7 +134,11 @@ export default function EpisodePlayScreen() {
 
     const handleSliderComplete = async (value: number) => {
         await seekTo(value);
-        setIsSeeking(false);
+        // Brief delay to let TrackPlayer update position before resuming controlled mode
+        setTimeout(() => {
+            isSeekingRef.current = false;
+            setIsSeeking(false);
+        }, 250);
     };
 
     const handleShare = async () => {
@@ -169,7 +175,7 @@ export default function EpisodePlayScreen() {
     };
 
     const displayEpisode = episode?.id === episodeId ? episode : localEpisode;
-    const displayPosition = isSeeking ? seekValue : position;
+    const displayPosition = isSeekingRef.current ? seekValue : position;
 
     // Get static transcript preview (time sync not available)
     const transcriptPreview = useMemo(() => {

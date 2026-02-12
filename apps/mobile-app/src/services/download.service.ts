@@ -7,6 +7,8 @@ const DOWNLOADS_DIR = `${FileSystem.documentDirectory}downloads/`;
 class DownloadService {
     private activeDownload: FileSystem.DownloadResumable | null = null;
     private activeEpisodeId: string | null = null;
+    private progressListener: ((progress: number) => void) | null = null;
+    private completeListeners: ((success: boolean) => void)[] = [];
 
     /**
      * Ensure downloads directory exists
@@ -35,6 +37,33 @@ class DownloadService {
     }
 
     /**
+     * Check if a download is currently in progress for an episode
+     */
+    isActivelyDownloading(episodeId: string): boolean {
+        return this.activeEpisodeId === episodeId && this.activeDownload !== null;
+    }
+
+    /**
+     * Set/replace the progress listener for the active download.
+     * Used when re-entering a screen with an active download.
+     */
+    setProgressListener(listener: ((progress: number) => void) | null): void {
+        this.progressListener = listener;
+    }
+
+    /**
+     * Register a callback for when the active download completes.
+     * Returns an unsubscribe function.
+     */
+    onComplete(callback: (success: boolean) => void): () => void {
+        this.completeListeners.push(callback);
+        return () => {
+            const idx = this.completeListeners.indexOf(callback);
+            if (idx >= 0) this.completeListeners.splice(idx, 1);
+        };
+    }
+
+    /**
      * Download an episode to local storage.
      * Returns the local file URI.
      */
@@ -56,7 +85,12 @@ class DownloadService {
 
         await this.ensureDir();
 
-        const localPath = this.getLocalPath(episode.id, format);
+        const resolvedFormat = format || episode.audioFormat || 'mp3';
+        const localPath = this.getLocalPath(episode.id, resolvedFormat);
+
+        if (onProgress) {
+            this.progressListener = onProgress;
+        }
 
         // Download with progress tracking
         const downloadResumable = FileSystem.createDownloadResumable(
@@ -64,13 +98,18 @@ class DownloadService {
             localPath,
             {},
             (downloadProgress) => {
-                if (onProgress && downloadProgress.totalBytesExpectedToWrite > 0) {
-                    const pct = Math.round(
-                        (downloadProgress.totalBytesWritten /
-                            downloadProgress.totalBytesExpectedToWrite) *
-                            100,
-                    );
-                    onProgress(pct);
+                if (this.progressListener) {
+                    if (downloadProgress.totalBytesExpectedToWrite > 0) {
+                        const pct = Math.round(
+                            (downloadProgress.totalBytesWritten /
+                                downloadProgress.totalBytesExpectedToWrite) *
+                                100,
+                        );
+                        this.progressListener(pct);
+                    } else if (downloadProgress.totalBytesWritten > 0) {
+                        // No total size available - signal indeterminate progress
+                        this.progressListener(-1);
+                    }
                 }
             },
         );
@@ -81,13 +120,26 @@ class DownloadService {
         try {
             const result = await downloadResumable.downloadAsync();
             if (!result || result.status !== 200) {
+                this.notifyComplete(false);
                 throw new Error('Download failed. Please try again.');
             }
+            this.notifyComplete(true);
             return result.uri;
+        } catch (error) {
+            this.notifyComplete(false);
+            throw error;
         } finally {
             this.activeDownload = null;
             this.activeEpisodeId = null;
+            this.progressListener = null;
+            this.completeListeners = [];
         }
+    }
+
+    private notifyComplete(success: boolean): void {
+        // Copy array since it gets cleared in finally
+        const listeners = [...this.completeListeners];
+        listeners.forEach(cb => cb(success));
     }
 
     /**
@@ -111,8 +163,11 @@ class DownloadService {
                     }
                 }
             }
+            this.notifyComplete(false);
             this.activeDownload = null;
             this.activeEpisodeId = null;
+            this.progressListener = null;
+            this.completeListeners = [];
         }
     }
 

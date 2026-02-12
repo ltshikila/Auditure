@@ -27,6 +27,11 @@ export default function BookDetailScreen() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        // Validate bookId is a real UUID — ignore junk from deep links like "notification.click"
+        if (bookId && !/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(bookId)) {
+            router.back();
+            return;
+        }
         fetchBookDetail();
     }, [bookId]);
 
@@ -90,6 +95,8 @@ export default function BookDetailScreen() {
             generationStatus: 'COMPLETED' as const,
             isPublic: true,
             updatedAt: ep.createdAt,
+            averageRating: 0,
+            ratingCount: 0,
             book: {
                 id: data.book.id,
                 title: data.book.title,

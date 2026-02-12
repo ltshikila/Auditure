@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -10,6 +10,8 @@ import {
     KeyboardAvoidingView,
     Platform,
     Modal,
+    Animated,
+    Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -61,6 +63,7 @@ export default function EpisodeInfoScreen() {
     const [isDownloaded, setIsDownloaded] = useState(false);
     const [downloading, setDownloading] = useState(false);
     const [downloadProgress, setDownloadProgress] = useState(0);
+    const spinAnim = useRef(new Animated.Value(0)).current;
 
     // Author state
     const [authorInfo, setAuthorInfo] = useState<AuthorInfo | null>(null);
@@ -183,10 +186,57 @@ export default function EpisodeInfoScreen() {
 
     // Check download status when episode loads
     useEffect(() => {
-        if (episode?.generationStatus === 'COMPLETED' && episode.audioFormat) {
-            downloadService.isDownloaded(episode.id, episode.audioFormat || 'mp3').then(setIsDownloaded);
+        if (episode?.generationStatus === 'COMPLETED') {
+            const fmt = episode.audioFormat || 'mp3';
+            downloadService.isDownloaded(episode.id, fmt).then(setIsDownloaded);
         }
     }, [episode?.id, episode?.generationStatus]);
+
+    // Re-attach to active download when returning to this screen
+    useEffect(() => {
+        if (!episode) return;
+
+        if (downloadService.isActivelyDownloading(episode.id)) {
+            setDownloading(true);
+            downloadService.setProgressListener((progress) => {
+                setDownloadProgress(progress);
+            });
+            const unsubscribe = downloadService.onComplete((success) => {
+                setDownloading(false);
+                setDownloadProgress(0);
+                if (success) {
+                    setIsDownloaded(true);
+                    showAlert({ title: 'Downloaded', message: 'Episode saved for offline listening.' });
+                }
+            });
+            return () => {
+                unsubscribe();
+                downloadService.setProgressListener(null);
+            };
+        }
+    }, [episode?.id]);
+
+    // Spinning animation for indeterminate download progress
+    useEffect(() => {
+        if (downloading && downloadProgress <= 0) {
+            spinAnim.setValue(0);
+            const spin = Animated.loop(
+                Animated.timing(spinAnim, {
+                    toValue: 1,
+                    duration: 1000,
+                    easing: Easing.linear,
+                    useNativeDriver: true,
+                }),
+            );
+            spin.start();
+            return () => spin.stop();
+        }
+    }, [downloading, downloadProgress <= 0]);
+
+    const spinRotation = spinAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '360deg'],
+    });
 
     const handleDownload = async () => {
         if (!episode) return;
@@ -890,58 +940,76 @@ export default function EpisodeInfoScreen() {
                                         <TouchableOpacity
                                             onPress={handleCancelDownload}
                                             className="w-11 h-11 items-center justify-center">
-                                            {/* Background track ring */}
-                                            <View
-                                                style={{
-                                                    position: 'absolute',
-                                                    width: 44,
-                                                    height: 44,
-                                                    borderRadius: 22,
-                                                    borderWidth: 2.5,
-                                                    borderColor: '#E8E3D6',
-                                                }}
-                                            />
-                                            {/* Progress ring using clip approach */}
-                                            <View style={{ position: 'absolute', width: 44, height: 44 }}>
-                                                {/* Right half (0-50%) */}
-                                                <View style={{ position: 'absolute', width: 22, height: 44, left: 22, overflow: 'hidden' }}>
+                                            {downloadProgress > 0 ? (
+                                                <>
+                                                    {/* Background track ring */}
                                                     <View
                                                         style={{
+                                                            position: 'absolute',
                                                             width: 44,
                                                             height: 44,
                                                             borderRadius: 22,
                                                             borderWidth: 2.5,
-                                                            borderColor: 'transparent',
-                                                            borderTopColor: '#BF9A54',
-                                                            borderRightColor: '#BF9A54',
-                                                            position: 'absolute',
-                                                            right: 0,
-                                                            transform: [{ rotate: `${Math.min(downloadProgress, 50) * 3.6 - 90}deg` }],
+                                                            borderColor: '#E8E3D6',
                                                         }}
                                                     />
-                                                </View>
-                                                {/* Left half (50-100%) */}
-                                                {downloadProgress > 50 && (
-                                                    <View style={{ position: 'absolute', width: 22, height: 44, left: 0, overflow: 'hidden' }}>
-                                                        <View
-                                                            style={{
-                                                                width: 44,
-                                                                height: 44,
-                                                                borderRadius: 22,
-                                                                borderWidth: 2.5,
-                                                                borderColor: 'transparent',
-                                                                borderBottomColor: '#BF9A54',
-                                                                borderLeftColor: '#BF9A54',
-                                                                position: 'absolute',
-                                                                left: 0,
-                                                                transform: [{ rotate: `${(downloadProgress - 50) * 3.6 - 90}deg` }],
-                                                            }}
-                                                        />
+                                                    {/* Progress ring using clip approach */}
+                                                    <View style={{ position: 'absolute', width: 44, height: 44 }}>
+                                                        {/* Right half (0-50%) */}
+                                                        <View style={{ position: 'absolute', width: 22, height: 44, left: 22, overflow: 'hidden' }}>
+                                                            <View
+                                                                style={{
+                                                                    width: 44,
+                                                                    height: 44,
+                                                                    borderRadius: 22,
+                                                                    borderWidth: 2.5,
+                                                                    borderColor: 'transparent',
+                                                                    borderTopColor: '#BF9A54',
+                                                                    borderRightColor: '#BF9A54',
+                                                                    position: 'absolute',
+                                                                    right: 0,
+                                                                    transform: [{ rotate: `${Math.min(downloadProgress, 50) * 3.6 - 90}deg` }],
+                                                                }}
+                                                            />
+                                                        </View>
+                                                        {/* Left half (50-100%) */}
+                                                        {downloadProgress > 50 && (
+                                                            <View style={{ position: 'absolute', width: 22, height: 44, left: 0, overflow: 'hidden' }}>
+                                                                <View
+                                                                    style={{
+                                                                        width: 44,
+                                                                        height: 44,
+                                                                        borderRadius: 22,
+                                                                        borderWidth: 2.5,
+                                                                        borderColor: 'transparent',
+                                                                        borderBottomColor: '#BF9A54',
+                                                                        borderLeftColor: '#BF9A54',
+                                                                        position: 'absolute',
+                                                                        left: 0,
+                                                                        transform: [{ rotate: `${(downloadProgress - 50) * 3.6 - 90}deg` }],
+                                                                    }}
+                                                                />
+                                                            </View>
+                                                        )}
                                                     </View>
-                                                )}
-                                            </View>
-                                            {/* Stop icon */}
-                                            <Ionicons name="close" size={18} color="#BF9A54" />
+                                                </>
+                                            ) : (
+                                                /* Indeterminate spinning ring */
+                                                <Animated.View
+                                                    style={{
+                                                        position: 'absolute',
+                                                        width: 44,
+                                                        height: 44,
+                                                        borderRadius: 22,
+                                                        borderWidth: 2.5,
+                                                        borderColor: '#E8E3D6',
+                                                        borderTopColor: '#BF9A54',
+                                                        transform: [{ rotate: spinRotation }],
+                                                    }}
+                                                />
+                                            )}
+                                            {/* Cancel icon */}
+                                            <Ionicons name="close" size={14} color="#BF9A54" />
                                         </TouchableOpacity>
                                     ) : (
                                         <TouchableOpacity
