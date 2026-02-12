@@ -146,7 +146,7 @@ export default function HomeScreen() {
                         borderRadius: 20,
                         backgroundColor: activeTab === tab.key ? '#920002' : '#E7E0CB',
                         borderWidth: activeTab === tab.key ? 0 : 1,
-                        borderColor: '#E0E0E0',
+                        borderColor: '#E7E0CB',
                     }}
                 >
                     <Text
@@ -203,6 +203,8 @@ export default function HomeScreen() {
                             generationStatus: 'COMPLETED' as const,
                             isPublic: true,
                             shareCount: 0,
+                            averageRating: item.averageRating || 0,
+                            ratingCount: item.ratingCount || 0,
                             updatedAt: item.createdAt,
                         }))}
                         onEpisodePress={(episode) => handleEpisodePress({ ...episode, playCount: episode.playCount, likeCount: episode.likeCount })}
@@ -230,6 +232,8 @@ export default function HomeScreen() {
                             generationStatus: 'COMPLETED' as const,
                             isPublic: true,
                             shareCount: 0,
+                            averageRating: item.averageRating || 0,
+                            ratingCount: item.ratingCount || 0,
                             updatedAt: item.createdAt,
                         }))}
                         onEpisodePress={(episode) => handleEpisodePress({ ...episode, playCount: episode.playCount, likeCount: episode.likeCount })}
@@ -257,6 +261,8 @@ export default function HomeScreen() {
                             generationStatus: 'COMPLETED' as const,
                             isPublic: true,
                             shareCount: 0,
+                            averageRating: item.averageRating || 0,
+                            ratingCount: item.ratingCount || 0,
                             updatedAt: item.createdAt,
                         }))}
                         onEpisodePress={(episode) => handleEpisodePress({ ...episode, playCount: episode.playCount, likeCount: episode.likeCount })}

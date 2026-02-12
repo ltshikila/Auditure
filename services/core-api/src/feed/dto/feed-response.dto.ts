@@ -12,6 +12,8 @@ export class EpisodeFeedItem {
     duration?: number;
     playCount: number;
     likeCount: number;
+    averageRating: number;
+    ratingCount: number;
     createdAt: Date;
 
     // For continue listening section

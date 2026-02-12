@@ -51,21 +51,21 @@ export const FeaturedEpisodeCard: React.FC<FeaturedEpisodeCardProps> = ({
         }
     };
 
-    const rating = episode.likeCount && episode.playCount
-        ? Math.min(5, Math.max(1, (episode.likeCount / Math.max(episode.playCount, 1)) * 5 + 3)).toFixed(1)
-        : '4.8';
+    const rating = episode.averageRating > 0
+        ? episode.averageRating.toFixed(1)
+        : null;
 
     return (
         <View className="mr-4" style={{ width: 220 }}>
             <TouchableOpacity onPress={onPress} activeOpacity={0.9}>
                 {/* Card Container */}
-                <View className="w-[220px] h-[300px] rounded-2xl overflow-hidden bg-brand-input shadow-md">
+                <View className="w-[220px] h-[300px] rounded-2xl overflow-hidden bg-[#2A2C2E] shadow-md">
                     {/* Book Cover */}
                     {resolveCoverUrl(episode.book?.coverImageUrl) ? (
                         <Image
                             source={{ uri: resolveCoverUrl(episode.book?.coverImageUrl)! }}
                             style={{ width: 220, height: 300 }}
-                            resizeMode="cover"
+                            resizeMode="contain"
                         />
                     ) : (
                         <View className="w-full h-full bg-gradient-to-b from-brand-gold/30 to-brand-gold/10 items-center justify-center">
@@ -103,10 +103,12 @@ export const FeaturedEpisodeCard: React.FC<FeaturedEpisodeCardProps> = ({
                             <Text className="font-inter text-white/80 text-sm flex-1 mr-2" numberOfLines={1}>
                                 {episode.book?.title || 'Unknown Book'}
                             </Text>
-                            <View className="flex-row items-center">
-                                <Ionicons name="star-outline" size={14} color="rgba(255,255,255,0.7)" />
-                                <Text className="font-inter-medium text-white/70 text-sm ml-1">{rating}</Text>
-                            </View>
+                            {rating && (
+                                <View className="flex-row items-center">
+                                    <Ionicons name="star-outline" size={14} color="rgba(255,255,255,0.7)" />
+                                    <Text className="font-inter-medium text-white/70 text-sm ml-1">{rating}</Text>
+                                </View>
+                            )}
                         </View>
 
                         {/* Progress Bar - only show if there's progress */}

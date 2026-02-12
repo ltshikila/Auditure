@@ -9,6 +9,8 @@ export interface EpisodeSearchResult {
     duration: number | null;
     isPublic: boolean;
     playCount: number;
+    averageRating: number;
+    ratingCount: number;
     createdAt: string;
     podcaster: {
         id: string;

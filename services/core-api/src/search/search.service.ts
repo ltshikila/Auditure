@@ -204,6 +204,8 @@ export class SearchService {
                 duration: ep.duration,
                 isPublic: ep.isPublic,
                 playCount: ep.playCount,
+                averageRating: ep.averageRating,
+                ratingCount: ep.ratingCount,
                 createdAt: ep.createdAt,
                 podcaster: ep.podcaster,
                 book: ep.book,

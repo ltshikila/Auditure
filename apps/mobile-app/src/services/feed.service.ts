@@ -19,6 +19,8 @@ export interface EpisodeFeedItem {
     duration?: number;
     playCount: number;
     likeCount: number;
+    averageRating: number;
+    ratingCount: number;
     createdAt: string;
 
     // For continue listening section

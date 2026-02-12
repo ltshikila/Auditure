@@ -80,7 +80,6 @@ async function setupPlayer(): Promise<void> {
             capabilities: [
                 Capability.Play,
                 Capability.Pause,
-                Capability.Stop,
                 Capability.SeekTo,
                 Capability.JumpForward,
                 Capability.JumpBackward,

@@ -263,9 +263,6 @@ export default function SearchScreen() {
     // Render functions
     const renderEpisodeItem = (episode: EpisodeSearchResult) => {
         const isLiked = likedEpisodes.has(episode.id);
-        // Mock rating data - replace with actual data when available
-        const rating = 4;
-        const ratingCount = 50;
 
         return (
             <TouchableOpacity
@@ -291,7 +288,9 @@ export default function SearchScreen() {
                     <Text className="font-inter text-sm text-gray-500 mb-1" numberOfLines={1}>
                         {episode.podcaster.name}
                     </Text>
-                    <StarRating rating={rating} count={ratingCount} />
+                    {episode.averageRating > 0 && (
+                        <StarRating rating={episode.averageRating} count={episode.ratingCount} />
+                    )}
                 </View>
                 <TouchableOpacity
                     onPress={() => toggleLike(episode.id)}
@@ -336,9 +335,6 @@ export default function SearchScreen() {
     );
 
     const renderPodcasterItem = (podcaster: PodcasterSearchResult) => {
-        // Mock rating data - replace with actual data when available
-        const ratingCount = 50;
-
         return (
             <TouchableOpacity
                 key={podcaster.id}
@@ -365,10 +361,12 @@ export default function SearchScreen() {
                             ? podcaster.expertiseTags.slice(0, 2).join(', ')
                             : 'Genre(s)'}
                     </Text>
-                    <StarRating
-                        rating={podcaster.averageRating || 4}
-                        count={ratingCount}
-                    />
+                    {podcaster.averageRating > 0 && (
+                        <StarRating
+                            rating={podcaster.averageRating}
+                            count={podcaster.ratingCount}
+                        />
+                    )}
                 </View>
             </TouchableOpacity>
         );
