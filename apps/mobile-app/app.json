@@ -26,7 +26,7 @@
       "package": "com.auditure.app",
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
-        "foregroundImage": "./src/assets/icons/logo_1_sd.png",
+        "foregroundImage": "./src/assets/icons/logo_icon_hd.png",
         "backgroundColor": "#F5F5F0",
         "monochromeImage": "./src/assets/images/android-icon-monochrome.png"
       },
