@@ -220,11 +220,10 @@ export class EpisodesController {
     }
 
     /**
-     * Increment play count (requires authentication)
+     * Increment play count
      * POST /episodes/:id/play
      */
     @Post(':id/play')
-    @UseGuards(JwtAuthGuard)
     @HttpCode(HttpStatus.NO_CONTENT)
     async incrementPlayCount(@Param('id') id: string) {
         await this.episodesService.incrementPlayCount(id);
@@ -319,7 +318,17 @@ export class EpisodesController {
     }
 
     /**
-     * Stream episode audio with range request support
+     * Get a signed URL for streaming audio directly from storage
+     * GET /episodes/:id/stream-url
+     */
+    @Get(':id/stream-url')
+    @UseGuards(OptionalJwtAuthGuard)
+    async getStreamUrl(@Param('id') id: string, @Request() req) {
+        return this.episodesService.getStreamUrl(id, req.user?.userId);
+    }
+
+    /**
+     * Stream episode audio with range request support (legacy proxy fallback)
      * GET /episodes/:id/stream
      */
     @Get(':id/stream')

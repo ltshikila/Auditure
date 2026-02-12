@@ -342,12 +342,8 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
                 }
             }
 
-            // Build stream URL with auth header
-            const streamUrl = playbackService.getStreamUrl(ep.id);
-            const headers: Record<string, string> = {};
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
+            // Get signed stream URL (auth embedded in URL, no headers needed)
+            const streamUrl = await playbackService.getStreamUrl(ep.id, token || undefined);
 
             // Resolve artwork URL
             const artwork = resolveCoverUrl(ep.book?.coverImageUrl) || undefined;
@@ -356,7 +352,6 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
             await TrackPlayer.add({
                 id: ep.id,
                 url: streamUrl,
-                headers: headers,
                 title: ep.title,
                 artist: ep.book?.author || ep.podcaster?.name || 'Auditure',
                 album: ep.book?.title || '',

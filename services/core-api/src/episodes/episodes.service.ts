@@ -1212,6 +1212,29 @@ export class EpisodesService {
     }
 
     /**
+     * Get a signed URL for streaming audio directly from GCS.
+     * Falls back to the proxy stream endpoint for local storage.
+     */
+    async getStreamUrl(
+        id: string,
+        userId: string | undefined,
+    ): Promise<{ url: string }> {
+        const episode = await this.findOne(id, userId);
+
+        if (!episode.audioFileKey) {
+            throw new NotFoundException('Audio file not found for this episode');
+        }
+
+        if (this.storageService.isGcsBackend()) {
+            const url = await this.storageService.getSignedUrl(episode.audioFileKey, 120);
+            return { url };
+        }
+
+        // Local storage: can't generate signed URL, return proxy stream path
+        return { url: `/episodes/${id}/stream` };
+    }
+
+    /**
      * Save playback progress to Redis
      */
     async savePlaybackProgress(

@@ -15,9 +15,23 @@ export interface GenerationProgress {
 
 class PlaybackService {
     /**
-     * Get the streaming URL for an episode
+     * Get a signed streaming URL for an episode from the API.
+     * Returns a GCS signed URL that the player can fetch directly.
      */
-    getStreamUrl(episodeId: string): string {
+    async getStreamUrl(episodeId: string, token?: string): Promise<string> {
+        try {
+            const result = await apiClient.get<{ url: string }>(`/episodes/${episodeId}/stream-url`, token);
+            return result.url;
+        } catch {
+            // Fallback to legacy proxy stream
+            return `${API_BASE_URL}/episodes/${episodeId}/stream`;
+        }
+    }
+
+    /**
+     * Get the legacy proxy streaming URL (fallback)
+     */
+    getLegacyStreamUrl(episodeId: string): string {
         return `${API_BASE_URL}/episodes/${episodeId}/stream`;
     }
 
