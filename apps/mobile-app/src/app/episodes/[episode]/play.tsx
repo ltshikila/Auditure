@@ -45,8 +45,7 @@ export default function EpisodePlayScreen() {
     const { episode, position, duration, play, seekTo } = usePlayback();
 
     const [localEpisode, setLocalEpisode] = useState<Episode | null>(null);
-    const [isSeeking, setIsSeeking] = useState(false);
-    const [seekValue, setSeekValue] = useState(0);
+    const [sliderValue, setSliderValue] = useState(0);
     const isSeekingRef = useRef(false);
     const [showMenu, setShowMenu] = useState(false);
     const [showRatingModal, setShowRatingModal] = useState(false);
@@ -122,23 +121,30 @@ export default function EpisodePlayScreen() {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
+    // Convert ms to seconds for slider (large ms values cause native precision issues)
+    const positionSec = position / 1000;
+    const durationSec = duration / 1000;
+
+    // Update slider from playback progress only when not seeking
+    useEffect(() => {
+        if (!isSeekingRef.current) {
+            setSliderValue(positionSec);
+        }
+    }, [positionSec]);
+
     const handleSliderStart = () => {
         isSeekingRef.current = true;
-        setIsSeeking(true);
-        setSeekValue(position);
     };
 
     const handleSliderChange = (value: number) => {
-        setSeekValue(value);
+        setSliderValue(value);
     };
 
     const handleSliderComplete = async (value: number) => {
-        await seekTo(value);
-        // Brief delay to let TrackPlayer update position before resuming controlled mode
+        await seekTo(value * 1000); // Convert back to ms for seekTo
         setTimeout(() => {
             isSeekingRef.current = false;
-            setIsSeeking(false);
-        }, 250);
+        }, 300);
     };
 
     const handleShare = async () => {
@@ -175,7 +181,6 @@ export default function EpisodePlayScreen() {
     };
 
     const displayEpisode = episode?.id === episodeId ? episode : localEpisode;
-    const displayPosition = isSeekingRef.current ? seekValue : position;
 
     // Get static transcript preview (time sync not available)
     const transcriptPreview = useMemo(() => {
@@ -276,9 +281,10 @@ export default function EpisodePlayScreen() {
             {/* Progress Slider */}
             <View className="px-6 mt-6">
                 <Slider
-                    value={displayPosition}
+                    value={sliderValue}
                     minimumValue={0}
-                    maximumValue={duration || 1}
+                    maximumValue={durationSec || 1}
+                    step={1}
                     onSlidingStart={handleSliderStart}
                     onValueChange={handleSliderChange}
                     onSlidingComplete={handleSliderComplete}
@@ -288,7 +294,7 @@ export default function EpisodePlayScreen() {
                 />
                 <View className="flex-row justify-between mt-1">
                     <Text className="font-inter text-xs text-[#858585]">
-                        {formatTime(displayPosition)}
+                        {formatTime(sliderValue * 1000)}
                     </Text>
                     <Text className="font-inter text-xs text-[#858585]">
                         {formatTime(duration)}

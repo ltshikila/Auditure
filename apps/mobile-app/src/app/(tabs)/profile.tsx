@@ -686,15 +686,6 @@ export default function Profile() {
                             value={settings.autoPlayEnabled}
                             onValueChange={value => handleUpdateSetting('autoPlayEnabled', value)}
                         />
-                        <SettingItem
-                            icon="wifi"
-                            label="Download Over Wi-Fi Only"
-                            value={settings.downloadOverWifiOnly}
-                            onValueChange={value =>
-                                handleUpdateSetting('downloadOverWifiOnly', value)
-                            }
-                        />
-
                         {/* Playback Speed */}
                         <View className="py-4 border-b border-gray-100">
                             <View className="flex-row items-center mb-3">

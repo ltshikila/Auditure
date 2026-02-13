@@ -231,7 +231,6 @@ class SubscriptionService {
                     'Episodes up to 30 minutes',
                     'Monologue & Duo episodes',
                     '10 podcaster personalities',
-                    'Download episodes',
                 ],
             },
             pro: {
@@ -245,7 +244,6 @@ class SubscriptionService {
                     'Monologue & Duo episodes',
                     'Unlimited podcaster personalities',
                     'Priority generation',
-                    'Download episodes',
                 ],
             },
         };

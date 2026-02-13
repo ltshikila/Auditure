@@ -11,7 +11,6 @@ import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Episode, episodeService } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
-import { downloadService } from '@/services/download.service';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { EpisodeSection } from '@/components/EpisodeSection';
 import { GeneratingEpisodeCard } from '@/components/GeneratingEpisodeCard';
@@ -28,7 +27,6 @@ export default function EpisodesScreen() {
     const [generatingEpisodes, setGeneratingEpisodes] = useState<Episode[]>([]);
     const [myEpisodes, setMyEpisodes] = useState<Episode[]>([]);
     const [likedEpisodes, setLikedEpisodes] = useState<Episode[]>([]);
-    const [downloadedEpisodes, setDownloadedEpisodes] = useState<Episode[]>([]);
     const [startedEpisodes, setStartedEpisodes] = useState<Episode[]>([]);
 
     const { setQueue } = usePlayback();
@@ -84,14 +82,6 @@ export default function EpisodesScreen() {
                 .slice(0, 10)
         );
 
-        // Check which episodes are actually downloaded locally
-        const downloaded: Episode[] = [];
-        for (const ep of completed) {
-            const format = ep.audioFormat || 'mp3';
-            const isLocal = await downloadService.isDownloaded(ep.id, format);
-            if (isLocal) downloaded.push(ep);
-        }
-        setDownloadedEpisodes(downloaded);
     };
 
     useEffect(() => {
@@ -127,11 +117,6 @@ export default function EpisodesScreen() {
 
     const handleLikedEpisodePress = (episode: Episode) => {
         setQueue(likedEpisodes);
-        router.push(`/episodes/${episode.id}`);
-    };
-
-    const handleDownloadedEpisodePress = (episode: Episode) => {
-        setQueue(downloadedEpisodes);
         router.push(`/episodes/${episode.id}`);
     };
 
@@ -286,15 +271,6 @@ export default function EpisodesScreen() {
                     onEpisodePress={handleLikedEpisodePress}
                     showSeeAll={likedEpisodes.length > 3}
                     onSeeAll={() => router.push('/episodes/see-all?type=liked')}
-                />
-
-                {/* Downloads Section */}
-                <EpisodeSection
-                    title="Downloads"
-                    episodes={downloadedEpisodes}
-                    onEpisodePress={handleDownloadedEpisodePress}
-                    showSeeAll={downloadedEpisodes.length > 3}
-                    onSeeAll={() => router.push('/episodes/see-all?type=downloads')}
                 />
 
                 {/* Pick up where you left off */}

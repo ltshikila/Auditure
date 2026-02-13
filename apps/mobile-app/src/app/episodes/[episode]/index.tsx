@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     View,
     Text,
@@ -10,15 +10,12 @@ import {
     KeyboardAvoidingView,
     Platform,
     Modal,
-    Animated,
-    Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Episode, EpisodeComment, AuthorInfo, episodeService } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
-import { downloadService } from '@/services/download.service';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { playbackService, GenerationProgress } from '@/services/playback.service';
 import { resolveCoverUrl } from '@/services/api';
@@ -58,12 +55,6 @@ export default function EpisodeInfoScreen() {
     const [commentsError, setCommentsError] = useState<string | null>(null);
     const [newComment, setNewComment] = useState('');
     const [submittingComment, setSubmittingComment] = useState(false);
-
-    // Download state
-    const [isDownloaded, setIsDownloaded] = useState(false);
-    const [downloading, setDownloading] = useState(false);
-    const [downloadProgress, setDownloadProgress] = useState(0);
-    const spinAnim = useRef(new Animated.Value(0)).current;
 
     // Author state
     const [authorInfo, setAuthorInfo] = useState<AuthorInfo | null>(null);
@@ -113,6 +104,31 @@ export default function EpisodeInfoScreen() {
     useEffect(() => {
         fetchEpisode();
     }, [episodeId]);
+
+    // Silently refresh episode data (rating, etc.) when screen regains focus
+    const isInitialLoad = useRef(true);
+    useFocusEffect(
+        useCallback(() => {
+            if (isInitialLoad.current) {
+                isInitialLoad.current = false;
+                return;
+            }
+            if (!episodeId) return;
+            (async () => {
+                try {
+                    const token = await storageService.getAccessToken();
+                    const data = await episodeService.getEpisode(episodeId, token || undefined);
+                    setEpisode(data);
+                    if (token) {
+                        try {
+                            const rating = await episodeService.getEpisodeRating(episodeId, token);
+                            setUserRating(rating.userRating);
+                        } catch { /* non-critical */ }
+                    }
+                } catch { /* silent refresh — ignore errors */ }
+            })();
+        }, [episodeId]),
+    );
 
     // Fetch comments when tab becomes active
     useEffect(() => {
@@ -182,91 +198,6 @@ export default function EpisodeInfoScreen() {
     const openRatingModal = () => {
         setSelectedRating(userRating || 0);
         setShowRatingModal(true);
-    };
-
-    // Check download status when episode loads
-    useEffect(() => {
-        if (episode?.generationStatus === 'COMPLETED') {
-            const fmt = episode.audioFormat || 'mp3';
-            downloadService.isDownloaded(episode.id, fmt).then(setIsDownloaded);
-        }
-    }, [episode?.id, episode?.generationStatus]);
-
-    // Re-attach to active download when returning to this screen
-    useEffect(() => {
-        if (!episode) return;
-
-        if (downloadService.isActivelyDownloading(episode.id)) {
-            setDownloading(true);
-            downloadService.setProgressListener((progress) => {
-                setDownloadProgress(progress);
-            });
-            const unsubscribe = downloadService.onComplete((success) => {
-                setDownloading(false);
-                setDownloadProgress(0);
-                if (success) {
-                    setIsDownloaded(true);
-                    showAlert({ title: 'Downloaded', message: 'Episode saved for offline listening.' });
-                }
-            });
-            return () => {
-                unsubscribe();
-                downloadService.setProgressListener(null);
-            };
-        }
-    }, [episode?.id]);
-
-    // Spinning animation for indeterminate download progress
-    useEffect(() => {
-        if (downloading && downloadProgress <= 0) {
-            spinAnim.setValue(0);
-            const spin = Animated.loop(
-                Animated.timing(spinAnim, {
-                    toValue: 1,
-                    duration: 1000,
-                    easing: Easing.linear,
-                    useNativeDriver: true,
-                }),
-            );
-            spin.start();
-            return () => spin.stop();
-        }
-    }, [downloading, downloadProgress <= 0]);
-
-    const spinRotation = spinAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: ['0deg', '360deg'],
-    });
-
-    const handleDownload = async () => {
-        if (!episode) return;
-
-        try {
-            setDownloading(true);
-            setDownloadProgress(0);
-            await downloadService.downloadEpisode(episode, (progress) => {
-                setDownloadProgress(progress);
-            });
-            setIsDownloaded(true);
-            showAlert({ title: 'Downloaded', message: 'Episode saved for offline listening.' });
-        } catch (err: any) {
-            if (err.message !== 'Download cancelled') {
-                showAlert({ title: 'Download Failed', message: err.message || 'Could not download episode.' });
-            }
-        } finally {
-            setDownloading(false);
-            setDownloadProgress(0);
-        }
-    };
-
-    const handleCancelDownload = async () => {
-        try {
-            await downloadService.cancelDownload();
-        } catch {
-            // Ignore cancel errors
-        }
-        setDownloading(false);
-        setDownloadProgress(0);
     };
 
     const fetchComments = async () => {
@@ -933,109 +864,15 @@ export default function EpisodeInfoScreen() {
                         </View>
 
                         {!isGenerating && episode.generationStatus !== 'FAILED' && (
-                            <View className="flex-row items-center gap-3">
-                                {/* Download Button */}
-                                {episode.generationStatus === 'COMPLETED' && (
-                                    downloading ? (
-                                        <TouchableOpacity
-                                            onPress={handleCancelDownload}
-                                            className="w-11 h-11 items-center justify-center">
-                                            {downloadProgress > 0 ? (
-                                                <>
-                                                    {/* Background track ring */}
-                                                    <View
-                                                        style={{
-                                                            position: 'absolute',
-                                                            width: 44,
-                                                            height: 44,
-                                                            borderRadius: 22,
-                                                            borderWidth: 2.5,
-                                                            borderColor: '#E8E3D6',
-                                                        }}
-                                                    />
-                                                    {/* Progress ring using clip approach */}
-                                                    <View style={{ position: 'absolute', width: 44, height: 44 }}>
-                                                        {/* Right half (0-50%) */}
-                                                        <View style={{ position: 'absolute', width: 22, height: 44, left: 22, overflow: 'hidden' }}>
-                                                            <View
-                                                                style={{
-                                                                    width: 44,
-                                                                    height: 44,
-                                                                    borderRadius: 22,
-                                                                    borderWidth: 2.5,
-                                                                    borderColor: 'transparent',
-                                                                    borderTopColor: '#BF9A54',
-                                                                    borderRightColor: '#BF9A54',
-                                                                    position: 'absolute',
-                                                                    right: 0,
-                                                                    transform: [{ rotate: `${Math.min(downloadProgress, 50) * 3.6 - 90}deg` }],
-                                                                }}
-                                                            />
-                                                        </View>
-                                                        {/* Left half (50-100%) */}
-                                                        {downloadProgress > 50 && (
-                                                            <View style={{ position: 'absolute', width: 22, height: 44, left: 0, overflow: 'hidden' }}>
-                                                                <View
-                                                                    style={{
-                                                                        width: 44,
-                                                                        height: 44,
-                                                                        borderRadius: 22,
-                                                                        borderWidth: 2.5,
-                                                                        borderColor: 'transparent',
-                                                                        borderBottomColor: '#BF9A54',
-                                                                        borderLeftColor: '#BF9A54',
-                                                                        position: 'absolute',
-                                                                        left: 0,
-                                                                        transform: [{ rotate: `${(downloadProgress - 50) * 3.6 - 90}deg` }],
-                                                                    }}
-                                                                />
-                                                            </View>
-                                                        )}
-                                                    </View>
-                                                </>
-                                            ) : (
-                                                /* Indeterminate spinning ring */
-                                                <Animated.View
-                                                    style={{
-                                                        position: 'absolute',
-                                                        width: 44,
-                                                        height: 44,
-                                                        borderRadius: 22,
-                                                        borderWidth: 2.5,
-                                                        borderColor: '#E8E3D6',
-                                                        borderTopColor: '#BF9A54',
-                                                        transform: [{ rotate: spinRotation }],
-                                                    }}
-                                                />
-                                            )}
-                                            {/* Cancel icon */}
-                                            <Ionicons name="close" size={14} color="#BF9A54" />
-                                        </TouchableOpacity>
-                                    ) : (
-                                        <TouchableOpacity
-                                            onPress={handleDownload}
-                                            disabled={isDownloaded}
-                                            className="w-11 h-11 items-center justify-center">
-                                            <Ionicons
-                                                name={isDownloaded ? 'arrow-down-circle' : 'arrow-down-circle-outline'}
-                                                size={28}
-                                                color={isDownloaded ? '#BF9A54' : '#B8B2A3'}
-                                            />
-                                        </TouchableOpacity>
-                                    )
-                                )}
-
-                                {/* Play Button */}
-                                <TouchableOpacity
-                                    onPress={handlePlay}
-                                    className="w-14 h-14 rounded-full bg-brand-red items-center justify-center shadow-lg">
-                                    <Ionicons
-                                        name={isCurrentlyPlaying ? 'pause' : 'play'}
-                                        size={24}
-                                        color="white"
-                                    />
-                                </TouchableOpacity>
-                            </View>
+                            <TouchableOpacity
+                                onPress={handlePlay}
+                                className="w-14 h-14 rounded-full bg-brand-red items-center justify-center shadow-lg">
+                                <Ionicons
+                                    name={isCurrentlyPlaying ? 'pause' : 'play'}
+                                    size={24}
+                                    color="white"
+                                />
+                            </TouchableOpacity>
                         )}
                     </View>
 
