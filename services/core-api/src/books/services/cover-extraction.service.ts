@@ -4,6 +4,12 @@ export interface CoverExtractionResult {
     coverImageUrl: string | null;
     coverImageKey: string | null;
     source: 'google_books' | 'pdf_extraction' | 'epub_extraction' | null;
+    genres: string[];
+}
+
+interface GoogleBooksResult {
+    coverUrl: string | null;
+    genres: string[];
 }
 
 @Injectable()
@@ -27,14 +33,18 @@ export class CoverExtractionService {
         storageCallback: (imageBuffer: Buffer, key: string) => Promise<string>,
         storageKey: string,
     ): Promise<CoverExtractionResult> {
-        // 1. Try Google Books API first
-        const googleCover = await this.fetchGoogleBooksCover(metadata);
-        if (googleCover) {
+        // 1. Try Google Books API first (also extracts genres/categories)
+        const googleResult = await this.fetchGoogleBooksCover(metadata);
+        if (googleResult?.coverUrl) {
             this.logger.log(`Found cover from Google Books for "${metadata.title}"`);
+            if (googleResult.genres.length > 0) {
+                this.logger.log(`Found genres from Google Books: ${googleResult.genres.join(', ')}`);
+            }
             return {
-                coverImageUrl: googleCover,
+                coverImageUrl: googleResult.coverUrl,
                 coverImageKey: null, // External URL, no local storage
                 source: 'google_books',
+                genres: googleResult.genres,
             };
         }
 
@@ -64,6 +74,7 @@ export class CoverExtractionService {
                     coverImageUrl: coverUrl,
                     coverImageKey: coverKey,
                     source: sourceType === 'PDF' ? 'pdf_extraction' : 'epub_extraction',
+                    genres: googleResult?.genres || [],
                 };
             }
         } catch (error) {
@@ -75,6 +86,7 @@ export class CoverExtractionService {
             coverImageUrl: null,
             coverImageKey: null,
             source: null,
+            genres: googleResult?.genres || [],
         };
     }
 
@@ -91,7 +103,7 @@ export class CoverExtractionService {
         title?: string;
         author?: string;
         isbn?: string;
-    }): Promise<string | null> {
+    }): Promise<GoogleBooksResult | null> {
         // Log incoming metadata immediately
         this.logger.log(
             `[fetchGoogleBooksCover] Called with metadata: ${JSON.stringify(metadata)}`,
@@ -192,7 +204,7 @@ export class CoverExtractionService {
     private async tryGoogleBooksQuery(
         query: string,
         expectedTitle?: string,
-    ): Promise<string | null> {
+    ): Promise<GoogleBooksResult | null> {
         try {
             const url = `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=5`;
             this.logger.debug(`Google Books API query: ${url}`);
@@ -265,10 +277,14 @@ export class CoverExtractionService {
                         cleanUrl += (cleanUrl.includes('?') ? '&' : '?') + 'zoom=4';
                     }
 
+                    const categories: string[] = volumeInfo?.categories || [];
                     this.logger.log(
                         `Found Google Books cover for "${returnedTitle}" (query: "${query}"): ${cleanUrl}`,
                     );
-                    return cleanUrl;
+                    if (categories.length > 0) {
+                        this.logger.log(`  Categories: ${categories.join(', ')}`);
+                    }
+                    return { coverUrl: cleanUrl, genres: categories };
                 }
             }
 

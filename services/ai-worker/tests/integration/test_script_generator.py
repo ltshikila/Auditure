@@ -65,6 +65,7 @@ class TestScriptGeneratorIntegration:
     def test_generate_with_template_fallback(self, generator, sample_personality, sample_book_content):
         """Test generation falls back to templates when LLM unavailable."""
         # Use shorter duration that matches what fallback can produce from sample content
+        # Template output is limited by small sample content (~150 words source)
         result = generator.generate(
             book_content=sample_book_content,
             book_title="Introduction to Stoicism",
@@ -74,8 +75,8 @@ class TestScriptGeneratorIntegration:
             podcaster_personality=sample_personality,
             episode_type="MONOLOGUE",
             episode_theme="LECTURE",
-            target_length_min=5,
-            target_length_max=10,
+            target_length_min=2,
+            target_length_max=8,
         )
 
         assert isinstance(result, ScriptResult)
@@ -95,8 +96,8 @@ class TestScriptGeneratorIntegration:
             podcaster_personality=sample_personality,
             episode_type="DUO",
             episode_theme="DISCUSSION",
-            target_length_min=5,
-            target_length_max=12,
+            target_length_min=3,
+            target_length_max=8,
         )
 
         assert result.method == "template"
@@ -114,8 +115,8 @@ class TestScriptGeneratorIntegration:
             podcaster_personality=sample_personality,
             episode_type="GROUP",
             episode_theme="DEBATE",
-            target_length_min=5,
-            target_length_max=12,
+            target_length_min=3,
+            target_length_max=8,
         )
 
         assert result.method == "template"
@@ -212,8 +213,8 @@ class TestScriptGeneratorIntegration:
                 podcaster_personality=sample_personality,
                 episode_type="MONOLOGUE",
                 episode_theme="LECTURE",
-                target_length_min=5,
-                target_length_max=10,
+                target_length_min=2,
+                target_length_max=8,
             )
 
             # Should fall back to template
@@ -251,8 +252,8 @@ class TestScriptGeneratorIntegration:
                 podcaster_personality=sample_personality,
                 episode_type=episode_type,
                 episode_theme="LECTURE",
-                target_length_min=5,
-                target_length_max=10,
+                target_length_min=2,
+                target_length_max=8,
             )
 
             if episode_type == "MONOLOGUE":

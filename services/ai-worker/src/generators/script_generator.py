@@ -68,6 +68,7 @@ class ScriptGenerator:
         voice_tier: str = "standard",
         content_scope: str = "the book",
         chapter_title: Optional[str] = None,
+        book_genres: Optional[list[str]] = None,
     ) -> ScriptResult:
         """
         Generate a podcast script.
@@ -145,6 +146,7 @@ class ScriptGenerator:
                     expansion_ratio=expansion_ratio,
                     content_scope=content_scope,
                     chapter_title=chapter_title,
+                    book_genres=book_genres,
                 )
                 method = "llm"
 
@@ -179,6 +181,7 @@ class ScriptGenerator:
                         expansion_ratio=expansion_ratio,
                         content_scope=content_scope,
                         chapter_title=chapter_title,
+                        book_genres=book_genres,
                     )
                     retry_count = retry_num
                     method = f"llm_retry{retry_num}"
@@ -265,29 +268,18 @@ class ScriptGenerator:
         """
         Convert podcaster speaking speed (1-10) to words per minute.
 
-        Gemini TTS speaks significantly faster than Google Cloud TTS,
-        so we use different base WPM values.
+        Production data shows both Gemini and Standard TTS speak at similar rates:
+        - Gemini production logs: 173-220 wpm (avg ~186 wpm)
+        - Standard TTS: ~140-230 wpm range
 
-        Standard/Premium (Google Cloud TTS):
+        Both tiers use the same formula:
         - Speed 1: ~140 wpm (slow, deliberate)
-        - Speed 5: ~185 wpm (normal conversational)
+        - Speed 5: ~180 wpm (normal conversational)
         - Speed 10: ~230 wpm (fast, energetic)
         - Formula: wpm = 130 + (speed * 10)
-
-        Gemini TTS (speaks ~1.5x faster):
-        - Speed 1: ~210 wpm
-        - Speed 5: ~270 wpm
-        - Speed 10: ~330 wpm
-        - Formula: wpm = 200 + (speed * 13)
         """
         speed = max(1, min(10, speaking_speed))
-
-        if voice_tier == "gemini":
-            # Gemini TTS speaks faster - need more words to fill same time
-            return 200 + (speed * 13)
-        else:
-            # Standard/Premium Google Cloud TTS
-            return 130 + (speed * 10)
+        return 130 + (speed * 10)
 
     def _calculate_target_words(
         self,
@@ -297,11 +289,14 @@ class ScriptGenerator:
     ) -> int:
         """Calculate target word count from time range.
 
-        Always aims for the MAXIMUM duration - the minimum is the tolerance floor.
+        Aims for the MIDPOINT of the range to stay within bounds.
+        Production data showed that aiming for max consistently overshoots
+        because WPM estimates are approximate and TTS pacing varies.
         """
         words_per_min = wpm or self.words_per_minute
-        # Always aim for the max - user's min is just the acceptable floor
-        return int(target_length_max * words_per_min)
+        # Aim for the midpoint of the range to give buffer on both sides
+        target_minutes = (target_length_min + target_length_max) / 2
+        return int(target_minutes * words_per_min)
 
     def _estimate_duration_seconds(self, word_count: int, wpm: Optional[int] = None) -> int:
         """Estimate audio duration in seconds from word count."""
@@ -371,6 +366,7 @@ class ScriptGenerator:
         expansion_ratio: float,
         content_scope: str = "the book",
         debate_config: Optional[DebateConfig] = None,
+        book_genres: Optional[list[str]] = None,
     ) -> str:
         """Generate a long script in multiple chunks and combine them.
 
@@ -418,6 +414,7 @@ class ScriptGenerator:
                 topics_covered=topics_covered if chunk_num > 0 else None,
                 content_scope=content_scope,
                 debate_config=debate_config,
+                book_genres=book_genres,
             )
 
             logger.info(f"Generating chunk {chunk_num + 1}/{num_chunks}...")
@@ -466,12 +463,20 @@ class ScriptGenerator:
         topics_covered: Optional[list[str]] = None,
         content_scope: str = "the book",
         debate_config: Optional[DebateConfig] = None,
+        book_genres: Optional[list[str]] = None,
     ) -> str:
         """Build a prompt for generating a specific chunk of the script."""
         author_line = f" by {book_author}" if book_author else ""
 
         # Personality description
         personality_desc = self.prompt_builder.build_personality_description(personality)
+
+        # Genre and expertise instructions
+        genre_section = self.prompt_builder.build_genre_and_expertise_instructions(
+            book_genres=book_genres,
+            expertise_tags=personality.expertise_tags,
+            book_title=book_title,
+        )
 
         # Build debate instructions if this is a debate episode
         debate_section = ""
@@ -556,6 +561,8 @@ GUEST: That's a great point. I'd add that..."""
 ## Your Personality
 {personality_desc}
 
+{genre_section}
+
 {position_instruction}
 {debate_section}
 ## CRITICAL FORMAT REQUIREMENTS
@@ -632,6 +639,7 @@ Now write Part {chunk_num}:
         expansion_ratio: float = 1.0,
         content_scope: str = "the book",
         chapter_title: Optional[str] = None,
+        book_genres: Optional[list[str]] = None,
     ) -> str:
         """Generate script using LLM."""
         retry_info = f" (RETRY #{retry_count} with enhanced prompt)" if retry_count > 0 else ""
@@ -666,6 +674,7 @@ Now write Part {chunk_num}:
                 expansion_ratio=expansion_ratio,
                 content_scope=content_scope,
                 debate_config=debate_config,
+                book_genres=book_genres,
             )
             logger.info(f"Chunked generation produced {len(script.split())} words")
             return script
@@ -689,6 +698,7 @@ Now write Part {chunk_num}:
             content_scope=content_scope,
             chapter_title=chapter_title,
             debate_config=debate_config,
+            book_genres=book_genres,
         )
 
         # Request more words on retries (increasingly aggressive)

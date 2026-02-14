@@ -57,7 +57,8 @@ class TestPromptBuilder:
         assert "Depth:" in desc
         assert "Flow:" in desc
         assert "Skeptical" in desc
-        assert "Philosophy" in desc
+        # Expertise tags are now handled by build_genre_and_expertise_instructions()
+        assert "Areas of expertise" not in desc
 
     def test_build_personality_description_without_optional(self, builder):
         """Test personality description without optional fields."""
@@ -121,15 +122,15 @@ class TestPromptBuilder:
     # Target word calculation tests
     def test_calculate_target_words(self, builder):
         """Test word count calculation."""
-        # 15-25 minutes, always aims for MAX duration: 25 minutes at 150 wpm = 3750 words
+        # 15-25 minutes, aims for MIDPOINT: 20 minutes at 150 wpm = 3000 words
         words = builder.calculate_target_words(15, 25, 150)
-        assert words == 3750
+        assert words == 3000
 
     def test_calculate_target_words_short(self, builder):
         """Test word count for short episode."""
-        # 5-10 minutes, always aims for MAX duration: 10 minutes at 150 wpm = 1500 words
+        # 5-10 minutes, aims for MIDPOINT: 7.5 minutes at 150 wpm = 1125 words
         words = builder.calculate_target_words(5, 10, 150)
-        assert words == 1500
+        assert words == 1125
 
     # Full prompt building tests
     def test_build_prompt_complete(self, builder, sample_personality):
@@ -211,3 +212,90 @@ class TestPodcasterPersonality:
         assert personality.tone == 5
         assert personality.intellectual_angle is None
         assert personality.expertise_tags is None
+
+
+class TestGenreAndExpertiseInstructions:
+    """Test cases for genre-aware, expertise-weighted instructions."""
+
+    @pytest.fixture
+    def builder(self):
+        """Create PromptBuilder instance."""
+        return PromptBuilder()
+
+    def test_genre_with_expertise(self, builder):
+        """Genre + expertise produces both sections."""
+        result = builder.build_genre_and_expertise_instructions(
+            book_genres=["Business & Economics"],
+            expertise_tags=["Business", "Finance"],
+            book_title="The Lean Startup",
+        )
+        assert "BOOK GENRE" in result
+        assert "Business & Economics" in result
+        assert "EXPERTISE WEIGHTING" in result
+        assert "High overlap" in result
+
+    def test_genre_without_expertise(self, builder):
+        """Genre with no expertise tags only shows genre section."""
+        result = builder.build_genre_and_expertise_instructions(
+            book_genres=["Fiction / Fantasy"],
+            expertise_tags=None,
+            book_title="The Name of the Wind",
+        )
+        assert "BOOK GENRE" in result
+        assert "Fiction / Fantasy" in result
+        assert "EXPERTISE" not in result
+
+    def test_no_genre_with_expertise(self, builder):
+        """No genre but expertise present gives fallback + expertise."""
+        result = builder.build_genre_and_expertise_instructions(
+            book_genres=None,
+            expertise_tags=["Philosophy"],
+            book_title="Unknown Book",
+        )
+        assert "No genre information" in result
+        assert "Philosophy" in result
+        assert "YOUR EXPERTISE" in result
+
+    def test_no_genre_no_expertise(self, builder):
+        """Neither genre nor expertise gives fallback only."""
+        result = builder.build_genre_and_expertise_instructions(
+            book_genres=None,
+            expertise_tags=None,
+            book_title="Unknown Book",
+        )
+        assert "No genre information" in result
+        assert "EXPERTISE" not in result
+
+    def test_empty_genres_treated_as_no_genre(self, builder):
+        """Empty genre list is treated as no genre."""
+        result = builder.build_genre_and_expertise_instructions(
+            book_genres=[],
+            expertise_tags=["Business"],
+            book_title="Test Book",
+        )
+        assert "No genre information" in result
+
+    def test_genre_in_full_prompt(self, builder):
+        """Genre section appears in complete build_prompt output."""
+        personality = PodcasterPersonality(
+            tone=5, communication_style=5, humor_level=5,
+            conversational_depth=5, chaos_factor=5,
+            expertise_tags=["Business"],
+        )
+        request = ScriptRequest(
+            book_content="Content about fantasy worlds...",
+            book_title="Test Book",
+            book_author="Author",
+            episode_title="Episode",
+            podcaster_name="Host",
+            podcaster_personality=personality,
+            episode_type="MONOLOGUE",
+            episode_theme="LECTURE",
+            target_length_min=10,
+            target_length_max=15,
+            book_genres=["Fiction / Fantasy"],
+        )
+        prompt = builder.build_prompt(request)
+        assert "BOOK GENRE" in prompt
+        assert "Fiction / Fantasy" in prompt
+        assert "EXPERTISE WEIGHTING" in prompt

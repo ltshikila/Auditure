@@ -314,6 +314,12 @@ class TTSEngine:
                 else:
                     gender = main_podcaster.gender
 
+                # Get host voice name to avoid duplicates
+                host_voice_name = None
+                for assigned in assignments.values():
+                    host_voice_name = assigned.speaker_id
+                    break
+
                 voice_config = self.gemini_client.get_voice_for_speaker(
                     speaker_type="GUEST",
                     gender=gender,
@@ -322,6 +328,19 @@ class TTSEngine:
                     speaker_index=guest_index,
                     voice_model=main_podcaster.voice_model,
                 )
+
+                # Ensure guest voice is different from host voice
+                if host_voice_name and voice_config.speaker_id == host_voice_name:
+                    logger.info(f"Guest voice '{voice_config.speaker_id}' matches host, selecting random alternative")
+                    alt_voice = self.gemini_client.get_random_guest_voice(host_voice_name)
+                    if alt_voice in GEMINI_VOICES:
+                        alt_info = GEMINI_VOICES[alt_voice]
+                        voice_config = GeminiVoiceConfig(
+                            speaker_id=alt_voice,
+                            style=alt_info["style"],
+                            style_prompt=f"Speak in a {alt_info['style'].lower()} manner",
+                        )
+
                 assignments[speaker] = voice_config
                 guest_index += 1
 

@@ -112,6 +112,7 @@ class Book(Base):
     isbn = Column(String, nullable=True)
     language = Column(String, default="en")
     page_count = Column("pageCount", Integer, nullable=True)
+    genres = Column(ARRAY(String), default=[])
 
     # Source Information
     source_type = Column("sourceType", String, nullable=False)

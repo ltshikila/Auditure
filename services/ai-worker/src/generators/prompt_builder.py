@@ -285,6 +285,8 @@ class ScriptRequest:
     chapter_title: Optional[str] = None  # Title of the chapter if single chapter
     # Debate configuration (generated for DEBATE theme episodes)
     debate_config: Optional[DebateConfig] = None
+    # Book genres from Google Books API (e.g., ["Fiction / Fantasy / Epic"])
+    book_genres: Optional[list[str]] = None
 
 
 class PromptBuilder:
@@ -358,10 +360,87 @@ class PromptBuilder:
         if personality.intellectual_angle:
             descriptions.append(f"Intellectual lens: {personality.intellectual_angle}")
 
-        if personality.expertise_tags:
-            descriptions.append(f"Areas of expertise: {', '.join(personality.expertise_tags)}")
+        # Note: expertise_tags are handled separately by build_genre_and_expertise_instructions()
+        # to enable proper weighting based on book genre relevance
 
         return "\n".join(f"- {d}" for d in descriptions)
+
+    def build_genre_and_expertise_instructions(
+        self,
+        book_genres: Optional[list[str]],
+        expertise_tags: Optional[list[str]],
+        book_title: str,
+    ) -> str:
+        """Build genre-aware, expertise-weighted discussion instructions.
+
+        Instead of treating all books as self-help material and listing expertise
+        tags as flat bullets, this method:
+        1. Instructs the LLM to identify the book's core message from the content
+        2. Uses genre to set the primary discussion energy/lens
+        3. Weights expertise tags by their relevance to the genre and message
+        """
+        sections = []
+
+        if book_genres:
+            genres_str = ", ".join(book_genres)
+            sections.append(f"""## BOOK GENRE & DISCUSSION LENS (CRITICAL - READ FIRST!)
+This book's genre(s): {genres_str}
+
+**Your #1 priority is the book's INTENDED MESSAGE.** Before discussing anything:
+1. Identify what the book is actually trying to say — its core thesis, narrative, or argument
+2. Let the genre set the PRIMARY ENERGY of your discussion
+
+Genre-specific guidance:
+- **Fiction / Fantasy / Sci-Fi:** Discuss the world-building, character arcs, narrative tension, themes, and emotional resonance. Talk about the magic systems, plot twists, and what makes the story compelling. Do NOT default to "5 life lessons from this novel."
+- **Fiction / Literary:** Explore prose style, symbolism, character psychology, narrative structure. Discuss what the author is saying through the story.
+- **Business / Management / Leadership:** Discuss strategies, frameworks, case studies, and practical applications as the book intends.
+- **Self-Help / Personal Development:** The self-improvement lens IS the genre — discuss growth strategies, mindset shifts, and actionable advice.
+- **History / Biography / Memoir:** Discuss events, context, significance, the people involved, and what we learn from the historical record.
+- **Science / Technology:** Discuss discoveries, mechanisms, implications, and the wonder of understanding how things work.
+- **Philosophy / Religion / Spirituality:** Engage with the ideas, arguments, worldviews, and their implications for how we understand existence.
+- **Politics / Social Science / Economics:** Discuss power dynamics, institutions, policy implications, different perspectives, and societal impact.
+- **Poetry / Art / Music:** Discuss aesthetics, emotional impact, cultural context, and artistic technique.
+- **True Crime / Mystery / Thriller:** Discuss the investigation, psychology, suspense, justice, and what draws us to these stories.
+
+If the genre doesn't match any of the above, infer the appropriate discussion style from the genre name and content.
+
+**IMPORTANT:** If you detect a mismatch between the provided genre and the actual content, TRUST THE CONTENT over the genre label. The content is the source of truth.""")
+
+        else:
+            sections.append("""## BOOK DISCUSSION APPROACH
+No genre information is available for this book. Determine the appropriate discussion lens from the content itself:
+1. Read the provided content carefully
+2. Identify what kind of book this is (fiction, non-fiction, self-help, academic, etc.)
+3. Discuss it in the way that genre naturally calls for — fiction as fiction, business as business, philosophy as philosophy
+4. Prioritize the book's intended message and themes above all else
+5. Do NOT default to a self-help "life lessons" approach unless the content is genuinely self-help""")
+
+        if expertise_tags:
+            tags_str = ", ".join(expertise_tags)
+
+            if book_genres:
+                sections.append(f"""## EXPERTISE WEIGHTING (How to use your knowledge areas)
+Your areas of expertise: {tags_str}
+
+**Your expertise provides SECONDARY flavor, not the primary lens.** Apply this rule:
+
+1. **High overlap** (your expertise closely matches the book's genre/subject): Lean heavily into your expertise. Your specialized knowledge directly serves the book's purpose.
+2. **Moderate overlap** (tangential connection between your expertise and the book): Bring in expertise insights when they organically illuminate the content — but don't turn the discussion into a lecture on your expertise topic.
+3. **Low overlap** (your expertise has little connection to this book's genre): Only surface your expertise when the content genuinely warrants it. Do NOT force connections.
+
+**The golden rule:** Would a thoughtful reader with your background naturally make this connection? If yes, include it. If you have to strain to connect your expertise to the content, leave it out.
+
+Do NOT:
+- Force every book into a "lessons for your life/business" framework
+- Override the genre's natural energy with your expertise lens
+- Make the episode feel like a lecture on your expertise topic that happens to reference this book""")
+            else:
+                sections.append(f"""## YOUR EXPERTISE
+Your areas of expertise: {tags_str}
+
+Use your expertise as a lens where it naturally fits the content. If the book's subject aligns with your expertise, lean into it. If not, let the book's own themes lead and only reference your expertise when genuinely relevant.""")
+
+        return "\n\n".join(sections)
 
     def build_episode_type_instructions(self, episode_type: str) -> str:
         """Get instructions based on episode type.
@@ -907,14 +986,14 @@ Create an energetic, friendly discussion with frequent engagement (5+ times):
         self,
         target_length_min: int,
         target_length_max: int,
-        words_per_minute: int = 185,  # Gemini TTS speaks at ~185 wpm
+        words_per_minute: int = 180,  # ~180 wpm at default speed 5
     ) -> int:
         """Calculate target word count from time range.
 
-        Always aims for the MAXIMUM duration - the minimum is the tolerance floor.
+        Aims for the MIDPOINT of the range to stay within bounds.
         """
-        # Always aim for the max - user's min is just the acceptable floor
-        return int(target_length_max * words_per_minute)
+        target_minutes = (target_length_min + target_length_max) / 2
+        return int(target_minutes * words_per_minute)
 
     def build_deep_dive_instructions(
         self,
@@ -1028,6 +1107,13 @@ Repetition is the enemy of engagement. Keep moving forward with fresh content.
 
         author_line = f" by {request.book_author}" if request.book_author else ""
 
+        # Build genre-aware, expertise-weighted instructions
+        genre_expertise_section = self.build_genre_and_expertise_instructions(
+            book_genres=request.book_genres,
+            expertise_tags=request.podcaster_personality.expertise_tags,
+            book_title=request.book_title,
+        )
+
         # Build deep dive instructions if content is limited or this is a retry
         deep_dive_section = ""
         if request.content_is_limited or request.retry_count > 0 or request.expansion_ratio >= 1.5:
@@ -1052,6 +1138,8 @@ Repetition is the enemy of engagement. Keep moving forward with fresh content.
 
 ## Your Personality
 {personality_desc}
+
+{genre_expertise_section}
 
 ## Episode Format
 {type_instructions}

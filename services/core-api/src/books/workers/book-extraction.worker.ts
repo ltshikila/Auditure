@@ -177,9 +177,10 @@ export class BookExtractionWorker implements OnModuleInit {
                     extractedAt: new Date(),
                     fullTextKey,
                     pageCount: extracted.metadata.pageCount,
-                    // Cover image
+                    // Cover image & genres from Google Books
                     coverImageUrl: coverResult.coverImageUrl,
                     coverImageKey: coverResult.coverImageKey,
+                    genres: coverResult.genres,
                     // Store extraction warnings for user notification
                     extractionWarnings: extracted.extractionWarnings || [],
                     // Update metadata - always update title/author if we have better versions

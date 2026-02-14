@@ -334,10 +334,11 @@ class GeminiTTSClient:
     OUTPUT_PRICE_PER_M = 20.00  # $20.00 per 1M audio tokens
     TOKENS_PER_SECOND = 25      # Audio tokens per second of output
 
-    # Chunking configuration - Gemini TTS has ~10-11 min output limit
-    # Use conservative 8 min chunks to ensure we stay within limits
-    MAX_CHUNK_DURATION_SEC = 480  # 8 minutes per chunk
-    MAX_CHUNK_CHARS = 12000       # ~8 min at ~270 wpm ≈ 2160 words ≈ 12k chars
+    # Chunking configuration - Gemini TTS has a hard output cap at ~655s (10.9 min)
+    # Production logs showed 12000 chars → 10.9 min at actual ~180 wpm, hitting the cap
+    # Use conservative 7 min chunks to stay safely under the limit
+    MAX_CHUNK_DURATION_SEC = 420  # 7 minutes per chunk
+    MAX_CHUNK_CHARS = 7500        # ~7 min at ~180 wpm ≈ 1250 words ≈ 7500 chars
 
     def __init__(self, temp_dir: Optional[str] = None):
         """Initialize Gemini TTS client."""
@@ -441,13 +442,18 @@ class GeminiTTSClient:
 
             return base_distance + style_bonus
 
-        best_voice = min(candidates, key=lambda v: voice_score(v[1]))
+        # Sort candidates by score and pick randomly from top 3
+        # This ensures variety across episodes while still selecting appropriate voices
+        scored = sorted(candidates, key=lambda v: voice_score(v[1]))
+        top_candidates = scored[:min(3, len(scored))]
+        best_voice = random.choice(top_candidates)
         voice_name = best_voice[0]
         voice_info = best_voice[1]
 
+        top_names = [v[0] for v in top_candidates]
         style_match = "✓" if voice_info.get("style", "") in preferred_styles else ""
         logger.info(
-            f"Selected voice '{voice_name}' ({voice_info['style']}{style_match}) for "
+            f"Selected voice '{voice_name}' ({voice_info['style']}{style_match}) from top-3 {top_names} for "
             f"voice_model={voice_model}, speed={speed}, pitch={pitch} "
             f"(voice: speed={voice_info['speed']}, pitch={voice_info['pitch']})"
         )
@@ -582,9 +588,14 @@ class GeminiTTSClient:
 
         # Add Director's Notes for non-US accents
         # Prebuilt voices are American by default, so we need to guide them via prompt
+        # Use emphatic language to ensure consistent accent across independent API calls
         accent_description = LANGUAGE_CODE_TO_ACCENT_DESCRIPTION.get(language_code)
         if accent_description:
-            formatted_lines.append(f"[Director's Notes: All speakers should use a {accent_description}.]")
+            formatted_lines.append(
+                f"[Director's Notes: IMPORTANT - All speakers MUST speak with a {accent_description} "
+                f"throughout the entire script. Maintain this accent consistently for every single word. "
+                f"Do NOT switch to an American accent at any point.]"
+            )
             formatted_lines.append("")  # Empty line after notes
 
         for line in script.split('\n'):
@@ -829,7 +840,10 @@ class GeminiTTSClient:
 
             # Add Director's Notes for accent if needed
             if accent_description:
-                prompt_text = f"[Director's Notes: Speak with a {accent_description}.]\n\n{dialogue}"
+                prompt_text = (
+                    f"[Director's Notes: IMPORTANT - You MUST speak with a {accent_description} "
+                    f"throughout. Do NOT use an American accent.]\n\n{dialogue}"
+                )
             else:
                 prompt_text = dialogue
 

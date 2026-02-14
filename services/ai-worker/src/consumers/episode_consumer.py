@@ -147,6 +147,7 @@ class EpisodeConsumer(BaseConsumer):
                 book_content=book_content,
                 book_title=book.title,
                 book_author=book.author,
+                book_genres=book.genres or [],
                 episode_title=message["title"],
                 podcaster_name=podcaster.name,
                 podcaster_personality={

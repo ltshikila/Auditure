@@ -54,6 +54,7 @@ model Book {
   isbn              String?
   language          String       @default("en")
   pageCount         Int?
+  genres            String[]                    // Book genres/categories (from Google Books API)
 
   // Source Information
   sourceType        SourceType
