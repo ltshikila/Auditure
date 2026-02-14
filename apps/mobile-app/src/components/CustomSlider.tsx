@@ -19,9 +19,9 @@ export const SliderTrack: React.FC<SliderTrackProps> = ({
     onValueChange,
     onSlidingStart,
     onSlidingComplete,
-    minimumValue = 1,
+    minimumValue = 0,
     maximumValue = 10,
-    step = 1,
+    step = 0,
 }) => {
     const [trackWidth, setTrackWidth] = useState(0);
     const trackRef = useRef<View>(null);
@@ -40,7 +40,10 @@ export const SliderTrack: React.FC<SliderTrackProps> = ({
         const relX = Math.max(0, Math.min(pageX - trackPageX.current, trackWidthRef.current));
         const frac = trackWidthRef.current > 0 ? relX / trackWidthRef.current : 0;
         const raw = min + frac * (max - min);
-        return Math.max(min, Math.min(max, Math.round(raw / s) * s));
+        if (s > 0) {
+            return Math.max(min, Math.min(max, Math.round(raw / s) * s));
+        }
+        return Math.max(min, Math.min(max, raw));
     };
 
     const panResponder = useMemo(

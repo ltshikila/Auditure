@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authService, User, RegisterData, LoginData, VerifyData } from '../services/auth.service';
+import { notificationService } from '../services/notification.service';
 import { storageService } from '../services/storage.service';
 import { apiClient } from '../services/api';
 
@@ -109,6 +110,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = async () => {
+    // Clear push token on backend before wiping local tokens
+    try {
+      const token = await storageService.getAccessToken();
+      if (token) {
+        await notificationService.clearPushToken(token);
+      }
+    } catch (error) {
+      console.error('[Auth] Failed to clear push token on logout:', error);
+    }
     await storageService.clearAll();
     setUser(null);
   };

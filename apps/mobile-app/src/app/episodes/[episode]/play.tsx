@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, Image, ActivityIndicator, Modal, Share } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ActivityIndicator, Modal, Share, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Slider from '@react-native-community/slider';
+import { SliderTrack } from '@/components/CustomSlider';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { Episode, episodeService } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
@@ -42,7 +42,7 @@ function getTranscriptPreview(scriptContent: string | null | undefined): string 
 
 export default function EpisodePlayScreen() {
     const { episode: episodeId } = useLocalSearchParams<{ episode: string }>();
-    const { episode, position, duration, play, seekTo } = usePlayback();
+    const { episode, position, duration, play, seekTo, stop } = usePlayback();
 
     const [localEpisode, setLocalEpisode] = useState<Episode | null>(null);
     const [sliderValue, setSliderValue] = useState(0);
@@ -180,6 +180,38 @@ export default function EpisodePlayScreen() {
         }
     };
 
+    const handleDeleteEpisode = () => {
+        setShowMenu(false);
+        Alert.alert(
+            'Delete Episode',
+            `Are you sure you want to delete "${displayEpisode?.title}"? This cannot be undone.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            const token = await storageService.getAccessToken();
+                            if (!token || !episodeId) return;
+
+                            // Stop playback if this episode is playing
+                            if (episode?.id === episodeId) {
+                                await stop();
+                            }
+
+                            await episodeService.delete(episodeId, token);
+                            router.back();
+                        } catch (error) {
+                            console.error('Error deleting episode:', error);
+                            Alert.alert('Error', 'Failed to delete episode. Please try again.');
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
     const displayEpisode = episode?.id === episodeId ? episode : localEpisode;
 
     // Get static transcript preview (time sync not available)
@@ -280,17 +312,14 @@ export default function EpisodePlayScreen() {
 
             {/* Progress Slider */}
             <View className="px-6 mt-6">
-                <Slider
+                <SliderTrack
                     value={sliderValue}
                     minimumValue={0}
                     maximumValue={durationSec || 1}
-                    step={1}
-                    onSlidingStart={handleSliderStart}
+                    step={0}
                     onValueChange={handleSliderChange}
+                    onSlidingStart={handleSliderStart}
                     onSlidingComplete={handleSliderComplete}
-                    minimumTrackTintColor="#BF9A54"
-                    maximumTrackTintColor="#E8E3D6"
-                    thumbTintColor="#BF9A54"
                 />
                 <View className="flex-row justify-between mt-1">
                     <Text className="font-inter text-xs text-[#858585]">
@@ -379,6 +408,14 @@ export default function EpisodePlayScreen() {
                             <Ionicons name="share-outline" size={22} color="#1A1C1E" />
                             <Text className="font-inter-medium text-brand-black text-base ml-4">Share Episode</Text>
                         </TouchableOpacity> */}
+
+                        <TouchableOpacity
+                            onPress={handleDeleteEpisode}
+                            className="flex-row items-center py-4"
+                        >
+                            <Ionicons name="trash-outline" size={22} color="#DC2626" />
+                            <Text className="font-inter-medium text-red-600 text-base ml-4">Delete Episode</Text>
+                        </TouchableOpacity>
                     </View>
                 </TouchableOpacity>
             </Modal>

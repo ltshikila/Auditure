@@ -18,6 +18,7 @@ import {
     NotificationQueryParams,
 } from '../services/notification.service';
 import { storageService } from '../services/storage.service';
+import { useAuth } from './AuthContext';
 
 // Configure how notifications are handled when the app is in the foreground
 ExpoNotifications.setNotificationHandler({
@@ -63,6 +64,7 @@ interface NotificationsProviderProps {
 }
 
 export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({ children }) => {
+    const { isAuthenticated } = useAuth();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(false);
@@ -83,8 +85,10 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({ ch
         [fetchNotifications]
     );
 
-    // Register for push notifications
-    const registerForPushNotifications = useCallback(async () => {
+    // Register for push notifications (with retry)
+    const registerForPushNotifications = useCallback(async (attempt: number = 1) => {
+        const MAX_RETRIES = 3;
+
         if (!Device.isDevice) {
             console.log('[Notifications] Push notifications require a physical device');
             return;
@@ -120,6 +124,8 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({ ch
             if (accessToken) {
                 await notificationService.registerPushToken(expoPushToken, accessToken);
                 console.log('[Notifications] Push token registered with backend');
+            } else {
+                console.log('[Notifications] No access token, skipping backend registration');
             }
 
             // Configure Android channel
@@ -132,7 +138,12 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({ ch
                 });
             }
         } catch (error) {
-            console.error('[Notifications] Error registering for push:', error);
+            console.error(`[Notifications] Error registering for push (attempt ${attempt}):`, error);
+            if (attempt < MAX_RETRIES) {
+                const delay = attempt * 3000; // 3s, 6s
+                console.log(`[Notifications] Retrying in ${delay / 1000}s...`);
+                setTimeout(() => registerForPushNotifications(attempt + 1), delay);
+            }
         }
     }, []);
 
@@ -332,17 +343,17 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({ ch
         };
     }, [refreshUnreadCount]);
 
-    // Initial fetch of unread count on mount
+    // Register push token and fetch unread count when auth state changes
     useEffect(() => {
-        const initializeNotifications = async () => {
-            const token = await storageService.getAccessToken();
-            if (token) {
-                refreshUnreadCount();
-                registerForPushNotifications();
-            }
-        };
-        initializeNotifications();
-    }, [refreshUnreadCount, registerForPushNotifications]);
+        if (isAuthenticated) {
+            registerForPushNotifications();
+            refreshUnreadCount();
+        } else {
+            // User logged out — clear local notification state
+            setNotifications([]);
+            setUnreadCount(0);
+        }
+    }, [isAuthenticated, registerForPushNotifications, refreshUnreadCount]);
 
     return (
         <NotificationsContext.Provider
