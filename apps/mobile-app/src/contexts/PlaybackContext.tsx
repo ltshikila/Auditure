@@ -320,13 +320,15 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
 
     const play = useCallback(async (ep: Episode) => {
         setIsLoading(true);
-        setEpisode(ep);
-        episodeRef.current = ep;
         hasIncrementedPlayCount.current = false;
 
-        // Save progress for previous track before switching
+        // Save progress for previous track BEFORE updating episode ref
         stopProgressSaving();
         await saveProgress();
+
+        // NOW update episode to the new one
+        setEpisode(ep);
+        episodeRef.current = ep;
 
         try {
             await TrackPlayer.reset();
@@ -420,6 +422,16 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
     }, [play]);
 
     const playPrevious = useCallback(async () => {
+        // If playback is past 3 seconds, restart the current episode
+        try {
+            const currentProgress = await TrackPlayer.getProgress();
+            if (currentProgress.position > 3) {
+                await TrackPlayer.seekTo(0);
+                return;
+            }
+        } catch { /* ignore */ }
+
+        // Position is ≤3s — go to previous episode if available
         if (queueIndexRef.current > 0) {
             const prevIndex = queueIndexRef.current - 1;
             const prevEpisode = queueRef.current[prevIndex];
@@ -427,6 +439,9 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
             queueIndexRef.current = prevIndex;
             preserveQueueRef.current = true;
             await play(prevEpisode);
+        } else {
+            // No previous episode — just restart
+            try { await TrackPlayer.seekTo(0); } catch { /* ignore */ }
         }
     }, [play]);
 

@@ -60,6 +60,13 @@ export default function EpisodePlayScreen() {
         }
     }, [episodeId]);
 
+    // When context episode changes (prev/next), navigate to the new episode's page
+    useEffect(() => {
+        if (episode && episode.id !== episodeId) {
+            router.replace(`/episodes/${episode.id}/play`);
+        }
+    }, [episode?.id]);
+
     const fetchAndPlayEpisode = async () => {
         if (!episodeId) return;
 
