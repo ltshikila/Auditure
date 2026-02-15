@@ -151,7 +151,7 @@ export class SearchService {
 
         const skip = (page - 1) * limit;
 
-        // Build where clause - include public episodes and user's own episodes
+        // Build where clause - include public episodes, episodes from public podcasters, and user's own
         const where: any = {
             generationStatus: 'COMPLETED', // Only show completed episodes
             OR: [
@@ -162,7 +162,11 @@ export class SearchService {
             ],
             AND: [
                 {
-                    OR: [{ isPublic: true }, ...(userId ? [{ userId }] : [])],
+                    OR: [
+                        { isPublic: true },
+                        { podcaster: { isPublic: true } },
+                        ...(userId ? [{ userId }] : []),
+                    ],
                 },
             ],
         };
@@ -376,7 +380,11 @@ export class SearchService {
                     where: {
                         generationStatus: 'COMPLETED',
                         title: { contains: sanitizedQuery, mode: 'insensitive' },
-                        OR: [{ isPublic: true }, ...(userId ? [{ userId }] : [])],
+                        OR: [
+                            { isPublic: true },
+                            { podcaster: { isPublic: true } },
+                            ...(userId ? [{ userId }] : []),
+                        ],
                     },
                     take: limit,
                     select: { id: true, title: true },

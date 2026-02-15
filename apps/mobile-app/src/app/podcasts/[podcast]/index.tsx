@@ -8,6 +8,7 @@ import { episodeService, Episode } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
 import { resolveCoverUrl } from '@/services/api';
 import { usePlayback } from '@/contexts/PlaybackContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { GeneratingEpisodeCard } from '@/components/GeneratingEpisodeCard';
 import { TopBar } from '@/components/TopBar';
 import { PodcastDetailSkeleton } from '@/components/skeleton';
@@ -35,12 +36,20 @@ export default function PodcastDetailsScreen() {
   const [selectedRating, setSelectedRating] = useState<number>(0);
 
   const { setQueue } = usePlayback();
+  const { user } = useAuth();
+  const isOwner = podcaster?.userId === user?.id;
 
   useEffect(() => {
     fetchPodcaster();
-    fetchEpisodes();
     fetchUserRating();
   }, [podcastId]);
+
+  // Fetch episodes once we know the podcaster (need userId for ownership check)
+  useEffect(() => {
+    if (podcaster) {
+      fetchEpisodes();
+    }
+  }, [podcaster?.id, podcaster?.userId]);
 
   const fetchUserRating = async () => {
     if (!podcastId) return;
@@ -115,16 +124,23 @@ export default function PodcastDetailsScreen() {
   };
 
   const fetchEpisodes = async () => {
-    if (!podcastId) return;
+    if (!podcastId || !podcaster) return;
     try {
       const token = await storageService.getAccessToken();
       if (!token) return;
 
-      // Fetch user's episodes and filter by this podcaster
-      const allEpisodes = await episodeService.getMyEpisodes(token);
-      const podcasterEpisodes = allEpisodes.filter(
-        (ep) => ep.podcasterId === podcastId
-      );
+      let podcasterEpisodes: Episode[];
+
+      if (podcaster.userId === user?.id) {
+        // Owner: fetch own episodes (includes generating/failed)
+        const allEpisodes = await episodeService.getMyEpisodes(token);
+        podcasterEpisodes = allEpisodes.filter(
+          (ep) => ep.podcasterId === podcastId
+        );
+      } else {
+        // Visitor: fetch public completed episodes via podcaster endpoint
+        podcasterEpisodes = await episodeService.getByPodcaster(podcastId as string);
+      }
       setEpisodes(podcasterEpisodes);
 
       // Categorize episodes
@@ -258,13 +274,15 @@ export default function PodcastDetailsScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Manage Button */}
-            <TouchableOpacity
-              onPress={() => router.push(`/podcasts/${podcastId}/manage`)}
-              className="bg-black px-8 py-3 rounded-full"
-            >
-              <Text className="text-white font-jakarta-bold text-sm">Manage Podcaster</Text>
-            </TouchableOpacity>
+            {/* Manage Button - only for owner */}
+            {isOwner && (
+              <TouchableOpacity
+                onPress={() => router.push(`/podcasts/${podcastId}/manage`)}
+                className="bg-black px-8 py-3 rounded-full"
+              >
+                <Text className="text-white font-jakarta-bold text-sm">Manage Podcaster</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -272,12 +290,14 @@ export default function PodcastDetailsScreen() {
         <View className="mb-24 px-6">
           <View className="flex-row justify-between items-center mb-4">
             <Text className="font-jakarta-bold text-xl text-gray-900">Episodes</Text>
-            <TouchableOpacity
-              onPress={() => router.push('/episodes/create')}
-              className="w-6 h-6 rounded-full border border-brand-gold items-center justify-center"
-            >
-              <Ionicons name="add" size={16} color="#BF9A54" />
-            </TouchableOpacity>
+            {isOwner && (
+              <TouchableOpacity
+                onPress={() => router.push('/episodes/create')}
+                className="w-6 h-6 rounded-full border border-brand-gold items-center justify-center"
+              >
+                <Ionicons name="add" size={16} color="#BF9A54" />
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Sort Controls */}
