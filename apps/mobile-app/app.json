@@ -43,6 +43,7 @@
       "bundler": "metro"
     },
     "plugins": [
+      "./plugins/clear-flag-secure",
       "expo-router",
       [
         "expo-splash-screen",
