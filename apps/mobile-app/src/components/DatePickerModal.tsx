@@ -198,44 +198,46 @@ export default function DatePickerModal({
                         Date of Birth
                     </Text>
 
-                    {/* Wheel Columns */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        {/* Month */}
-                        <WheelColumn
-                            data={MONTHS}
-                            selectedIndex={month}
-                            onSelect={setMonth}
-                        />
+                    {/* Wheel Columns with Selection Indicator */}
+                    <View style={{ position: 'relative' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            {/* Month */}
+                            <WheelColumn
+                                data={MONTHS}
+                                selectedIndex={month}
+                                onSelect={setMonth}
+                            />
 
-                        {/* Day */}
-                        <WheelColumn
-                            data={dayStrings}
-                            selectedIndex={clampedDay - 1}
-                            onSelect={(i) => setDay(i + 1)}
-                        />
+                            {/* Day */}
+                            <WheelColumn
+                                data={dayStrings}
+                                selectedIndex={clampedDay - 1}
+                                onSelect={(i) => setDay(i + 1)}
+                            />
 
-                        {/* Year */}
-                        <WheelColumn
-                            data={yearStrings}
-                            selectedIndex={yearIndex}
-                            onSelect={setYearIndex}
+                            {/* Year */}
+                            <WheelColumn
+                                data={yearStrings}
+                                selectedIndex={yearIndex}
+                                onSelect={setYearIndex}
+                            />
+                        </View>
+
+                        {/* Selection indicator lines — relative to wheel container */}
+                        <View
+                            pointerEvents="none"
+                            style={{
+                                position: 'absolute',
+                                left: 0,
+                                right: 0,
+                                top: ITEM_HEIGHT,
+                                height: ITEM_HEIGHT,
+                                borderTopWidth: 1,
+                                borderBottomWidth: 1,
+                                borderColor: '#E0D9CC',
+                            }}
                         />
                     </View>
-
-                    {/* Selection indicator lines */}
-                    <View
-                        pointerEvents="none"
-                        style={{
-                            position: 'absolute',
-                            left: 20,
-                            right: 20,
-                            top: 24 + 20 + ITEM_HEIGHT,
-                            height: ITEM_HEIGHT,
-                            borderTopWidth: 1,
-                            borderBottomWidth: 1,
-                            borderColor: '#E0D9CC',
-                        }}
-                    />
 
                     {/* Buttons */}
                     <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 20, gap: 24 }}>

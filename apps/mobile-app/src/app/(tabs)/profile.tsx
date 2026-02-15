@@ -16,7 +16,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DatePickerModal from '@/components/DatePickerModal';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAlert } from '@/contexts/AlertContext';
@@ -486,19 +486,17 @@ export default function Profile() {
                                     <Ionicons name="calendar-outline" size={20} color="#858585" />
                                 </TouchableOpacity>
                             </View>
-                            {showDatePicker && (
-                                <DateTimePicker
-                                    value={editDateOfBirth || new Date(2000, 0, 1)}
-                                    mode="date"
-                                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                                    onChange={(event, selectedDate) => {
-                                        setShowDatePicker(Platform.OS === 'ios');
-                                        if (selectedDate) setEditDateOfBirth(selectedDate);
-                                    }}
-                                    maximumDate={new Date()}
-                                    minimumDate={new Date(1900, 0, 1)}
-                                />
-                            )}
+                            <DatePickerModal
+                                visible={showDatePicker}
+                                onClose={() => setShowDatePicker(false)}
+                                onConfirm={(date) => {
+                                    setEditDateOfBirth(date);
+                                    setShowDatePicker(false);
+                                }}
+                                value={editDateOfBirth || new Date(2000, 0, 1)}
+                                maximumDate={new Date()}
+                                minimumDate={new Date(1900, 0, 1)}
+                            />
                         </View>
                     ) : (
                         <View>
