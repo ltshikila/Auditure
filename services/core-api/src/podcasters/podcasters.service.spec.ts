@@ -368,6 +368,7 @@ describe('PodcastersService', () => {
 
             mockPrismaClient.podcaster.findUnique.mockResolvedValue(mockPodcaster);
             mockPrismaClient.podcaster.update.mockResolvedValue(updatedPodcaster);
+            mockPrismaClient.episode.updateMany.mockResolvedValue({ count: 0 });
 
             const result = await service.update(
                 'podcaster-id',

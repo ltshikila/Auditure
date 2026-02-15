@@ -266,8 +266,11 @@ describe('FeedService', () => {
                 expect(mockPrismaClient.episode.findMany).toHaveBeenCalledWith(
                     expect.objectContaining({
                         where: expect.objectContaining({
-                            isPublic: true,
                             generationStatus: 'COMPLETED',
+                            OR: [
+                                { isPublic: true },
+                                { podcaster: { isPublic: true } },
+                            ],
                         }),
                     }),
                 );
