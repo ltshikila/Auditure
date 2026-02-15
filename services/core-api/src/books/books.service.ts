@@ -57,7 +57,7 @@ export class BooksService {
      * Search for an existing COMPLETED book that matches the given title (and optional author).
      * Uses fuzzy matching. Returns the best match or null.
      */
-    async findExistingBook(title: string, author?: string | null): Promise<any | null> {
+    async findExistingBook(title: string, author?: string | null): Promise<any> {
         const normalizedTitle = normalizeBookTitle(title);
         const words = normalizedTitle.split(' ').filter((w) => w.length > 2);
         const searchTerm = words.slice(0, 3).join(' ');
