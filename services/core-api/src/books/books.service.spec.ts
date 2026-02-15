@@ -49,6 +49,9 @@ describe('BooksService', () => {
 
         // Clear all mocks before each test
         jest.clearAllMocks();
+
+        // Default: no existing books (for findExistingBook dedup check)
+        mockPrismaClient.book.findMany.mockResolvedValue([]);
     });
 
     it('should be defined', () => {

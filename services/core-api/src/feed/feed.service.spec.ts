@@ -542,10 +542,14 @@ describe('FeedService', () => {
             it('should return paginated books', async () => {
                 const mockBooks = Array(10)
                     .fill(null)
-                    .map(() => ({ ...createMockBookWithCount(), _count: { episodes: 2 } }));
+                    .map((_, i) => ({
+                        ...createMockBookWithCount(),
+                        title: `Unique Book ${i}`,
+                        author: `Author ${i}`,
+                        _count: { episodes: 2 },
+                    }));
 
                 mockPrismaClient.book.findMany.mockResolvedValue(mockBooks);
-                mockPrismaClient.book.count.mockResolvedValue(30);
 
                 const result = await service.getSectionData(
                     BookSectionId.LATEST_BOOKS,
@@ -555,8 +559,8 @@ describe('FeedService', () => {
                 );
 
                 expect(result.items).toHaveLength(10);
-                expect(result.totalCount).toBe(30);
-                expect(result.hasMore).toBe(true);
+                expect(result.totalCount).toBe(10);
+                expect(result.hasMore).toBe(false);
             });
         });
 
