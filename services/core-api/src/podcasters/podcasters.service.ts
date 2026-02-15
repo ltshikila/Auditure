@@ -498,6 +498,22 @@ export class PodcastersService {
                 }
             }
 
+            // When a podcaster is made private, also make all its episodes private
+            if (updatePodcasterDto.isPublic === false && podcaster.isPublic) {
+                const result = await this.databaseService.episode.updateMany({
+                    where: {
+                        podcasterId: id,
+                        isPublic: true,
+                    },
+                    data: { isPublic: false },
+                });
+                if (result.count > 0) {
+                    this.logger.log(
+                        `Made ${result.count} episodes private for podcaster ${id}`,
+                    );
+                }
+            }
+
             this.logger.log(`Podcaster ${id} updated successfully`);
             return updated as PodcasterResponseDto;
         } catch (error) {

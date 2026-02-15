@@ -723,6 +723,7 @@ export class EpisodesService {
                         id: true,
                         name: true,
                         profilePictureUrl: true,
+                        isPublic: true,
                     },
                 },
                 book: {
@@ -741,7 +742,9 @@ export class EpisodesService {
         }
 
         // Check access permissions
-        if (!episode.isPublic && episode.userId !== userId) {
+        // Allow access if: episode is public, podcaster is public, or user owns the episode
+        const podcasterIsPublic = episode.podcaster?.isPublic ?? false;
+        if (!episode.isPublic && !podcasterIsPublic && episode.userId !== userId) {
             throw new ForbiddenException('Access denied to private episode');
         }
 

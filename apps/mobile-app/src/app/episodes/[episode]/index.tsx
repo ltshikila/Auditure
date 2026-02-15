@@ -921,8 +921,8 @@ export default function EpisodeInfoScreen() {
                                     disabled={!isOwner}
                                     activeOpacity={isOwner ? 0.6 : 1}
                                 >
-                                    <View className="flex-row items-center">
-                                        <Text className="font-inter text-2xl text-brand-black flex-1">
+                                    <View className="flex-row items-center flex-wrap">
+                                        <Text className="font-inter text-2xl text-brand-black">
                                             {episode.title}
                                         </Text>
                                         {isOwner && (
