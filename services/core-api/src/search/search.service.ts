@@ -9,6 +9,7 @@ import {
     BookSearchResult,
     PodcasterSearchResult,
 } from './dto';
+import { booksMatch } from '../books/utils/book-matching.utils';
 
 @Injectable()
 export class SearchService {
@@ -241,17 +242,19 @@ export class SearchService {
         const where: any = {
             userId,
             extractionStatus: 'COMPLETED', // Only show successfully extracted books
+            episodes: { some: {} }, // Only show books with at least one episode
             OR: [
                 { title: { contains: query, mode: 'insensitive' } },
                 { author: { contains: query, mode: 'insensitive' } },
             ],
         };
 
+        // Over-fetch to compensate for deduplication
         const [books, total] = await Promise.all([
             this.databaseService.book.findMany({
                 where,
-                skip,
-                take: limit,
+                skip: 0,
+                take: (skip + limit) * 3,
                 orderBy: { createdAt: 'desc' },
                 select: {
                     id: true,
@@ -266,9 +269,13 @@ export class SearchService {
             this.databaseService.book.count({ where }),
         ]);
 
-        this.logger.log(`searchBooks() found ${total} books`);
+        // Deduplicate books with fuzzy matching
+        const deduplicated = this.deduplicateBookResults(books);
+        const paginatedResults = deduplicated.slice(skip, skip + limit);
 
-        return { results: books, total };
+        this.logger.log(`searchBooks() found ${total} books, ${deduplicated.length} after dedup`);
+
+        return { results: paginatedResults, total: deduplicated.length };
     }
 
     /**
@@ -339,6 +346,34 @@ export class SearchService {
     }
 
     /**
+     * Deduplicate book search results using fuzzy matching.
+     * Keeps the first (highest-ranked) representative per group.
+     */
+    private deduplicateBookResults(books: BookSearchResult[]): BookSearchResult[] {
+        const groups: BookSearchResult[][] = [];
+
+        for (const book of books) {
+            const matchingGroup = groups.find((group) =>
+                booksMatch(
+                    { title: group[0].title, author: group[0].author },
+                    { title: book.title, author: book.author },
+                ),
+            );
+            if (matchingGroup) {
+                matchingGroup.push(book);
+            } else {
+                groups.push([book]);
+            }
+        }
+
+        // Pick best representative: prefer cover image, then most recent
+        return groups.map((group) => {
+            const withCover = group.find((b) => b.coverImageUrl);
+            return withCover || group[0];
+        });
+    }
+
+    /**
      * Sanitize and validate search query
      */
     private sanitizeQuery(query: string): string {
@@ -396,6 +431,7 @@ export class SearchService {
                           where: {
                               userId,
                               extractionStatus: 'COMPLETED',
+                              episodes: { some: {} },
                               title: { contains: sanitizedQuery, mode: 'insensitive' },
                           },
                           take: limit,

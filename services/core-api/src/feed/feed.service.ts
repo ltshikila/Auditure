@@ -678,6 +678,9 @@ export class FeedService {
             const books = await this.databaseService.book.findMany({
                 where: {
                     extractionStatus: 'COMPLETED',
+                    episodes: {
+                        some: this.PUBLIC_EPISODE_FILTER,
+                    },
                 },
                 orderBy: { createdAt: 'desc' },
                 take: FEED_CONFIG.DEFAULT_SECTION_LIMIT * 3,
@@ -1005,7 +1008,10 @@ export class FeedService {
     ): Promise<SectionPaginationResponse<BookFeedItem>> {
         this.logger.log(`getBookSectionPaginated() called for section: ${sectionId}`);
 
-        const where: any = { extractionStatus: 'COMPLETED' };
+        const where: any = {
+            extractionStatus: 'COMPLETED',
+            episodes: { some: this.PUBLIC_EPISODE_FILTER },
+        };
         let orderBy: any = { createdAt: 'desc' };
 
         switch (sectionId) {
