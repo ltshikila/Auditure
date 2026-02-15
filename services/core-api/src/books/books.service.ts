@@ -292,12 +292,13 @@ export class BooksService {
             throw new NotFoundException('Book not found');
         }
 
-        // Show public episodes + the current user's own completed episodes
+        // Show public episodes, episodes from public podcasters, + the current user's own episodes
         const episodeWhere = {
             bookId,
             generationStatus: 'COMPLETED' as const,
             OR: [
                 { isPublic: true },
+                { podcaster: { isPublic: true } },
                 ...(userId ? [{ userId }] : []),
             ],
         };

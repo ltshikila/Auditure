@@ -481,6 +481,23 @@ export class PodcastersService {
                 data: updateData,
             });
 
+            // When a podcaster is made public, also make its completed episodes public
+            if (updatePodcasterDto.isPublic === true && !podcaster.isPublic) {
+                const result = await this.databaseService.episode.updateMany({
+                    where: {
+                        podcasterId: id,
+                        generationStatus: 'COMPLETED',
+                        isPublic: false,
+                    },
+                    data: { isPublic: true },
+                });
+                if (result.count > 0) {
+                    this.logger.log(
+                        `Made ${result.count} episodes public for podcaster ${id}`,
+                    );
+                }
+            }
+
             this.logger.log(`Podcaster ${id} updated successfully`);
             return updated as PodcasterResponseDto;
         } catch (error) {

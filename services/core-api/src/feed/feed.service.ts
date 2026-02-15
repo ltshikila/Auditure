@@ -20,6 +20,18 @@ import {
 export class FeedService {
     private readonly logger = new Logger(FeedService.name);
 
+    /**
+     * Shared filter for publicly visible episodes.
+     * An episode is visible if it is explicitly public OR its podcaster is public.
+     */
+    private readonly PUBLIC_EPISODE_FILTER = {
+        generationStatus: 'COMPLETED' as const,
+        OR: [
+            { isPublic: true },
+            { podcaster: { isPublic: true } },
+        ],
+    };
+
     constructor(
         private readonly databaseService: DatabaseService,
         private readonly redisService: RedisService,
@@ -273,10 +285,7 @@ export class FeedService {
             }
 
             const episodes = await this.databaseService.episode.findMany({
-                where: {
-                    isPublic: true,
-                    generationStatus: 'COMPLETED',
-                },
+                where: this.PUBLIC_EPISODE_FILTER,
                 orderBy: [{ playCount: 'desc' }, { likeCount: 'desc' }],
                 take: FEED_CONFIG.DEFAULT_SECTION_LIMIT,
                 include: {
@@ -331,10 +340,7 @@ export class FeedService {
             }
 
             const episodes = await this.databaseService.episode.findMany({
-                where: {
-                    isPublic: true,
-                    generationStatus: 'COMPLETED',
-                },
+                where: this.PUBLIC_EPISODE_FILTER,
                 orderBy: { createdAt: 'desc' },
                 take: FEED_CONFIG.DEFAULT_SECTION_LIMIT,
                 include: {
@@ -390,10 +396,7 @@ export class FeedService {
             }
 
             const episodes = await this.databaseService.episode.findMany({
-                where: {
-                    isPublic: true,
-                    generationStatus: 'COMPLETED',
-                },
+                where: this.PUBLIC_EPISODE_FILTER,
                 orderBy: [{ playCount: 'desc' }, { likeCount: 'desc' }],
                 take: FEED_CONFIG.DEFAULT_SECTION_LIMIT,
                 include: {
@@ -472,8 +475,11 @@ export class FeedService {
                 where: {
                     episodes: {
                         some: {
-                            isPublic: true,
                             generationStatus: 'COMPLETED',
+                            OR: [
+                                { isPublic: true },
+                                { podcaster: { isPublic: true } },
+                            ],
                         },
                     },
                 },
@@ -481,10 +487,7 @@ export class FeedService {
                     _count: {
                         select: {
                             episodes: {
-                                where: {
-                                    isPublic: true,
-                                    generationStatus: 'COMPLETED',
-                                },
+                                where: this.PUBLIC_EPISODE_FILTER,
                             },
                         },
                     },
@@ -538,17 +541,17 @@ export class FeedService {
                 where: {
                     episodes: {
                         some: {
-                            isPublic: true,
                             generationStatus: 'COMPLETED',
+                            OR: [
+                                { isPublic: true },
+                                { podcaster: { isPublic: true } },
+                            ],
                         },
                     },
                 },
                 include: {
                     episodes: {
-                        where: {
-                            isPublic: true,
-                            generationStatus: 'COMPLETED',
-                        },
+                        where: this.PUBLIC_EPISODE_FILTER,
                         select: {
                             playCount: true,
                         },
@@ -613,10 +616,7 @@ export class FeedService {
                     _count: {
                         select: {
                             episodes: {
-                                where: {
-                                    isPublic: true,
-                                    generationStatus: 'COMPLETED',
-                                },
+                                where: this.PUBLIC_EPISODE_FILTER,
                             },
                         },
                     },
@@ -659,8 +659,11 @@ export class FeedService {
                     extractionStatus: 'COMPLETED',
                     episodes: {
                         some: {
-                            isPublic: true,
                             generationStatus: 'COMPLETED',
+                            OR: [
+                                { isPublic: true },
+                                { podcaster: { isPublic: true } },
+                            ],
                         },
                     },
                 },
@@ -849,10 +852,7 @@ export class FeedService {
     ): Promise<SectionPaginationResponse<EpisodeFeedItem>> {
         this.logger.log(`getEpisodeSectionPaginated() called for section: ${sectionId}`);
 
-        const where: any = {
-            isPublic: true,
-            generationStatus: 'COMPLETED',
-        };
+        const where: any = { ...this.PUBLIC_EPISODE_FILTER };
         let orderBy: any = { createdAt: 'desc' };
 
         switch (sectionId) {

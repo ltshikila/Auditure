@@ -204,13 +204,14 @@ export class EpisodesService {
                 this.logger.error(`Failed to send quota warning: ${error.message}`);
             }
 
-            // Create the episode
+            // Create the episode (auto-public if podcaster is public)
             this.logger.log('Creating episode in database');
             const episode = await this.databaseService.episode.create({
                 data: {
                     userId,
                     ...createEpisodeDto,
                     generationStatus: 'PENDING',
+                    isPublic: podcaster.isPublic,
                 },
             });
             this.logger.log(`Episode created with ID: ${episode.id}`);
@@ -356,7 +357,7 @@ export class EpisodesService {
                 throw new BadRequestException(`Failed to upload book: ${uploadError.message}`);
             }
 
-            // Create the episode with PENDING status
+            // Create the episode with PENDING status (auto-public if podcaster is public)
             this.logger.log('Creating episode in database...');
             let episode;
             try {
@@ -375,6 +376,7 @@ export class EpisodesService {
                         targetLengthMax: createEpisodeDto.targetLengthMax,
                         voiceTier: createEpisodeDto.voiceTier || 'STANDARD',
                         generationStatus: 'PENDING',
+                        isPublic: podcaster.isPublic,
                     },
                 });
                 this.logger.log(`Episode created with ID: ${episode.id}`);
@@ -480,17 +482,24 @@ export class EpisodesService {
         const page = query.page ?? 1;
         const limit = query.limit ?? 20;
 
-        // Build where clause
+        // Build where clause — visible episodes are public OR from a public podcaster
         const where: any = {
-            isPublic: true,
-            generationStatus: 'COMPLETED', // Only show completed episodes in public feed
+            generationStatus: 'COMPLETED',
+            OR: [
+                { isPublic: true },
+                { podcaster: { isPublic: true } },
+            ],
         };
 
-        // Search filter
+        // Search filter (uses AND to avoid overwriting the visibility OR)
         if (search) {
-            where.OR = [
-                { title: { contains: search, mode: 'insensitive' } },
-                { description: { contains: search, mode: 'insensitive' } },
+            where.AND = [
+                {
+                    OR: [
+                        { title: { contains: search, mode: 'insensitive' } },
+                        { description: { contains: search, mode: 'insensitive' } },
+                    ],
+                },
             ];
         }
 
@@ -585,8 +594,11 @@ export class EpisodesService {
     async findTrending(limit: number = 10): Promise<EpisodeResponseDto[]> {
         const episodes = await this.databaseService.episode.findMany({
             where: {
-                isPublic: true,
                 generationStatus: 'COMPLETED',
+                OR: [
+                    { isPublic: true },
+                    { podcaster: { isPublic: true } },
+                ],
                 updatedAt: {
                     gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
                 },
@@ -628,14 +640,22 @@ export class EpisodesService {
     }
 
     /**
-     * Find episodes by podcaster
+     * Find episodes by podcaster.
+     * Shows all completed episodes if the podcaster is public.
      */
     async findByPodcaster(podcasterId: string, limit: number = 20): Promise<EpisodeResponseDto[]> {
+        // Check if the podcaster is public — if so, show all its completed episodes
+        const podcaster = await this.databaseService.podcaster.findUnique({
+            where: { id: podcasterId },
+            select: { isPublic: true },
+        });
+
         const episodes = await this.databaseService.episode.findMany({
             where: {
                 podcasterId,
-                isPublic: true,
                 generationStatus: 'COMPLETED',
+                // If podcaster is public, show all episodes; otherwise only public ones
+                ...(podcaster?.isPublic ? {} : { isPublic: true }),
             },
             orderBy: { createdAt: 'desc' },
             take: limit,
@@ -655,14 +675,18 @@ export class EpisodesService {
     }
 
     /**
-     * Find episodes by book
+     * Find episodes by book.
+     * Includes episodes from public podcasters even if episode-level isPublic is false.
      */
     async findByBook(bookId: string, limit: number = 20): Promise<EpisodeResponseDto[]> {
         const episodes = await this.databaseService.episode.findMany({
             where: {
                 bookId,
-                isPublic: true,
                 generationStatus: 'COMPLETED',
+                OR: [
+                    { isPublic: true },
+                    { podcaster: { isPublic: true } },
+                ],
             },
             orderBy: { playCount: 'desc' },
             take: limit,
