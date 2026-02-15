@@ -446,14 +446,22 @@ const Create = () => {
                 enableOnAndroid={true}
                 extraScrollHeight={20}
             >
-                {/* Title */}
-                <View className="mb-6">
-                    <Text className="font-jakarta-bold text-2xl text-[#1A1C1E] mb-1">
-                        Create
-                    </Text>
-                    <Text className="font-jakarta text-[#1A1C1E] text-sm">
-                        Create a podcast episode or your own virtual podcaster
-                    </Text>
+                {/* Header with Back Button */}
+                <View className="flex-row items-center mb-6">
+                    <TouchableOpacity
+                        onPress={() => router.back()}
+                        className="w-10 h-10 items-center justify-center -ml-2 mr-2"
+                    >
+                        <Ionicons name="arrow-back" size={24} color="#1A1C1E" />
+                    </TouchableOpacity>
+                    <View className="flex-1">
+                        <Text className="font-jakarta-bold text-2xl text-[#1A1C1E] mb-1">
+                            Create
+                        </Text>
+                        <Text className="font-jakarta text-[#1A1C1E] text-sm">
+                            Create a podcast episode or your own virtual podcaster
+                        </Text>
+                    </View>
                 </View>
 
                 {/* Book Source Selection */}

@@ -14,6 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { podcasterService, Podcaster } from '@/services/podcaster.service';
 import { storageService } from '@/services/storage.service';
 import { ProfilePictureInput } from '@/components/ProfilePictureInput';
+import { CustomSlider } from '@/components/CustomSlider';
+import { CustomDropdown } from '@/components/CustomDropdown';
 import { useAlert } from '@/contexts/AlertContext';
 import { PodcastManageSkeleton } from '@/components/skeleton';
 
@@ -30,6 +32,42 @@ export default function ManagePodcaster() {
   const [description, setDescription] = useState('');
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [isPublic, setIsPublic] = useState(false);
+
+  // Personality state
+  const [tone, setTone] = useState(5);
+  const [communicationStyle, setCommunicationStyle] = useState(5);
+  const [humorLevel, setHumorLevel] = useState(5);
+  const [conversationalDepth, setConversationalDepth] = useState(5);
+  const [chaosFactor, setChaosFactor] = useState(5);
+
+  // Knowledge & Worldview state
+  const [selectedExpertiseTags, setSelectedExpertiseTags] = useState<string[]>([]);
+  const [intellectualAngle, setIntellectualAngle] = useState('Skeptical');
+  const [viewpointBehavior, setViewpointBehavior] = useState(5);
+
+  const expertiseTags = [
+    'Philosophy', 'Psychology', 'Finance', 'History', 'Literature',
+    'Politics', 'Self-help', 'Science', 'Business', 'Art & Culture',
+  ];
+
+  const intellectualAngleOptions = [
+    { label: 'Skeptical', value: 'Skeptical' },
+    { label: 'Accepting', value: 'Accepting' },
+    { label: 'Critical', value: 'Critical' },
+    { label: 'Pragmatic', value: 'Pragmatic' },
+    { label: 'Idealistic', value: 'Idealistic' },
+    { label: 'Empirical', value: 'Empirical' },
+  ];
+
+  const toggleExpertiseTag = (tag: string) => {
+    if (selectedExpertiseTags.includes(tag)) {
+      setSelectedExpertiseTags(selectedExpertiseTags.filter(t => t !== tag));
+    } else {
+      if (selectedExpertiseTags.length < 3) {
+        setSelectedExpertiseTags([...selectedExpertiseTags, tag]);
+      }
+    }
+  };
 
   useEffect(() => {
     fetchPodcaster();
@@ -50,6 +88,16 @@ export default function ManagePodcaster() {
       setDescription(data.description || '');
       setProfilePicture(data.profilePictureUrl || null);
       setIsPublic(data.isPublic);
+      // Personality
+      setTone(data.tone);
+      setCommunicationStyle(data.communicationStyle);
+      setHumorLevel(data.humorLevel);
+      setConversationalDepth(data.conversationalDepth);
+      setChaosFactor(data.chaosFactor);
+      // Knowledge & Worldview
+      setSelectedExpertiseTags(data.expertiseTags || []);
+      setIntellectualAngle(data.intellectualAngle || 'Skeptical');
+      setViewpointBehavior(data.viewpointBehavior);
     } catch (err: any) {
       console.error('Error fetching podcaster:', err);
       showAlert({ title: 'Error', message: err.message || 'Failed to load podcaster' });
@@ -113,6 +161,14 @@ export default function ManagePodcaster() {
           name: name.trim(),
           description: description.trim() || undefined,
           isPublic,
+          tone,
+          communicationStyle,
+          humorLevel,
+          conversationalDepth,
+          chaosFactor,
+          expertiseTags: selectedExpertiseTags,
+          intellectualAngle,
+          viewpointBehavior,
         },
         token
       );
@@ -282,6 +338,119 @@ export default function ManagePodcaster() {
           <Text className="font-inter text-xs text-gray-500 italic">
             Voice settings can only be changed during podcaster creation
           </Text>
+        </View>
+
+        {/* Core Personality Model */}
+        <View className="mb-6">
+          <Text className="font-inter-bold text-lg text-gray-900 mb-1">Core Personality Model</Text>
+          <Text className="font-inter text-sm text-gray-500 mb-4">
+            Defines persona consistency across all episodes
+          </Text>
+
+          <CustomSlider
+            label="Tone"
+            value={tone}
+            onValueChange={setTone}
+            leftLabel="Calm"
+            rightLabel="Energetic"
+          />
+
+          <CustomSlider
+            label="Communication Style"
+            value={communicationStyle}
+            onValueChange={setCommunicationStyle}
+            leftLabel="Storytelling"
+            rightLabel="Analytical"
+          />
+
+          <CustomSlider
+            label="Humor Level"
+            value={humorLevel}
+            onValueChange={setHumorLevel}
+            leftLabel="Dry"
+            rightLabel="Comedic"
+          />
+
+          <CustomSlider
+            label="Conversational Depth"
+            value={conversationalDepth}
+            onValueChange={setConversationalDepth}
+            leftLabel="Surface-Level"
+            rightLabel="Deep Thinking"
+          />
+
+          <CustomSlider
+            label="Chaos Factor"
+            value={chaosFactor}
+            onValueChange={setChaosFactor}
+            leftLabel="Steady"
+            rightLabel="Volatile"
+          />
+        </View>
+
+        {/* Knowledge & Worldview */}
+        <View className="mb-6">
+          <Text className="font-inter-bold text-lg text-gray-900 mb-1">Knowledge & Worldview</Text>
+          <Text className="font-inter text-sm text-gray-500 mb-4">
+            Governs interpretation style across all books covered
+          </Text>
+
+          {/* Expertise Tags */}
+          <View className="mb-6">
+            <Text className="text-[#1A1C1E] font-inter-medium text-base mb-1">Expertise Tags</Text>
+            <Text className="font-inter text-sm text-gray-500 mb-3">Choose 1-3</Text>
+            <View className="flex-row flex-wrap gap-2">
+              {expertiseTags.map(tag => {
+                const isSelected = selectedExpertiseTags.includes(tag);
+                return (
+                  <TouchableOpacity
+                    key={tag}
+                    onPress={() => toggleExpertiseTag(tag)}
+                    className={`px-4 py-2 rounded-full ${isSelected ? 'bg-brand-red' : 'bg-[#E8E3D6]'}`}
+                  >
+                    <Text className={`font-inter text-sm ${isSelected ? 'text-white' : 'text-[#1A1C1E]'}`}>
+                      {tag}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Intellectual Angle */}
+          <View className="mb-4">
+            <Text className="text-[#1A1C1E] font-inter-medium text-base mb-1">Intellectual Angle</Text>
+            <Text className="font-inter text-sm text-gray-500 mb-2">
+              The angle in which the podcaster approaches a book's ideas
+            </Text>
+            <CustomDropdown
+              label=""
+              options={intellectualAngleOptions}
+              selectedValue={intellectualAngle}
+              onSelect={setIntellectualAngle}
+            />
+          </View>
+
+          {/* Viewpoint Behavior */}
+          <View className="mb-3">
+            <View className="flex-row justify-between items-center mb-1">
+              <Text className="text-[#1A1C1E] font-inter-medium text-base">Viewpoint Behavior</Text>
+              <View className="bg-brand-gold rounded-full px-4 py-1.5">
+                <Text className="text-white font-inter-medium text-base">{viewpointBehavior}</Text>
+              </View>
+            </View>
+            <Text className="font-inter text-sm text-gray-500 mb-2">
+              Defines debate and critique tendencies
+            </Text>
+            <CustomSlider
+              label=""
+              value={viewpointBehavior}
+              onValueChange={setViewpointBehavior}
+              leftLabel="Agreeable"
+              rightLabel="Challenging"
+              showValue={false}
+            />
+          </View>
         </View>
 
         {/* Action Buttons */}

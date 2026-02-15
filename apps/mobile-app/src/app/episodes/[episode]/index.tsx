@@ -68,6 +68,32 @@ export default function EpisodeInfoScreen() {
     const [selectedRating, setSelectedRating] = useState(0);
     const [submittingRating, setSubmittingRating] = useState(false);
 
+    // Title editing state
+    const [isEditingTitle, setIsEditingTitle] = useState(false);
+    const [editedTitle, setEditedTitle] = useState('');
+    const [savingTitle, setSavingTitle] = useState(false);
+
+    const isOwner = episode && user && episode.userId === user.id;
+
+    const handleSaveTitle = async () => {
+        if (!episode || !editedTitle.trim() || editedTitle.trim() === episode.title) {
+            setIsEditingTitle(false);
+            return;
+        }
+        try {
+            setSavingTitle(true);
+            const token = await storageService.getAccessToken();
+            if (!token) return;
+            const updated = await episodeService.update(episode.id, { title: editedTitle.trim() }, token);
+            setEpisode({ ...episode, title: updated.title });
+            setIsEditingTitle(false);
+        } catch (err: any) {
+            showAlert({ title: 'Error', message: err.message || 'Failed to update title' });
+        } finally {
+            setSavingTitle(false);
+        }
+    };
+
     const isGenerating =
         episode &&
         episode.generationStatus !== 'COMPLETED' &&
@@ -464,7 +490,15 @@ export default function EpisodeInfoScreen() {
                 elevation: 3,
             }}>
                 {/* Podcast */}
-                <View className="flex-row items-center py-3 border-b border-gray-200">
+                <TouchableOpacity
+                    onPress={() => {
+                        if (episode.podcaster?.id) {
+                            router.push(`/podcasts/${episode.podcaster.id}`);
+                        }
+                    }}
+                    disabled={!episode.podcaster?.id}
+                    className="flex-row items-center py-3 border-b border-gray-200"
+                >
                     <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                         <Ionicons name="mic-outline" size={16} color="#BF9A54" />
                     </View>
@@ -474,7 +508,10 @@ export default function EpisodeInfoScreen() {
                             {episode.podcaster?.name || 'Virtual Podcaster'}
                         </Text>
                     </View>
-                </View>
+                    {episode.podcaster?.id && (
+                        <Ionicons name="chevron-forward" size={16} color="#BF9A54" />
+                    )}
+                </TouchableOpacity>
 
                 {/* Book Inspiration */}
                 {episode.book && (
@@ -852,9 +889,48 @@ export default function EpisodeInfoScreen() {
                     {/* Title Row with Play Button */}
                     <View className="px-6 mt-6 flex-row items-start">
                         <View className="flex-1 pr-4">
-                            <Text className="font-inter text-2xl text-brand-black">
-                                {episode.title}
-                            </Text>
+                            {isEditingTitle ? (
+                                <View className="flex-row items-center">
+                                    <TextInput
+                                        className="font-inter text-2xl text-brand-black flex-1 border-b border-brand-gold pb-1"
+                                        value={editedTitle}
+                                        onChangeText={setEditedTitle}
+                                        autoFocus
+                                        onSubmitEditing={handleSaveTitle}
+                                        returnKeyType="done"
+                                    />
+                                    <TouchableOpacity onPress={handleSaveTitle} className="ml-2 p-1" disabled={savingTitle}>
+                                        {savingTitle ? (
+                                            <ActivityIndicator size="small" color="#BF9A54" />
+                                        ) : (
+                                            <Ionicons name="checkmark-circle" size={24} color="#BF9A54" />
+                                        )}
+                                    </TouchableOpacity>
+                                    <TouchableOpacity onPress={() => setIsEditingTitle(false)} className="ml-1 p-1">
+                                        <Ionicons name="close-circle" size={24} color="#858585" />
+                                    </TouchableOpacity>
+                                </View>
+                            ) : (
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        if (isOwner) {
+                                            setEditedTitle(episode.title);
+                                            setIsEditingTitle(true);
+                                        }
+                                    }}
+                                    disabled={!isOwner}
+                                    activeOpacity={isOwner ? 0.6 : 1}
+                                >
+                                    <View className="flex-row items-center">
+                                        <Text className="font-inter text-2xl text-brand-black flex-1">
+                                            {episode.title}
+                                        </Text>
+                                        {isOwner && (
+                                            <Ionicons name="pencil" size={16} color="#858585" style={{ marginLeft: 6 }} />
+                                        )}
+                                    </View>
+                                </TouchableOpacity>
+                            )}
                             <TouchableOpacity
                                 onPress={() => {
                                     if (episode.podcaster?.id) {

@@ -237,8 +237,16 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
                         }
                     }, 500);
                 } else {
+                    // No next episode — fully clear playback state
+                    stopProgressSaving();
+                    try { await TrackPlayer.reset(); } catch { /* ignore */ }
                     setEpisode(null);
                     episodeRef.current = null;
+                    hasIncrementedPlayCount.current = false;
+                    setQueueState([]);
+                    setQueueIndex(-1);
+                    queueRef.current = [];
+                    queueIndexRef.current = -1;
                 }
             }
         }

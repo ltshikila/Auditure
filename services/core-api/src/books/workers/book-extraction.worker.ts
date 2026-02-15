@@ -6,6 +6,7 @@ import { StorageService } from '../../common/storage.service';
 import { DatabaseService } from '../../database/database.service';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { BookExtractionJob } from '../../rabbitmq/interfaces/jobs.interface';
+import { normalizeBookTitle, booksMatch, computeBookQualityScore } from '../utils/book-matching.utils';
 
 @Injectable()
 export class BookExtractionWorker implements OnModuleInit {
@@ -201,6 +202,15 @@ export class BookExtractionWorker implements OnModuleInit {
                 `Successfully extracted book ${job.bookId} (status: ${extractionStatus})`,
             );
 
+            // Post-extraction consolidation: check if this book duplicates an existing one
+            const finalTitle = bestTitle || currentBook?.title || '';
+            const finalAuthor = bestAuthor || currentBook?.author;
+            const canonicalBookId = await this.consolidateWithCanonical(
+                job.bookId,
+                finalTitle,
+                finalAuthor,
+            );
+
             // Notify user that book is ready
             try {
                 const bookTitle = bestTitle || currentBook?.title || 'your book';
@@ -209,10 +219,10 @@ export class BookExtractionWorker implements OnModuleInit {
                 this.logger.error(`Failed to send book ready notification: ${notifError.message}`);
             }
 
-            // 7. Queue any pending episodes for this book
+            // 7. Queue any pending episodes for this book (or canonical if consolidated)
             const pendingEpisodes = await this.databaseService.episode.findMany({
                 where: {
-                    bookId: job.bookId,
+                    bookId: canonicalBookId,
                     generationStatus: 'PENDING',
                 },
             });
@@ -285,6 +295,156 @@ export class BookExtractionWorker implements OnModuleInit {
             }
 
             throw error; // Re-throw for RabbitMQ retry logic
+        }
+    }
+
+    /**
+     * After extraction completes, check if this book duplicates an existing one.
+     * Uses quality scoring to determine which copy is the canonical version —
+     * a newer upload with better chapters/metadata can replace an older canonical.
+     * Returns the canonical bookId (may be different from the input bookId).
+     */
+    private async consolidateWithCanonical(
+        bookId: string,
+        enrichedTitle: string,
+        enrichedAuthor: string | null | undefined,
+    ): Promise<string> {
+        const normalizedTitle = normalizeBookTitle(enrichedTitle);
+        const words = normalizedTitle.split(' ').filter((w) => w.length > 2);
+        const searchTerm = words.slice(0, 3).join(' ');
+
+        if (!searchTerm || searchTerm.length < 4) {
+            return bookId;
+        }
+
+        try {
+            // Find all matching completed books (excluding self)
+            const candidates = await this.databaseService.book.findMany({
+                where: {
+                    id: { not: bookId },
+                    extractionStatus: {
+                        in: ['COMPLETED', 'PARTIALLY_COMPLETED'],
+                    },
+                    title: { contains: searchTerm, mode: 'insensitive' },
+                },
+                select: {
+                    id: true,
+                    title: true,
+                    author: true,
+                    coverImageUrl: true,
+                    isbn: true,
+                    pageCount: true,
+                    extractionStatus: true,
+                },
+            });
+
+            const matches = candidates.filter((c) =>
+                booksMatch(
+                    { title: enrichedTitle, author: enrichedAuthor },
+                    { title: c.title, author: c.author },
+                ),
+            );
+
+            if (matches.length === 0) {
+                this.logger.log(
+                    `No matching books found for "${enrichedTitle}" — this is the first copy`,
+                );
+                return bookId;
+            }
+
+            // Score all matches + current book to find the highest quality version
+            const currentBook = await this.databaseService.book.findUnique({
+                where: { id: bookId },
+                select: {
+                    id: true,
+                    coverImageUrl: true,
+                    isbn: true,
+                    pageCount: true,
+                    extractionStatus: true,
+                    author: true,
+                },
+            });
+
+            const allBooks = [...matches, currentBook!];
+            const bookIds = allBooks.map((b) => b.id);
+
+            // Batch-fetch chapter stats for all candidates
+            const chapterStats = await Promise.all(
+                bookIds.map(async (id) => {
+                    const chapters = await this.databaseService.chapter.findMany({
+                        where: { bookId: id },
+                        select: { textLength: true },
+                    });
+                    const count = chapters.length;
+                    const avgLength =
+                        count > 0
+                            ? chapters.reduce(
+                                  (sum, ch) => sum + (ch.textLength || 0),
+                                  0,
+                              ) / count
+                            : 0;
+                    return { id, chapterCount: count, avgChapterLength: avgLength };
+                }),
+            );
+
+            const statsMap = new Map(chapterStats.map((s) => [s.id, s]));
+
+            // Compute quality scores
+            const scored = allBooks.map((b) => {
+                const stats = statsMap.get(b.id);
+                const score = computeBookQualityScore({
+                    extractionStatus: b.extractionStatus,
+                    coverImageUrl: b.coverImageUrl,
+                    author: b.author,
+                    isbn: b.isbn,
+                    pageCount: b.pageCount,
+                    chapterCount: stats?.chapterCount,
+                    avgChapterLength: stats?.avgChapterLength,
+                });
+                return { id: b.id, score };
+            });
+
+            // Pick highest quality as canonical
+            scored.sort((a, b) => b.score - a.score);
+            const canonicalId = scored[0].id;
+            const canonicalScore = scored[0].score;
+
+            this.logger.log(
+                `Quality scores: ${scored.map((s) => `${s.id}=${s.score}`).join(', ')}. Canonical: ${canonicalId}`,
+            );
+
+            if (canonicalId === bookId) {
+                // Current book is the best quality — move episodes FROM other copies TO us
+                for (const match of matches) {
+                    const updated =
+                        await this.databaseService.episode.updateMany({
+                            where: { bookId: match.id },
+                            data: { bookId },
+                        });
+                    if (updated.count > 0) {
+                        this.logger.log(
+                            `Upgraded canonical: moved ${updated.count} episodes from ${match.id} (score=${scored.find((s) => s.id === match.id)?.score}) to new canonical ${bookId} (score=${canonicalScore})`,
+                        );
+                    }
+                }
+                return bookId;
+            } else {
+                // Another book is higher quality — move our episodes there
+                const updated =
+                    await this.databaseService.episode.updateMany({
+                        where: { bookId },
+                        data: { bookId: canonicalId },
+                    });
+                this.logger.log(
+                    `Moved ${updated.count} episodes from ${bookId} (score=${scored.find((s) => s.id === bookId)?.score}) to canonical ${canonicalId} (score=${canonicalScore})`,
+                );
+                return canonicalId;
+            }
+        } catch (error) {
+            this.logger.error(
+                `Error in consolidateWithCanonical: ${error.message}`,
+            );
+            return bookId;
         }
     }
 

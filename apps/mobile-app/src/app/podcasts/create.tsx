@@ -559,7 +559,20 @@ const Create = () => {
                 {/* Next/Create Button */}
                 {currentStep < 3 ? (
                     <TouchableOpacity
-                        onPress={() => setCurrentStep(currentStep + 1)}
+                        onPress={() => {
+                            if (currentStep === 1) {
+                                showAlert({
+                                    title: 'Voice Settings Are Permanent',
+                                    message: 'Voice configurations (voice model, gender, accent, speaking speed, vocal pitch, age tone, sentence structure, and emotional expression) cannot be changed after your podcaster is created. Please make sure you\'re happy with these settings before continuing.',
+                                    buttons: [
+                                        { text: 'Go Back', style: 'cancel' },
+                                        { text: 'Continue', onPress: () => setCurrentStep(2) },
+                                    ],
+                                });
+                            } else {
+                                setCurrentStep(currentStep + 1);
+                            }
+                        }}
                         className="flex-row items-center bg-brand-gold rounded-full px-6 py-3">
                         <Text className="text-white font-inter-medium text-base mr-1">
                             Next

@@ -1,4 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
+import {
+    normalizeBookTitle,
+    titlesMatch as utilTitlesMatch,
+} from '../utils/book-matching.utils';
 
 export interface CoverExtractionResult {
     coverImageUrl: string | null;
@@ -159,11 +163,7 @@ export class CoverExtractionService {
      * Normalize a title for comparison (lowercase, remove punctuation, collapse whitespace)
      */
     private normalizeTitle(title: string): string {
-        return title
-            .toLowerCase()
-            .replace(/[^\w\s]/g, '') // Remove punctuation
-            .replace(/\s+/g, ' ') // Collapse whitespace
-            .trim();
+        return normalizeBookTitle(title);
     }
 
     /**
@@ -171,30 +171,7 @@ export class CoverExtractionService {
      * Returns true if the normalized titles match or one contains the other.
      */
     private titlesMatch(expectedTitle: string, returnedTitle: string): boolean {
-        const normalizedExpected = this.normalizeTitle(expectedTitle);
-        const normalizedReturned = this.normalizeTitle(returnedTitle);
-
-        // Exact match
-        if (normalizedExpected === normalizedReturned) {
-            return true;
-        }
-
-        // One contains the other (for subtitles, editions, etc.)
-        if (
-            normalizedReturned.includes(normalizedExpected) ||
-            normalizedExpected.includes(normalizedReturned)
-        ) {
-            return true;
-        }
-
-        // Check if main title matches (before colon/dash)
-        const expectedMain = normalizedExpected.split(/[:\-–—]/)[0].trim();
-        const returnedMain = normalizedReturned.split(/[:\-–—]/)[0].trim();
-        if (expectedMain === returnedMain && expectedMain.length > 5) {
-            return true;
-        }
-
-        return false;
+        return utilTitlesMatch(expectedTitle, returnedTitle);
     }
 
     /**

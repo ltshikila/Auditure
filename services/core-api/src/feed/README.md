@@ -111,6 +111,8 @@ Returns paginated data for a specific section ("See All" functionality).
 | `latest_books` | Latest Books | Books sorted by creation date | 10 |
 | `bestsellers` | NY Best Sellers | MVP: Curated static list | 10 |
 
+**Book Deduplication:** All book sections apply feed-level deduplication. When multiple copies of the same book exist (uploaded by different users), they are grouped by fuzzy title+author matching and only the best representative is displayed. Episode counts and play counts are aggregated across all copies. The representative is chosen by metadata completeness (cover image, author, page count), then episode count, then earliest upload date. See the [Books Service README](../books/README.md#book-deduplication--quality-based-canonical-selection) for full details.
+
 ### Podcasters Tab
 
 | Section ID | Title | Description | Max Items |

@@ -14,10 +14,10 @@ const skipBackIcon = require('@/assets/icons/backward-10-seconds.png');
 const skipForwardIcon = require('@/assets/icons/forward-10-seconds.png');
 const booksIcon = require('@/assets/icons/books_fill.png');
 
-export const MINI_PLAYER_HEIGHT = 80;
-export const SIMPLIFIED_PLAYER_HEIGHT = 64;
-// Base tab bar height (matches _layout.tsx calculation: 72 + insets.bottom)
-export const TAB_BAR_BASE_HEIGHT = 72;
+export const MINI_PLAYER_HEIGHT = 68;
+export const SIMPLIFIED_PLAYER_HEIGHT = 54;
+// Base tab bar height (85% of original, matches _layout.tsx calculation: 61 + insets.bottom)
+export const TAB_BAR_BASE_HEIGHT = 61;
 
 const PLAYBACK_SPEEDS = [1, 1.25, 1.5, 1.75, 2];
 
@@ -273,11 +273,11 @@ export const MiniPlayer: React.FC = () => {
                     {/* Main content row */}
                     <View className="flex-row items-center px-4 py-3">
                         {/* Book cover */}
-                        <View className="rounded-lg overflow-hidden bg-[#2A2C2E] mr-3 items-center justify-center" style={{ width: 36, height: 48 }}>
+                        <View className="rounded-lg overflow-hidden bg-[#2A2C2E] mr-3 items-center justify-center" style={{ width: 30, height: 41 }}>
                             {resolveCoverUrl(episode.book?.coverImageUrl) ? (
                                 <Image
                                     source={{ uri: resolveCoverUrl(episode.book?.coverImageUrl)! }}
-                                    style={{ width: 36, height: 48, borderRadius: 2}}
+                                    style={{ width: 30, height: 41, borderRadius: 2}}
                                     resizeMode="cover"
                                 />
                             ) : (
@@ -328,7 +328,7 @@ export const MiniPlayer: React.FC = () => {
                             {/* Play/Pause */}
                             <TouchableOpacity
                                 onPress={handlePlayPause}
-                                className="w-11 h-11 rounded-full bg-brand-red items-center justify-center mx-1"
+                                className="w-10 h-10 rounded-full bg-brand-red items-center justify-center mx-1"
                             >
                                 {isLoading ? (
                                     <ActivityIndicator size="small" color="white" />

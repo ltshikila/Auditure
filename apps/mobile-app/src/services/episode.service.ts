@@ -129,6 +129,13 @@ class EpisodeService {
     }
 
     /**
+     * Update an episode (title, description, etc.)
+     */
+    async update(id: string, data: { title?: string; description?: string }, token: string): Promise<Episode> {
+        return apiClient.patch<Episode>(`/episodes/${id}`, data, token);
+    }
+
+    /**
      * Create a new episode with file upload
      * Uploads a book file (PDF/EPUB), extracts text, and creates an episode
      */

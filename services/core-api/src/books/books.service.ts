@@ -11,6 +11,7 @@ import { RabbitMQService } from '../rabbitmq/rabbitmq.service';
 import { CreateBookDto } from './dto/create-book.dto';
 import { GetTextDto } from './dto/get-text.dto';
 import { randomUUID } from 'crypto';
+import { normalizeBookTitle, booksMatch, computeBookQualityScore } from './utils/book-matching.utils';
 
 @Injectable()
 export class BooksService {
@@ -52,6 +53,73 @@ export class BooksService {
         return cleaned;
     }
 
+    /**
+     * Search for an existing COMPLETED book that matches the given title (and optional author).
+     * Uses fuzzy matching. Returns the best match or null.
+     */
+    async findExistingBook(title: string, author?: string | null): Promise<any | null> {
+        const normalizedTitle = normalizeBookTitle(title);
+        const words = normalizedTitle.split(' ').filter((w) => w.length > 2);
+        const searchTerm = words.slice(0, 3).join(' ');
+
+        if (!searchTerm || searchTerm.length < 4) return null;
+
+        const candidates = await this.databaseService.book.findMany({
+            where: {
+                extractionStatus: 'COMPLETED',
+                title: { contains: searchTerm, mode: 'insensitive' },
+            },
+            take: 20,
+        });
+
+        return (
+            candidates.find((c) =>
+                booksMatch(
+                    { title, author },
+                    { title: c.title, author: c.author },
+                ),
+            ) || null
+        );
+    }
+
+    /**
+     * Find all book IDs that represent the same book as the given title+author.
+     * Uses fuzzy matching via the shared utility.
+     */
+    private async findDuplicateBookIds(
+        bookId: string,
+        title: string,
+        author: string | null | undefined,
+    ): Promise<string[]> {
+        const normalizedTitle = normalizeBookTitle(title);
+        const words = normalizedTitle.split(' ').filter((w) => w.length > 2);
+        const searchTerm = words.slice(0, 3).join(' ');
+
+        if (!searchTerm) return [bookId];
+
+        const candidates = await this.databaseService.book.findMany({
+            where: {
+                extractionStatus: {
+                    in: ['COMPLETED', 'PARTIALLY_COMPLETED'],
+                },
+                title: { contains: searchTerm, mode: 'insensitive' },
+            },
+            select: { id: true, title: true, author: true },
+        });
+
+        const matchingIds = candidates
+            .filter((c) =>
+                booksMatch({ title, author }, { title: c.title, author: c.author }),
+            )
+            .map((c) => c.id);
+
+        if (!matchingIds.includes(bookId)) {
+            matchingIds.push(bookId);
+        }
+
+        return matchingIds;
+    }
+
     async uploadBook(userId: string, file: any, createBookDto: CreateBookDto) {
         this.logger.log(`uploadBook() called for user ${userId}`);
         this.logger.log(`File: ${file?.originalname} (${file?.mimetype}, ${file?.size} bytes)`);
@@ -68,6 +136,20 @@ export class BooksService {
                 this.logger.error('File buffer is missing');
                 this.logger.error(`File object keys: ${Object.keys(file).join(', ')}`);
                 throw new BadRequestException('File buffer is missing');
+            }
+
+            // 1.5 Check for existing completed book with matching title
+            const cleanedTitle = this.cleanupTitle(createBookDto.title);
+            const existingBook = await this.findExistingBook(
+                cleanedTitle,
+                createBookDto.author,
+            );
+
+            if (existingBook) {
+                this.logger.log(
+                    `Found existing book "${existingBook.title}" (${existingBook.id}) matching upload title "${cleanedTitle}". Reusing.`,
+                );
+                return existingBook;
             }
 
             // 2. Generate storage key
@@ -91,7 +173,6 @@ export class BooksService {
 
             // 4. Create book record
             this.logger.log('Creating book record in database...');
-            const cleanedTitle = this.cleanupTitle(createBookDto.title);
             if (cleanedTitle !== createBookDto.title) {
                 this.logger.log(`Title cleaned: "${createBookDto.title}" → "${cleanedTitle}"`);
             }
@@ -292,9 +373,44 @@ export class BooksService {
             throw new NotFoundException('Book not found');
         }
 
+        // Find all book IDs that represent the same book (across all users)
+        const allBookIds = await this.findDuplicateBookIds(
+            bookId,
+            book.title,
+            book.author,
+        );
+
+        // Pick best metadata from the highest-quality copy
+        if (allBookIds.length > 1) {
+            const allBooks = await this.databaseService.book.findMany({
+                where: { id: { in: allBookIds } },
+                include: {
+                    _count: { select: { chapters: true } },
+                },
+            });
+            // Find the highest-quality copy
+            const scored = allBooks
+                .map((b) => ({
+                    ...b,
+                    score: computeBookQualityScore({
+                        extractionStatus: b.extractionStatus,
+                        coverImageUrl: b.coverImageUrl,
+                        author: b.author,
+                        isbn: b.isbn,
+                        pageCount: b.pageCount,
+                        chapterCount: b._count.chapters,
+                    }),
+                }))
+                .sort((a, b) => b.score - a.score);
+            const best = scored[0];
+            if (best.coverImageUrl) (book as any).coverImageUrl = best.coverImageUrl;
+            if (best.author) (book as any).author = best.author;
+            if (best.pageCount) (book as any).pageCount = best.pageCount;
+        }
+
         // Show public episodes, episodes from public podcasters, + the current user's own episodes
         const episodeWhere = {
-            bookId,
+            bookId: { in: allBookIds },
             generationStatus: 'COMPLETED' as const,
             OR: [
                 { isPublic: true },
@@ -367,6 +483,41 @@ export class BooksService {
     async delete(userId: string, id: string): Promise<void> {
         const book = await this.findOne(userId, id);
 
+        // Check if other users' episodes reference this book (from dedup consolidation)
+        const otherUsersEpisodeCount = await this.databaseService.episode.count({
+            where: {
+                bookId: id,
+                userId: { not: userId },
+            },
+        });
+
+        if (otherUsersEpisodeCount > 0) {
+            // Find an alternative copy of the same book to reassign those episodes
+            const allDuplicateIds = await this.findDuplicateBookIds(
+                id,
+                book.title,
+                book.author,
+            );
+            const alternativeId = allDuplicateIds.find((bid) => bid !== id);
+
+            if (alternativeId) {
+                await this.databaseService.episode.updateMany({
+                    where: {
+                        bookId: id,
+                        userId: { not: userId },
+                    },
+                    data: { bookId: alternativeId },
+                });
+                this.logger.log(
+                    `Moved ${otherUsersEpisodeCount} other users' episodes from book ${id} to alternative ${alternativeId} before deletion`,
+                );
+            } else {
+                this.logger.warn(
+                    `Deleting book ${id} will cascade-delete ${otherUsersEpisodeCount} episodes from other users (no alternative book found)`,
+                );
+            }
+        }
+
         // Mark any pending/in-progress episodes as failed before deleting the book
         // This prevents orphaned episodes that can never be processed
         await this.databaseService.episode.updateMany({
@@ -392,7 +543,7 @@ export class BooksService {
             await this.storageService.deleteFile(book.fullTextKey);
         }
 
-        // Delete database record (cascade deletes chapters and episodes)
+        // Delete database record (cascade deletes chapters and remaining episodes)
         await this.databaseService.book.delete({ where: { id } });
     }
 

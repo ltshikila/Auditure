@@ -26,12 +26,12 @@ type TabIconProps = {
 
 function TabIcon({ focused, icon, iconFilled }: TabIconProps) {
   return (
-    <View style={{ alignItems: 'center', justifyContent: 'center', width: 50, height: 65 }}>
+    <View style={{ alignItems: 'center', justifyContent: 'center', width: 44, height: 55 }}>
       <Image
         source={focused ? iconFilled : icon}
         style={{
-          width: 34,
-          height: 34,
+          width: 29,
+          height: 29,
           tintColor: focused ? '#2F2F2F' : '#848282',
         }}
         resizeMode="contain"
@@ -57,8 +57,8 @@ export default function TabLayout() {
   const { isAuthenticated, loading } = useAuth();
   const insets = useSafeAreaInsets();
 
-  // Base tab bar height + bottom safe area inset (handles both gesture nav and 3-button nav)
-  const tabBarHeight = 72 + insets.bottom;
+  // Base tab bar height (85% of original 72) + bottom safe area inset
+  const tabBarHeight = 61 + insets.bottom;
 
   if (loading) {
     return (
@@ -85,7 +85,7 @@ export default function TabLayout() {
           elevation: 0,
           shadowOpacity: 0,
           height: tabBarHeight,
-          paddingTop: 15,
+          paddingTop: 12,
           paddingBottom: insets.bottom,
           paddingHorizontal: 16,
         },

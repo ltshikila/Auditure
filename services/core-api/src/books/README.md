@@ -457,17 +457,92 @@ GET /books/api/popular?limit=10
 
 Returns most recently added books with `COMPLETED` status.
 
+## Book Deduplication & Quality-Based Canonical Selection
+
+When multiple users upload the same book, the system ensures a single canonical version is used across all episodes and feeds.
+
+### How It Works
+
+```
+User A uploads "A Game of Thrones" (messy PDF, 3 chapters, no cover)
+     │
+     ▼
+Step 1: Upload-time matching
+     │  Search for existing COMPLETED books with fuzzy title match
+     │  If match found → return existing book (skip upload + extraction)
+     │  If no match → proceed with upload + extraction
+     │
+     ▼
+Step 2: Post-extraction consolidation
+     │  After extraction completes and metadata is enriched (title/author from PDF + Google Books)
+     │  Search again for matching books with enriched metadata
+     │  Compare quality scores across all copies
+     │  Move episodes to the highest-quality canonical version
+     │
+     ▼
+Step 3: Feed-level deduplication (safety net)
+     │  When building feed sections, group duplicate books by fuzzy match
+     │  Display only the best representative per group
+     │  Aggregate episode counts and play counts across copies
+```
+
+### Quality Scoring
+
+Each book copy gets a quality score (0–76 max) to determine which version is canonical:
+
+| Signal | Points | Rationale |
+|--------|--------|-----------|
+| Extraction: COMPLETED | +10 | Full extraction preferred over partial |
+| Extraction: PARTIALLY_COMPLETED | +3 | Better than nothing |
+| Cover image | +10 | Indicates good Google Books match |
+| Author metadata | +5 | Better enrichment |
+| ISBN | +3 | Reliable identifier |
+| Page count | +3 | More metadata |
+| Genre tags | up to +5 | Google Books categories |
+| Chapter count | up to +30 | More chapters = better TOC detection |
+| Avg chapter length | up to +10 | Longer chapters = cleaner extraction |
+
+**Key behavior:** A newer upload with better chapters/metadata **upgrades** the canonical — episodes from the old version are reassigned to the higher-quality copy.
+
+### Fuzzy Matching
+
+Matching uses shared utilities in `utils/book-matching.utils.ts`:
+
+- **Title matching:** Exact, containment (handles subtitles), main-title before colon/dash
+- **Author matching:** Normalized comparison, containment (handles middle names/initials), null authors treated as wildcards
+- **Combined:** Both title AND author must match
+
+### Safe Deletion
+
+When a user deletes their book:
+1. Check if other users' episodes reference it (from consolidation)
+2. If yes, find an alternative copy and reassign those episodes
+3. If no alternative exists, log a warning (cascade delete will remove episodes)
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `utils/book-matching.utils.ts` | Shared normalization, fuzzy matching, quality scoring |
+| `books.service.ts` | Upload-time matching (`findExistingBook`), book detail aggregation |
+| `workers/book-extraction.worker.ts` | Post-extraction consolidation (`consolidateWithCanonical`) |
+| `../../feed/feed.service.ts` | Feed-level deduplication (`deduplicateBooks`) |
+
+---
+
 ## Architecture
 
 ### Services
 
 #### BooksService
 Core business logic:
-- `uploadBook()` - Handle file upload and queue extraction job
+- `uploadBook()` - Handle file upload, check for existing duplicates, and queue extraction job
+- `findExistingBook()` - Search for existing COMPLETED books matching a title/author
 - `findAll()` - Get all books for a user
 - `findOne()` - Get single book with authorization
+- `getBookDetail()` - Get book with aggregated episodes across all duplicate copies
 - `getExtractedText()` - Retrieve full text or specific chapters
-- `delete()` - Remove book and associated files
+- `delete()` - Remove book with safe episode reassignment for other users
 - `retryExtraction()` - Retry failed text extraction
 - **Public APIs:**
   - `getBookForEpisode()` - For Episodes service
@@ -524,6 +599,7 @@ Background worker that processes extraction jobs:
 3. Detect chapters automatically
 4. Store extracted text and chapters
 5. Update book status
+6. Post-extraction consolidation: compare quality with existing copies and establish canonical version
 
 ### DTOs
 
@@ -999,6 +1075,7 @@ const popular = await booksService.getPopularBooks(10);
 - [ ] Summary generation using AI
 - [ ] Bookmark and annotation support
 - [ ] Reading progress tracking
+- [x] Book deduplication with quality-based canonical selection
 - [ ] Share books between users
 - [ ] Export to different formats
 - [ ] Audio book support

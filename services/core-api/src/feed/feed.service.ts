@@ -1,6 +1,7 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { RedisService } from '../redis/redis.service';
+import { booksMatch, normalizeBookTitle, normalizeAuthor } from '../books/utils/book-matching.utils';
 import { FeedTab, EpisodeSectionId, BookSectionId, PodcasterSectionId } from './dto/feed-query.dto';
 import {
     EpisodeFeedItem,
@@ -456,6 +457,68 @@ export class FeedService {
     }
 
     /**
+     * Deduplicate book feed items by normalized title+author.
+     * Groups duplicate books and returns one representative per unique book,
+     * aggregating episodeCount and totalPlayCount across all copies.
+     */
+    private deduplicateBooks(books: BookFeedItem[]): BookFeedItem[] {
+        const groups = new Map<string, BookFeedItem[]>();
+
+        for (const book of books) {
+            let foundKey: string | null = null;
+            for (const [key, group] of groups) {
+                if (
+                    booksMatch(
+                        { title: book.title, author: book.author },
+                        { title: group[0].title, author: group[0].author },
+                    )
+                ) {
+                    foundKey = key;
+                    break;
+                }
+            }
+
+            if (foundKey) {
+                groups.get(foundKey)!.push(book);
+            } else {
+                const key = `${normalizeBookTitle(book.title)}::${normalizeAuthor(book.author) || ''}`;
+                groups.set(key, [book]);
+            }
+        }
+
+        return Array.from(groups.values()).map((group) => {
+            // Pick representative: prefer most metadata, then most episodes, then earliest
+            const sorted = [...group].sort((a, b) => {
+                // Score metadata completeness (cover, author, pageCount)
+                const metaScore = (item: BookFeedItem) =>
+                    (item.coverImageUrl ? 10 : 0) +
+                    (item.author ? 5 : 0) +
+                    (item.pageCount ? 3 : 0);
+                const diff = metaScore(b) - metaScore(a);
+                if (diff !== 0) return diff;
+                if ((a.episodeCount || 0) !== (b.episodeCount || 0)) {
+                    return (b.episodeCount || 0) - (a.episodeCount || 0);
+                }
+                return (
+                    new Date(a.createdAt).getTime() -
+                    new Date(b.createdAt).getTime()
+                );
+            });
+
+            const representative = { ...sorted[0] };
+            representative.episodeCount = group.reduce(
+                (sum, b) => sum + (b.episodeCount || 0),
+                0,
+            );
+            representative.totalPlayCount = group.reduce(
+                (sum, b) => sum + (b.totalPlayCount || 0),
+                0,
+            );
+            return representative;
+        });
+    }
+
+    /**
      * Get "Popular podcast inspirations" section
      * Books that have inspired the most episodes
      */
@@ -495,12 +558,11 @@ export class FeedService {
                 take: 50, // Get more to sort by episode count
             });
 
-            // Sort by episode count and take top 10
+            // Sort by episode count
             const sortedBooks = books
-                .sort((a, b) => b._count.episodes - a._count.episodes)
-                .slice(0, FEED_CONFIG.DEFAULT_SECTION_LIMIT);
+                .sort((a, b) => b._count.episodes - a._count.episodes);
 
-            const items: BookFeedItem[] = sortedBooks.map(book => ({
+            const allItems: BookFeedItem[] = sortedBooks.map(book => ({
                 id: book.id,
                 title: book.title,
                 author: book.author ?? undefined,
@@ -510,6 +572,10 @@ export class FeedService {
                 createdAt: book.createdAt,
                 episodeCount: book._count.episodes,
             }));
+
+            const items = this.deduplicateBooks(allItems)
+                .sort((a, b) => (b.episodeCount || 0) - (a.episodeCount || 0))
+                .slice(0, FEED_CONFIG.DEFAULT_SECTION_LIMIT);
 
             await this.setCachedData(cacheKey, items, FEED_CONFIG.CACHE_TTL.BOOKS_POPULAR);
 
@@ -567,10 +633,9 @@ export class FeedService {
             }));
 
             const sortedBooks = booksWithPlayCount
-                .sort((a, b) => b.totalPlayCount - a.totalPlayCount)
-                .slice(0, FEED_CONFIG.DEFAULT_SECTION_LIMIT);
+                .sort((a, b) => b.totalPlayCount - a.totalPlayCount);
 
-            const items: BookFeedItem[] = sortedBooks.map(book => ({
+            const allItems: BookFeedItem[] = sortedBooks.map(book => ({
                 id: book.id,
                 title: book.title,
                 author: book.author ?? undefined,
@@ -581,6 +646,10 @@ export class FeedService {
                 episodeCount: book.episodes.length,
                 totalPlayCount: book.totalPlayCount,
             }));
+
+            const items = this.deduplicateBooks(allItems)
+                .sort((a, b) => (b.totalPlayCount || 0) - (a.totalPlayCount || 0))
+                .slice(0, FEED_CONFIG.DEFAULT_SECTION_LIMIT);
 
             await this.setCachedData(cacheKey, items, FEED_CONFIG.CACHE_TTL.BOOKS_POPULAR);
 
@@ -611,7 +680,7 @@ export class FeedService {
                     extractionStatus: 'COMPLETED',
                 },
                 orderBy: { createdAt: 'desc' },
-                take: FEED_CONFIG.DEFAULT_SECTION_LIMIT,
+                take: FEED_CONFIG.DEFAULT_SECTION_LIMIT * 3,
                 include: {
                     _count: {
                         select: {
@@ -623,7 +692,7 @@ export class FeedService {
                 },
             });
 
-            const items: BookFeedItem[] = books.map(book => ({
+            const allItems: BookFeedItem[] = books.map(book => ({
                 id: book.id,
                 title: book.title,
                 author: book.author ?? undefined,
@@ -633,6 +702,9 @@ export class FeedService {
                 createdAt: book.createdAt,
                 episodeCount: book._count.episodes,
             }));
+
+            const items = this.deduplicateBooks(allItems)
+                .slice(0, FEED_CONFIG.DEFAULT_SECTION_LIMIT);
 
             await this.setCachedData(cacheKey, items, FEED_CONFIG.CACHE_TTL.BOOKS_LATEST);
 
@@ -668,7 +740,7 @@ export class FeedService {
                     },
                 },
                 orderBy: { createdAt: 'desc' },
-                take: FEED_CONFIG.DEFAULT_SECTION_LIMIT,
+                take: FEED_CONFIG.DEFAULT_SECTION_LIMIT * 3,
                 include: {
                     _count: {
                         select: {
@@ -678,7 +750,7 @@ export class FeedService {
                 },
             });
 
-            const items: BookFeedItem[] = books.map(book => ({
+            const allItems: BookFeedItem[] = books.map(book => ({
                 id: book.id,
                 title: book.title,
                 author: book.author ?? undefined,
@@ -688,6 +760,9 @@ export class FeedService {
                 createdAt: book.createdAt,
                 episodeCount: book._count.episodes,
             }));
+
+            const items = this.deduplicateBooks(allItems)
+                .slice(0, FEED_CONFIG.DEFAULT_SECTION_LIMIT);
 
             this.logger.log(`Found ${items.length} bestsellers (MVP static)`);
             return this.buildSection(BookSectionId.BESTSELLERS, items, false);
@@ -945,22 +1020,20 @@ export class FeedService {
                 break;
         }
 
-        const [books, totalCount] = await Promise.all([
-            this.databaseService.book.findMany({
-                where,
-                orderBy,
-                skip: offset,
-                take: limit,
-                include: {
-                    _count: {
-                        select: { episodes: true },
-                    },
+        // Over-fetch to compensate for dedup shrinkage, then deduplicate in memory
+        const fetchEnd = (page * limit) * 3;
+        const books = await this.databaseService.book.findMany({
+            where,
+            orderBy,
+            take: fetchEnd,
+            include: {
+                _count: {
+                    select: { episodes: true },
                 },
-            }),
-            this.databaseService.book.count({ where }),
-        ]);
+            },
+        });
 
-        const items: BookFeedItem[] = books.map(book => ({
+        const allItems: BookFeedItem[] = books.map(book => ({
             id: book.id,
             title: book.title,
             author: book.author ?? undefined,
@@ -971,6 +1044,9 @@ export class FeedService {
             episodeCount: book._count.episodes,
         }));
 
+        const deduplicated = this.deduplicateBooks(allItems);
+        const totalCount = deduplicated.length;
+        const items = deduplicated.slice(offset, offset + limit);
         const totalPages = Math.ceil(totalCount / limit);
 
         return {

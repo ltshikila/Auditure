@@ -108,12 +108,8 @@ export default function PodcastDetailsScreen() {
       setError(null);
 
       const token = await storageService.getAccessToken();
-      if (!token) {
-        router.replace('/(auth)/Auth');
-        return;
-      }
-
-      const data = await podcasterService.getPodcaster(podcastId as string, token);
+      // Token is optional - public podcasters are viewable by anyone
+      const data = await podcasterService.getPodcaster(podcastId as string, token || undefined);
       setPodcaster(data);
     } catch (err: any) {
       console.error('Error fetching podcaster:', err);
@@ -127,18 +123,17 @@ export default function PodcastDetailsScreen() {
     if (!podcastId || !podcaster) return;
     try {
       const token = await storageService.getAccessToken();
-      if (!token) return;
 
       let podcasterEpisodes: Episode[];
 
-      if (podcaster.userId === user?.id) {
+      if (token && podcaster.userId === user?.id) {
         // Owner: fetch own episodes (includes generating/failed)
         const allEpisodes = await episodeService.getMyEpisodes(token);
         podcasterEpisodes = allEpisodes.filter(
           (ep) => ep.podcasterId === podcastId
         );
       } else {
-        // Visitor: fetch public completed episodes via podcaster endpoint
+        // Visitor (or no token): fetch public completed episodes via podcaster endpoint
         podcasterEpisodes = await episodeService.getByPodcaster(podcastId as string);
       }
       setEpisodes(podcasterEpisodes);
