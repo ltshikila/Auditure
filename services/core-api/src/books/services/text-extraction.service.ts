@@ -265,15 +265,31 @@ export class TextExtractionService {
                 `Found ${tocEntries.length} TOC entries, ${chapterEntries.length} are chapters`,
             );
 
+            // When no chapter pattern detected (e.g. novels with character-named chapters),
+            // fall back to entries that aren't known front/back matter
+            let entriesToSplit: TocEntry[];
+            if (chapterEntries.length > 0) {
+                entriesToSplit = chapterEntries;
+            } else {
+                const nonMatterEntries = tocEntries.filter(
+                    e => !this.isFrontOrBackMatter(e.title),
+                );
+                this.logger.log(
+                    `No chapter pattern found. Using ${nonMatterEntries.length} non-front/back-matter entries`,
+                );
+                // Assign sequential chapter numbers
+                nonMatterEntries.forEach((entry, idx) => {
+                    entry.chapterNumber = idx + 1;
+                    entry.isChapter = true;
+                });
+                entriesToSplit = nonMatterEntries.length > 0 ? nonMatterEntries : tocEntries;
+            }
+
             // Extract text page-by-page for accurate splitting
             const pageTexts = await this.extractTextByPage(pdfDoc);
 
-            // Split content based on TOC page numbers (use chapter entries only)
-            const chapters = this.splitTextByToc(
-                chapterEntries.length > 0 ? chapterEntries : tocEntries,
-                pageTexts,
-                totalPages,
-            );
+            // Split content based on TOC page numbers
+            const chapters = this.splitTextByToc(entriesToSplit, pageTexts, totalPages);
 
             this.logger.log(`Extracted ${chapters.length} chapters from TOC`);
 
@@ -649,6 +665,43 @@ export class TextExtractionService {
     }
 
     /**
+     * Check if a title matches known front or back matter patterns.
+     * Used to filter out non-chapter entries when no chapter pattern is detected.
+     */
+    private isFrontOrBackMatter(title: string): boolean {
+        const titleLower = title.toLowerCase().trim();
+
+        // Exact match
+        if (FRONT_MATTER_PATTERNS.has(titleLower) || BACK_MATTER_PATTERNS.has(titleLower)) {
+            return true;
+        }
+
+        // Contains match (but not if it contains "law" or "chapter")
+        for (const pattern of FRONT_MATTER_PATTERNS) {
+            if (titleLower.includes(pattern) && !titleLower.includes('law') && !titleLower.includes('chapter')) {
+                return true;
+            }
+        }
+        for (const pattern of BACK_MATTER_PATTERNS) {
+            if (titleLower.includes(pattern) && !titleLower.includes('law') && !titleLower.includes('chapter')) {
+                return true;
+            }
+        }
+
+        // "Part One", "Part Two" etc. (section dividers)
+        if (/^part\s+(one|two|three|four|five|six|seven|eight|nine|ten|\w+)\b/i.test(title)) {
+            return true;
+        }
+
+        // Organizational headers
+        if (/^(online\s+chapters|online\s+appendices|acronyms|credits|list\s+of)/i.test(title)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Determine if a TOC entry title represents actual chapter content
      * vs front matter (preface, TOC) or back matter (index, bibliography).
      */
@@ -811,7 +864,20 @@ export class TextExtractionService {
             }
         }
 
-        return chapters;
+        // Filter out chapters below minimum content length (catches cover pages, maps, etc.)
+        const MIN_TOC_CHAPTER_LENGTH = 500;
+        const filtered = chapters.filter(ch => ch.text.length >= MIN_TOC_CHAPTER_LENGTH);
+        if (filtered.length < chapters.length) {
+            this.logger.log(
+                `Filtered ${chapters.length - filtered.length} chapters below ${MIN_TOC_CHAPTER_LENGTH} chars minimum`,
+            );
+            // Renumber sequentially after filtering
+            filtered.forEach((ch, idx) => {
+                ch.chapterNumber = idx + 1;
+            });
+        }
+
+        return filtered;
     }
 
     /**
