@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, Image, ActivityIndicator, Modal, Share, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ActivityIndicator, Modal, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import { usePlayback } from '@/contexts/PlaybackContext';
 import { Episode, episodeService } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
 import { resolveCoverUrl } from '@/services/api';
+import { useAlert } from '@/contexts/AlertContext';
 
 const icons = {
     star: require('@/assets/icons/star.png'),
@@ -43,6 +44,7 @@ function getTranscriptPreview(scriptContent: string | null | undefined): string 
 export default function EpisodePlayScreen() {
     const { episode: episodeId } = useLocalSearchParams<{ episode: string }>();
     const { episode, position, duration, play, seekTo, stop } = usePlayback();
+    const { showAlert } = useAlert();
 
     const [localEpisode, setLocalEpisode] = useState<Episode | null>(null);
     const [sliderValue, setSliderValue] = useState(0);
@@ -189,10 +191,10 @@ export default function EpisodePlayScreen() {
 
     const handleDeleteEpisode = () => {
         setShowMenu(false);
-        Alert.alert(
-            'Delete Episode',
-            `Are you sure you want to delete "${displayEpisode?.title}"? This cannot be undone.`,
-            [
+        showAlert({
+            title: 'Delete Episode',
+            message: `Are you sure you want to delete "${displayEpisode?.title}"? This cannot be undone.`,
+            buttons: [
                 { text: 'Cancel', style: 'cancel' },
                 {
                     text: 'Delete',
@@ -208,15 +210,16 @@ export default function EpisodePlayScreen() {
                             }
 
                             await episodeService.delete(episodeId, token);
-                            router.back();
+                            // Navigate to episodes tab (skipping stale episode detail page)
+                            router.navigate('/(tabs)/episode');
                         } catch (error) {
                             console.error('Error deleting episode:', error);
-                            Alert.alert('Error', 'Failed to delete episode. Please try again.');
+                            showAlert({ title: 'Error', message: 'Failed to delete episode. Please try again.' });
                         }
                     },
                 },
-            ]
-        );
+            ],
+        });
     };
 
     const displayEpisode = episode?.id === episodeId ? episode : localEpisode;

@@ -125,7 +125,12 @@ export default function EpisodeInfoScreen() {
                             setUserRating(rating.userRating);
                         } catch { /* non-critical */ }
                     }
-                } catch { /* silent refresh — ignore errors */ }
+                } catch (err: any) {
+                    // Episode was deleted — navigate back to episodes tab
+                    if (err?.status === 404 || err?.message?.includes('404')) {
+                        router.navigate('/(tabs)/episode');
+                    }
+                }
             })();
         }, [episodeId]),
     );

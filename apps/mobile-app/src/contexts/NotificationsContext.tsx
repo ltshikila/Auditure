@@ -76,14 +76,7 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({ ch
     const notificationListener = useRef<ExpoNotifications.EventSubscription | null>(null);
     const responseListener = useRef<ExpoNotifications.EventSubscription | null>(null);
     const appState = useRef(AppState.currentState);
-
-    // Handle push notification taps — just refresh notifications, no navigation
-    const handleNotificationResponse = useCallback(
-        (_response: ExpoNotifications.NotificationResponse) => {
-            fetchNotifications(true);
-        },
-        [fetchNotifications]
-    );
+    const fetchNotificationsRef = useRef<(refresh?: boolean) => Promise<void>>();
 
     // Register for push notifications (with retry)
     const registerForPushNotifications = useCallback(async (attempt: number = 1) => {
@@ -182,6 +175,11 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({ ch
         },
         []
     );
+
+    // Keep ref in sync so event listeners always have the latest function
+    useEffect(() => {
+        fetchNotificationsRef.current = fetchNotifications;
+    }, [fetchNotifications]);
 
     // Load more notifications (pagination)
     const loadMoreNotifications = useCallback(async () => {
@@ -297,21 +295,20 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({ ch
         }
     }, []);
 
-    // Set up push notification listeners
+    // Set up push notification listeners (once — use refs to avoid stale closures)
     useEffect(() => {
         // Listener for notifications received while app is foregrounded
         notificationListener.current =
             ExpoNotifications.addNotificationReceivedListener((notification) => {
                 console.log('[Notifications] Received:', notification);
-                // Refresh the notifications list and count
-                fetchNotifications(true);
+                fetchNotificationsRef.current?.(true);
             });
 
         // Listener for when user taps on a notification
         responseListener.current =
-            ExpoNotifications.addNotificationResponseReceivedListener(
-                handleNotificationResponse
-            );
+            ExpoNotifications.addNotificationResponseReceivedListener((_response) => {
+                fetchNotificationsRef.current?.(true);
+            });
 
         return () => {
             if (notificationListener.current) {
@@ -321,7 +318,7 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({ ch
                 responseListener.current.remove();
             }
         };
-    }, [handleNotificationResponse, fetchNotifications]);
+    }, []);
 
     // Refresh unread count when app comes to foreground
     useEffect(() => {

@@ -32,7 +32,7 @@ export class ExpoPushService {
     private readonly MAX_BATCH_SIZE = 100; // Expo recommends max 100 per request
     private readonly MAX_RETRIES = 3;
     private readonly RETRY_DELAY_MS = 1000;
-    private readonly expoAccessToken = process.env.EXPO_ACCESS_TOKEN || '';
+    private readonly expoAccessToken = (process.env.EXPO_ACCESS_TOKEN || '').trim();
 
     /**
      * Validates if a token is a valid Expo push token.
