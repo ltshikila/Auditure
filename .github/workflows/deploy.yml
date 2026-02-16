@@ -2,9 +2,9 @@ name: Deploy to GCP
 
 on:
   push:
-    branches: [master]
+    branches: [master, develop]
   pull_request:
-    branches: [master]
+    branches: [master, develop]
 
 env:
   PROJECT_ID: auditure-483611
