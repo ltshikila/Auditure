@@ -431,12 +431,18 @@ describe('EpisodesService', () => {
     describe('incrementPlayCount', () => {
         it('should increment play count and podcaster play count', async () => {
             const mockEpisode = createPublicMockEpisode();
-            mockPrismaClient.episode.update.mockResolvedValue({
+            mockPrismaClient.episode.findUnique.mockResolvedValue({
+                id: mockEpisode.id,
                 podcasterId: mockEpisode.podcasterId,
             });
+            mockPrismaClient.episode.update.mockResolvedValue({});
 
             await service.incrementPlayCount(mockEpisode.id);
 
+            expect(databaseService.episode.findUnique).toHaveBeenCalledWith({
+                where: { id: mockEpisode.id },
+                select: { id: true, podcasterId: true },
+            });
             expect(databaseService.episode.update).toHaveBeenCalledWith({
                 where: { id: mockEpisode.id },
                 data: {
@@ -444,8 +450,19 @@ describe('EpisodesService', () => {
                         increment: 1,
                     },
                 },
-                select: { podcasterId: true },
             });
+            expect(mockPodcastersService.incrementPlayCount).toHaveBeenCalledWith(
+                mockEpisode.podcasterId,
+            );
+        });
+
+        it('should skip if episode not found', async () => {
+            mockPrismaClient.episode.findUnique.mockResolvedValue(null);
+
+            await service.incrementPlayCount('non-existent-id');
+
+            expect(databaseService.episode.update).not.toHaveBeenCalled();
+            expect(mockPodcastersService.incrementPlayCount).not.toHaveBeenCalled();
         });
     });
 
