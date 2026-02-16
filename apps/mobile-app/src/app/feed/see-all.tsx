@@ -12,6 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePlayback } from '@/contexts/PlaybackContext';
+import { Episode } from '@/services/episode.service';
 import { FeedListSkeleton } from '@/components/skeleton';
 import { formatCount } from '@/utils/formatCount';
 
@@ -52,9 +54,30 @@ const getItemType = (section: string): 'episode' | 'book' | 'podcaster' => {
     return 'podcaster';
 };
 
+const adaptFeedItemToEpisode = (item: EpisodeFeedItem): Episode => ({
+    ...item,
+    userId: '',
+    podcasterId: item.podcaster?.id || '',
+    bookId: item.book?.id || '',
+    contentCoverage: 'ENTIRE_BOOK' as const,
+    chapters: [],
+    episodeType: 'MONOLOGUE' as const,
+    episodeTheme: 'LECTURE' as const,
+    targetLengthMin: 0,
+    targetLengthMax: 0,
+    voiceTier: 'STANDARD' as const,
+    generationStatus: 'COMPLETED' as const,
+    isPublic: true,
+    shareCount: 0,
+    averageRating: item.averageRating || 0,
+    ratingCount: item.ratingCount || 0,
+    updatedAt: item.createdAt,
+});
+
 export default function SeeAllScreen() {
     const { section } = useLocalSearchParams<{ section: string }>();
     const { getAccessToken } = useAuth();
+    const { setQueue } = usePlayback();
 
     const [items, setItems] = useState<(EpisodeFeedItem | BookFeedItem | PodcasterFeedItem)[]>([]);
     const [loading, setLoading] = useState(true);
@@ -134,6 +157,7 @@ export default function SeeAllScreen() {
     // Navigation handlers
     const handleItemPress = (item: EpisodeFeedItem | BookFeedItem | PodcasterFeedItem) => {
         if (itemType === 'episode') {
+            setQueue(items.map(i => adaptFeedItemToEpisode(i as EpisodeFeedItem)));
             router.push(`/episodes/${item.id}`);
         } else if (itemType === 'book') {
             router.push(`/${item.id}`);

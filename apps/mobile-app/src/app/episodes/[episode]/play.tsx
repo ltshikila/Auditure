@@ -49,6 +49,7 @@ export default function EpisodePlayScreen() {
     const [localEpisode, setLocalEpisode] = useState<Episode | null>(null);
     const [sliderValue, setSliderValue] = useState(0);
     const isSeekingRef = useRef(false);
+    const wasPlayingRef = useRef(false);
     const [showMenu, setShowMenu] = useState(false);
     const [showRatingModal, setShowRatingModal] = useState(false);
     const [userRating, setUserRating] = useState<number | null>(null);
@@ -63,9 +64,16 @@ export default function EpisodePlayScreen() {
     }, [episodeId]);
 
     // When context episode changes (prev/next), navigate to the new episode's page
+    // When playback ends, redirect to the episode detail page
     useEffect(() => {
-        if (episode && episode.id !== episodeId) {
+        if (episode?.id === episodeId) {
+            wasPlayingRef.current = true;
+        } else if (episode && episode.id !== episodeId) {
             router.replace(`/episodes/${episode.id}/play`);
+        } else if (wasPlayingRef.current && !episode) {
+            // Playback ended — go to episode detail page instead of showing loading spinner
+            wasPlayingRef.current = false;
+            router.replace(`/episodes/${episodeId}`);
         }
     }, [episode?.id]);
 

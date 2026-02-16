@@ -5,6 +5,8 @@ import { router, useFocusEffect } from 'expo-router';
 import { TopBar, EpisodeSection, BookSection, PodcasterSection, FeaturedEpisodeSection, FeaturedBookSection } from '@/components';
 import { HomeSkeleton } from '@/components/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePlayback } from '@/contexts/PlaybackContext';
+import { Episode } from '@/services/episode.service';
 import {
     feedService,
     EpisodesFeedResponse,
@@ -23,8 +25,29 @@ const TABS: { key: TabType; label: string }[] = [
     { key: 'podcasters', label: 'Virtual podcasters' },
 ];
 
+const adaptFeedItemToEpisode = (item: EpisodeFeedItem): Episode => ({
+    ...item,
+    userId: '',
+    podcasterId: item.podcaster?.id || '',
+    bookId: item.book?.id || '',
+    contentCoverage: 'ENTIRE_BOOK' as const,
+    chapters: [],
+    episodeType: 'MONOLOGUE' as const,
+    episodeTheme: 'LECTURE' as const,
+    targetLengthMin: 0,
+    targetLengthMax: 0,
+    voiceTier: 'STANDARD' as const,
+    generationStatus: 'COMPLETED' as const,
+    isPublic: true,
+    shareCount: 0,
+    averageRating: item.averageRating || 0,
+    ratingCount: item.ratingCount || 0,
+    updatedAt: item.createdAt,
+});
+
 export default function HomeScreen() {
     const { getAccessToken, isAuthenticated } = useAuth();
+    const { setQueue } = usePlayback();
 
     // Tab state
     const [activeTab, setActiveTab] = useState<TabType>('episodes');
@@ -107,7 +130,8 @@ export default function HomeScreen() {
     };
 
     // Navigation handlers
-    const handleEpisodePress = (episode: EpisodeFeedItem) => {
+    const handleEpisodePressWithQueue = (episode: EpisodeFeedItem, sectionItems: EpisodeFeedItem[]) => {
+        setQueue(sectionItems.map(adaptFeedItemToEpisode));
         router.push(`/episodes/${episode.id}`);
     };
 
@@ -178,7 +202,7 @@ export default function HomeScreen() {
                     <FeaturedEpisodeSection
                         title={continueSection.title}
                         episodes={continueSection.items}
-                        onEpisodePress={handleEpisodePress}
+                        onEpisodePress={(ep) => handleEpisodePressWithQueue(ep, continueSection.items)}
                         showSeeAll={continueSection.hasMore}
                         onSeeAll={() => handleSeeAll('continue_listening')}
                     />
@@ -188,26 +212,11 @@ export default function HomeScreen() {
                 {popularSection && popularSection.items.length > 0 && (
                     <EpisodeSection
                         title={popularSection.title}
-                        episodes={popularSection.items.map(item => ({
-                            ...item,
-                            userId: '',
-                            podcasterId: item.podcaster?.id || '',
-                            bookId: item.book?.id || '',
-                            contentCoverage: 'ENTIRE_BOOK' as const,
-                            chapters: [],
-                            episodeType: 'MONOLOGUE' as const,
-                            episodeTheme: 'LECTURE' as const,
-                            targetLengthMin: 0,
-                            targetLengthMax: 0,
-                            voiceTier: 'STANDARD' as const,
-                            generationStatus: 'COMPLETED' as const,
-                            isPublic: true,
-                            shareCount: 0,
-                            averageRating: item.averageRating || 0,
-                            ratingCount: item.ratingCount || 0,
-                            updatedAt: item.createdAt,
-                        }))}
-                        onEpisodePress={(episode) => handleEpisodePress({ ...episode, playCount: episode.playCount, likeCount: episode.likeCount })}
+                        episodes={popularSection.items.map(adaptFeedItemToEpisode)}
+                        onEpisodePress={(episode) => {
+                            setQueue(popularSection.items.map(adaptFeedItemToEpisode));
+                            router.push(`/episodes/${episode.id}`);
+                        }}
                         showSeeAll={popularSection.hasMore}
                         onSeeAll={() => handleSeeAll('popular')}
                     />
@@ -217,26 +226,11 @@ export default function HomeScreen() {
                 {latestSection && latestSection.items.length > 0 && (
                     <EpisodeSection
                         title={latestSection.title}
-                        episodes={latestSection.items.map(item => ({
-                            ...item,
-                            userId: '',
-                            podcasterId: item.podcaster?.id || '',
-                            bookId: item.book?.id || '',
-                            contentCoverage: 'ENTIRE_BOOK' as const,
-                            chapters: [],
-                            episodeType: 'MONOLOGUE' as const,
-                            episodeTheme: 'LECTURE' as const,
-                            targetLengthMin: 0,
-                            targetLengthMax: 0,
-                            voiceTier: 'STANDARD' as const,
-                            generationStatus: 'COMPLETED' as const,
-                            isPublic: true,
-                            shareCount: 0,
-                            averageRating: item.averageRating || 0,
-                            ratingCount: item.ratingCount || 0,
-                            updatedAt: item.createdAt,
-                        }))}
-                        onEpisodePress={(episode) => handleEpisodePress({ ...episode, playCount: episode.playCount, likeCount: episode.likeCount })}
+                        episodes={latestSection.items.map(adaptFeedItemToEpisode)}
+                        onEpisodePress={(episode) => {
+                            setQueue(latestSection.items.map(adaptFeedItemToEpisode));
+                            router.push(`/episodes/${episode.id}`);
+                        }}
                         showSeeAll={latestSection.hasMore}
                         onSeeAll={() => handleSeeAll('latest')}
                     />
@@ -246,26 +240,11 @@ export default function HomeScreen() {
                 {recommendedSection && recommendedSection.items.length > 0 && (
                     <EpisodeSection
                         title={recommendedSection.title}
-                        episodes={recommendedSection.items.map(item => ({
-                            ...item,
-                            userId: '',
-                            podcasterId: item.podcaster?.id || '',
-                            bookId: item.book?.id || '',
-                            contentCoverage: 'ENTIRE_BOOK' as const,
-                            chapters: [],
-                            episodeType: 'MONOLOGUE' as const,
-                            episodeTheme: 'LECTURE' as const,
-                            targetLengthMin: 0,
-                            targetLengthMax: 0,
-                            voiceTier: 'STANDARD' as const,
-                            generationStatus: 'COMPLETED' as const,
-                            isPublic: true,
-                            shareCount: 0,
-                            averageRating: item.averageRating || 0,
-                            ratingCount: item.ratingCount || 0,
-                            updatedAt: item.createdAt,
-                        }))}
-                        onEpisodePress={(episode) => handleEpisodePress({ ...episode, playCount: episode.playCount, likeCount: episode.likeCount })}
+                        episodes={recommendedSection.items.map(adaptFeedItemToEpisode)}
+                        onEpisodePress={(episode) => {
+                            setQueue(recommendedSection.items.map(adaptFeedItemToEpisode));
+                            router.push(`/episodes/${episode.id}`);
+                        }}
                         showSeeAll={recommendedSection.hasMore}
                         onSeeAll={() => handleSeeAll('recommended')}
                     />

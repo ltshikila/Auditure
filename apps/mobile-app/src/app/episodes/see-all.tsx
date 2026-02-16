@@ -12,6 +12,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Episode, episodeService } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
+import { usePlayback } from '@/contexts/PlaybackContext';
 import { resolveCoverUrl } from '@/services/api';
 import { formatCount } from '@/utils/formatCount';
 import { FeedListSkeleton } from '@/components/skeleton';
@@ -31,6 +32,7 @@ const TITLES: Record<EpisodeListType, string> = {
 export default function EpisodesSeeAllScreen() {
     const { type } = useLocalSearchParams<{ type: string }>();
     const listType = (type as EpisodeListType) || 'my';
+    const { setQueue } = usePlayback();
 
     const [episodes, setEpisodes] = useState<Episode[]>([]);
     const [loading, setLoading] = useState(true);
@@ -90,6 +92,7 @@ export default function EpisodesSeeAllScreen() {
     const onRefresh = () => fetchEpisodes(true);
 
     const handleEpisodePress = (episode: Episode) => {
+        setQueue(episodes);
         router.push(`/episodes/${episode.id}`);
     };
 
