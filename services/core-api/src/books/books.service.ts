@@ -54,32 +54,65 @@ export class BooksService {
     }
 
     /**
-     * Search for an existing COMPLETED book that matches the given title (and optional author).
-     * Uses fuzzy matching. Returns the best match or null.
+     * Search for an existing book that matches the given title (and optional author).
+     * Uses fuzzy matching. Checks completed books globally, and the same user's
+     * in-progress books to prevent duplicates from rapid re-uploads.
+     * Returns the best match or null.
      */
-    async findExistingBook(title: string, author?: string | null): Promise<any> {
+    async findExistingBook(title: string, author?: string | null, userId?: string): Promise<any> {
         const normalizedTitle = normalizeBookTitle(title);
         const words = normalizedTitle.split(' ').filter((w) => w.length > 2);
-        const searchTerm = words.slice(0, 3).join(' ');
+        const searchWords = words.slice(0, 3);
 
-        if (!searchTerm || searchTerm.length < 4) return null;
+        if (searchWords.length === 0) return null;
 
-        const candidates = await this.databaseService.book.findMany({
+        // Use individual word filters so punctuation in DB titles doesn't break matching
+        // e.g. "computer", "security", "principles" each match independently in
+        // "Computer Security: Principles and Practice" (colon between words)
+        const titleFilter = {
+            AND: searchWords.map((word) => ({
+                title: { contains: word, mode: 'insensitive' as const },
+            })),
+        };
+
+        // 1. Check completed books globally (any user)
+        const completedCandidates = await this.databaseService.book.findMany({
             where: {
-                extractionStatus: 'COMPLETED',
-                title: { contains: searchTerm, mode: 'insensitive' },
+                extractionStatus: { in: ['COMPLETED', 'PARTIALLY_COMPLETED'] },
+                ...titleFilter,
             },
             take: 20,
         });
 
-        return (
-            candidates.find((c) =>
+        const completedMatch = completedCandidates.find((c) =>
+            booksMatch(
+                { title, author },
+                { title: c.title, author: c.author },
+            ),
+        );
+        if (completedMatch) return completedMatch;
+
+        // 2. Check same user's in-progress books (prevents duplicates from re-uploads)
+        if (userId) {
+            const pendingCandidates = await this.databaseService.book.findMany({
+                where: {
+                    userId,
+                    extractionStatus: { in: ['PENDING', 'PROCESSING'] },
+                    ...titleFilter,
+                },
+                take: 10,
+            });
+
+            const pendingMatch = pendingCandidates.find((c) =>
                 booksMatch(
                     { title, author },
                     { title: c.title, author: c.author },
                 ),
-            ) || null
-        );
+            );
+            if (pendingMatch) return pendingMatch;
+        }
+
+        return null;
     }
 
     /**
@@ -93,16 +126,18 @@ export class BooksService {
     ): Promise<string[]> {
         const normalizedTitle = normalizeBookTitle(title);
         const words = normalizedTitle.split(' ').filter((w) => w.length > 2);
-        const searchTerm = words.slice(0, 3).join(' ');
+        const searchWords = words.slice(0, 3);
 
-        if (!searchTerm) return [bookId];
+        if (searchWords.length === 0) return [bookId];
 
         const candidates = await this.databaseService.book.findMany({
             where: {
                 extractionStatus: {
                     in: ['COMPLETED', 'PARTIALLY_COMPLETED'],
                 },
-                title: { contains: searchTerm, mode: 'insensitive' },
+                AND: searchWords.map((word) => ({
+                    title: { contains: word, mode: 'insensitive' as const },
+                })),
             },
             select: { id: true, title: true, author: true },
         });
@@ -138,11 +173,12 @@ export class BooksService {
                 throw new BadRequestException('File buffer is missing');
             }
 
-            // 1.5 Check for existing completed book with matching title
+            // 1.5 Check for existing book with matching title (completed or in-progress)
             const cleanedTitle = this.cleanupTitle(createBookDto.title);
             const existingBook = await this.findExistingBook(
                 cleanedTitle,
                 createBookDto.author,
+                userId,
             );
 
             if (existingBook) {

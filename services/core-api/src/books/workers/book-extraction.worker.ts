@@ -311,21 +311,24 @@ export class BookExtractionWorker implements OnModuleInit {
     ): Promise<string> {
         const normalizedTitle = normalizeBookTitle(enrichedTitle);
         const words = normalizedTitle.split(' ').filter((w) => w.length > 2);
-        const searchTerm = words.slice(0, 3).join(' ');
+        const searchWords = words.slice(0, 3);
 
-        if (!searchTerm || searchTerm.length < 4) {
+        if (searchWords.length === 0) {
             return bookId;
         }
 
         try {
             // Find all matching completed books (excluding self)
+            // Use individual word filters so punctuation in DB titles doesn't break matching
             const candidates = await this.databaseService.book.findMany({
                 where: {
                     id: { not: bookId },
                     extractionStatus: {
                         in: ['COMPLETED', 'PARTIALLY_COMPLETED'],
                     },
-                    title: { contains: searchTerm, mode: 'insensitive' },
+                    AND: searchWords.map((word) => ({
+                        title: { contains: word, mode: 'insensitive' as const },
+                    })),
                 },
                 select: {
                     id: true,
