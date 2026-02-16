@@ -23,7 +23,12 @@ export class DatabaseService extends PrismaClient implements OnModuleInit, OnMod
             database: url.pathname.slice(1), // Remove leading '/'
             user: url.username,
             password: decodeURIComponent(url.password),
-            connectionTimeoutMillis: 10_000, // 10s connection timeout
+            max: 10, // max connections in pool
+            connectionTimeoutMillis: 10_000, // 10s to acquire a connection
+            idleTimeoutMillis: 30_000, // close idle connections after 30s
+            allowExitOnIdle: true, // let the pool drain on shutdown
+            keepAlive: true, // prevent Cloud Run from killing idle sockets
+            keepAliveInitialDelayMillis: 10_000,
         });
         const adapter = new PrismaPg(pool);
 

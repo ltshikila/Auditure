@@ -866,14 +866,23 @@ export class EpisodesService {
      * Increment play count
      */
     async incrementPlayCount(id: string): Promise<void> {
-        const episode = await this.databaseService.episode.update({
+        const episode = await this.databaseService.episode.findUnique({
+            where: { id },
+            select: { id: true, podcasterId: true },
+        });
+
+        if (!episode) {
+            this.logger.warn(`incrementPlayCount: episode ${id} not found, skipping`);
+            return;
+        }
+
+        await this.databaseService.episode.update({
             where: { id },
             data: {
                 playCount: {
                     increment: 1,
                 },
             },
-            select: { podcasterId: true },
         });
 
         // Also increment the podcaster's play count

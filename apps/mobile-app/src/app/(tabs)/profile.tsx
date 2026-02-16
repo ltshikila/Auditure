@@ -20,6 +20,7 @@ import DatePickerModal from '@/components/DatePickerModal';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAlert } from '@/contexts/AlertContext';
+import { usePlayback } from '@/contexts/PlaybackContext';
 import { storageService } from '@/services/storage.service';
 import {
     userService,
@@ -65,6 +66,7 @@ function SettingItem({ icon, label, value, onValueChange, disabled }: SettingIte
 export default function Profile() {
     const { logout, updateUser } = useAuth();
     const { showAlert } = useAlert();
+    const { updatePlaybackSettings } = usePlayback();
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [settings, setSettings] = useState<UserSettings | null>(null);
     const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -246,6 +248,11 @@ export default function Profile() {
 
             const updatedSettings = await userService.updateSettings(token, { [key]: value });
             setSettings(updatedSettings);
+
+            // Sync playback-related settings with the audio player context
+            if (key === 'autoPlayEnabled' || key === 'playbackSpeed') {
+                updatePlaybackSettings({ [key]: value });
+            }
         } catch (err: any) {
             // Revert on error
             fetchData();

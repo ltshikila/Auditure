@@ -47,6 +47,7 @@ interface PlaybackContextType extends PlaybackState {
     playNext: () => Promise<void>;
     playPrevious: () => Promise<void>;
     clearQueue: () => void;
+    updatePlaybackSettings: (settings: { autoPlayEnabled?: boolean; playbackSpeed?: number }) => void;
     hasNext: boolean;
     hasPrevious: boolean;
 }
@@ -134,6 +135,7 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
     const queueRef = useRef<Episode[]>([]);
     const queueIndexRef = useRef<number>(-1);
     const autoPlayEnabledRef = useRef<boolean>(false);
+    const defaultPlaybackRateRef = useRef<number>(1.0);
     const preserveQueueRef = useRef<boolean>(false);
     const playRef = useRef<(ep: Episode) => Promise<void>>();
 
@@ -166,7 +168,7 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
         episodeRef.current = episode;
     }, [episode]);
 
-    // Fetch autoPlay setting on auth
+    // Fetch playback settings on auth
     useEffect(() => {
         if (isAuthenticated) {
             (async () => {
@@ -175,9 +177,11 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
                     if (token) {
                         const settings = await userService.getSettings(token);
                         autoPlayEnabledRef.current = settings.autoPlayEnabled;
+                        defaultPlaybackRateRef.current = settings.playbackSpeed;
+                        setPlaybackRateState(settings.playbackSpeed);
                     }
                 } catch (error) {
-                    console.error('Error fetching autoPlay setting:', error);
+                    console.error('Error fetching playback settings:', error);
                 }
             })();
         }
@@ -504,6 +508,19 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
         }
     }, []);
 
+    const updatePlaybackSettings = useCallback((updated: { autoPlayEnabled?: boolean; playbackSpeed?: number }) => {
+        if (updated.autoPlayEnabled !== undefined) {
+            autoPlayEnabledRef.current = updated.autoPlayEnabled;
+        }
+        if (updated.playbackSpeed !== undefined) {
+            defaultPlaybackRateRef.current = updated.playbackSpeed;
+            // If nothing is playing, also update the active rate so the next play() uses it
+            if (!episodeRef.current) {
+                setPlaybackRateState(updated.playbackSpeed);
+            }
+        }
+    }, []);
+
     const stopPlayback = useCallback(async () => {
         stopProgressSaving();
         try {
@@ -516,7 +533,7 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
         hasIncrementedPlayCount.current = false;
         setEpisode(null);
         episodeRef.current = null;
-        setPlaybackRateState(1.0);
+        setPlaybackRateState(defaultPlaybackRateRef.current);
         // Clear queue on stop
         setQueueState([]);
         setQueueIndex(-1);
@@ -549,6 +566,7 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
                 playNext,
                 playPrevious,
                 clearQueue,
+                updatePlaybackSettings,
             }}
         >
             {children}
