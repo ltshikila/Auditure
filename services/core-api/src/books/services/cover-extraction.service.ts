@@ -254,6 +254,15 @@ export class CoverExtractionService {
                         cleanUrl += (cleanUrl.includes('?') ? '&' : '?') + 'zoom=4';
                     }
 
+                    // Validate the image isn't a Google Books "image not available" placeholder
+                    const isPlaceholder = await this.isGoogleBooksPlaceholder(cleanUrl);
+                    if (isPlaceholder) {
+                        this.logger.warn(
+                            `    Skipping - Google Books returned placeholder image for "${returnedTitle}"`,
+                        );
+                        continue;
+                    }
+
                     const categories: string[] = volumeInfo?.categories || [];
                     this.logger.log(
                         `Found Google Books cover for "${returnedTitle}" (query: "${query}"): ${cleanUrl}`,
@@ -270,6 +279,51 @@ export class CoverExtractionService {
         } catch (error) {
             this.logger.warn(`Google Books API fetch failed: ${error.message}`);
             return null;
+        }
+    }
+
+    /**
+     * Check if a Google Books image URL returns a placeholder "image not available" image.
+     * Google Books returns HTTP 200 with a valid PNG even when no cover exists —
+     * the image is a mostly-white placeholder with gray "image not available" text.
+     * Detection: placeholder images are almost entirely white, so they compress to
+     * an extremely low ratio vs raw pixel size (< 3%). Real covers are 8-40%.
+     */
+    private async isGoogleBooksPlaceholder(imageUrl: string): Promise<boolean> {
+        try {
+            const response = await fetch(imageUrl);
+            if (!response.ok) return true; // Can't fetch = treat as no cover
+
+            const buffer = Buffer.from(await response.arrayBuffer());
+
+            // PNG IHDR chunk: width at bytes 16-19, height at bytes 20-23 (big-endian)
+            if (buffer.length < 24 || buffer[0] !== 0x89 || buffer[1] !== 0x50) {
+                // Not a valid PNG — might still be JPEG, skip ratio check
+                // but reject very small files (<5KB) as likely broken
+                return buffer.length < 5000;
+            }
+
+            const width = buffer.readUInt32BE(16);
+            const height = buffer.readUInt32BE(20);
+            const rawPixelSize = width * height * 3; // RGB
+
+            if (rawPixelSize === 0) return true;
+
+            const compressionRatio = buffer.length / rawPixelSize;
+
+            // Placeholder images compress to ~1.5-2% (mostly white pixels).
+            // Real book covers typically compress to 8-40%.
+            if (compressionRatio < 0.04) {
+                this.logger.log(
+                    `    Image appears to be a placeholder: ${width}x${height}, ${buffer.length} bytes, ratio=${(compressionRatio * 100).toFixed(1)}%`,
+                );
+                return true;
+            }
+
+            return false;
+        } catch (error) {
+            this.logger.warn(`Failed to validate Google Books image: ${error.message}`);
+            return true; // If we can't validate, skip this cover
         }
     }
 
