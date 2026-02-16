@@ -2,15 +2,14 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     View,
     Text,
-    ScrollView,
     TouchableOpacity,
     Image,
     ActivityIndicator,
     TextInput,
-    KeyboardAvoidingView,
     Platform,
     Modal,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -844,10 +843,12 @@ export default function EpisodeInfoScreen() {
 
     return (
         <SafeAreaView edges={['top']} className="flex-1 bg-brand-beige">
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                className="flex-1">
-                <ScrollView showsVerticalScrollIndicator={false} className="pb-32">
+            <KeyboardAwareScrollView
+                showsVerticalScrollIndicator={false}
+                extraScrollHeight={Platform.OS === 'ios' ? 120 : 80}
+                enableOnAndroid
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{ paddingBottom: 128 }}>
                     {/* Header */}
                     <View className="px-6 pb-2 flex-row items-center justify-between">
                         <TouchableOpacity
@@ -1087,8 +1088,7 @@ export default function EpisodeInfoScreen() {
 
                     {/* Tab Content */}
                     {renderTabContent()}
-                </ScrollView>
-            </KeyboardAvoidingView>
+            </KeyboardAwareScrollView>
 
             {/* Rating Modal */}
             <Modal

@@ -38,18 +38,17 @@ export default function AuthInput({
 
   const formatDisplayDate = (isoDate: string): string => {
     if (!isoDate) return '';
-    const d = new Date(isoDate);
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    const yyyy = d.getFullYear();
+    const [yyyy, mm, dd] = isoDate.split('-');
     return `${mm}/${dd}/${yyyy}`;
   };
 
   const handleDateConfirm = (date: Date) => {
     setShowDatePicker(false);
     if (onChangeText) {
-      const formattedDate = date.toISOString().split('T')[0];
-      onChangeText(formattedDate);
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      onChangeText(`${yyyy}-${mm}-${dd}`);
     }
   };
 

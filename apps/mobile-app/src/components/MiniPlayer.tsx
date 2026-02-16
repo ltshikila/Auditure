@@ -175,15 +175,14 @@ export const MiniPlayer: React.FC = () => {
                             </TouchableOpacity>
 
                             {/* Previous Track */}
-                            {hasPrevious && (
-                                <TouchableOpacity
-                                    onPress={handlePlayPrevious}
-                                    className="w-10 h-10 items-center justify-center"
-                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                >
-                                    <Ionicons name="play-skip-back" size={20} color="#FFFFFF" />
-                                </TouchableOpacity>
-                            )}
+                            <TouchableOpacity
+                                onPress={handlePlayPrevious}
+                                disabled={!hasPrevious}
+                                className="w-10 h-10 items-center justify-center"
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                                <Ionicons name="play-skip-back" size={20} color={hasPrevious ? '#FFFFFF' : '#555555'} />
+                            </TouchableOpacity>
 
                             {/* Skip Back */}
                             <TouchableOpacity
@@ -220,15 +219,14 @@ export const MiniPlayer: React.FC = () => {
                             </TouchableOpacity>
 
                             {/* Next Track */}
-                            {hasNext && (
-                                <TouchableOpacity
-                                    onPress={handlePlayNext}
-                                    className="w-10 h-10 items-center justify-center"
-                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                >
-                                    <Ionicons name="play-skip-forward" size={20} color="#FFFFFF" />
-                                </TouchableOpacity>
-                            )}
+                            <TouchableOpacity
+                                onPress={handlePlayNext}
+                                disabled={!hasNext}
+                                className="w-10 h-10 items-center justify-center"
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                                <Ionicons name="play-skip-forward" size={20} color={hasNext ? '#FFFFFF' : '#555555'} />
+                            </TouchableOpacity>
 
                             {/* Heart/Like */}
                             <TouchableOpacity
@@ -306,15 +304,14 @@ export const MiniPlayer: React.FC = () => {
                         {/* Controls */}
                         <View className="flex-row items-center">
                             {/* Previous Track */}
-                            {hasPrevious && (
-                                <TouchableOpacity
-                                    onPress={handlePlayPrevious}
-                                    className="w-9 h-9 items-center justify-center"
-                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                >
-                                    <Ionicons name="play-skip-back" size={16} color="#FFFFFF" />
-                                </TouchableOpacity>
-                            )}
+                            <TouchableOpacity
+                                onPress={handlePlayPrevious}
+                                disabled={!hasPrevious}
+                                className="w-9 h-9 items-center justify-center"
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                                <Ionicons name="play-skip-back" size={16} color={hasPrevious ? '#FFFFFF' : '#555555'} />
+                            </TouchableOpacity>
 
                             {/* Skip Back */}
                             <TouchableOpacity
@@ -351,15 +348,14 @@ export const MiniPlayer: React.FC = () => {
                             </TouchableOpacity>
 
                             {/* Next Track */}
-                            {hasNext && (
-                                <TouchableOpacity
-                                    onPress={handlePlayNext}
-                                    className="w-9 h-9 items-center justify-center"
-                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                >
-                                    <Ionicons name="play-skip-forward" size={16} color="#FFFFFF" />
-                                </TouchableOpacity>
-                            )}
+                            <TouchableOpacity
+                                onPress={handlePlayNext}
+                                disabled={!hasNext}
+                                className="w-9 h-9 items-center justify-center"
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                                <Ionicons name="play-skip-forward" size={16} color={hasNext ? '#FFFFFF' : '#555555'} />
+                            </TouchableOpacity>
 
                             {/* Heart/Like */}
                             <TouchableOpacity

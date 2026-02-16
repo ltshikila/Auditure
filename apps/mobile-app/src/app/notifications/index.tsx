@@ -41,7 +41,7 @@ const getNotificationColor = (type: NotificationType): string => {
         case 'EPISODE_FAILED':
             return '#EF4444';
         case 'NEW_COMMENT':
-            return '#3B82F6';
+            return '#BF9A54';
         case 'NEW_RATING':
             return '#BF9A54';
         case 'SUBSCRIPTION_WARNING':

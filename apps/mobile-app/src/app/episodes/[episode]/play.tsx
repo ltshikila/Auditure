@@ -56,7 +56,12 @@ export default function EpisodePlayScreen() {
     const [selectedRating, setSelectedRating] = useState(0);
     const [submittingRating, setSubmittingRating] = useState(false);
 
-    // If we don't have the episode in playback context, fetch it
+    // Always fetch full episode details (queue episodes may lack scriptContent)
+    useEffect(() => {
+        fetchEpisodeDetails();
+    }, [episodeId]);
+
+    // If episode isn't playing yet, fetch and auto-play
     useEffect(() => {
         if (!episode || episode.id !== episodeId) {
             fetchAndPlayEpisode();
@@ -76,6 +81,25 @@ export default function EpisodePlayScreen() {
             router.replace(`/episodes/${episodeId}`);
         }
     }, [episode?.id]);
+
+    // Fetch full episode details (for scriptContent/transcript) without triggering playback
+    const fetchEpisodeDetails = async () => {
+        if (!episodeId) return;
+        try {
+            const token = await storageService.getAccessToken();
+            const fetched = await episodeService.getEpisode(episodeId, token || undefined);
+            setLocalEpisode(fetched);
+
+            if (token) {
+                try {
+                    const rating = await episodeService.getEpisodeRating(episodeId, token);
+                    setUserRating(rating.userRating);
+                } catch { /* non-critical */ }
+            }
+        } catch (error) {
+            console.error('Error fetching episode details:', error);
+        }
+    };
 
     const fetchAndPlayEpisode = async () => {
         if (!episodeId) return;
@@ -230,7 +254,8 @@ export default function EpisodePlayScreen() {
         });
     };
 
-    const displayEpisode = episode?.id === episodeId ? episode : localEpisode;
+    // Prefer localEpisode (full data with scriptContent) over context episode (queue data)
+    const displayEpisode = localEpisode?.id === episodeId ? localEpisode : (episode?.id === episodeId ? episode : localEpisode);
 
     // Get static transcript preview (time sync not available)
     const transcriptPreview = useMemo(() => {
