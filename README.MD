@@ -217,13 +217,27 @@ For detailed information about specific components:
 * Asynchronous episode generation with user notifications
 * Horizontal scaling support via Docker/Kubernetes
 
+## Branching Strategy
+
+This project follows **GitFlow**:
+
+| Branch | Purpose |
+|--------|---------|
+| `master` | Production-ready code. Deploys to Cloud Run on push. |
+| `develop` | Integration branch for features. Default branch. |
+| `feature/*` | New features. Branch from `develop`, PR back to `develop`. |
+| `release/*` | Release prep. Branch from `develop`, merge to both `master` and `develop`. |
+| `hotfix/*` | Urgent production fixes. Branch from `master`, merge to both `master` and `develop`. |
+
+CI runs tests on pushes and PRs to both `develop` and `master`. Deployment only triggers on push to `master`.
+
 ## Contributing
 
 We welcome contributions! Please follow these guidelines before submitting pull requests.
 
 ### Getting Started
 
-1. Fork the repository and create a feature branch from `master`
+1. Fork the repository and create a feature branch from `develop`
 2. Use descriptive branch names: `feature/add-voice-preview`, `fix/audio-playback-bug`, `refactor/episode-service`
 3. Keep commits atomic and focused on a single change
 
@@ -332,6 +346,7 @@ Examples:
 3. Add a clear PR description explaining the changes
 4. Request review from at least one maintainer
 5. Squash commits before merge if requested
+6. Feature PRs target `develop`; release/hotfix PRs target `master`
 
 ## Helpful Commands
 ```bash
