@@ -10,15 +10,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { storageService } from '@/services/storage.service';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface OnboardingSlide {
     id: string;
-    icon: keyof typeof Ionicons.glyphMap;
-    iconColor: string;
+    image: any;
     headline: string;
     description: string;
 }
@@ -26,24 +24,21 @@ interface OnboardingSlide {
 const slides: OnboardingSlide[] = [
     {
         id: '1',
-        icon: 'mic-outline',
-        iconColor: '#920002',
+        image: require('../assets/icons/onboarding_1.png'),
         headline: 'Create Your Own\nAI Podcaster',
         description:
             'Design an AI podcaster with its own voice and personality. No mic, no editing, no experience needed — just your ideas.',
     },
     {
         id: '2',
-        icon: 'book-outline',
-        iconColor: '#BF9A54',
+        image: require('../assets/icons/onboarding_2.png'),
         headline: 'Turn Books Into\nPodcasts',
         description:
             "Upload any book and your AI podcaster turns it into engaging audio episodes. Listen on your commute, at the gym, or wherever you go.",
     },
     {
         id: '3',
-        icon: 'people-outline',
-        iconColor: '#920002',
+        image: require('../assets/icons/onboarding_3.png'),
         headline: 'Join the\nCommunity',
         description:
             "Explore what other AI podcasters are creating. Like, comment, rate, and share episodes with a growing community of listeners and creators.",
@@ -82,10 +77,13 @@ export default function OnboardingScreen() {
 
     const renderSlide = ({ item }: { item: OnboardingSlide }) => (
         <View style={{ width: SCREEN_WIDTH }} className="flex-1 items-center justify-center px-8">
-            {/* Icon area */}
-            <View className="w-32 h-32 rounded-full bg-brand-input items-center justify-center mb-10">
-                <Ionicons name={item.icon} size={56} color={item.iconColor} />
-            </View>
+            {/* Illustration */}
+            <Image
+                source={item.image}
+                style={{ width: 200, height: 200 }}
+                resizeMode="contain"
+                className="mb-10"
+            />
 
             {/* Headline */}
             <Text className="font-jakarta-bold text-3xl text-brand-black text-center mb-4">
