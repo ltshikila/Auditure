@@ -24,6 +24,7 @@
     },
     "android": {
       "package": "com.auditure.app",
+      "googleServicesFile": "./google-services.json",
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/icons/logo_icon_hd_padded.png",

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1008106212408",
+    "project_id": "auditure-1e789",
+    "storage_bucket": "auditure-1e789.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1008106212408:android:64faea866797ff342d2acd",
+        "android_client_info": {
+          "package_name": "com.auditure.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCJ1cp8u59R27DQ5ycDF_F2UqBHW6ey1Yk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

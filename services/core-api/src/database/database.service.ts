@@ -6,6 +6,7 @@ import { Pool } from 'pg';
 @Injectable()
 export class DatabaseService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
     private readonly logger = new Logger(DatabaseService.name);
+    private readonly pool: Pool;
 
     constructor() {
         // Prisma v7 requires an adapter for PostgreSQL
@@ -24,17 +25,25 @@ export class DatabaseService extends PrismaClient implements OnModuleInit, OnMod
             user: url.username,
             password: decodeURIComponent(url.password),
             max: 10, // max connections in pool
-            connectionTimeoutMillis: 10_000, // 10s to acquire a connection
+            connectionTimeoutMillis: 30_000, // 30s to acquire a connection (Cloud Run needs headroom)
             idleTimeoutMillis: 30_000, // close idle connections after 30s
             allowExitOnIdle: true, // let the pool drain on shutdown
             keepAlive: true, // prevent Cloud Run from killing idle sockets
             keepAliveInitialDelayMillis: 10_000,
         });
+
         const adapter = new PrismaPg(pool);
 
         super({
             adapter,
             log: ['error', 'warn'],
+        });
+        this.pool = pool;
+
+        // Handle errors on idle clients — without this, ECONNRESET on idle connections
+        // becomes an unhandled error. The pool will automatically remove the broken client.
+        pool.on('error', (err) => {
+            this.logger.warn(`Idle pg client error (pool will recover): ${err.message}`);
         });
     }
 
@@ -51,5 +60,45 @@ export class DatabaseService extends PrismaClient implements OnModuleInit, OnMod
 
     async onModuleDestroy() {
         await this.$disconnect();
+        await this.pool.end();
+    }
+
+    /**
+     * Wraps a database operation with retry logic for transient connection errors
+     * (ECONNRESET, connection timeouts, etc.)
+     */
+    async withRetry<T>(operation: () => Promise<T>, maxRetries = 3): Promise<T> {
+        let lastError: Error;
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                return await operation();
+            } catch (error) {
+                lastError = error;
+                if (attempt < maxRetries && this.isRetryableError(error)) {
+                    const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
+                    this.logger.warn(
+                        `Retryable DB error (attempt ${attempt + 1}/${maxRetries}): ${error.message}. Retrying in ${delay}ms...`,
+                    );
+                    await new Promise((resolve) => setTimeout(resolve, delay));
+                    continue;
+                }
+                throw error;
+            }
+        }
+        throw lastError!;
+    }
+
+    private isRetryableError(error: any): boolean {
+        const message = error?.message || '';
+        const code = error?.code || '';
+        return (
+            message.includes('timeout exceeded when trying to connect') ||
+            message.includes('Connection terminated unexpectedly') ||
+            message.includes('read ECONNRESET') ||
+            code === 'ECONNRESET' ||
+            code === 'ECONNREFUSED' ||
+            code === 'ETIMEDOUT' ||
+            code === 'EPIPE'
+        );
     }
 }

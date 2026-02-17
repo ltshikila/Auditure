@@ -31,10 +31,12 @@ export class BookExtractionWorker implements OnModuleInit {
 
         try {
             // 1. Update status to PROCESSING
-            await this.databaseService.book.update({
-                where: { id: job.bookId },
-                data: { extractionStatus: 'PROCESSING' },
-            });
+            await this.databaseService.withRetry(() =>
+                this.databaseService.book.update({
+                    where: { id: job.bookId },
+                    data: { extractionStatus: 'PROCESSING' },
+                }),
+            );
 
             // 2. Download file from storage
             const fileBuffer = await this.storageService.downloadFile(job.fileStorageKey);
@@ -51,9 +53,11 @@ export class BookExtractionWorker implements OnModuleInit {
 
             // 3.5. Get current book from database to access original title (from filename)
             // This is needed because PDF metadata often lacks title/author
-            const currentBook = await this.databaseService.book.findUnique({
-                where: { id: job.bookId },
-            });
+            const currentBook = await this.databaseService.withRetry(() =>
+                this.databaseService.book.findUnique({
+                    where: { id: job.bookId },
+                }),
+            );
 
             // Determine best title for cover search - prefer PDF metadata, then database title
             let coverSearchTitle = extracted.metadata.title;
@@ -93,9 +97,11 @@ export class BookExtractionWorker implements OnModuleInit {
             );
 
             // 5. Delete existing chapters (for retry scenarios) and create new ones
-            await this.databaseService.chapter.deleteMany({
-                where: { bookId: job.bookId },
-            });
+            await this.databaseService.withRetry(() =>
+                this.databaseService.chapter.deleteMany({
+                    where: { bookId: job.bookId },
+                }),
+            );
             this.logger.log(`Deleted existing chapters for book ${job.bookId}`);
 
             // Deduplicate chapters by chapterNumber (extraction might produce duplicates)
@@ -115,17 +121,19 @@ export class BookExtractionWorker implements OnModuleInit {
             const MIN_CHAPTER_CHARS = 500; // Chapters with less than this are considered minimal
 
             for (const chapter of uniqueChapters.values()) {
-                await this.databaseService.chapter.create({
-                    data: {
-                        bookId: job.bookId,
-                        chapterNumber: chapter.chapterNumber,
-                        title: chapter.title,
-                        startPage: chapter.startPage,
-                        endPage: chapter.endPage,
-                        extractedText: chapter.text,
-                        textLength: chapter.text.length,
-                    },
-                });
+                await this.databaseService.withRetry(() =>
+                    this.databaseService.chapter.create({
+                        data: {
+                            bookId: job.bookId,
+                            chapterNumber: chapter.chapterNumber,
+                            title: chapter.title,
+                            startPage: chapter.startPage,
+                            endPage: chapter.endPage,
+                            extractedText: chapter.text,
+                            textLength: chapter.text.length,
+                        },
+                    }),
+                );
 
                 // Track chapter quality
                 if (!chapter.text || chapter.text.length === 0) {
@@ -171,25 +179,27 @@ export class BookExtractionWorker implements OnModuleInit {
             }
 
             // 8. Update book record
-            await this.databaseService.book.update({
-                where: { id: job.bookId },
-                data: {
-                    extractionStatus,
-                    extractedAt: new Date(),
-                    fullTextKey,
-                    pageCount: extracted.metadata.pageCount,
-                    // Cover image & genres from Google Books
-                    coverImageUrl: coverResult.coverImageUrl,
-                    coverImageKey: coverResult.coverImageKey,
-                    genres: coverResult.genres,
-                    // Store extraction warnings for user notification
-                    extractionWarnings: extracted.extractionWarnings || [],
-                    // Update metadata - always update title/author if we have better versions
-                    ...(bestTitle && bestTitle !== currentBook?.title && { title: bestTitle }),
-                    ...(bestAuthor && !currentBook?.author && { author: bestAuthor }),
-                    ...(extracted.metadata.language && { language: extracted.metadata.language }),
-                },
-            });
+            await this.databaseService.withRetry(() =>
+                this.databaseService.book.update({
+                    where: { id: job.bookId },
+                    data: {
+                        extractionStatus,
+                        extractedAt: new Date(),
+                        fullTextKey,
+                        pageCount: extracted.metadata.pageCount,
+                        // Cover image & genres from Google Books
+                        coverImageUrl: coverResult.coverImageUrl,
+                        coverImageKey: coverResult.coverImageKey,
+                        genres: coverResult.genres,
+                        // Store extraction warnings for user notification
+                        extractionWarnings: extracted.extractionWarnings || [],
+                        // Update metadata - always update title/author if we have better versions
+                        ...(bestTitle && bestTitle !== currentBook?.title && { title: bestTitle }),
+                        ...(bestAuthor && !currentBook?.author && { author: bestAuthor }),
+                        ...(extracted.metadata.language && { language: extracted.metadata.language }),
+                    },
+                }),
+            );
 
             // Log warnings if present
             if (extracted.extractionWarnings && extracted.extractionWarnings.length > 0) {
@@ -220,12 +230,14 @@ export class BookExtractionWorker implements OnModuleInit {
             }
 
             // 7. Queue any pending episodes for this book (or canonical if consolidated)
-            const pendingEpisodes = await this.databaseService.episode.findMany({
-                where: {
-                    bookId: canonicalBookId,
-                    generationStatus: 'PENDING',
-                },
-            });
+            const pendingEpisodes = await this.databaseService.withRetry(() =>
+                this.databaseService.episode.findMany({
+                    where: {
+                        bookId: canonicalBookId,
+                        generationStatus: 'PENDING',
+                    },
+                }),
+            );
 
             for (const episode of pendingEpisodes) {
                 await this.rabbitMQService.publishEpisodeGenerationJob({
@@ -249,21 +261,25 @@ export class BookExtractionWorker implements OnModuleInit {
             this.logger.error(error);
 
             // Store technical error in book for debugging
-            await this.databaseService.book.update({
-                where: { id: job.bookId },
-                data: {
-                    extractionStatus: 'FAILED',
-                    extractionError: error.message,
-                },
-            });
+            await this.databaseService.withRetry(() =>
+                this.databaseService.book.update({
+                    where: { id: job.bookId },
+                    data: {
+                        extractionStatus: 'FAILED',
+                        extractionError: error.message,
+                    },
+                }),
+            );
 
             // Notify user of extraction failure
             const userFriendlyError = this.getUserFriendlyError(error, job.sourceType);
             try {
-                const failedBook = await this.databaseService.book.findUnique({
-                    where: { id: job.bookId },
-                    select: { title: true },
-                });
+                const failedBook = await this.databaseService.withRetry(() =>
+                    this.databaseService.book.findUnique({
+                        where: { id: job.bookId },
+                        select: { title: true },
+                    }),
+                );
                 const bookTitle = failedBook?.title || 'your book';
                 await this.notificationsService.notifyBookFailed(
                     job.userId,
@@ -277,16 +293,18 @@ export class BookExtractionWorker implements OnModuleInit {
             // Mark all pending episodes for this book as FAILED
             // so they don't remain stuck in "Queued" state indefinitely
 
-            const failedEpisodes = await this.databaseService.episode.updateMany({
-                where: {
-                    bookId: job.bookId,
-                    generationStatus: 'PENDING',
-                },
-                data: {
-                    generationStatus: 'FAILED',
-                    generationError: userFriendlyError,
-                },
-            });
+            const failedEpisodes = await this.databaseService.withRetry(() =>
+                this.databaseService.episode.updateMany({
+                    where: {
+                        bookId: job.bookId,
+                        generationStatus: 'PENDING',
+                    },
+                    data: {
+                        generationStatus: 'FAILED',
+                        generationError: userFriendlyError,
+                    },
+                }),
+            );
 
             if (failedEpisodes.count > 0) {
                 this.logger.warn(
@@ -320,26 +338,28 @@ export class BookExtractionWorker implements OnModuleInit {
         try {
             // Find all matching completed books (excluding self)
             // Use individual word filters so punctuation in DB titles doesn't break matching
-            const candidates = await this.databaseService.book.findMany({
-                where: {
-                    id: { not: bookId },
-                    extractionStatus: {
-                        in: ['COMPLETED', 'PARTIALLY_COMPLETED'],
+            const candidates = await this.databaseService.withRetry(() =>
+                this.databaseService.book.findMany({
+                    where: {
+                        id: { not: bookId },
+                        extractionStatus: {
+                            in: ['COMPLETED', 'PARTIALLY_COMPLETED'],
+                        },
+                        AND: searchWords.map((word) => ({
+                            title: { contains: word, mode: 'insensitive' as const },
+                        })),
                     },
-                    AND: searchWords.map((word) => ({
-                        title: { contains: word, mode: 'insensitive' as const },
-                    })),
-                },
-                select: {
-                    id: true,
-                    title: true,
-                    author: true,
-                    coverImageUrl: true,
-                    isbn: true,
-                    pageCount: true,
-                    extractionStatus: true,
-                },
-            });
+                    select: {
+                        id: true,
+                        title: true,
+                        author: true,
+                        coverImageUrl: true,
+                        isbn: true,
+                        pageCount: true,
+                        extractionStatus: true,
+                    },
+                }),
+            );
 
             const matches = candidates.filter((c) =>
                 booksMatch(
@@ -356,17 +376,19 @@ export class BookExtractionWorker implements OnModuleInit {
             }
 
             // Score all matches + current book to find the highest quality version
-            const currentBook = await this.databaseService.book.findUnique({
-                where: { id: bookId },
-                select: {
-                    id: true,
-                    coverImageUrl: true,
-                    isbn: true,
-                    pageCount: true,
-                    extractionStatus: true,
-                    author: true,
-                },
-            });
+            const currentBook = await this.databaseService.withRetry(() =>
+                this.databaseService.book.findUnique({
+                    where: { id: bookId },
+                    select: {
+                        id: true,
+                        coverImageUrl: true,
+                        isbn: true,
+                        pageCount: true,
+                        extractionStatus: true,
+                        author: true,
+                    },
+                }),
+            );
 
             const allBooks = [...matches, currentBook!];
             const bookIds = allBooks.map((b) => b.id);
@@ -374,10 +396,12 @@ export class BookExtractionWorker implements OnModuleInit {
             // Batch-fetch chapter stats for all candidates
             const chapterStats = await Promise.all(
                 bookIds.map(async (id) => {
-                    const chapters = await this.databaseService.chapter.findMany({
-                        where: { bookId: id },
-                        select: { textLength: true },
-                    });
+                    const chapters = await this.databaseService.withRetry(() =>
+                        this.databaseService.chapter.findMany({
+                            where: { bookId: id },
+                            select: { textLength: true },
+                        }),
+                    );
                     const count = chapters.length;
                     const avgLength =
                         count > 0
@@ -420,10 +444,12 @@ export class BookExtractionWorker implements OnModuleInit {
                 // Current book is the best quality — move episodes FROM other copies TO us
                 for (const match of matches) {
                     const updated =
-                        await this.databaseService.episode.updateMany({
-                            where: { bookId: match.id },
-                            data: { bookId },
-                        });
+                        await this.databaseService.withRetry(() =>
+                            this.databaseService.episode.updateMany({
+                                where: { bookId: match.id },
+                                data: { bookId },
+                            }),
+                        );
                     if (updated.count > 0) {
                         this.logger.log(
                             `Upgraded canonical: moved ${updated.count} episodes from ${match.id} (score=${scored.find((s) => s.id === match.id)?.score}) to new canonical ${bookId} (score=${canonicalScore})`,
@@ -434,10 +460,12 @@ export class BookExtractionWorker implements OnModuleInit {
             } else {
                 // Another book is higher quality — move our episodes there
                 const updated =
-                    await this.databaseService.episode.updateMany({
-                        where: { bookId },
-                        data: { bookId: canonicalId },
-                    });
+                    await this.databaseService.withRetry(() =>
+                        this.databaseService.episode.updateMany({
+                            where: { bookId },
+                            data: { bookId: canonicalId },
+                        }),
+                    );
                 this.logger.log(
                     `Moved ${updated.count} episodes from ${bookId} (score=${scored.find((s) => s.id === bookId)?.score}) to canonical ${canonicalId} (score=${canonicalScore})`,
                 );
