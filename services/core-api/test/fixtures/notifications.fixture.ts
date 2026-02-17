@@ -41,7 +41,7 @@ export const createReadMockNotification = (overrides = {}) =>
 export const createEpisodeReadyNotification = (overrides = {}) =>
     createMockNotification({
         type: NotificationType.EPISODE_READY,
-        title: 'Episode Ready! 🎧',
+        title: 'Episode Ready',
         body: 'Your episode "Test Episode" is ready to listen.',
         data: {
             episodeId: randomUUID(),

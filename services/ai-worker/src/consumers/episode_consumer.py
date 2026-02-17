@@ -344,7 +344,7 @@ class EpisodeConsumer(BaseConsumer):
         try:
             if is_ready:
                 notif_type = "EPISODE_READY"
-                title = "Episode Ready! \U0001f3a7"
+                title = "Episode Ready"
                 body = f'Your episode "{episode_title}" is ready to listen.'
             else:
                 notif_type = "EPISODE_FAILED"

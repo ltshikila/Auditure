@@ -575,7 +575,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         return this.create({
             userId,
             type: NotificationType.EPISODE_READY,
-            title: 'Episode Ready! 🎧',
+            title: 'Episode Ready',
             body: `Your episode "${episodeTitle}" is ready to listen.`,
             data: {
                 episodeId,
@@ -697,7 +697,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         return this.create({
             userId,
             type: NotificationType.BOOK_READY,
-            title: 'Book Ready! 📚',
+            title: 'Book Ready',
             body: `"${bookTitle}" has been processed and is ready for episodes.`,
             data: {
                 bookId,
@@ -752,7 +752,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         return this.create({
             userId,
             type: NotificationType.MILESTONE,
-            title: 'Milestone Reached! 🎉',
+            title: 'Milestone Reached',
             body: `Your podcaster "${podcasterName}" hit ${playCount.toLocaleString()} plays!`,
             data: {
                 podcasterId,
