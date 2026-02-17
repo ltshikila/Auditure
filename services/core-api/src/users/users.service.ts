@@ -334,32 +334,44 @@ export class UsersService {
         if (!terms) {
             // Return default if none exists in database
             return {
-                version: '1.0',
+                version: '2.0',
                 content: `Terms and Conditions for Auditure
 
 1. Acceptance of Terms
 By using Auditure, you agree to these Terms and Conditions.
 
-2. User Accounts
-You are responsible for maintaining the security of your account.
+2. Description of Service
+Auditure is an AI-powered platform where users create virtual AI podcasters and convert books and written content into podcast-style audio episodes, with social features including a feed, comments, likes, and ratings.
 
-3. Content Usage
-Books you upload are for personal use only. You must have rights to the content.
+3. User Accounts
+You are responsible for maintaining the security of your account. You must be at least 13 years old to use Auditure.
 
-4. Generated Content
-AI-generated podcast episodes are for personal, non-commercial use.
+4. User-Uploaded Content & Copyright
+You are solely responsible for all content you upload. You represent and warrant that you own or have the legal right to use any content you upload. Auditure does not verify the ownership or legality of user-uploaded content. You assume full responsibility and liability for any content you upload.
 
-5. Privacy
+5. Copyright Infringement & DMCA
+If you believe content on Auditure infringes your copyright, submit a takedown notice to support@auditure.com. Users who repeatedly infringe copyright may have their accounts terminated.
+
+6. AI-Generated Content
+AI-generated episodes are transformative works including lectures, discussions, and commentary — not verbatim reproductions. Generated content may contain inaccuracies. Episodes are for personal, non-commercial use.
+
+7. AI Podcasters
+You may not create AI podcasters that impersonate real individuals without consent or generate harmful, misleading, or illegal content. AI podcasters may be visible to other users.
+
+8. Community & Social Features
+You agree to treat other users with respect and not post spam, harassment, hate speech, or abusive content. Auditure may remove content or accounts that violate these terms.
+
+9. Privacy
 We collect and process data as described in our Privacy Policy.
 
-6. Termination
-We reserve the right to terminate accounts that violate these terms.
+10. Termination
+We reserve the right to terminate accounts that violate these terms, including repeated copyright infringement or abusive behaviour.
 
-7. Changes to Terms
+11. Changes to Terms
 We may update these terms. Continued use constitutes acceptance.
 
-Last updated: January 2025`,
-                effectiveDate: new Date('2025-01-01'),
+Last updated: February 2026`,
+                effectiveDate: new Date('2026-02-17'),
             };
         }
 
