@@ -154,7 +154,7 @@ export default function Studio() {
                             <TouchableOpacity
                                 key={podcaster.id}
                                 onPress={() => router.push(`/podcasts/${podcaster.id}`)}
-                                className="w-[30%] bg-[#F5F5F0] rounded-2xl p-4 py-6 items-center mb-3 aspect-[0.9] justify-center shadow-md"
+                                className="w-[30%] bg-[#F5F5F0] rounded-2xl p-4 py-6 items-center mb-3 aspect-[0.9] justify-start shadow-md"
                                 style={{
                                     shadowColor: '#000',
                                     shadowOffset: { width: 0, height: 2 },

@@ -971,14 +971,6 @@ const Create = () => {
             >
                 <View className="flex-1 bg-black/50 items-center justify-center px-8">
                     <View className="bg-brand-beige rounded-2xl p-6 w-full max-w-sm">
-                        {/* Close button */}
-                        <TouchableOpacity
-                            onPress={() => setShowUploadModal(false)}
-                            className="absolute top-3 right-3 z-10 p-1"
-                        >
-                            <Ionicons name="close" size={22} color="#858585" />
-                        </TouchableOpacity>
-
                         <View className="items-center mb-4">
                             <View className="bg-brand-gold/20 rounded-full p-4 mb-3">
                                 <Ionicons name="cloud-upload" size={32} color="#BF9A54" />

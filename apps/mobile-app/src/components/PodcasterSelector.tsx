@@ -40,14 +40,14 @@ export const PodcasterSelector: React.FC<PodcasterSelectorProps> = ({
             </View>
 
             {/* Podcaster List */}
-            <View className="flex-row flex-wrap justify-between">
+            <View className="flex-row flex-wrap gap-4">
                 {podcasters.map((podcaster) => {
                     const isSelected = selectedId === podcaster.id;
                     return (
                         <TouchableOpacity
                             key={podcaster.id}
                             onPress={() => onSelect(podcaster.id)}
-                            className={`w-[30%] rounded-2xl p-4 py-5 items-center mb-3 justify-center ${
+                            className={`w-[30%] rounded-2xl p-4 py-5 items-center mb-3 justify-start ${
                                 isSelected ? 'bg-[#F5F5F0] border-2 border-brand-gold/40' : 'bg-[#F5F5F0]'
                             }`}
                             style={
@@ -92,7 +92,7 @@ export const PodcasterSelector: React.FC<PodcasterSelectorProps> = ({
                 {podcasters.length === 0 && (
                     <TouchableOpacity
                         onPress={onAddNew}
-                        className="w-[30%] rounded-2xl p-4 py-5 items-center mb-3 justify-center"
+                        className="w-[30%] rounded-2xl p-4 py-5 items-center mb-3 justify-start"
                     >
                         <View className="w-14 h-14 rounded-full bg-[#E8E3D6] items-center justify-center mb-2 border border-dashed border-brand-gold">
                             <Ionicons name="add" size={24} color="#BF9A54" />

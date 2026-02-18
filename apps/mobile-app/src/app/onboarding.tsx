@@ -80,7 +80,7 @@ export default function OnboardingScreen() {
             {/* Illustration */}
             <Image
                 source={item.image}
-                style={{ width: 200, height: 200 }}
+                style={{ width: 250, height: 250 }}
                 resizeMode="contain"
                 className="mb-10"
             />

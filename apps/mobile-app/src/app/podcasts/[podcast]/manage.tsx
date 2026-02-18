@@ -18,10 +18,14 @@ import { CustomSlider } from '@/components/CustomSlider';
 import { CustomDropdown } from '@/components/CustomDropdown';
 import { useAlert } from '@/contexts/AlertContext';
 import { PodcastManageSkeleton } from '@/components/skeleton';
+import { MINI_PLAYER_HEIGHT } from '@/components/MiniPlayer';
+import { usePlayback } from '@/contexts/PlaybackContext';
 
 export default function ManagePodcaster() {
   const { podcast: podcastId } = useLocalSearchParams();
   const { showAlert } = useAlert();
+  const { episode } = usePlayback();
+  const isMiniPlayerVisible = !!episode;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -235,7 +239,7 @@ export default function ManagePodcaster() {
   return (
     <SafeAreaView className="flex-1 bg-brand-beige">
       <KeyboardAwareScrollView
-        contentContainerStyle={{ padding: 24 }}
+        contentContainerStyle={{ padding: 24, paddingBottom: 24 + (isMiniPlayerVisible ? MINI_PLAYER_HEIGHT + 16 : 0) }}
         keyboardShouldPersistTaps="handled"
         enableOnAndroid={true}
         extraScrollHeight={20}
