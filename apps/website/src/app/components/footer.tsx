@@ -57,8 +57,8 @@ export function Footer() {
             <h4 className="font-['Plus_Jakarta_Sans',sans-serif] text-white mb-4">Connect</h4>
             <ul className="space-y-2">
               {[
-                { label: 'Twitter / X', href: '#' },
-                { label: 'Reddit', href: '#' },
+                { label: 'X (Twitter)', href: 'https://x.com/auditurestudios' },
+                { label: 'Reddit', href: 'https://www.reddit.com/user/Grouchy_Slice_1379/' },
                 { label: 'Contact Us', href: 'mailto:support@auditure.app' },
               ].map((item) => (
                 <li key={item.label}>
