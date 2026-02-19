@@ -4,7 +4,7 @@ import { normalizeBookTitle, titlesMatch as utilTitlesMatch } from '../utils/boo
 export interface CoverExtractionResult {
     coverImageUrl: string | null;
     coverImageKey: string | null;
-    source: 'google_books' | 'pdf_extraction' | 'epub_extraction' | null;
+    source: 'google_books' | 'open_library' | 'pdf_extraction' | 'epub_extraction' | null;
     genres: string[];
 }
 
@@ -58,7 +58,7 @@ export class CoverExtractionService {
             return {
                 coverImageUrl: openLibResult,
                 coverImageKey: null,
-                source: 'google_books', // Treat as external URL source
+                source: 'open_library',
                 genres: googleResult?.genres || [],
             };
         }

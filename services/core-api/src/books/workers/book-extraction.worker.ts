@@ -206,10 +206,13 @@ export class BookExtractionWorker implements OnModuleInit {
                         extractedAt: new Date(),
                         fullTextKey,
                         pageCount: extracted.metadata.pageCount,
-                        // Cover image & genres from Google Books
+                        // Cover image & genres from API
                         coverImageUrl: coverResult.coverImageUrl,
                         coverImageKey: coverResult.coverImageKey,
-                        genres: coverResult.genres,
+                        // Only overwrite genres if new extraction found some —
+                        // prevents clearing existing genres when cover source changes
+                        // (e.g. Open Library provides cover but no genres)
+                        ...(coverResult.genres.length > 0 && { genres: coverResult.genres }),
                         // Store extraction warnings for user notification
                         extractionWarnings: extracted.extractionWarnings || [],
                         // Update metadata - always update title/author if we have better versions
