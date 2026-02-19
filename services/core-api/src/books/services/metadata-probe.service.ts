@@ -1,10 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { TextExtractionService } from './text-extraction.service';
 import { CoverExtractionService } from './cover-extraction.service';
-import {
-    cleanMetadataTitle,
-    cleanMetadataAuthor,
-} from '../utils/metadata-cleaning.utils';
+import { cleanMetadataTitle, cleanMetadataAuthor } from '../utils/metadata-cleaning.utils';
 
 export interface ProbeResult {
     reExtract: boolean;
@@ -28,6 +25,15 @@ export class MetadataProbeService {
         private textExtractionService: TextExtractionService,
         private coverExtractionService: CoverExtractionService,
     ) {}
+
+    /**
+     * Extract the Google Books volume ID from a cover URL.
+     * URLs look like: https://books.google.com/books/content?id=VOLUME_ID&...
+     */
+    private extractGoogleBooksVolumeId(url: string): string | null {
+        const match = url.match(/[?&]id=([^&]+)/);
+        return match ? match[1] : null;
+    }
 
     /**
      * Determine whether re-extracting a book would produce better metadata
@@ -55,19 +61,14 @@ export class MetadataProbeService {
 
         try {
             // 1. Extract metadata from the uploaded file
-            const metadata =
-                await this.textExtractionService.extractMetadataOnly(
-                    fileBuffer,
-                    sourceType,
-                );
+            const metadata = await this.textExtractionService.extractMetadataOnly(
+                fileBuffer,
+                sourceType,
+            );
 
             // 2. Clean metadata
-            const probedTitle = metadata.title
-                ? cleanMetadataTitle(metadata.title)
-                : null;
-            const probedAuthor = metadata.author
-                ? cleanMetadataAuthor(metadata.author)
-                : null;
+            const probedTitle = metadata.title ? cleanMetadataTitle(metadata.title) : null;
+            const probedAuthor = metadata.author ? cleanMetadataAuthor(metadata.author) : null;
 
             this.logger.log(
                 `Probe metadata: title="${probedTitle}", author="${probedAuthor}" ` +
@@ -79,11 +80,10 @@ export class MetadataProbeService {
             const searchTitle = probedTitle || existingBook.title;
             const searchAuthor = probedAuthor || existingBook.author;
 
-            const googleResult =
-                await this.coverExtractionService.probeGoogleBooksCover({
-                    title: searchTitle,
-                    author: searchAuthor || undefined,
-                });
+            const googleResult = await this.coverExtractionService.probeGoogleBooksCover({
+                title: searchTitle,
+                author: searchAuthor || undefined,
+            });
 
             // 4. Compare and decide
             const improvements: string[] = [];
@@ -91,6 +91,21 @@ export class MetadataProbeService {
             // Check: missing cover
             if (!existingBook.coverImageUrl && googleResult.coverUrl) {
                 improvements.push('cover image available');
+            }
+
+            // Check: cover points to a different Google Books volume
+            // (improved scoring/filtering may have found the correct book)
+            if (existingBook.coverImageUrl && googleResult.coverUrl) {
+                const existingVolumeId = this.extractGoogleBooksVolumeId(
+                    existingBook.coverImageUrl,
+                );
+                const probedVolumeId = this.extractGoogleBooksVolumeId(googleResult.coverUrl);
+
+                if (existingVolumeId && probedVolumeId && existingVolumeId !== probedVolumeId) {
+                    improvements.push(
+                        `cover source changed (volume ${existingVolumeId} → ${probedVolumeId})`,
+                    );
+                }
             }
 
             // Check: missing author
@@ -103,9 +118,7 @@ export class MetadataProbeService {
                 (!existingBook.genres || existingBook.genres.length === 0) &&
                 googleResult.genres.length > 0
             ) {
-                improvements.push(
-                    `genres found: ${googleResult.genres.join(', ')}`,
-                );
+                improvements.push(`genres found: ${googleResult.genres.join(', ')}`);
             }
 
             // Check: title has junk that cleaning would fix
@@ -134,9 +147,7 @@ export class MetadataProbeService {
                 reason: 'No improvements detected',
             };
         } catch (error) {
-            this.logger.error(
-                `Probe failed for "${existingBook.title}": ${error.message}`,
-            );
+            this.logger.error(`Probe failed for "${existingBook.title}": ${error.message}`);
             // On probe failure, don't block the upload — just reuse existing
             return {
                 reExtract: false,
