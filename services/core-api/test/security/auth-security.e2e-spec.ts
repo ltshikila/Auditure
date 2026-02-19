@@ -408,21 +408,18 @@ describe('Security: Authentication & JWT Token Attacks (e2e)', () => {
                 );
             });
 
-            it('should reject request with missing dateOfBirth', async () => {
+            it('should accept request with missing dateOfBirth (optional field)', async () => {
                 const response = await request(app.getHttpServer())
                     .post('/auth/register')
                     .send({
                         firstName: 'Test',
                         lastName: 'User',
-                        email: 'valid@example.com',
+                        email: 'optional-dob@example.com',
                         password: 'securePassword123',
-                    })
-                    .expect(400);
+                    });
 
-                expect(response.body.statusCode).toBe(400);
-                expect(response.body.message).toEqual(
-                    expect.arrayContaining([expect.stringContaining('dateOfBirth')]),
-                );
+                // Should not reject for missing dateOfBirth — it's optional
+                expect(response.status).not.toBe(400);
             });
 
             it('should reject completely empty body', async () => {
