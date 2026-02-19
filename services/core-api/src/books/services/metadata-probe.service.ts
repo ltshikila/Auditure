@@ -93,23 +93,32 @@ export class MetadataProbeService {
                 improvements.push('cover image available');
             }
 
-            // Check: cover points to a different Google Books volume
-            // (improved scoring/filtering may have found the correct book)
+            // Check: probe found a better cover from a different source
             if (existingBook.coverImageUrl && googleResult.coverUrl) {
-                const existingVolumeId = this.extractGoogleBooksVolumeId(
-                    existingBook.coverImageUrl,
-                );
-                const probedVolumeId = this.extractGoogleBooksVolumeId(googleResult.coverUrl);
+                const existingIsGoogleBooks =
+                    existingBook.coverImageUrl.includes('books.google.com');
+                const probedIsGoogleBooks = googleResult.coverUrl.includes('books.google.com');
 
-                if (existingVolumeId && probedVolumeId && existingVolumeId !== probedVolumeId) {
+                if (existingIsGoogleBooks && !probedIsGoogleBooks) {
+                    // Cover moved from Google Books to a different source (e.g. Open Library)
                     improvements.push(
-                        `cover source changed (volume ${existingVolumeId} → ${probedVolumeId})`,
+                        `cover source changed from Google Books to ${new URL(googleResult.coverUrl).hostname}`,
                     );
+                } else if (existingIsGoogleBooks && probedIsGoogleBooks) {
+                    // Both Google Books — compare volume IDs
+                    const existingVolumeId = this.extractGoogleBooksVolumeId(
+                        existingBook.coverImageUrl,
+                    );
+                    const probedVolumeId = this.extractGoogleBooksVolumeId(googleResult.coverUrl);
+                    if (existingVolumeId && probedVolumeId && existingVolumeId !== probedVolumeId) {
+                        improvements.push(
+                            `cover source changed (volume ${existingVolumeId} → ${probedVolumeId})`,
+                        );
+                    }
                 }
             }
 
-            // Check: existing cover is from Google Books but scoring now rejects it
-            // (the original match may have been a low-quality abridged/sample edition)
+            // Check: existing cover is from Google Books but no cover found at all now
             if (existingBook.coverImageUrl && !googleResult.coverUrl) {
                 const existingVolumeId = this.extractGoogleBooksVolumeId(
                     existingBook.coverImageUrl,
