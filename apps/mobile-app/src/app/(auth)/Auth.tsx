@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, Image, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { router } from 'expo-router';
@@ -315,13 +315,13 @@ export default function AuthScreen() {
             By signing up, you agree to our{' '}
             <Text
               className="text-brand-gold font-inter-medium"
-              onPress={() => router.push('/legal/terms')}>
+              onPress={() => Linking.openURL('https://auditure.app/terms')}>
               Terms of Service
             </Text>
             {' '}and{' '}
             <Text
               className="text-brand-gold font-inter-medium"
-              onPress={() => router.push('/legal/privacy')}>
+              onPress={() => Linking.openURL('https://auditure.app/privacy')}>
               Privacy Policy
             </Text>
           </Text>

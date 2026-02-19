@@ -10,6 +10,7 @@ import {
     Modal,
     Platform,
     Image,
+    Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -770,7 +771,7 @@ export default function Profile() {
                     <Text className="font-inter-bold text-lg text-gray-900 mb-4">Legal</Text>
 
                     <TouchableOpacity
-                        onPress={() => router.push('/legal/terms')}
+                        onPress={() => Linking.openURL('https://auditure.app/terms')}
                         className="flex-row items-center justify-between py-4 border-b border-gray-100">
                         <View className="flex-row items-center">
                             <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
@@ -782,7 +783,7 @@ export default function Profile() {
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        onPress={() => router.push('/legal/privacy')}
+                        onPress={() => Linking.openURL('https://auditure.app/privacy')}
                         className="flex-row items-center justify-between py-4">
                         <View className="flex-row items-center">
                             <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">

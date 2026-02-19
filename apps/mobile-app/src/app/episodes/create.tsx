@@ -997,14 +997,9 @@ const Create = () => {
                                         </View>
                                     </View>
 
-                                    <View className="flex-row justify-between">
-                                        <Text className="font-inter text-[#858585] text-xs">
-                                            {displayProgress}% uploaded
-                                        </Text>
-                                        <Text className="font-inter text-[#858585] text-xs">
-                                            Upload continues in background
-                                        </Text>
-                                    </View>
+                                    <Text className="font-inter text-[#858585] text-xs">
+                                        {displayProgress}% uploaded
+                                    </Text>
                                 </>
                             );
                         })()}
