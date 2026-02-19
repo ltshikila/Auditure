@@ -1,8 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import {
-    normalizeBookTitle,
-    titlesMatch as utilTitlesMatch,
-} from '../utils/book-matching.utils';
+import { normalizeBookTitle, titlesMatch as utilTitlesMatch } from '../utils/book-matching.utils';
 
 export interface CoverExtractionResult {
     coverImageUrl: string | null;
@@ -42,7 +39,9 @@ export class CoverExtractionService {
         if (googleResult?.coverUrl) {
             this.logger.log(`Found cover from Google Books for "${metadata.title}"`);
             if (googleResult.genres.length > 0) {
-                this.logger.log(`Found genres from Google Books: ${googleResult.genres.join(', ')}`);
+                this.logger.log(
+                    `Found genres from Google Books: ${googleResult.genres.join(', ')}`,
+                );
             }
             return {
                 coverImageUrl: googleResult.coverUrl,
@@ -219,9 +218,7 @@ export class CoverExtractionService {
         const extra = normReturned.replace(normExpected, '').trim();
         if (!extra) return false; // Exact match or subset — not derivative
 
-        return CoverExtractionService.DERIVATIVE_KEYWORDS.some(
-            (keyword) => extra.includes(keyword),
-        );
+        return CoverExtractionService.DERIVATIVE_KEYWORDS.some(keyword => extra.includes(keyword));
     }
 
     /**
@@ -277,7 +274,7 @@ export class CoverExtractionService {
         } else if (pageCount >= 100) {
             score += 10;
         } else if (pageCount > 0 && pageCount < 100) {
-            score -= 10; // Penalize very short books (likely summaries)
+            score -= 25; // Strong penalty: likely a summary/abridged/sample edition
         }
         // pageCount === 0 means unknown, no bonus or penalty
 
@@ -344,9 +341,7 @@ export class CoverExtractionService {
                         expectedAuthor,
                     );
                     if (score < 0) {
-                        this.logger.log(
-                            `    Skipping - rejected (score: ${score})`,
-                        );
+                        this.logger.log(`    Skipping - rejected (score: ${score})`);
                         continue;
                     }
 
@@ -374,13 +369,23 @@ export class CoverExtractionService {
             // Sort by score descending and try each (best first)
             candidates.sort((a, b) => b.score - a.score);
 
-            for (const candidate of candidates) {
+            // Reject candidates below minimum confidence threshold.
+            // This prevents selecting low-quality matches (e.g. abridged editions
+            // that happen to be the only result with a cover image).
+            const MIN_SCORE = 50;
+            const validCandidates = candidates.filter(c => c.score >= MIN_SCORE);
+            if (validCandidates.length === 0) {
+                this.logger.log(
+                    `All candidates below minimum score ${MIN_SCORE} for query: ${query} (best: ${candidates[0]?.score})`,
+                );
+                return null;
+            }
+
+            for (const candidate of validCandidates) {
                 const { volumeInfo, coverUrl: rawCoverUrl, score } = candidate;
 
                 // Clean up the cover URL
-                let cleanUrl = rawCoverUrl
-                    .replace('http://', 'https://')
-                    .replace('&edge=curl', '');
+                let cleanUrl = rawCoverUrl.replace('http://', 'https://').replace('&edge=curl', '');
 
                 // Upgrade to higher resolution
                 if (cleanUrl.includes('zoom=1')) {

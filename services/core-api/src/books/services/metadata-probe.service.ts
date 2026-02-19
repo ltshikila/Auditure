@@ -108,6 +108,19 @@ export class MetadataProbeService {
                 }
             }
 
+            // Check: existing cover is from Google Books but scoring now rejects it
+            // (the original match may have been a low-quality abridged/sample edition)
+            if (existingBook.coverImageUrl && !googleResult.coverUrl) {
+                const existingVolumeId = this.extractGoogleBooksVolumeId(
+                    existingBook.coverImageUrl,
+                );
+                if (existingVolumeId) {
+                    improvements.push(
+                        `existing Google Books cover (${existingVolumeId}) no longer passes scoring`,
+                    );
+                }
+            }
+
             // Check: missing author
             if (!existingBook.author && probedAuthor) {
                 improvements.push(`author found: "${probedAuthor}"`);
