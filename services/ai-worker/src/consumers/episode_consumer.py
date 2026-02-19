@@ -281,27 +281,38 @@ class EpisodeConsumer(BaseConsumer):
             # The user needs to select more content or adjust duration expectations
 
         except Exception as e:
+            is_final_attempt = self._current_retry_count >= self.max_retries
+
             logger.error("=" * 50)
             logger.error(f"[EPISODE] FAILED: {episode_id}")
             logger.error(f"[EPISODE] Error: {type(e).__name__}: {e}")
+            logger.error(
+                f"[EPISODE] Attempt {self._current_retry_count + 1}/{self.max_retries + 1}"
+                f" — {'final attempt, notifying user' if is_final_attempt else 'will retry'}"
+            )
             logger.error("=" * 50)
 
-            # Update status to FAILED
-            self._update_status(
-                episode_id,
-                EpisodeStatus.FAILED,
-                generation_error=str(e),
-            )
-            self._update_progress(episode_id, 0, "FAILED")
+            if is_final_attempt:
+                # Final attempt exhausted — mark as FAILED and notify user
+                self._update_status(
+                    episode_id,
+                    EpisodeStatus.FAILED,
+                    generation_error=str(e),
+                )
+                self._update_progress(episode_id, 0, "FAILED")
 
-            # Notify user of failure
-            self._send_notification(
-                user_id=message["userId"],
-                episode_id=episode_id,
-                episode_title=message.get("title", "your episode"),
-                is_ready=False,
-                error_message="Please try again.",
-            )
+                self._send_notification(
+                    user_id=message["userId"],
+                    episode_id=episode_id,
+                    episode_title=message.get("title", "your episode"),
+                    is_ready=False,
+                    error_message="Please try again.",
+                )
+            else:
+                # Intermediate failure — will be retried, don't notify user
+                # Reset status so the retry starts fresh
+                self._update_status(episode_id, EpisodeStatus.PENDING)
+                self._update_progress(episode_id, 0, "RETRYING")
 
             # Re-raise for retry logic
             raise

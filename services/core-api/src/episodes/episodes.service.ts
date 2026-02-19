@@ -1516,8 +1516,8 @@ export class EpisodesService {
         }
 
         try {
-            // Search for author on Open Library
-            const searchUrl = `https://openlibrary.org/search/authors.json?q=${encodeURIComponent(authorName)}&limit=1`;
+            // Search for author on Open Library (fetch multiple to find best match)
+            const searchUrl = `https://openlibrary.org/search/authors.json?q=${encodeURIComponent(authorName)}&limit=5`;
             const searchResponse = await fetch(searchUrl);
 
             if (!searchResponse.ok) {
@@ -1534,7 +1534,34 @@ export class EpisodesService {
                 return null;
             }
 
-            const authorDoc = searchData.docs[0];
+            // Find best match by name similarity (exact match preferred)
+            const normalizedQuery = authorName.toLowerCase().trim();
+            const authorDoc = searchData.docs.reduce((best: any, doc: any) => {
+                const name = (doc.name || '').toLowerCase().trim();
+                const bestName = (best.name || '').toLowerCase().trim();
+
+                // Exact match always wins
+                if (name === normalizedQuery) return doc;
+                if (bestName === normalizedQuery) return best;
+
+                // Prefer name that starts with or equals the query
+                const docStarts = name.startsWith(normalizedQuery) || normalizedQuery.startsWith(name);
+                const bestStarts = bestName.startsWith(normalizedQuery) || normalizedQuery.startsWith(bestName);
+                if (docStarts && !bestStarts) return doc;
+                if (bestStarts && !docStarts) return best;
+
+                // Prefer shorter name (less likely to be a different person with extra name parts)
+                if (name.length !== bestName.length) {
+                    return name.length < bestName.length ? doc : best;
+                }
+
+                // Prefer more works (more prominent author)
+                return (doc.work_count || 0) > (best.work_count || 0) ? doc : best;
+            }, searchData.docs[0]);
+
+            this.logger.log(
+                `Open Library author match for "${authorName}": "${authorDoc.name}" (${authorDoc.work_count} works)`,
+            );
             const authorKey = authorDoc.key;
 
             // Fetch detailed author info

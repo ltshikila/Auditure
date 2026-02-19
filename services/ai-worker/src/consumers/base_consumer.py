@@ -132,6 +132,9 @@ class BaseConsumer(ABC):
             message = json.loads(body.decode("utf-8"))
             logger.info(f"Processing message (attempt {retry_count + 1}/{self.max_retries + 1})")
 
+            # Expose retry info so subclasses can check if this is the final attempt
+            self._current_retry_count = retry_count
+
             # Process message
             self.process_message(message)
 
