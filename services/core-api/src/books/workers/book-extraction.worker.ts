@@ -61,10 +61,19 @@ export class BookExtractionWorker implements OnModuleInit {
 
             // Determine best title for cover search - prefer PDF metadata, then database title
             let coverSearchTitle = extracted.metadata.title;
+            if (coverSearchTitle) {
+                coverSearchTitle = this.cleanMetadataTitle(coverSearchTitle);
+                this.logger.log(`Using cleaned metadata title for cover search: "${coverSearchTitle}"`);
+            }
             if (!coverSearchTitle && currentBook?.title) {
                 coverSearchTitle = this.cleanupTitle(currentBook.title);
                 this.logger.log(`Using database title for cover search: "${coverSearchTitle}"`);
             }
+
+            // Clean author metadata for cover search
+            const coverSearchAuthor = extracted.metadata.author
+                ? this.cleanMetadataAuthor(extracted.metadata.author)
+                : undefined;
 
             // 4. Extract cover image (hybrid: Google Books API + file extraction)
             const storageKey = `${job.userId}/${job.bookId}`;
@@ -73,7 +82,7 @@ export class BookExtractionWorker implements OnModuleInit {
                 job.sourceType,
                 {
                     title: coverSearchTitle,
-                    author: extracted.metadata.author,
+                    author: coverSearchAuthor || undefined,
                 },
                 async (imageBuffer, key) => {
                     await this.storageService.uploadFile(imageBuffer, key, 'image/jpeg');
@@ -167,6 +176,9 @@ export class BookExtractionWorker implements OnModuleInit {
             // 6. Determine best title/author for database update
             // (currentBook was already fetched earlier for cover search)
             let bestTitle = extracted.metadata.title;
+            if (bestTitle) {
+                bestTitle = this.cleanMetadataTitle(bestTitle);
+            }
             if (!bestTitle && currentBook?.title) {
                 // URL-decode and clean up existing title (often from filename)
                 bestTitle = this.cleanupTitle(currentBook.title);
@@ -174,6 +186,9 @@ export class BookExtractionWorker implements OnModuleInit {
 
             // Determine best author - prefer PDF metadata, then try to extract from content
             let bestAuthor = extracted.metadata.author;
+            if (bestAuthor) {
+                bestAuthor = this.cleanMetadataAuthor(bestAuthor);
+            }
             if (!bestAuthor && extracted.fullText) {
                 bestAuthor = this.extractAuthorFromContent(extracted.fullText);
             }
@@ -513,6 +528,93 @@ export class BookExtractionWorker implements OnModuleInit {
 
         // Clean up multiple spaces
         cleaned = cleaned.replace(/\s+/g, ' ').trim();
+
+        return cleaned;
+    }
+
+    /**
+     * Clean junk from PDF/EPUB metadata titles.
+     * Common issues:
+     * - Download site tags: "(PDFDrive.com)", "[BooksLD]", "(z-lib.org)"
+     * - File extensions: ".pdf", ".epub"
+     * - Edition noise: "- Free PDF", "(Original)", "_ OceanofPDF.com"
+     */
+    private cleanMetadataTitle(title: string): string {
+        if (!title) return title;
+
+        let cleaned = title;
+
+        // Remove common download site tags in parentheses/brackets
+        cleaned = cleaned.replace(
+            /\s*[\(\[\{]\s*(PDFDrive\.com|PDFDrive|z-lib\.org|z-lib|zlibrary|libgen|BooksLD|OceanofPDF\.com|OceanofPDF|epubBooks|AllBooksWorld|Free-eBooks\.net|MustRead|b-ok\.org|b-ok|bookrix|ebook3000)\s*[\)\]\}]/gi,
+            '',
+        );
+
+        // Remove download site tags without brackets (e.g. "_ OceanofPDF.com")
+        cleaned = cleaned.replace(
+            /\s*[_\-|]\s*(PDFDrive\.com|PDFDrive|z-lib\.org|OceanofPDF\.com|OceanofPDF|BooksLD|Free-eBooks\.net)\s*$/gi,
+            '',
+        );
+
+        // Remove file extensions
+        cleaned = cleaned.replace(/\.(pdf|epub|mobi|azw3?|txt|docx?)$/gi, '');
+
+        // Remove trailing "- Free PDF", "- Free Download", etc.
+        cleaned = cleaned.replace(/\s*[-_]\s*Free\s*(PDF|Download|eBook)?\s*$/gi, '');
+
+        // Clean up multiple spaces and trim
+        cleaned = cleaned.replace(/\s+/g, ' ').trim();
+
+        if (cleaned !== title) {
+            this.logger.log(`Cleaned metadata title: "${title}" → "${cleaned}"`);
+        }
+
+        return cleaned || title; // Fallback to original if cleaning emptied it
+    }
+
+    /**
+     * Clean junk from PDF/EPUB metadata author fields.
+     * Common issues:
+     * - Publisher names instead of authors: "Penguin Random House", "HarperCollins"
+     * - Software names: "Microsoft Word", "Adobe InDesign", "calibre"
+     * - Download site attribution: "PDFDrive.com"
+     */
+    private cleanMetadataAuthor(author: string): string | null {
+        if (!author) return null;
+
+        const cleaned = author.trim();
+
+        // Reject if it looks like a software/tool name
+        const softwarePatterns = [
+            /^microsoft/i,
+            /^adobe/i,
+            /^calibre/i,
+            /^writer$/i,
+            /^unknown$/i,
+            /^author$/i,
+            /^none$/i,
+            /^n\/a$/i,
+        ];
+        if (softwarePatterns.some((p) => p.test(cleaned))) {
+            this.logger.log(`Rejected metadata author (software/placeholder): "${cleaned}"`);
+            return null;
+        }
+
+        // Reject if it looks like a download site
+        if (/\.(com|org|net|io)$/i.test(cleaned)) {
+            this.logger.log(`Rejected metadata author (website): "${cleaned}"`);
+            return null;
+        }
+
+        // Reject if it looks like a publisher (common publisher keywords)
+        const publisherPatterns = [
+            /\b(publishing|publishers|publications|press|books|media|group|inc|ltd|llc|corp)\b/i,
+            /^(penguin|harpercollins|simon|macmillan|hachette|wiley|elsevier|springer|oxford|cambridge)/i,
+        ];
+        if (publisherPatterns.some((p) => p.test(cleaned))) {
+            this.logger.log(`Rejected metadata author (publisher): "${cleaned}"`);
+            return null;
+        }
 
         return cleaned;
     }

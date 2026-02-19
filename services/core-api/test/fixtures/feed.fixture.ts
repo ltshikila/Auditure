@@ -26,6 +26,8 @@ export const createMockEpisodeFeedItem = (
     duration: 1200, // 20 minutes in seconds (matches schema)
     playCount: 100,
     likeCount: 25,
+    averageRating: 0,
+    ratingCount: 0,
     createdAt: new Date(),
     book: {
         id: randomUUID(),

@@ -149,7 +149,7 @@ export class CoverExtractionService {
         // Try each query until we find a cover
         for (const query of queries) {
             this.logger.log(`Trying Google Books query: ${query}`);
-            const result = await this.tryGoogleBooksQuery(query, metadata.title);
+            const result = await this.tryGoogleBooksQuery(query, metadata.title, metadata.author);
             if (result) {
                 return result;
             }
@@ -175,12 +175,109 @@ export class CoverExtractionService {
     }
 
     /**
+     * Words in a Google Books title that indicate a derivative/summary work.
+     * These should be skipped in favor of the original book.
+     */
+    private static readonly DERIVATIVE_KEYWORDS = [
+        'summary',
+        'analysis',
+        'workbook',
+        'study guide',
+        'companion',
+        'cliff notes',
+        'cliffnotes',
+        'sparknotes',
+        'book review',
+        'book summary',
+        'quick read',
+        'key takeaways',
+        'illustrated edition',
+    ];
+
+    /**
+     * Check if a Google Books title indicates a summary/derivative work.
+     */
+    private isDerivativeWork(returnedTitle: string, expectedTitle: string): boolean {
+        const normReturned = this.normalizeTitle(returnedTitle);
+        const normExpected = this.normalizeTitle(expectedTitle);
+
+        // If the returned title adds derivative keywords beyond the expected title, skip it
+        const extra = normReturned.replace(normExpected, '').trim();
+        if (!extra) return false; // Exact match or subset — not derivative
+
+        return CoverExtractionService.DERIVATIVE_KEYWORDS.some(
+            (keyword) => extra.includes(keyword),
+        );
+    }
+
+    /**
+     * Score a Google Books result for how well it matches the expected book.
+     * Higher score = better match. Returns -1 if the result should be rejected.
+     */
+    private scoreGoogleBooksResult(
+        volumeInfo: any,
+        expectedTitle: string,
+        expectedAuthor?: string,
+    ): number {
+        const returnedTitle = volumeInfo?.title || '';
+        const normExpected = this.normalizeTitle(expectedTitle);
+        const normReturned = this.normalizeTitle(returnedTitle);
+
+        let score = 0;
+
+        // Exact title match is strongly preferred
+        if (normExpected === normReturned) {
+            score += 50;
+        } else if (normExpected.includes(normReturned) || normReturned.includes(normExpected)) {
+            // Containment match — but penalize if the returned title is much longer
+            // (likely a derivative: "The Laws of Human Nature: Summary and Analysis")
+            const lengthRatio = normReturned.length / normExpected.length;
+            if (lengthRatio > 1.5) {
+                score += 10; // Weak containment match
+            } else {
+                score += 30; // Close containment match (e.g. subtitle difference)
+            }
+        } else {
+            return -1; // No title match at all
+        }
+
+        // Filter out derivative/summary works
+        if (this.isDerivativeWork(returnedTitle, expectedTitle)) {
+            this.logger.log(`    Derivative work detected: "${returnedTitle}"`);
+            return -1;
+        }
+
+        // Author match bonus
+        if (expectedAuthor && volumeInfo?.authors?.length > 0) {
+            const returnedAuthors = volumeInfo.authors.join(' ').toLowerCase();
+            const normAuthor = expectedAuthor.toLowerCase();
+            if (returnedAuthors.includes(normAuthor) || normAuthor.includes(returnedAuthors)) {
+                score += 20;
+            }
+        }
+
+        // Page count: prefer substantial books over thin summaries/pamphlets
+        const pageCount = volumeInfo?.pageCount || 0;
+        if (pageCount >= 200) {
+            score += 15;
+        } else if (pageCount >= 100) {
+            score += 10;
+        } else if (pageCount > 0 && pageCount < 100) {
+            score -= 10; // Penalize very short books (likely summaries)
+        }
+        // pageCount === 0 means unknown, no bonus or penalty
+
+        return score;
+    }
+
+    /**
      * Execute a single Google Books API query and extract cover URL.
-     * Validates that the returned book title matches the expected title.
+     * Scores all matching results and picks the best one instead of first-match-wins.
      */
     private async tryGoogleBooksQuery(
         query: string,
         expectedTitle?: string,
+        expectedAuthor?: string,
     ): Promise<GoogleBooksResult | null> {
         try {
             const url = `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=5`;
@@ -201,15 +298,22 @@ export class CoverExtractionService {
 
             this.logger.log(`Got ${data.items.length} results from Google Books`);
 
-            // Find the first result that matches the expected title and has an image
+            // Score all results and collect valid candidates
+            const candidates: {
+                score: number;
+                volumeInfo: any;
+                coverUrl: string;
+            }[] = [];
+
             for (const item of data.items) {
                 const volumeInfo = item.volumeInfo;
-                const returnedTitle = volumeInfo?.title;
+                const returnedTitle = volumeInfo?.title || '';
                 const returnedAuthors = volumeInfo?.authors?.join(', ') || 'unknown';
                 const imageLinks = volumeInfo?.imageLinks;
+                const pageCount = volumeInfo?.pageCount || 0;
 
                 this.logger.log(
-                    `  Result: "${returnedTitle}" by ${returnedAuthors}, hasImage: ${!!imageLinks}`,
+                    `  Result: "${returnedTitle}" by ${returnedAuthors}, pages: ${pageCount}, hasImage: ${!!imageLinks}`,
                 );
 
                 // Skip results without images
@@ -218,63 +322,79 @@ export class CoverExtractionService {
                     continue;
                 }
 
-                // Validate title match if expected title provided
-                if (expectedTitle && returnedTitle) {
-                    if (!this.titlesMatch(expectedTitle, returnedTitle)) {
-                        this.logger.log(
-                            `    Skipping - title mismatch: expected "${expectedTitle}"`,
-                        );
-                        continue;
-                    }
-                    this.logger.log(`    Title match confirmed!`);
-                }
-
-                // Prefer larger images: extraLarge > large > medium > small > thumbnail
-                const coverUrl =
-                    imageLinks.extraLarge ||
-                    imageLinks.large ||
-                    imageLinks.medium ||
-                    imageLinks.small ||
-                    imageLinks.thumbnail;
-
-                if (coverUrl) {
-                    // Google Books URLs use HTTP, convert to HTTPS
-                    // Also remove edge=curl parameter which adds a page curl effect
-                    let cleanUrl = coverUrl
-                        .replace('http://', 'https://')
-                        .replace('&edge=curl', '');
-
-                    // Upgrade to higher resolution if possible
-                    // Google Books zoom parameter: 1=128px, 2=256px, 3=512px, 4=800px
-                    // Replace zoom=1 with zoom=4 for highest resolution
-                    if (cleanUrl.includes('zoom=1')) {
-                        cleanUrl = cleanUrl.replace('zoom=1', 'zoom=4');
-                    } else if (!cleanUrl.includes('zoom=')) {
-                        // Add zoom parameter if not present
-                        cleanUrl += (cleanUrl.includes('?') ? '&' : '?') + 'zoom=4';
-                    }
-
-                    // Validate the image isn't a Google Books "image not available" placeholder
-                    const isPlaceholder = await this.isGoogleBooksPlaceholder(cleanUrl);
-                    if (isPlaceholder) {
-                        this.logger.warn(
-                            `    Skipping - Google Books returned placeholder image for "${returnedTitle}"`,
-                        );
-                        continue;
-                    }
-
-                    const categories: string[] = volumeInfo?.categories || [];
-                    this.logger.log(
-                        `Found Google Books cover for "${returnedTitle}" (query: "${query}"): ${cleanUrl}`,
+                // Score this result
+                if (expectedTitle) {
+                    const score = this.scoreGoogleBooksResult(
+                        volumeInfo,
+                        expectedTitle,
+                        expectedAuthor,
                     );
-                    if (categories.length > 0) {
-                        this.logger.log(`  Categories: ${categories.join(', ')}`);
+                    if (score < 0) {
+                        this.logger.log(
+                            `    Skipping - rejected (score: ${score})`,
+                        );
+                        continue;
                     }
-                    return { coverUrl: cleanUrl, genres: categories };
+
+                    this.logger.log(`    Score: ${score}`);
+
+                    // Prefer larger images: extraLarge > large > medium > small > thumbnail
+                    const rawCoverUrl =
+                        imageLinks.extraLarge ||
+                        imageLinks.large ||
+                        imageLinks.medium ||
+                        imageLinks.small ||
+                        imageLinks.thumbnail;
+
+                    if (rawCoverUrl) {
+                        candidates.push({ score, volumeInfo, coverUrl: rawCoverUrl });
+                    }
                 }
             }
 
-            this.logger.debug(`No matching results with images for query: ${query}`);
+            if (candidates.length === 0) {
+                this.logger.debug(`No matching results with images for query: ${query}`);
+                return null;
+            }
+
+            // Sort by score descending and try each (best first)
+            candidates.sort((a, b) => b.score - a.score);
+
+            for (const candidate of candidates) {
+                const { volumeInfo, coverUrl: rawCoverUrl, score } = candidate;
+
+                // Clean up the cover URL
+                let cleanUrl = rawCoverUrl
+                    .replace('http://', 'https://')
+                    .replace('&edge=curl', '');
+
+                // Upgrade to higher resolution
+                if (cleanUrl.includes('zoom=1')) {
+                    cleanUrl = cleanUrl.replace('zoom=1', 'zoom=4');
+                } else if (!cleanUrl.includes('zoom=')) {
+                    cleanUrl += (cleanUrl.includes('?') ? '&' : '?') + 'zoom=4';
+                }
+
+                // Validate the image isn't a placeholder
+                const isPlaceholder = await this.isGoogleBooksPlaceholder(cleanUrl);
+                if (isPlaceholder) {
+                    this.logger.warn(
+                        `    Skipping best candidate "${volumeInfo.title}" (score: ${score}) - placeholder image`,
+                    );
+                    continue;
+                }
+
+                const categories: string[] = volumeInfo?.categories || [];
+                this.logger.log(
+                    `Selected Google Books cover: "${volumeInfo.title}" (score: ${score}, pages: ${volumeInfo.pageCount || '?'}, query: "${query}"): ${cleanUrl}`,
+                );
+                if (categories.length > 0) {
+                    this.logger.log(`  Categories: ${categories.join(', ')}`);
+                }
+                return { coverUrl: cleanUrl, genres: categories };
+            }
+
+            this.logger.debug(`All candidates had placeholder images for query: ${query}`);
             return null;
         } catch (error) {
             this.logger.warn(`Google Books API fetch failed: ${error.message}`);
