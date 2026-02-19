@@ -567,6 +567,8 @@ Handles text extraction from files:
 Handles cover image extraction with fallback strategy:
 - `extractCover()` - Main entry point for cover extraction
 - `fetchGoogleBooksCover()` - Query Google Books API for high-quality covers
+- `scoreGoogleBooksResult()` - Score candidates by title match, author, page count (replaces first-match-wins)
+- `isDerivativeWork()` - Filter out summaries, workbooks, study guides, cliff notes, etc.
 - `extractPdfCover()` - Extract embedded images or render first page
 - `extractEpubCover()` - Extract cover from EPUB metadata (partial)
 - Title validation to prevent incorrect cover matches
@@ -596,10 +598,12 @@ Message queue integration:
 Background worker that processes extraction jobs:
 1. Download file from storage
 2. Extract text based on file type
-3. Detect chapters automatically
-4. Store extracted text and chapters
-5. Update book status
-6. Post-extraction consolidation: compare quality with existing copies and establish canonical version
+3. Clean metadata titles (strip download site tags like `(PDFDrive.com)`, `[BooksLD]`, file extensions)
+4. Clean metadata authors (reject publishers, software names, websites, placeholders)
+5. Detect chapters automatically
+6. Store extracted text and chapters
+7. Update book status
+8. Post-extraction consolidation: compare quality with existing copies and establish canonical version
 
 ### DTOs
 
@@ -822,8 +826,36 @@ Queries the free Google Books API to find high-quality cover images:
 2. **Title + Author** - Combined search (`intitle:gatsby+inauthor:fitzgerald`)
 3. **Title only** - Fallback for incorrect author metadata
 
-**Features:**
-- Title validation prevents wrong book covers
+**Result Selection (Scoring System):**
+
+Instead of picking the first matching result, all candidates are scored and the highest-scoring one is selected:
+
+| Signal | Points | Rationale |
+|--------|--------|-----------|
+| Exact title match | +50 | Strongly preferred |
+| Close containment match (< 1.5x length) | +30 | Subtitle differences |
+| Weak containment match (> 1.5x length) | +10 | Likely derivative |
+| Author match | +20 | Confirms correct book |
+| Page count >= 200 | +15 | Full-length book |
+| Page count 100-199 | +10 | Moderate length |
+| Page count < 100 | -10 | Likely summary/pamphlet |
+| Derivative work detected | reject | Filtered out entirely |
+
+**Derivative Work Filtering:**
+
+Titles containing these keywords (beyond the expected title) are automatically rejected:
+`summary`, `analysis`, `workbook`, `study guide`, `companion`, `cliff notes`, `sparknotes`, `book review`, `quick read`, `key takeaways`
+
+This prevents matching a 73-page "The Laws of Human Nature: Summary and Illustration" when the user uploaded the actual 550-page book.
+
+**Metadata Cleaning:**
+
+Before searching Google Books, PDF/EPUB metadata is cleaned:
+- **Titles:** Strip download site tags (`(PDFDrive.com)`, `[BooksLD]`, `(z-lib.org)`), file extensions, "Free PDF" suffixes
+- **Authors:** Reject software names (`calibre`, `Adobe`), publisher names (`Penguin`, `HarperCollins`), websites, and placeholders (`unknown`, `N/A`)
+
+**Additional Features:**
+- Placeholder image detection via PNG compression ratio analysis
 - Automatic HTTPS upgrade
 - High-resolution images (zoom=4 parameter)
 - Removes page curl effect (`edge=curl`)
@@ -1071,6 +1103,8 @@ const popular = await booksService.getPopularBooks(10);
 - [x] Coordinate-based same-page chapter splitting
 - [x] Front/back matter filtering (preface, index, bibliography, etc.)
 - [x] Cover image extraction (Google Books API + PDF/EPUB fallback)
+- [x] Google Books scoring system (filter summaries, prefer originals by page count/author)
+- [x] PDF metadata cleaning (download site tags, publisher-as-author rejection)
 - [ ] Language detection and translation
 - [ ] Summary generation using AI
 - [ ] Bookmark and annotation support
