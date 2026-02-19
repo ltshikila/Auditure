@@ -6,6 +6,7 @@ import { BooksService } from './books.service';
 import { TextExtractionService } from './services/text-extraction.service';
 import { CoverExtractionService } from './services/cover-extraction.service';
 import { BookExtractionWorker } from './workers/book-extraction.worker';
+import { MetadataProbeService } from './services/metadata-probe.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
@@ -16,7 +17,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
         NotificationsModule,
     ],
     controllers: [BooksController],
-    providers: [BooksService, TextExtractionService, CoverExtractionService, BookExtractionWorker],
+    providers: [BooksService, TextExtractionService, CoverExtractionService, BookExtractionWorker, MetadataProbeService],
     exports: [BooksService], // For Episodes and Feed modules to consume
 })
 export class BooksModule {}

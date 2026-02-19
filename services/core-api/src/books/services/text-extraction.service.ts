@@ -1492,6 +1492,30 @@ export class TextExtractionService {
         };
     }
 
+    /**
+     * Lightweight metadata-only extraction.
+     * Reads the PDF info dict or EPUB metadata without full text/chapter extraction.
+     * Used by MetadataProbeService to quickly check if re-extraction would improve data.
+     */
+    async extractMetadataOnly(
+        buffer: Buffer,
+        sourceType: 'PDF' | 'EPUB',
+    ): Promise<ExtractedContent['metadata']> {
+        if (sourceType === 'PDF') {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const pdfParse = require('pdf-parse');
+            const data = await pdfParse(buffer);
+            return this.extractEnhancedMetadata(data);
+        } else {
+            const { parseEpub } = await import('@gxl/epub-parser');
+            const epub = await parseEpub(buffer, { type: 'buffer' });
+            return {
+                title: epub.info?.title,
+                author: epub.info?.author,
+            };
+        }
+    }
+
     private detectChaptersInText(text: string, pageCount?: number): ChapterData[] {
         // Patterns for chapter detection - match at start of line
         // Captures: full match, chapter number, optional title

@@ -12,6 +12,7 @@ import { CreateBookDto } from './dto/create-book.dto';
 import { GetTextDto } from './dto/get-text.dto';
 import { randomUUID } from 'crypto';
 import { normalizeBookTitle, booksMatch, computeBookQualityScore } from './utils/book-matching.utils';
+import { MetadataProbeService } from './services/metadata-probe.service';
 
 @Injectable()
 export class BooksService {
@@ -21,6 +22,7 @@ export class BooksService {
         private databaseService: DatabaseService,
         private storageService: StorageService,
         private rabbitMQService: RabbitMQService,
+        private metadataProbeService: MetadataProbeService,
     ) {}
 
     /**
@@ -182,8 +184,30 @@ export class BooksService {
             );
 
             if (existingBook) {
+                // Probe completed books to see if re-extraction would improve data
+                if (
+                    ['COMPLETED', 'PARTIALLY_COMPLETED'].includes(
+                        existingBook.extractionStatus,
+                    )
+                ) {
+                    const probeResult =
+                        await this.metadataProbeService.shouldReExtract(
+                            file.buffer,
+                            createBookDto.sourceType as 'PDF' | 'EPUB',
+                            existingBook,
+                        );
+
+                    if (probeResult.reExtract) {
+                        this.logger.log(
+                            `Probe detected improvements for "${existingBook.title}": ${probeResult.reason}. Triggering re-extraction.`,
+                        );
+                        await this.forceReExtractInternal(existingBook.id);
+                        return existingBook;
+                    }
+                }
+
                 this.logger.log(
-                    `Found existing book "${existingBook.title}" (${existingBook.id}) matching upload title "${cleanedTitle}". Reusing.`,
+                    `Found existing book "${existingBook.title}" (${existingBook.id}) matching upload title "${cleanedTitle}". No improvements detected. Reusing.`,
                 );
                 return existingBook;
             }
@@ -646,5 +670,51 @@ export class BooksService {
         });
 
         return this.findOne(userId, id);
+    }
+
+    /**
+     * Internal force re-extraction without user permission checks.
+     * Used by the metadata probe when it detects improvements.
+     */
+    private async forceReExtractInternal(bookId: string): Promise<void> {
+        const book = await this.databaseService.book.findUnique({
+            where: { id: bookId },
+        });
+
+        if (!book) return;
+
+        if (book.extractionStatus === 'PROCESSING') {
+            this.logger.log(
+                `Book ${bookId} is already being processed, skipping re-extraction`,
+            );
+            return;
+        }
+
+        // Delete existing chapters
+        await this.databaseService.chapter.deleteMany({
+            where: { bookId },
+        });
+
+        // Reset status to pending
+        await this.databaseService.book.update({
+            where: { id: bookId },
+            data: {
+                extractionStatus: 'PENDING',
+                extractionError: null,
+                fullTextKey: null,
+            },
+        });
+
+        // Queue extraction job
+        await this.rabbitMQService.publishBookExtractionJob({
+            bookId: book.id,
+            userId: book.userId,
+            fileStorageKey: book.fileStorageKey,
+            sourceType: book.sourceType as 'PDF' | 'EPUB',
+        });
+
+        this.logger.log(
+            `Queued re-extraction for book ${bookId} (triggered by metadata probe)`,
+        );
     }
 }

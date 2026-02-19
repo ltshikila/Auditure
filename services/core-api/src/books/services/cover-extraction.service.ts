@@ -95,6 +95,20 @@ export class CoverExtractionService {
     }
 
     /**
+     * Lightweight probe: query Google Books for cover URL and genres
+     * without downloading/extracting from the file itself.
+     * Used by MetadataProbeService to check if better data is available.
+     */
+    async probeGoogleBooksCover(metadata: {
+        title?: string;
+        author?: string;
+        isbn?: string;
+    }): Promise<{ coverUrl: string | null; genres: string[] }> {
+        const result = await this.fetchGoogleBooksCover(metadata);
+        return result || { coverUrl: null, genres: [] };
+    }
+
+    /**
      * Fetch cover image URL from Google Books API.
      * Free API, no key required for basic queries.
      *

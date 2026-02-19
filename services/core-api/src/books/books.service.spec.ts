@@ -14,6 +14,7 @@ import {
 } from '../../test/fixtures/books.fixture';
 import { mockPrismaClient } from '../../test/mocks/database.mock';
 import { mockStorageService, mockRabbitMQService } from '../../test/mocks/services.mock';
+import { MetadataProbeService } from './services/metadata-probe.service';
 
 describe('BooksService', () => {
     let service: BooksService;
@@ -38,6 +39,15 @@ describe('BooksService', () => {
                 {
                     provide: RabbitMQService,
                     useValue: mockRabbitMQService,
+                },
+                {
+                    provide: MetadataProbeService,
+                    useValue: {
+                        shouldReExtract: jest.fn().mockResolvedValue({
+                            reExtract: false,
+                            reason: 'No improvements detected',
+                        }),
+                    },
                 },
             ],
         }).compile();
