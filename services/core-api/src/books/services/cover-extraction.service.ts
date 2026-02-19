@@ -51,8 +51,20 @@ export class CoverExtractionService {
             };
         }
 
-        // 2. Fall back to file extraction
-        this.logger.log(`No Google Books cover found, extracting from ${sourceType}...`);
+        // 2. Try Open Library as fallback (better cover coverage for popular books)
+        const openLibResult = await this.fetchOpenLibraryCover(metadata);
+        if (openLibResult) {
+            this.logger.log(`Found cover from Open Library for "${metadata.title}"`);
+            return {
+                coverImageUrl: openLibResult,
+                coverImageKey: null,
+                source: 'google_books', // Treat as external URL source
+                genres: googleResult?.genres || [],
+            };
+        }
+
+        // 3. Fall back to file extraction
+        this.logger.log(`No API cover found, extracting from ${sourceType}...`);
 
         try {
             let imageBuffer: Buffer | null = null;
@@ -104,7 +116,101 @@ export class CoverExtractionService {
         isbn?: string;
     }): Promise<{ coverUrl: string | null; genres: string[] }> {
         const result = await this.fetchGoogleBooksCover(metadata);
-        return result || { coverUrl: null, genres: [] };
+        if (result?.coverUrl) {
+            return result;
+        }
+
+        // Fallback: try Open Library
+        const openLibCover = await this.fetchOpenLibraryCover(metadata);
+        return {
+            coverUrl: openLibCover,
+            genres: result?.genres || [],
+        };
+    }
+
+    /**
+     * Fetch cover image URL from Open Library.
+     * Free API, no key required. Better cover coverage than Google Books
+     * for many popular titles.
+     *
+     * Strategy:
+     * 1. Search by title + author
+     * 2. Use the cover ID from the best matching result
+     * 3. Validate the image isn't a placeholder (1x1 transparent pixel)
+     */
+    private async fetchOpenLibraryCover(metadata: {
+        title?: string;
+        author?: string;
+        isbn?: string;
+    }): Promise<string | null> {
+        if (!metadata.title) return null;
+
+        try {
+            // Build search URL
+            const params = new URLSearchParams({
+                title: metadata.title,
+                limit: '5',
+                fields: 'title,author_name,cover_i,edition_count',
+            });
+            if (metadata.author) {
+                params.set('author', metadata.author);
+            }
+
+            const url = `https://openlibrary.org/search.json?${params.toString()}`;
+            this.logger.log(`Open Library search: "${metadata.title}" by "${metadata.author}"`);
+
+            const response = await fetch(url);
+            if (!response.ok) {
+                this.logger.warn(`Open Library API error: ${response.status}`);
+                return null;
+            }
+
+            const data = await response.json();
+            if (!data.docs || data.docs.length === 0) {
+                this.logger.log('No Open Library results found');
+                return null;
+            }
+
+            // Find the best match with a cover
+            for (const doc of data.docs) {
+                if (!doc.cover_i) continue;
+
+                // Verify title is a reasonable match
+                const returnedTitle = (doc.title || '').toLowerCase();
+                const expectedTitle = metadata.title.toLowerCase();
+                if (
+                    !returnedTitle.includes(expectedTitle) &&
+                    !expectedTitle.includes(returnedTitle)
+                ) {
+                    continue;
+                }
+
+                const coverUrl = `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`;
+
+                // Validate: Open Library returns a 1x1 pixel for missing covers
+                const imgResponse = await fetch(coverUrl);
+                if (!imgResponse.ok) continue;
+
+                const buffer = Buffer.from(await imgResponse.arrayBuffer());
+                if (buffer.length < 1000) {
+                    this.logger.log(
+                        `Open Library cover too small (${buffer.length} bytes) — likely placeholder`,
+                    );
+                    continue;
+                }
+
+                this.logger.log(
+                    `Found Open Library cover for "${doc.title}": ${coverUrl} (${buffer.length} bytes)`,
+                );
+                return coverUrl;
+            }
+
+            this.logger.log('No valid Open Library cover found');
+            return null;
+        } catch (error) {
+            this.logger.warn(`Open Library API failed: ${error.message}`);
+            return null;
+        }
     }
 
     /**
