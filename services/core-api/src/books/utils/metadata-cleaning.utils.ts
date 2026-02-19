@@ -17,7 +17,7 @@ export function cleanMetadataTitle(title: string): string {
 
     // Remove common download site tags in parentheses/brackets
     cleaned = cleaned.replace(
-        /\s*[\(\[\{]\s*(PDFDrive\.com|PDFDrive|z-lib\.org|z-lib|zlibrary|libgen|BooksLD|OceanofPDF\.com|OceanofPDF|epubBooks|AllBooksWorld|Free-eBooks\.net|MustRead|b-ok\.org|b-ok|bookrix|ebook3000)\s*[\)\]\}]/gi,
+        /\s*[([{]\s*(PDFDrive\.com|PDFDrive|z-lib\.org|z-lib|zlibrary|libgen|BooksLD|OceanofPDF\.com|OceanofPDF|epubBooks|AllBooksWorld|Free-eBooks\.net|MustRead|b-ok\.org|b-ok|bookrix|ebook3000)\s*[)\]}]/gi,
         '',
     );
 
@@ -64,7 +64,7 @@ export function cleanMetadataAuthor(author: string): string | null {
         /^none$/i,
         /^n\/a$/i,
     ];
-    if (softwarePatterns.some((p) => p.test(cleaned))) {
+    if (softwarePatterns.some(p => p.test(cleaned))) {
         return null;
     }
 
@@ -78,7 +78,7 @@ export function cleanMetadataAuthor(author: string): string | null {
         /\b(publishing|publishers|publications|press|books|media|group|inc|ltd|llc|corp)\b/i,
         /^(penguin|harpercollins|simon|macmillan|hachette|wiley|elsevier|springer|oxford|cambridge)/i,
     ];
-    if (publisherPatterns.some((p) => p.test(cleaned))) {
+    if (publisherPatterns.some(p => p.test(cleaned))) {
         return null;
     }
 
