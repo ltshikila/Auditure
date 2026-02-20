@@ -666,13 +666,6 @@ export default function EpisodeInfoScreen() {
                                 source={{ uri: authorInfo.photoUrl }}
                                 className="w-16 h-16 rounded-full bg-gray-200"
                                 onError={() => setAuthorImageFailed(true)}
-                                onLoad={(e) => {
-                                    // Open Library returns a 1x1 placeholder for missing images
-                                    const source = e.nativeEvent?.source;
-                                    if (!source || source.width < 10 || source.height < 10) {
-                                        setAuthorImageFailed(true);
-                                    }
-                                }}
                             />
                         ) : (
                             <View className="w-16 h-16 bg-brand-gold rounded-full items-center justify-center">
