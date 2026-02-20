@@ -1472,15 +1472,28 @@ export class TextExtractionService {
                 const htmlContent = section.htmlString || '';
                 const text = this.cleanText(this.stripHtml(htmlContent));
 
-                if (text.trim().length > 0) {
-                    chapters.push({
-                        chapterNumber: chapters.length + 1,
-                        title: section.id || `Chapter ${chapters.length + 1}`,
-                        text,
-                    });
+                // Skip near-empty sections (title page, copyright, maps, etc.)
+                if (text.trim().length < 200) continue;
 
-                    fullText += text + '\n\n';
+                // Title extraction: heading > meaningful section ID > fallback
+                let title = this.extractTitleFromHtml(htmlContent);
+                if (!title) {
+                    const sectionId = section.id || '';
+                    // Use section ID only if it's meaningful (not "htmlN" pattern)
+                    if (sectionId && !/^html\d+$/i.test(sectionId)) {
+                        title = sectionId;
+                    } else {
+                        title = `Chapter ${chapters.length + 1}`;
+                    }
                 }
+
+                chapters.push({
+                    chapterNumber: chapters.length + 1,
+                    title,
+                    text,
+                });
+
+                fullText += text + '\n\n';
             }
         }
 
@@ -1914,6 +1927,17 @@ export class TextExtractionService {
             `OCR quality OK: space=${(spaceRatio * 100).toFixed(1)}%, avgWordLen=${avgWordLength.toFixed(1)}, longWordRatio=${(longWordRatio * 100).toFixed(1)}%`,
         );
         return false;
+    }
+
+    private extractTitleFromHtml(html: string): string | null {
+        // Match first h1, h2, or h3 (case-insensitive, handles attributes, spans lines)
+        const match = html.match(/<h[123][^>]*>([\s\S]*?)<\/h[123]>/i);
+        if (!match) return null;
+
+        // Strip nested tags, decode entities, collapse whitespace
+        const raw = match[1].replace(/<[^>]*>/g, '').trim();
+        const decoded = he.decode(raw).replace(/\s+/g, ' ').trim();
+        return decoded.length > 0 ? decoded : null;
     }
 
     private stripHtml(html: string): string {
