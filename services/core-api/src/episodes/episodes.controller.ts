@@ -426,6 +426,6 @@ export class EpisodesController {
             return null;
         }
 
-        return this.episodesService.getAuthorInfo(authorName);
+        return this.episodesService.getAuthorInfo(authorName, episode.book?.title);
     }
 }

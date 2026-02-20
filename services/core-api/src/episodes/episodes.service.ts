@@ -1502,7 +1502,7 @@ export class EpisodesService {
     /**
      * Get author info from Open Library API
      */
-    async getAuthorInfo(authorName: string): Promise<{
+    async getAuthorInfo(authorName: string, bookTitle?: string): Promise<{
         name: string;
         bio?: string;
         birthDate?: string;
@@ -1516,60 +1516,83 @@ export class EpisodesService {
         }
 
         try {
-            // Search for author on Open Library (fetch multiple to find best match)
-            const searchUrl = `https://openlibrary.org/search/authors.json?q=${encodeURIComponent(authorName)}&limit=5`;
-            const searchResponse = await fetch(searchUrl);
+            let authorKey: string | undefined;
+            let authorDocName: string | undefined;
+            let authorWorkCount: number | undefined;
 
-            if (!searchResponse.ok) {
-                this.logger.warn(
-                    `Open Library search failed for "${authorName}": ${searchResponse.status}`,
-                );
-                return null;
+            // Strategy 1: Search by book title + author to find the exact author
+            if (bookTitle) {
+                try {
+                    const bookSearchUrl = `https://openlibrary.org/search.json?title=${encodeURIComponent(bookTitle)}&author=${encodeURIComponent(authorName)}&limit=1`;
+                    const bookSearchRes = await fetch(bookSearchUrl);
+                    if (bookSearchRes.ok) {
+                        const bookSearchData = await bookSearchRes.json();
+                        if (bookSearchData.docs?.[0]?.author_key?.[0]) {
+                            authorKey = bookSearchData.docs[0].author_key[0];
+                            authorDocName = bookSearchData.docs[0].author_name?.[0];
+                            this.logger.log(
+                                `Open Library book-based match for "${authorName}" + "${bookTitle}": key=${authorKey}`,
+                            );
+                        }
+                    }
+                } catch {
+                    // Fall through to name-based search
+                }
             }
 
-            const searchData = await searchResponse.json();
+            // Strategy 2: Fall back to name-based author search
+            if (!authorKey) {
+                const searchUrl = `https://openlibrary.org/search/authors.json?q=${encodeURIComponent(authorName)}&limit=5`;
+                const searchResponse = await fetch(searchUrl);
 
-            if (!searchData.docs || searchData.docs.length === 0) {
-                this.logger.warn(`No author found on Open Library for "${authorName}"`);
-                return null;
-            }
+                if (!searchResponse.ok) {
+                    this.logger.warn(
+                        `Open Library search failed for "${authorName}": ${searchResponse.status}`,
+                    );
+                    return null;
+                }
 
-            // Find best match by name similarity (exact match preferred)
-            const normalizedQuery = authorName.toLowerCase().trim();
-            const authorDoc = searchData.docs.reduce((best: any, doc: any) => {
-                const name = (doc.name || '').toLowerCase().trim();
-                const bestName = (best.name || '').toLowerCase().trim();
+                const searchData = await searchResponse.json();
 
-                // Exact match handling
-                const nameIsExact = name === normalizedQuery;
-                const bestIsExact = bestName === normalizedQuery;
+                if (!searchData.docs || searchData.docs.length === 0) {
+                    this.logger.warn(`No author found on Open Library for "${authorName}"`);
+                    return null;
+                }
 
-                // Both exact matches — tiebreak by work count (more works = more prominent)
-                if (nameIsExact && bestIsExact) {
+                // Find best match by name similarity
+                const normalizedQuery = authorName.toLowerCase().trim();
+                const authorDoc = searchData.docs.reduce((best: any, doc: any) => {
+                    const name = (doc.name || '').toLowerCase().trim();
+                    const bestName = (best.name || '').toLowerCase().trim();
+
+                    const nameIsExact = name === normalizedQuery;
+                    const bestIsExact = bestName === normalizedQuery;
+
+                    if (nameIsExact && bestIsExact) {
+                        return (doc.work_count || 0) > (best.work_count || 0) ? doc : best;
+                    }
+                    if (nameIsExact) return doc;
+                    if (bestIsExact) return best;
+
+                    const docStarts = name.startsWith(normalizedQuery) || normalizedQuery.startsWith(name);
+                    const bestStarts = bestName.startsWith(normalizedQuery) || normalizedQuery.startsWith(bestName);
+                    if (docStarts && !bestStarts) return doc;
+                    if (bestStarts && !docStarts) return best;
+
+                    if (name.length !== bestName.length) {
+                        return name.length < bestName.length ? doc : best;
+                    }
+
                     return (doc.work_count || 0) > (best.work_count || 0) ? doc : best;
-                }
-                if (nameIsExact) return doc;
-                if (bestIsExact) return best;
+                }, searchData.docs[0]);
 
-                // Prefer name that starts with or equals the query
-                const docStarts = name.startsWith(normalizedQuery) || normalizedQuery.startsWith(name);
-                const bestStarts = bestName.startsWith(normalizedQuery) || normalizedQuery.startsWith(bestName);
-                if (docStarts && !bestStarts) return doc;
-                if (bestStarts && !docStarts) return best;
-
-                // Prefer shorter name (less likely to be a different person with extra name parts)
-                if (name.length !== bestName.length) {
-                    return name.length < bestName.length ? doc : best;
-                }
-
-                // Prefer more works (more prominent author)
-                return (doc.work_count || 0) > (best.work_count || 0) ? doc : best;
-            }, searchData.docs[0]);
-
-            this.logger.log(
-                `Open Library author match for "${authorName}": "${authorDoc.name}" (${authorDoc.work_count} works)`,
-            );
-            const authorKey = authorDoc.key;
+                authorKey = authorDoc.key;
+                authorDocName = authorDoc.name;
+                authorWorkCount = authorDoc.work_count;
+                this.logger.log(
+                    `Open Library name-based match for "${authorName}": "${authorDocName}" (${authorWorkCount} works)`,
+                );
+            }
 
             // Fetch detailed author info
             const authorUrl = `https://openlibrary.org/authors/${authorKey}.json`;
@@ -1580,8 +1603,8 @@ export class EpisodesService {
                     `Open Library author fetch failed for "${authorKey}": ${authorResponse.status}`,
                 );
                 return {
-                    name: authorDoc.name || authorName,
-                    works: authorDoc.work_count,
+                    name: authorDocName || authorName,
+                    works: authorWorkCount,
                 };
             }
 
@@ -1596,29 +1619,16 @@ export class EpisodesService {
                 }
             }
 
-            // Validate photo URL — Open Library returns tiny 1x1 placeholders for missing photos
-            let photoUrl: string | undefined;
-            if (authorDoc.key) {
-                const candidateUrl = `https://covers.openlibrary.org/a/olid/${authorKey}-M.jpg`;
-                try {
-                    const headRes = await fetch(candidateUrl, { method: 'HEAD' });
-                    const contentLength = parseInt(headRes.headers.get('content-length') || '0', 10);
-                    if (headRes.ok && contentLength > 1000) {
-                        photoUrl = candidateUrl;
-                    }
-                } catch {
-                    // Skip photo if validation fails
-                }
-            }
-
             return {
-                name: authorData.name || authorDoc.name || authorName,
+                name: authorData.name || authorDocName || authorName,
                 bio,
                 birthDate: authorData.birth_date,
                 deathDate: authorData.death_date,
-                photoUrl,
+                photoUrl: authorKey
+                    ? `https://covers.openlibrary.org/a/olid/${authorKey}-M.jpg`
+                    : undefined,
                 wikipedia: authorData.wikipedia,
-                works: authorDoc.work_count,
+                works: authorWorkCount || authorData.work_count,
             };
         } catch (error) {
             this.logger.error(`Failed to fetch author info for "${authorName}": ${error.message}`);

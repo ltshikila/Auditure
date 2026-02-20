@@ -1487,7 +1487,7 @@ export class TextExtractionService {
                 const text = this.cleanText(this.stripHtml(htmlContent));
 
                 // Skip near-empty sections (title page, copyright, maps, etc.)
-                if (text.trim().length < 200) continue;
+                if (text.trim().length < 1000) continue;
 
                 // Title extraction: TOC name > HTML heading > meaningful section ID > fallback
                 const sectionId = section.id || '';
@@ -1496,6 +1496,12 @@ export class TextExtractionService {
                     this.extractTitleFromHtml(htmlContent) ||
                     (sectionId && !/^html\d+$/i.test(sectionId) ? sectionId : null) ||
                     `Chapter ${chapters.length + 1}`;
+
+                // Skip non-content sections (table of contents, copyright, dedication, etc.)
+                const lowerTitle = title.toLowerCase();
+                if (/^(contents?|table of contents|copyright|dedication|acknowledgements?|about the author|also by|books by)$/i.test(lowerTitle)) {
+                    continue;
+                }
 
                 chapters.push({
                     chapterNumber: chapters.length + 1,

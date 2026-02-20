@@ -459,12 +459,6 @@ export default function EpisodeInfoScreen() {
                 <Text className="font-jakarta text-[#666666] leading-6 text-base">
                     {episode.summary}
                 </Text>
-            ) : episode.scriptContent ? (
-                <Text className="font-jakarta text-[#666666] leading-6 text-base">
-                    {episode.scriptContent
-                        .substring(0, 1000)
-                        .replace(/^(HOST|GUEST|NARRATOR|HOST1|GUEST1|GUEST2):\s*/gim, '') + '...'}
-                </Text>
             ) : (
                 <View className="items-center py-12">
                     <Ionicons name="document-text-outline" size={48} color="#D1D5DB" />
