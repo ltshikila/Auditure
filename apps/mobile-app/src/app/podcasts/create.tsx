@@ -271,6 +271,7 @@ const Create = () => {
                                     onChangeText={setPodcastName}
                                     placeholder="Enter a name for your podcaster"
                                     placeholderTextColor="#858585"
+                                    maxLength={50}
                                 />
                                 
                             </View>
@@ -286,7 +287,7 @@ const Create = () => {
                         {/* Voice Model */}
                         <View className="mb-6">
                             <Text className="text-[#1A1C1E] font-inter-medium text-lg mb-3">
-                                Voice Model
+                                Voice Model Template
                             </Text>
 
                             <View className="flex-row flex-wrap justify-between">
@@ -561,6 +562,10 @@ const Create = () => {
                     <TouchableOpacity
                         onPress={() => {
                             if (currentStep === 1) {
+                                if (!podcastName.trim()) {
+                                    showAlert({ title: 'Validation Error', message: 'Please enter a podcaster name before continuing.' });
+                                    return;
+                                }
                                 showAlert({
                                     title: 'Voice Settings Are Permanent',
                                     message: 'Voice configurations (voice model, gender, accent, speaking speed, vocal pitch, age tone, sentence structure, and emotional expression) cannot be changed after your podcaster is created. Please make sure you\'re happy with these settings before continuing.',
@@ -627,8 +632,15 @@ const Create = () => {
 
                                 // Upload profile picture if selected
                                 if (profilePicture) {
-                                    await podcasterService.uploadProfilePicture(created.id, profilePicture, token)
-                                        .catch(e => console.warn('Failed to upload profile picture:', e));
+                                    try {
+                                        await podcasterService.uploadProfilePicture(created.id, profilePicture, token);
+                                    } catch (e) {
+                                        console.warn('Failed to upload profile picture:', e);
+                                        showAlert({
+                                            title: 'Profile Picture Failed',
+                                            message: 'Your podcaster was created, but the profile picture failed to upload. You can update it later from the podcaster settings.',
+                                        });
+                                    }
                                 }
 
                                 showAlert({ title: 'Success', message: 'Podcaster created successfully!' });

@@ -471,7 +471,12 @@ const Create = () => {
                     {/* Mode Toggle */}
                     <View className="flex-row border-b border-[#E8E3D6] mb-4">
                         <TouchableOpacity
-                            onPress={() => setBookSourceMode('upload')}
+                            onPress={() => {
+                                setBookSourceMode('upload');
+                                setSelectedBook(null);
+                                setSelectedBookId(null);
+                                setSelectedChapterIds(new Set());
+                            }}
                             className={`flex-1 pb-3 items-center ${
                                 bookSourceMode === 'upload' ? 'border-b-2 border-brand-gold' : ''
                             }`}
@@ -485,7 +490,11 @@ const Create = () => {
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            onPress={() => setBookSourceMode('search')}
+                            onPress={() => {
+                                setBookSourceMode('search');
+                                setChapters('');
+                                setSelectedFile(null);
+                            }}
                             className={`flex-1 pb-3 items-center ${
                                 bookSourceMode === 'search' ? 'border-b-2 border-brand-gold' : ''
                             }`}
@@ -759,6 +768,7 @@ const Create = () => {
                             onChangeText={setEpisodeTitle}
                             placeholder="Enter title of this episode"
                             placeholderTextColor="#858585"
+                            maxLength={100}
                         />
                     </View>
                 </View>
@@ -912,7 +922,8 @@ const Create = () => {
                         <SliderTrack
                             value={targetLengthMin}
                             onValueChange={(v) => {
-                                if (v < targetLengthMax) setTargetLengthMin(v);
+                                const clamped = Math.min(v, targetLengthMax - 1);
+                                setTargetLengthMin(Math.max(5, clamped));
                             }}
                             minimumValue={5}
                             maximumValue={maxDuration}
@@ -924,7 +935,8 @@ const Create = () => {
                     <SliderTrack
                         value={targetLengthMax}
                         onValueChange={(v) => {
-                            if (v > targetLengthMin) setTargetLengthMax(v);
+                            const clamped = Math.max(v, targetLengthMin + 1);
+                            setTargetLengthMax(Math.min(maxDuration, clamped));
                         }}
                         minimumValue={5}
                         maximumValue={maxDuration}
@@ -933,12 +945,9 @@ const Create = () => {
 
                     {/* Tick marks */}
                     <View className="flex-row justify-between px-2 mt-1">
-                        <Text className="text-[#858585] font-inter text-xs">5min</Text>
-                        <Text className="text-[#858585] font-inter text-xs">10min</Text>
-                        <Text className="text-[#858585] font-inter text-xs">15min</Text>
-                        <Text className="text-[#858585] font-inter text-xs">20min</Text>
-                        <Text className="text-[#858585] font-inter text-xs">25min</Text>
-                        <Text className="text-[#858585] font-inter text-xs">30min</Text>
+                        {Array.from({ length: (maxDuration - 5) / 5 + 1 }, (_, i) => 5 + i * 5).map(v => (
+                            <Text key={v} className="text-[#858585] font-inter text-xs">{v}min</Text>
+                        ))}
                     </View>
                 </View>
 
