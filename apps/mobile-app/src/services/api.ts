@@ -69,7 +69,10 @@ const getUserFriendlyMessage = (statusCode: number, apiMessage: string, _error?:
     if (apiMessage.toLowerCase().includes('subscription') || apiMessage.toLowerCase().includes('reactivat')) {
       return apiMessage;
     }
-    return 'Please check your information and try again.';
+    if (apiMessage.toLowerCase().includes('limit') || apiMessage.toLowerCase().includes('quota') || apiMessage.toLowerCase().includes('upgrade')) {
+      return apiMessage;
+    }
+    return apiMessage || 'Please check your information and try again.';
   }
 
   if (statusCode === 404) {
