@@ -455,9 +455,9 @@ export default function EpisodeInfoScreen() {
 
     const renderSummaryTab = () => (
         <View className="px-6 mt-4 mb-32">
-            {episode.summary || episode.description ? (
+            {episode.summary ? (
                 <Text className="font-jakarta text-[#666666] leading-6 text-base">
-                    {episode.summary || episode.description}
+                    {episode.summary}
                 </Text>
             ) : episode.scriptContent ? (
                 <Text className="font-jakarta text-[#666666] leading-6 text-base">

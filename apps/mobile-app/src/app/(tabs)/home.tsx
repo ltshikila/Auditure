@@ -261,7 +261,6 @@ export default function HomeScreen() {
         const inspirationsSection = booksFeed.sections.find(s => s.id === 'popular_inspirations');
         const popularSection = booksFeed.sections.find(s => s.id === 'popular_books');
         const latestSection = booksFeed.sections.find(s => s.id === 'latest_books');
-        const bestsellersSection = booksFeed.sections.find(s => s.id === 'bestsellers');
 
         return (
             <>
@@ -298,16 +297,6 @@ export default function HomeScreen() {
                     />
                 )}
 
-                {/* Bestsellers */}
-                {bestsellersSection && bestsellersSection.items.length > 0 && (
-                    <BookSection
-                        title={bestsellersSection.title}
-                        books={bestsellersSection.items}
-                        onBookPress={handleBookPress}
-                        showSeeAll={bestsellersSection.hasMore}
-                        onSeeAll={() => handleSeeAll('bestsellers')}
-                    />
-                )}
             </>
         );
     };

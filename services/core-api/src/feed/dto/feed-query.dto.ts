@@ -24,7 +24,6 @@ export enum BookSectionId {
     POPULAR_INSPIRATIONS = 'popular_inspirations',
     POPULAR_BOOKS = 'popular_books',
     LATEST_BOOKS = 'latest_books',
-    BESTSELLERS = 'bestsellers',
 }
 
 export enum PodcasterSectionId {

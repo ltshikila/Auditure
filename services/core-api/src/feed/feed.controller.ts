@@ -51,7 +51,7 @@ export class FeedController {
      *
      * Valid section IDs:
      * - Episodes: continue_listening, popular, latest, recommended
-     * - Books: popular_inspirations, popular_books, latest_books, bestsellers
+     * - Books: popular_inspirations, popular_books, latest_books
      * - Podcasters: trending, top_rated, new_voices
      */
     @Get('section/:sectionId')

@@ -184,6 +184,7 @@ class Episode(Base):
 
     # Generated content
     script_content = Column("scriptContent", Text, nullable=True)
+    summary = Column(Text, nullable=True)
     audio_file_key = Column("audioFileKey", String, nullable=True)
 
     # Generation status

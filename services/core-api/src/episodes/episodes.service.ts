@@ -1540,9 +1540,16 @@ export class EpisodesService {
                 const name = (doc.name || '').toLowerCase().trim();
                 const bestName = (best.name || '').toLowerCase().trim();
 
-                // Exact match always wins
-                if (name === normalizedQuery) return doc;
-                if (bestName === normalizedQuery) return best;
+                // Exact match handling
+                const nameIsExact = name === normalizedQuery;
+                const bestIsExact = bestName === normalizedQuery;
+
+                // Both exact matches — tiebreak by work count (more works = more prominent)
+                if (nameIsExact && bestIsExact) {
+                    return (doc.work_count || 0) > (best.work_count || 0) ? doc : best;
+                }
+                if (nameIsExact) return doc;
+                if (bestIsExact) return best;
 
                 // Prefer name that starts with or equals the query
                 const docStarts = name.startsWith(normalizedQuery) || normalizedQuery.startsWith(name);
@@ -1584,6 +1591,24 @@ export class EpisodesService {
             let bio: string | undefined;
             if (authorData.bio) {
                 bio = typeof authorData.bio === 'string' ? authorData.bio : authorData.bio.value;
+                if (bio) {
+                    bio = this.cleanBioMarkdown(bio);
+                }
+            }
+
+            // Validate photo URL — Open Library returns tiny 1x1 placeholders for missing photos
+            let photoUrl: string | undefined;
+            if (authorDoc.key) {
+                const candidateUrl = `https://covers.openlibrary.org/a/olid/${authorKey}-M.jpg`;
+                try {
+                    const headRes = await fetch(candidateUrl, { method: 'HEAD' });
+                    const contentLength = parseInt(headRes.headers.get('content-length') || '0', 10);
+                    if (headRes.ok && contentLength > 1000) {
+                        photoUrl = candidateUrl;
+                    }
+                } catch {
+                    // Skip photo if validation fails
+                }
             }
 
             return {
@@ -1591,9 +1616,7 @@ export class EpisodesService {
                 bio,
                 birthDate: authorData.birth_date,
                 deathDate: authorData.death_date,
-                photoUrl: authorDoc.key
-                    ? `https://covers.openlibrary.org/a/olid/${authorKey}-M.jpg`
-                    : undefined,
+                photoUrl,
                 wikipedia: authorData.wikipedia,
                 works: authorDoc.work_count,
             };
@@ -1601,5 +1624,19 @@ export class EpisodesService {
             this.logger.error(`Failed to fetch author info for "${authorName}": ${error.message}`);
             return null;
         }
+    }
+
+    private cleanBioMarkdown(text: string): string {
+        return text
+            .replace(/^\[[\d\w]+\]:.*$/gm, '')           // Remove reference link definitions
+            .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')      // [text](url) → text
+            .replace(/\[([^\]]+)\]\[[^\]]*\]/g, '$1')     // [text][ref] → text
+            .replace(/\(\[?[^\]]*\]?\[[^\]]*\]\)/g, '')   // ([Source][1]) → remove
+            .replace(/\*\*([^*]+)\*\*/g, '$1')             // **bold** → bold
+            .replace(/\*([^*]+)\*/g, '$1')                 // *italic* → italic
+            .replace(/_{1,2}([^_]+)_{1,2}/g, '$1')        // _emphasis_ → text
+            .replace(/^#{1,6}\s+/gm, '')                   // ## Heading → Heading
+            .replace(/\n{3,}/g, '\n\n')                    // Collapse blank lines
+            .trim();
     }
 }

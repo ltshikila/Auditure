@@ -37,7 +37,6 @@ const SECTION_TITLES: Record<string, string> = {
     popular_inspirations: 'Popular Inspirations',
     popular_books: 'Popular Books',
     latest_books: 'Latest Books',
-    bestsellers: 'Bestsellers',
     trending: 'Trending Podcasters',
     top_rated: 'Top Rated',
     new_voices: 'New Voices',
@@ -48,7 +47,7 @@ const getItemType = (section: string): 'episode' | 'book' | 'podcaster' => {
     if (['continue_listening', 'popular', 'latest', 'recommended'].includes(section)) {
         return 'episode';
     }
-    if (['popular_inspirations', 'popular_books', 'latest_books', 'bestsellers'].includes(section)) {
+    if (['popular_inspirations', 'popular_books', 'latest_books'].includes(section)) {
         return 'book';
     }
     return 'podcaster';

@@ -441,16 +441,15 @@ export class FeedService {
     private async getBooksFeed(userId: string): Promise<BooksFeedResponse> {
         this.logger.log(`getBooksFeed() called for userId: ${userId}`);
 
-        const [popularInspirations, popularBooks, latestBooks, bestsellers] = await Promise.all([
+        const [popularInspirations, popularBooks, latestBooks] = await Promise.all([
             this.getPopularInspirationsSection(),
             this.getPopularBooksSection(),
             this.getLatestBooksSection(),
-            this.getBestsellersSection(),
         ]);
 
         return {
             tab: FeedTab.BOOKS,
-            sections: [popularInspirations, popularBooks, latestBooks, bestsellers].filter(
+            sections: [popularInspirations, popularBooks, latestBooks].filter(
                 section => section.items.length > 0,
             ),
         };
@@ -719,62 +718,6 @@ export class FeedService {
         }
     }
 
-    /**
-     * Get "NY Best Sellers" section
-     * MVP: Returns a curated static list
-     */
-    private async getBestsellersSection(): Promise<FeedSection<BookFeedItem>> {
-        this.logger.log('getBestsellersSection() called (MVP: static list)');
-
-        try {
-            // MVP: Return books that exist in our system, sorted by popularity
-            // In the future, this would integrate with NY Times API
-            const books = await this.databaseService.book.findMany({
-                where: {
-                    extractionStatus: 'COMPLETED',
-                    episodes: {
-                        some: {
-                            generationStatus: 'COMPLETED',
-                            OR: [
-                                { isPublic: true },
-                                { podcaster: { isPublic: true } },
-                            ],
-                        },
-                    },
-                },
-                orderBy: { createdAt: 'desc' },
-                take: FEED_CONFIG.DEFAULT_SECTION_LIMIT * 3,
-                include: {
-                    _count: {
-                        select: {
-                            episodes: true,
-                        },
-                    },
-                },
-            });
-
-            const allItems: BookFeedItem[] = books.map(book => ({
-                id: book.id,
-                title: book.title,
-                author: book.author ?? undefined,
-                coverImageUrl: book.coverImageUrl ?? undefined,
-                language: book.language,
-                pageCount: book.pageCount ?? undefined,
-                createdAt: book.createdAt,
-                episodeCount: book._count.episodes,
-            }));
-
-            const items = this.deduplicateBooks(allItems)
-                .slice(0, FEED_CONFIG.DEFAULT_SECTION_LIMIT);
-
-            this.logger.log(`Found ${items.length} bestsellers (MVP static)`);
-            return this.buildSection(BookSectionId.BESTSELLERS, items, false);
-        } catch (error) {
-            this.logger.error(`Error in getBestsellersSection(): ${error.message}`);
-            return this.buildSection(BookSectionId.BESTSELLERS, [], false);
-        }
-    }
-
     // ============================================
     // Podcasters Feed
     // ============================================
@@ -1020,7 +963,6 @@ export class FeedService {
                 break;
             case BookSectionId.POPULAR_BOOKS:
             case BookSectionId.POPULAR_INSPIRATIONS:
-            case BookSectionId.BESTSELLERS:
                 // For popularity, we need special handling
                 orderBy = { createdAt: 'desc' };
                 break;

@@ -44,6 +44,10 @@ class EpisodeConsumer(BaseConsumer):
         self.storage = get_storage()
         self.redis_client = get_redis_client()
 
+        # LLM client for summary generation
+        from src.generators.llm_client import OpenAIClient
+        self.llm_client = OpenAIClient()
+
         self.max_content_chars = settings.max_book_content_chars
 
     def process_message(self, message: dict[str, Any]) -> None:
@@ -88,12 +92,12 @@ class EpisodeConsumer(BaseConsumer):
 
         try:
             # Step 1: Update status to SCRIPT_GENERATING
-            logger.info("[STEP 1/9] Updating status to SCRIPT_GENERATING...")
+            logger.info("[STEP 1/10] Updating status to SCRIPT_GENERATING...")
             self._update_status(episode_id, EpisodeStatus.SCRIPT_GENERATING)
             self._update_progress(episode_id, PROGRESS_STARTED, "SCRIPT_GENERATING")
 
             # Step 2: Fetch required data
-            logger.info("[STEP 2/9] Fetching podcaster and book data...")
+            logger.info("[STEP 2/10] Fetching podcaster and book data...")
             self._update_progress(episode_id, PROGRESS_FETCHING_DATA, "FETCHING_DATA")
             podcaster = self.repository.get_podcaster(message["podcasterId"])
             book = self.repository.get_book(message["bookId"])
@@ -103,11 +107,11 @@ class EpisodeConsumer(BaseConsumer):
             if not book:
                 raise ValueError(f"Book not found: {message['bookId']}")
 
-            logger.info(f"[STEP 2/9] Found podcaster: {podcaster.name} (voice: {podcaster.gender}, {podcaster.accent})")
-            logger.info(f"[STEP 2/9] Found book: {book.title} by {book.author}")
+            logger.info(f"[STEP 2/10] Found podcaster: {podcaster.name} (voice: {podcaster.gender}, {podcaster.accent})")
+            logger.info(f"[STEP 2/10] Found book: {book.title} by {book.author}")
 
             # Step 3: Get book content
-            logger.info(f"[STEP 3/9] Fetching book content (coverage: {message['contentCoverage']})...")
+            logger.info(f"[STEP 3/10] Fetching book content (coverage: {message['contentCoverage']})...")
             content_result = self.repository.get_book_content(
                 book_id=message["bookId"],
                 content_coverage=message["contentCoverage"],
@@ -122,14 +126,14 @@ class EpisodeConsumer(BaseConsumer):
             # Log truncation warning if content was truncated
             if content_result["truncated"]:
                 logger.warning(
-                    f"[STEP 3/9] Content truncated! "
+                    f"[STEP 3/10] Content truncated! "
                     f"Used {content_result['returned_chars']:,} of {content_result['total_chars']:,} chars "
                     f"({content_result['chapters_included']}/{content_result['total_chapters']} chapters fully included). "
                     f"Consider using fewer chapters for better coverage."
                 )
             else:
                 logger.info(
-                    f"[STEP 3/9] Retrieved {content_result['returned_chars']:,} chars "
+                    f"[STEP 3/10] Retrieved {content_result['returned_chars']:,} chars "
                     f"({content_result['chapters_included']} chapters)"
                 )
 
@@ -138,10 +142,10 @@ class EpisodeConsumer(BaseConsumer):
                 content_coverage=message["contentCoverage"],
                 chapter_info=content_result.get("chapter_info", []),
             )
-            logger.info(f"[STEP 3/9] Content scope: {content_scope}")
+            logger.info(f"[STEP 3/10] Content scope: {content_scope}")
 
             # Step 4: Generate script
-            logger.info("[STEP 4/9] Starting script generation...")
+            logger.info("[STEP 4/10] Starting script generation...")
             self._update_progress(episode_id, PROGRESS_SCRIPT_GENERATING, "SCRIPT_GENERATING")
             script_result = self.script_generator.generate(
                 book_content=book_content,
@@ -170,26 +174,48 @@ class EpisodeConsumer(BaseConsumer):
             )
 
             logger.info(
-                f"[STEP 4/9] Script generated: {script_result.word_count} words "
+                f"[STEP 4/10] Script generated: {script_result.word_count} words "
                 f"(method: {script_result.method})"
             )
 
-            # Step 5: Update status to SCRIPT_GENERATED
-            logger.info("[STEP 5/9] Saving script to database...")
+            # Step 5: Generate episode summary
+            logger.info("[STEP 5/10] Generating episode summary...")
+            summary = None
+            try:
+                summary_prompt = (
+                    f'Summarize this podcast episode in 1-2 sentences (max 250 characters). '
+                    f'Book: "{book.title}" by {book.author}. '
+                    f'Episode: "{message["title"]}".\n\n'
+                    f'Script excerpt:\n{script_result.script[:2000]}'
+                )
+                summary = self.llm_client.generate_text(
+                    prompt=summary_prompt,
+                    max_tokens=100,
+                    temperature=0.5,
+                    system_prompt="Output ONLY a concise summary, no quotes or labels.",
+                )
+                summary = summary.strip()[:250]
+                logger.info(f"[STEP 5/10] Summary generated ({len(summary)} chars): {summary}")
+            except Exception as e:
+                logger.warning(f"[STEP 5/10] Summary generation failed (non-critical): {e}")
+
+            # Step 6: Save script + summary to database
+            logger.info("[STEP 6/10] Saving script to database...")
             self._update_status(
                 episode_id,
                 EpisodeStatus.SCRIPT_GENERATED,
                 script_content=script_result.script,
+                summary=summary,
             )
             self._update_progress(episode_id, PROGRESS_SCRIPT_COMPLETE, "SCRIPT_GENERATED")
 
-            # Step 6: Update status to AUDIO_GENERATING
-            logger.info("[STEP 6/9] Starting audio generation...")
+            # Step 7: Update status to AUDIO_GENERATING
+            logger.info("[STEP 7/10] Starting audio generation...")
             self._update_status(episode_id, EpisodeStatus.AUDIO_GENERATING)
             self._update_progress(episode_id, PROGRESS_AUDIO_GENERATING, "AUDIO_GENERATING")
 
-            # Step 7: Generate audio
-            logger.info(f"[STEP 7/9] Generating TTS audio (voice tier: {voice_tier})...")
+            # Step 8: Generate audio
+            logger.info(f"[STEP 8/10] Generating TTS audio (voice tier: {voice_tier})...")
             podcaster_voice = PodcasterVoice(
                 gender=podcaster.gender,
                 accent=podcaster.accent,
@@ -206,20 +232,20 @@ class EpisodeConsumer(BaseConsumer):
                 voice_tier=voice_tier,
             )
 
-            logger.info(f"[STEP 7/9] Audio generated: {tts_result.duration}s ({tts_result.format})")
+            logger.info(f"[STEP 8/10] Audio generated: {tts_result.duration}s ({tts_result.format})")
 
-            # Step 8: Save audio to storage
-            logger.info("[STEP 8/9] Saving audio to storage...")
+            # Step 9: Save audio to storage
+            logger.info("[STEP 9/10] Saving audio to storage...")
             audio_file_key = f"{message['userId']}/{episode_id}/audio.{tts_result.format}"
             self.storage.save(
                 data=tts_result.audio_buffer,
                 key=audio_file_key,
             )
 
-            logger.info(f"[STEP 8/9] Audio saved: {audio_file_key}")
+            logger.info(f"[STEP 9/10] Audio saved: {audio_file_key}")
 
-            # Step 9: Update status to COMPLETED
-            logger.info("[STEP 9/9] Updating status to COMPLETED...")
+            # Step 10: Update status to COMPLETED
+            logger.info("[STEP 10/10] Updating status to COMPLETED...")
             self._update_status(
                 episode_id,
                 EpisodeStatus.COMPLETED,

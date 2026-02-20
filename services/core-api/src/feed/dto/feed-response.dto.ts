@@ -149,7 +149,6 @@ export const SECTION_TITLES = {
     [BookSectionId.POPULAR_INSPIRATIONS]: 'Popular podcast inspirations',
     [BookSectionId.POPULAR_BOOKS]: 'Popular Books',
     [BookSectionId.LATEST_BOOKS]: 'Latest Books',
-    [BookSectionId.BESTSELLERS]: 'NY Best Sellers',
 
     // Podcasters
     [PodcasterSectionId.TRENDING]: 'Trending',

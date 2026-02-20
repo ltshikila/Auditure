@@ -386,20 +386,6 @@ describe('FeedService', () => {
             });
         });
 
-        describe('Bestsellers Section', () => {
-            it('should return bestsellers (MVP: static list)', async () => {
-                const mockBooks = [{ ...createMockBookWithCount(), _count: { episodes: 3 } }];
-
-                mockPrismaClient.book.findMany.mockResolvedValue(mockBooks);
-
-                const result = await service.getFeed(FeedTab.BOOKS, MOCK_USER_ID);
-
-                const bestsellersSection = result.sections.find(
-                    s => s.id === BookSectionId.BESTSELLERS,
-                );
-                expect(bestsellersSection).toBeDefined();
-            });
-        });
     });
 
     // ============================================

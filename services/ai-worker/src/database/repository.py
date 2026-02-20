@@ -162,6 +162,8 @@ class EpisodeRepository:
             if status == EpisodeStatus.SCRIPT_GENERATED:
                 if "script_content" in kwargs:
                     episode.script_content = kwargs["script_content"]
+                if "summary" in kwargs:
+                    episode.summary = kwargs["summary"]
                 episode.script_generated_at = datetime.utcnow()
 
             elif status == EpisodeStatus.COMPLETED:
