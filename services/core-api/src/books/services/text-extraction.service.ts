@@ -1463,6 +1463,20 @@ export class TextExtractionService {
             author: epub.info?.author,
         };
 
+        // Build TOC lookup: sectionId → chapter name (e.g., "Bran I", "Catelyn I")
+        const tocNames = new Map<string, string>();
+        if (epub.structure && Array.isArray(epub.structure)) {
+            const flattenToc = (nodes: any[]) => {
+                for (const node of nodes) {
+                    if (node.sectionId && node.name) {
+                        tocNames.set(node.sectionId, node.name.trim());
+                    }
+                    if (node.children) flattenToc(node.children);
+                }
+            };
+            flattenToc(epub.structure);
+        }
+
         const chapters: ChapterData[] = [];
         let fullText = '';
 
@@ -1475,17 +1489,13 @@ export class TextExtractionService {
                 // Skip near-empty sections (title page, copyright, maps, etc.)
                 if (text.trim().length < 200) continue;
 
-                // Title extraction: heading > meaningful section ID > fallback
-                let title = this.extractTitleFromHtml(htmlContent);
-                if (!title) {
-                    const sectionId = section.id || '';
-                    // Use section ID only if it's meaningful (not "htmlN" pattern)
-                    if (sectionId && !/^html\d+$/i.test(sectionId)) {
-                        title = sectionId;
-                    } else {
-                        title = `Chapter ${chapters.length + 1}`;
-                    }
-                }
+                // Title extraction: TOC name > HTML heading > meaningful section ID > fallback
+                const sectionId = section.id || '';
+                let title =
+                    tocNames.get(sectionId) ||
+                    this.extractTitleFromHtml(htmlContent) ||
+                    (sectionId && !/^html\d+$/i.test(sectionId) ? sectionId : null) ||
+                    `Chapter ${chapters.length + 1}`;
 
                 chapters.push({
                     chapterNumber: chapters.length + 1,
