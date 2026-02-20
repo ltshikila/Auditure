@@ -668,8 +668,8 @@ export default function EpisodeInfoScreen() {
                                 onError={() => setAuthorImageFailed(true)}
                                 onLoad={(e) => {
                                     // Open Library returns a 1x1 placeholder for missing images
-                                    const { width, height } = e.nativeEvent.source;
-                                    if (width < 10 || height < 10) {
+                                    const source = e.nativeEvent?.source;
+                                    if (!source || source.width < 10 || source.height < 10) {
                                         setAuthorImageFailed(true);
                                     }
                                 }}
