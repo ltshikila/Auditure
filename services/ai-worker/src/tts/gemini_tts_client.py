@@ -567,6 +567,8 @@ class GeminiTTSClient:
         voice_assignments: dict[str, str],
         language_code: str = "en-US",
         voice_configs: Optional[dict[str, "GeminiVoiceConfig"]] = None,
+        chunk_index: int = 0,
+        total_chunks: int = 1,
     ) -> str:
         """
         Format script with speaker labels and Director's Notes for multi-speaker TTS.
@@ -587,11 +589,21 @@ class GeminiTTSClient:
             voice_assignments: Map of speaker labels to voice names
             language_code: Language code for accent (en-US, en-GB, en-AU, en-IN)
             voice_configs: Optional dict of GeminiVoiceConfig with style_prompt per speaker
+            chunk_index: Which chunk this is (0-indexed) for continuity notes
+            total_chunks: Total number of chunks for continuity notes
         """
         formatted_lines = []
 
         # Build Director's Notes combining per-speaker style prompts and accent
         director_notes_parts = []
+
+        # Cross-chunk voice consistency (critical for multi-chunk episodes)
+        if chunk_index > 0 and total_chunks > 1:
+            director_notes_parts.append(
+                f"CRITICAL: This is part {chunk_index + 1} of {total_chunks} of the SAME conversation. "
+                "Maintain the EXACT same voice characteristics, tone, speaking style, and accent "
+                "as the previous parts. Do NOT change how any speaker sounds."
+            )
 
         # Per-speaker style prompts (from personality/archetype)
         if voice_configs:
@@ -686,6 +698,8 @@ class GeminiTTSClient:
         episode_type: str,
         language_code: str,
         voice_configs: Optional[dict[str, "GeminiVoiceConfig"]] = None,
+        chunk_index: int = 0,
+        total_chunks: int = 1,
     ) -> bytes:
         """
         Generate audio for a single chunk of script.
@@ -696,7 +710,8 @@ class GeminiTTSClient:
         from google.genai import types
 
         formatted_script = self._format_script_for_gemini(
-            script, voice_assignments, language_code, voice_configs=voice_configs
+            script, voice_assignments, language_code, voice_configs=voice_configs,
+            chunk_index=chunk_index, total_chunks=total_chunks,
         )
 
         # Count actual unique speakers in the chunk
@@ -706,8 +721,12 @@ class GeminiTTSClient:
             if match:
                 actual_speakers.add(match.group(1))
 
-        # Determine if multi-speaker or single-speaker
-        is_multi_speaker = len(actual_speakers) > 1 and episode_type != "MONOLOGUE"
+        # For DUO episodes, ALWAYS use multi-speaker mode to maintain voice
+        # consistency across chunks. Even if a chunk only has one speaker's lines,
+        # registering both speakers ensures the same TTS path and voice config.
+        is_multi_speaker = episode_type == "DUO" or (
+            len(actual_speakers) > 1 and episode_type != "MONOLOGUE"
+        )
 
         # Gemini multi-speaker API only supports exactly 2 speakers
         # For 3+ speakers, use segment-by-segment generation
@@ -716,13 +735,17 @@ class GeminiTTSClient:
             return self._generate_segment_by_segment(script, voice_assignments, language_code, voice_configs=voice_configs)
 
         if is_multi_speaker:
-            # Filter voice_assignments to only include actual speakers
-            filtered_assignments = {
-                speaker: voice
-                for speaker, voice in voice_assignments.items()
-                if speaker in actual_speakers
-            }
-            speaker_configs = self._build_speaker_configs(filtered_assignments)
+            # For DUO: always register both speakers for consistency across chunks
+            # For other multi-speaker: filter to actual speakers in chunk
+            if episode_type == "DUO":
+                speaker_configs = self._build_speaker_configs(voice_assignments)
+            else:
+                filtered_assignments = {
+                    speaker: voice
+                    for speaker, voice in voice_assignments.items()
+                    if speaker in actual_speakers
+                }
+                speaker_configs = self._build_speaker_configs(filtered_assignments)
             speech_config = types.SpeechConfig(
                 language_code=language_code,
                 multi_speaker_voice_config=types.MultiSpeakerVoiceConfig(
@@ -1064,6 +1087,7 @@ class GeminiTTSClient:
                         pcm_data = self._generate_single_chunk(
                             chunk, voice_assignments, episode_type, language_code,
                             voice_configs=voice_configs,
+                            chunk_index=i, total_chunks=len(chunks),
                         )
 
                         # Analyze chunk audio quality
@@ -1128,9 +1152,10 @@ class GeminiTTSClient:
                 if match:
                     actual_speakers.add(match.group(1))
 
-            # Determine if multi-speaker or single-speaker
-            set(voice_assignments.keys())
-            is_multi_speaker = len(actual_speakers) > 1 and episode_type != "MONOLOGUE"
+            # For DUO episodes, always use multi-speaker mode for voice consistency
+            is_multi_speaker = episode_type == "DUO" or (
+                len(actual_speakers) > 1 and episode_type != "MONOLOGUE"
+            )
 
             # Gemini multi-speaker API only supports exactly 2 speakers
             # For 3+ speakers, fall back to segment-by-segment generation
@@ -1146,14 +1171,17 @@ class GeminiTTSClient:
                 return audio_data
 
             if is_multi_speaker:
-                # Multi-speaker configuration (exactly 2 speakers)
-                # Filter voice_assignments to only include actual speakers in script
-                filtered_assignments = {
-                    speaker: voice
-                    for speaker, voice in voice_assignments.items()
-                    if speaker in actual_speakers
-                }
-                speaker_configs = self._build_speaker_configs(filtered_assignments)
+                # Multi-speaker configuration
+                # For DUO: always register both speakers for consistency
+                if episode_type == "DUO":
+                    speaker_configs = self._build_speaker_configs(voice_assignments)
+                else:
+                    filtered_assignments = {
+                        speaker: voice
+                        for speaker, voice in voice_assignments.items()
+                        if speaker in actual_speakers
+                    }
+                    speaker_configs = self._build_speaker_configs(filtered_assignments)
                 speech_config = types.SpeechConfig(
                     language_code=language_code,
                     multi_speaker_voice_config=types.MultiSpeakerVoiceConfig(

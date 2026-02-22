@@ -435,31 +435,26 @@ class ScriptGenerator:
                 flags=re.IGNORECASE | re.MULTILINE,
             )
 
-        # Remove unofficial/dangerous TTS tags
-        # Mode 3 vocalized adjectives (word gets spoken aloud — bad for podcasts)
-        # Plus physical/visual actions that can't be synthesized
-        unofficial_tags = [
-            r'\[nodding\]', r'\[nods\]',
-            r'\[smiling\]', r'\[smiles\]',
-            r'\[thoughtful\]', r'\[thinking\]',
-            r'\[leaning in\]', r'\[leans in\]', r'\[leaning forward\]',
-            r'\[gesturing\]', r'\[gestures\]',
-            r'\[shaking head\]', r'\[shakes head\]',
-            r'\[raising eyebrows\]', r'\[raises eyebrows\]',
-            r'\[pointing\]', r'\[points\]',
-            r'\[looking\]', r'\[looks\]',
-            r'\[turning\]', r'\[turns\]',
-            r'\[sitting\]', r'\[stands\]', r'\[standing\]',
-            r'\[pausing\]',
-            r'\[grinning\]', r'\[grins\]',
-            r'\[frowning\]', r'\[frowns\]',
-            r'\[winking\]', r'\[winks\]',
-            r'\[excited\]',
-            # Mode 3 vocalized adjectives — the word itself gets spoken aloud
-            r'\[scared\]', r'\[curious\]', r'\[bored\]',
-        ]
-        for tag in unofficial_tags:
-            script = re.sub(tag, '', script, flags=re.IGNORECASE)
+        # Strip ALL bracket tags EXCEPT verified safe Gemini TTS tags.
+        # LLMs generate arbitrary tags like [calmly but firmly], [intrigued],
+        # [thoughtfully] — these get spoken aloud by TTS, ruining the audio.
+        # Allowlist approach: keep only verified safe tags, strip everything else.
+        safe_tags = {
+            # Mode 1 — Non-speech sounds (acted out, not spoken)
+            'sigh', 'laughing', 'uhm', 'uh', 'chuckling', 'clearing throat',
+            # Mode 2 — Style modifiers (affect delivery, not vocalized)
+            'sarcasm', 'whispering', 'shouting', 'extremely fast', 'robotic',
+            # Mode 4 — Pacing/pauses (control rhythm)
+            'short pause', 'medium pause', 'long pause',
+        }
+
+        def _replace_tag(match):
+            tag_content = match.group(1).strip().lower()
+            if tag_content in safe_tags:
+                return match.group(0)  # Keep safe tag
+            return ''  # Strip unsafe tag
+
+        script = re.sub(r'\[([^\]]+)\]', _replace_tag, script)
 
         # Clean up double spaces left behind
         script = re.sub(r'  +', ' ', script)
