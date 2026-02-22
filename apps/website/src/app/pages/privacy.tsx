@@ -105,19 +105,41 @@ export function PrivacyPolicy() {
           <p>To exercise these rights, use the in-app settings or contact us at <a href="mailto:support@auditure.com" className="text-[#920002] hover:underline">support@auditure.com</a>.</p>
         </Section>
 
-        <Section title="10. Data Retention">
-          <p>We retain your data for as long as your account is active. When you delete your account, your personal data, AI podcasters, generated content, and social interactions are permanently removed. We may retain anonymised, aggregated data for analytics purposes.</p>
+        <Section title="10. Account & Data Deletion">
+          <p className="mb-3">You can delete your Auditure account and all associated data at any time. To delete your account:</p>
+          <ol className="list-decimal pl-5 space-y-1 mb-3">
+            <li>Open the Auditure app</li>
+            <li>Go to the <strong>Profile</strong> tab</li>
+            <li>Scroll down and tap <strong>"Delete Account"</strong></li>
+            <li>Enter your password to confirm</li>
+            <li>Your account will be permanently deleted</li>
+          </ol>
+          <p className="mb-3"><strong>What gets deleted:</strong></p>
+          <ul className="list-disc pl-5 space-y-1 mb-3">
+            <li>Your account and personal information (name, email, date of birth)</li>
+            <li>All AI podcasters you created</li>
+            <li>All generated audio episodes</li>
+            <li>All comments, likes, and ratings</li>
+            <li>Your subscription (if active, it will be cancelled)</li>
+            <li>Uploaded book content</li>
+          </ul>
+          <p className="mb-3">Account deletion is <strong>permanent and cannot be undone</strong>. We may retain anonymised, aggregated data for analytics purposes.</p>
+          <p>If you are unable to access the app, you can request account deletion by emailing <a href="mailto:support@auditure.com" className="text-[#920002] hover:underline">support@auditure.com</a> from the email address associated with your account.</p>
         </Section>
 
-        <Section title="11. Children's Privacy">
+        <Section title="11. Data Retention">
+          <p>We retain your data for as long as your account is active. When you delete your account, your data is permanently removed as described in Section 10. We may retain anonymised, aggregated data for analytics purposes.</p>
+        </Section>
+
+        <Section title="12. Children's Privacy">
           <p>Auditure is not intended for children under 13. We do not knowingly collect personal information from children under 13. If you believe a child under 13 has provided us with personal information, please contact us.</p>
         </Section>
 
-        <Section title="12. Changes to This Policy">
+        <Section title="13. Changes to This Policy">
           <p>We may update this Privacy Policy from time to time. We will notify you of significant changes through the app or via email. The "Last updated" date at the top indicates when this policy was last revised.</p>
         </Section>
 
-        <Section title="13. Contact Us">
+        <Section title="14. Contact Us">
           <p>If you have questions or concerns about this Privacy Policy or how we handle your data, please contact us at <a href="mailto:support@auditure.com" className="text-[#920002] hover:underline">support@auditure.com</a>.</p>
         </Section>
       </main>
