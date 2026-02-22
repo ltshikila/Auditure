@@ -407,10 +407,33 @@ class ScriptGenerator:
 
         script = "\n".join(cleaned_lines)
 
-        # Normalize speaker labels for DUO
-        if episode_type == "DUO":
-            script = script.replace("Host:", "HOST:")
-            script = script.replace("Guest:", "GUEST:")
+        # Normalize speaker labels for DUO/GROUP
+        # LLMs (especially Gemini) often wrap labels in markdown: **HOST:**, **Host:**
+        # This strips markdown and normalizes case so the parser and TTS client
+        # can reliably find HOST:/GUEST: at the start of lines.
+        if episode_type in ("DUO", "GROUP"):
+            # Strip markdown bold/italic around speaker labels
+            # Handles: **HOST:**, **HOST**:, *Host:*, ***GUEST:***, etc.
+            script = re.sub(
+                r'^\*{1,3}(HOST\d?|GUEST\d?|SPEAKER\d?|NARRATOR)\*{0,3}:\*{0,3}\s*',
+                lambda m: m.group(1).upper() + ': ',
+                script,
+                flags=re.IGNORECASE | re.MULTILINE,
+            )
+            # Handle colon outside bold: **HOST**: text
+            script = re.sub(
+                r'^\*{1,3}(HOST\d?|GUEST\d?|SPEAKER\d?|NARRATOR)\*{1,3}:\s*',
+                lambda m: m.group(1).upper() + ': ',
+                script,
+                flags=re.IGNORECASE | re.MULTILINE,
+            )
+            # Normalize remaining case variants without markdown (Host: → HOST:)
+            script = re.sub(
+                r'^(host\d?|guest\d?|speaker\d?|narrator):\s*',
+                lambda m: m.group(1).upper() + ': ',
+                script,
+                flags=re.IGNORECASE | re.MULTILINE,
+            )
 
         # Remove unofficial/dangerous TTS tags
         # Mode 3 vocalized adjectives (word gets spoken aloud — bad for podcasts)

@@ -219,6 +219,22 @@ class TTSEngine:
         }
         logger.info(f"Voice assignments: {voice_assignments}")
 
+        # Safety net: if script lacks speaker labels but we're in multi-speaker mode,
+        # reconstruct the script with labels from parsed segments so the TTS client
+        # can properly use multi-speaker synthesis.
+        if episode_type != "MONOLOGUE" and len(speakers) > 1:
+            import re
+            has_labels = any(
+                re.match(r'^(HOST|GUEST|SPEAKER|NARRATOR)\d?:', line.strip())
+                for line in script.split('\n') if line.strip()
+            )
+            if not has_labels:
+                logger.warning(
+                    "Script lacks speaker labels for multi-speaker episode — "
+                    "reconstructing labeled script from parsed segments"
+                )
+                script = self._reconstruct_labeled_script(segments)
+
         # Generate audio with full voice configs, language code, and episode type
         wav_buffer = self.gemini_client.generate_audio(
             script=script,
@@ -250,6 +266,21 @@ class TTSEngine:
             estimated_cost=cost,
             voice_tier="gemini",
         )
+
+    def _reconstruct_labeled_script(
+        self,
+        segments: list[SpeakerSegment],
+    ) -> str:
+        """Reconstruct a script with proper speaker labels from parsed segments.
+
+        Used as a safety net when the LLM generates a DUO script without
+        recognizable speaker labels (e.g. plain paragraphs or markdown-formatted).
+        """
+        lines = []
+        for segment in segments:
+            lines.append(f"{segment.speaker}: {segment.text}")
+            lines.append("")  # Blank line between turns
+        return "\n".join(lines).strip()
 
     def _generate_with_google(
         self,
