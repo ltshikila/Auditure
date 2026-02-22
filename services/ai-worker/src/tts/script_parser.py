@@ -134,7 +134,7 @@ class ScriptParser:
     def estimate_duration(
         self,
         segments: list[SpeakerSegment],
-        words_per_minute: int = 185,  # Gemini TTS speaks at ~185 wpm
+        words_per_minute: int = 150,  # Gemini TTS speaks at ~150 wpm (measured)
     ) -> int:
         """
         Estimate total duration in seconds.

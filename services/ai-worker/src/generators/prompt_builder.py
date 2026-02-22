@@ -1397,7 +1397,7 @@ Create an energetic, friendly discussion with frequent engagement (5+ times):
         self,
         target_length_min: int,
         target_length_max: int,
-        words_per_minute: int = 180,  # ~180 wpm at default speed 5
+        words_per_minute: int = 148,  # Gemini TTS ~148 wpm at default speed 5
     ) -> int:
         """Calculate target word count from time range.
 
@@ -1588,7 +1588,7 @@ Repetition is the enemy of engagement. Keep moving forward with fresh content.
 {conversation_flow_section}
 {deep_dive_section}
 ## Requirements
-- **CRITICAL: MINIMUM LENGTH**: The script MUST be at least {adjusted_target} words (~{request.target_length_min}-{request.target_length_max} minutes at ~185 wpm).
+- **CRITICAL: MINIMUM LENGTH**: The script MUST be at least {adjusted_target} words (~{request.target_length_min}-{request.target_length_max} minutes at ~150 wpm).
 - DO NOT write a short script. Episodes under {request.target_length_min} minutes will be rejected.
 - **NEVER BE REPETITIVE** - Each paragraph must add NEW value.
 - **INTRODUCTION MUST STATE SCOPE**: Clearly state what you're covering (e.g., "Today we're diving into {request.content_scope} from {request.book_title}"{f' - specifically {request.chapter_title}' if request.chapter_title else ''})

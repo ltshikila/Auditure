@@ -243,9 +243,14 @@ class ScriptGenerator:
         )
 
     def _speed_to_wpm(self, speaking_speed: int, voice_tier: str = "standard") -> int:
-        """Convert podcaster speaking speed (1-10) to words per minute."""
+        """Convert podcaster speaking speed (1-10) to words per minute.
+
+        Calibrated to Gemini TTS actual output: ~150 wpm at speed 5.
+        Production data: 4022 words / 26.9 min = 149.7 wpm.
+        """
         speed = max(1, min(10, speaking_speed))
-        return 130 + (speed * 10)
+        # Gemini TTS range: ~120 wpm (speed 1) to ~190 wpm (speed 10)
+        return 113 + (speed * 7)
 
     def _calculate_target_words(
         self,
