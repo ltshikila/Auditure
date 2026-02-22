@@ -28,10 +28,9 @@ class Settings(BaseSettings):
     redis_host: str = "localhost"
     redis_port: int = 6379
 
-    # LLM - OpenAI GPT-4o mini
-    openai_api_key: Optional[str] = None
-    openai_model: str = "gpt-4o-mini"
-    openai_max_tokens: int = 16000  # GPT-4o mini supports up to 16,384 output tokens
+    # LLM - Gemini 2.5 Flash (script generation)
+    gemini_script_model: str = "gemini-2.5-flash"
+    gemini_max_output_tokens: int = 65000  # Gemini 2.5 Flash supports up to 65,535 output tokens
 
     # Google Cloud TTS (Standard voices - $4/1M chars)
     google_cloud_project_id: Optional[str] = None
@@ -55,8 +54,8 @@ class Settings(BaseSettings):
     # Note: Gemini TTS speaks at ~180-185 wpm, faster than typical 150 wpm
     # Using 185 ensures scripts have enough words for minimum duration
     words_per_minute: int = 185
-    max_book_content_chars: int = 8000
-    script_generation_timeout: int = 120  # Increased for GPT-4o mini
+    max_book_content_chars: int = 50000  # Gemini 1M context allows much more content
+    script_generation_timeout: int = 180  # Gemini may need more time for long single-call scripts
 
     # TTS
     tts_temp_dir: str = "./temp/tts"
@@ -70,8 +69,8 @@ class Settings(BaseSettings):
 
     @property
     def has_llm_api(self) -> bool:
-        """Check if OpenAI API is configured."""
-        return self.openai_api_key is not None and len(self.openai_api_key) > 0
+        """Check if Gemini API is configured for script generation."""
+        return self.gemini_api_key is not None and len(self.gemini_api_key) > 0
 
     @property
     def has_google_tts(self) -> bool:

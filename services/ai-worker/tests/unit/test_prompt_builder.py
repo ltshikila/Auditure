@@ -90,7 +90,7 @@ class TestPromptBuilder:
 
         assert "HOST" in instructions
         assert "GUEST" in instructions
-        assert "Two-person" in instructions or "two" in instructions.lower()
+        assert "teacher" in instructions.lower() or "two" in instructions.lower()
 
     def test_episode_type_group(self, builder):
         """Test group instructions."""
@@ -115,9 +115,9 @@ class TestPromptBuilder:
 
     def test_episode_theme_debate(self, builder):
         """Test debate theme instructions."""
-        instructions = builder.build_theme_instructions("DEBATE")
+        instructions = builder.build_theme_instructions("DEBATE", episode_type="DUO")
 
-        assert "Argumentative" in instructions or "perspectives" in instructions.lower()
+        assert "argumentative" in instructions.lower() or "opposing" in instructions.lower()
 
     # Target word calculation tests
     def test_calculate_target_words(self, builder):
@@ -148,7 +148,7 @@ class TestPromptBuilder:
             target_length_max=25,
         )
 
-        prompt = builder.build_prompt(request)
+        prompt, cohost_archetype = builder.build_prompt(request)
 
         # Check all components are present
         assert "Phil the Philosopher" in prompt
@@ -157,6 +157,8 @@ class TestPromptBuilder:
         assert "Understanding Stoicism" in prompt
         assert "This is the book content" in prompt
         assert "15-25 minutes" in prompt or "3000 words" in prompt
+        # MONOLOGUE should not produce a cohost archetype
+        assert cohost_archetype is None
 
     def test_build_prompt_without_author(self, builder, sample_personality):
         """Test building prompt without author."""
@@ -173,10 +175,12 @@ class TestPromptBuilder:
             target_length_max=15,
         )
 
-        prompt = builder.build_prompt(request)
+        prompt, cohost_archetype = builder.build_prompt(request)
 
         assert "Mystery Book" in prompt
         assert " by " not in prompt.split("Mystery Book")[1].split("\n")[0]
+        # DUO should produce a cohost archetype
+        assert cohost_archetype is not None
 
 
 class TestPodcasterPersonality:
@@ -295,7 +299,7 @@ class TestGenreAndExpertiseInstructions:
             target_length_max=15,
             book_genres=["Fiction / Fantasy"],
         )
-        prompt = builder.build_prompt(request)
+        prompt, _ = builder.build_prompt(request)
         assert "BOOK GENRE" in prompt
         assert "Fiction / Fantasy" in prompt
         assert "EXPERTISE WEIGHTING" in prompt

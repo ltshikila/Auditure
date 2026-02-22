@@ -263,6 +263,15 @@ class PodcasterPersonality:
 
 
 @dataclass
+class CoHostArchetype:
+    """Archetype-based co-host for DUO episodes. No fake identities — just a defined
+    perspective and speaking style that contrasts with the host."""
+    perspective: str  # Their angle: skeptical, enthusiastic, analytical, experiential, philosophical
+    speaking_style: str  # How they communicate: concise and direct, warm and expansive, etc.
+    role_description: str  # One-line description for the prompt
+
+
+@dataclass
 class ScriptRequest:
     """Request for script generation."""
 
@@ -365,6 +374,319 @@ class PromptBuilder:
 
         return "\n".join(f"- {d}" for d in descriptions)
 
+    def generate_cohost_archetype(
+        self,
+        host_personality: PodcasterPersonality,
+        episode_theme: str,
+        book_genres: Optional[list[str]] = None,
+    ) -> CoHostArchetype:
+        """Generate a complementary co-host archetype that contrasts the host.
+
+        The co-host should feel like a genuinely different person — not just the host
+        with a different voice. Their perspective and style should create natural tension
+        and variety in the conversation.
+        """
+        # Determine genre category for context-appropriate archetypes
+        genre_cat = self._categorize_genre(book_genres)
+
+        # Define perspective pools that contrast with host traits
+        # Analytical host → experiential co-host, energetic host → measured co-host, etc.
+        perspective_pools = {
+            "LECTURE": {
+                # Co-host is the engaged learner who asks good questions
+                "perspectives": [
+                    "an engaged learner who asks the questions the audience is thinking",
+                    "a curious newcomer to this topic who wants things explained clearly",
+                    "someone who learns by challenging — if an explanation doesn't click, they push back",
+                ],
+                "styles": [
+                    "asks concise, pointed questions and genuinely listens to the answers",
+                    "isn't afraid to say 'wait, I don't get that — can you break it down?'",
+                    "connects abstract ideas to concrete everyday situations",
+                ],
+            },
+            "DISCUSSION": {
+                "perspectives": [
+                    "a naturally curious explorer who follows ideas wherever they lead",
+                    "someone who thinks out loud and isn't afraid to change their mind mid-conversation",
+                    "a reflective thinker who connects everything back to lived experience",
+                    "an enthusiastic reactor who gets genuinely excited when an idea clicks",
+                ],
+                "styles": [
+                    "warm and expansive — builds on ideas with personal stories and 'what-if' scenarios",
+                    "concise and direct — cuts to the heart of things with sharp observations",
+                    "playful and witty — finds the humor and irony in serious ideas",
+                    "deeply thoughtful — takes a beat before responding, then says something surprising",
+                ],
+            },
+            "DEBATE": {
+                "perspectives": [
+                    "a sharp critical thinker who won't accept arguments at face value",
+                    "a passionate contrarian who genuinely believes the opposing view",
+                    "a pragmatist who cares about what actually works, not what sounds good in theory",
+                    "someone who's been burned by ideas like this before and isn't buying it easily",
+                ],
+                "styles": [
+                    "direct and unafraid of confrontation — says exactly what they think",
+                    "builds their case methodically, then delivers the knockout punch",
+                    "disarmingly calm when making devastating points",
+                    "passionate and animated — you can hear the conviction in every word",
+                ],
+            },
+        }
+
+        pool = perspective_pools.get(episode_theme, perspective_pools["DISCUSSION"])
+
+        # Select perspective and style, ensuring contrast with host
+        perspective = random.choice(pool["perspectives"])
+        speaking_style = random.choice(pool["styles"])
+
+        # Adjust for host personality contrast
+        if host_personality.tone >= 7:  # Energetic host
+            # Prefer measured, grounded co-host
+            if episode_theme != "DEBATE":
+                calm_styles = [s for s in pool["styles"] if "thoughtful" in s or "concise" in s or "calm" in s]
+                if calm_styles:
+                    speaking_style = random.choice(calm_styles)
+        elif host_personality.tone <= 3:  # Calm host
+            # Prefer more animated co-host
+            animated_styles = [s for s in pool["styles"] if "passionate" in s or "playful" in s or "enthusiastic" in s or "animated" in s]
+            if animated_styles:
+                speaking_style = random.choice(animated_styles)
+
+        # Build role description
+        role_description = f"Your co-host is {perspective}. They {speaking_style}."
+
+        # Add genre-specific flavor
+        genre_flavor = {
+            "fiction": " They focus on characters, themes, and what makes the story resonate emotionally.",
+            "business": " They bring a practical lens — always asking 'but does this actually work in the real world?'",
+            "self_help": " They're interested in whether the advice is genuinely actionable or just sounds good.",
+            "philosophy": " They love pushing ideas to their logical extremes to see if they hold up.",
+            "history": " They're fascinated by the human stories behind the events and what we can learn from them.",
+            "science": " They want to understand the 'so what' — why should a non-expert care about this?",
+        }
+        if genre_cat in genre_flavor:
+            role_description += genre_flavor[genre_cat]
+
+        return CoHostArchetype(
+            perspective=perspective,
+            speaking_style=speaking_style,
+            role_description=role_description,
+        )
+
+    def _categorize_genre(self, book_genres: Optional[list[str]]) -> str:
+        """Categorize book genres into broad categories."""
+        if not book_genres:
+            return "general"
+        genres_lower = " ".join(book_genres).lower()
+        if any(kw in genres_lower for kw in ["fiction", "novel", "fantasy", "sci-fi", "thriller", "mystery", "romance"]):
+            return "fiction"
+        if any(kw in genres_lower for kw in ["business", "management", "leadership", "economics", "entrepreneur"]):
+            return "business"
+        if any(kw in genres_lower for kw in ["self-help", "personal development", "self-improvement", "motivation"]):
+            return "self_help"
+        if any(kw in genres_lower for kw in ["philosophy", "religion", "spiritual"]):
+            return "philosophy"
+        if any(kw in genres_lower for kw in ["history", "biography", "memoir", "war"]):
+            return "history"
+        if any(kw in genres_lower for kw in ["science", "technology", "computer", "physics", "biology"]):
+            return "science"
+        return "general"
+
+    def build_pacing_structure(
+        self,
+        episode_theme: str,
+        book_genres: Optional[list[str]],
+        target_words: int,
+    ) -> str:
+        """Build genre-aware emotional pacing structure for the episode."""
+        genre_cat = self._categorize_genre(book_genres)
+
+        if episode_theme == "LECTURE":
+            return self._build_lecture_pacing(genre_cat, target_words)
+        elif episode_theme == "DISCUSSION":
+            return self._build_discussion_pacing(target_words)
+        else:  # DEBATE
+            return self._build_debate_pacing(target_words)
+
+    def _build_lecture_pacing(self, genre_cat: str, target_words: int) -> str:
+        """Build lecture pacing that varies by genre."""
+        genre_pacing = {
+            "fiction": {
+                "hook": "Open with an intriguing scene or quote from the book — something that makes listeners go 'wait, what?'",
+                "build": "Set up the world, characters, and narrative stakes. Give listeners the context they need to care.",
+                "core": "Deep thematic analysis — what is the author really saying through this story? Explore character arcs, symbolism, and narrative choices.",
+                "climax": "The 'aha' connection — where all the themes come together and the book's deeper meaning crystallizes.",
+                "close": "Why this story matters. What it reveals about human nature, society, or ourselves.",
+            },
+            "business": {
+                "hook": "Open with a counterintuitive claim or surprising statistic that challenges conventional thinking.",
+                "build": "Introduce the core framework or model the book proposes. Explain WHY this matters for the listener.",
+                "core": "Walk through case studies, evidence, and real-world examples. Show the framework in action.",
+                "climax": "The strategic insight — the key takeaway that could actually change how someone works or leads.",
+                "close": "Actionable takeaways. Specific things listeners can do THIS WEEK based on what they've learned.",
+            },
+            "self_help": {
+                "hook": "Start with a relatable pain point — a situation every listener has been in.",
+                "build": "Introduce the author's approach and why it's different from what people usually try.",
+                "core": "Walk through the techniques with vivid examples. Make each step feel achievable.",
+                "climax": "The transformation moment — paint a picture of what changes when you actually apply this.",
+                "close": "Personal action plan. Not vague inspiration, but 'here's exactly what to do next.'",
+            },
+            "philosophy": {
+                "hook": "Open with a provocative question that has no easy answer.",
+                "build": "Historical context — who was asking this question before, and why does it matter now?",
+                "core": "Dissect the arguments. Follow the logic carefully but make it accessible.",
+                "climax": "The paradigm shift — the moment where the idea fundamentally changes how you see something.",
+                "close": "Implications for how we actually live. Philosophy isn't abstract — bring it home.",
+            },
+            "history": {
+                "hook": "Dramatic scene-setting — put the listener in the moment. What did it feel like to be there?",
+                "build": "Context and key players. Who were these people, and what drove them?",
+                "core": "Events unfolding — tell the story with narrative tension, not just chronology.",
+                "climax": "The turning point — the moment everything changed and why it mattered.",
+                "close": "Modern relevance. Why should someone in 2026 care about this?",
+            },
+            "science": {
+                "hook": "A mind-blowing fact or question that makes listeners curious.",
+                "build": "The backstory — how did we come to understand this? What mystery were scientists solving?",
+                "core": "The discovery or concept explained clearly, with analogies that make it click.",
+                "climax": "The 'whoa' moment — the implication that changes how you see the world.",
+                "close": "What this means for the future and why every listener should care.",
+            },
+        }
+
+        pacing = genre_pacing.get(genre_cat, genre_pacing["business"])
+        w = lambda pct: int(target_words * pct)
+
+        return f"""## EPISODE PACING (Follow this emotional arc!)
+
+**1. HOOK (~{w(0.10)} words, ~10%)**
+{pacing['hook']}
+
+**2. BUILD (~{w(0.25)} words, ~25%)**
+{pacing['build']}
+
+**3. CORE (~{w(0.35)} words, ~35%)**
+{pacing['core']}
+
+**4. CLIMAX (~{w(0.15)} words, ~15%)**
+{pacing['climax']}
+
+**5. CLOSE (~{w(0.15)} words, ~15%)**
+{pacing['close']}
+
+DO NOT just linearly walk through the content. Follow this emotional arc — build tension, create revelations, land with impact."""
+
+    def _build_discussion_pacing(self, target_words: int) -> str:
+        w = lambda pct: int(target_words * pct)
+        return f"""## EPISODE PACING (Follow this conversational arc!)
+
+**1. SPARK (~{w(0.10)} words, ~10%)**
+"Something about this completely changed how I think about..." — Open with genuine enthusiasm or intrigue. Set up why this book grabbed you.
+
+**2. EXPLORATION (~{w(0.25)} words, ~25%)**
+Unpack initial reactions. Both speakers share what struck them. Surface the interesting tensions in the material. "What I found fascinating was..." / "See, I read that differently..."
+
+**3. TENSION (~{w(0.20)} words, ~20%)**
+"But here's where it gets complicated..." — Find the genuinely hard questions. Where does the author's argument break down? What did they get wrong or oversimplify? Push each other.
+
+**4. BREAKTHROUGH (~{w(0.25)} words, ~25%)**
+Work through the tension. New understanding emerges. "Oh wait — I think I see what you mean now..." Genuine intellectual progress, not just agreeing to agree.
+
+**5. REFLECTION (~{w(0.20)} words, ~20%)**
+What does this mean for the listener? Personal takeaways. "If I had to tell someone one thing from this book..." End with something that sticks.
+
+DO NOT have a flat conversation where both speakers just agree the whole time. Find the genuine tensions and work through them."""
+
+    def _build_debate_pacing(self, target_words: int) -> str:
+        w = lambda pct: int(target_words * pct)
+        return f"""## EPISODE PACING (Follow this debate arc!)
+
+**1. OPENING SALVOS (~{w(0.10)} words, ~10%)**
+Both sides state their position clearly and STRONGLY. No hedging. The audience should immediately know where each speaker stands and feel the voltage between them.
+
+**2. EVIDENCE EXCHANGE (~{w(0.25)} words, ~25%)**
+Each side presents their strongest arguments with SPECIFIC evidence. From the book, from real-world examples, from personal reasoning. Build the case before tearing down the other side.
+
+**3. ESCALATION (~{w(0.25)} words, ~25%)**
+Direct challenges, rebuttals, getting heated. "That's exactly the problem with your argument..." / "You're completely missing the point..." Each exchange more intense than the last.
+
+**4. CLIMAX (~{w(0.20)} words, ~20%)**
+The critical exchange where the core disagreement crystallizes. The audience should feel the tension. This is the moment everyone will remember.
+
+**5. RESOLUTION (~{w(0.20)} words, ~20%)**
+Land the plane — how does this debate resolve? Not a cop-out ending. A genuine conclusion that reflects the outcome."""
+
+    def build_conversation_flow(
+        self,
+        episode_type: str,
+        episode_theme: str,
+        chaos_factor: int,
+        cohost_archetype: Optional[CoHostArchetype] = None,
+    ) -> str:
+        """Build conversation flow instructions for DUO episodes.
+
+        Addresses the ping-pong problem: real conversations have varied turn lengths,
+        clear leadership per topic, callbacks to earlier points, and natural reactions.
+        """
+        if episode_type == "MONOLOGUE":
+            return ""
+
+        # Determine conversation leader pattern
+        # Randomly assign leadership for variety
+        leader_pattern = random.choice([
+            "HOST leads most topics, GUEST adds depth and challenges",
+            "Leadership alternates — HOST leads odd topics, GUEST leads even topics",
+            "GUEST leads the opening and closing topics, HOST leads the middle",
+        ])
+
+        # Build interruption style based on chaos
+        if chaos_factor <= 3:
+            interruption_style = "Rare interruptions — let each person finish their thought. When you do interrupt, it should feel purposeful."
+        elif chaos_factor <= 6:
+            interruption_style = "Natural interruptions when something is too interesting to wait — 'Oh wait, that reminds me of—' or 'Hold on, I need to push back on that.'"
+        else:
+            interruption_style = "Frequent, energetic interruptions — talking over each other, finishing each other's sentences, 'No no no, let me stop you right there—'"
+
+        cohost_section = ""
+        if cohost_archetype:
+            cohost_section = f"""
+## CO-HOST CHARACTER
+{cohost_archetype.role_description}
+
+The HOST and GUEST should sound like GENUINELY DIFFERENT PEOPLE — not two versions of the same personality taking turns. Their reactions, vocabulary, and thought patterns should be clearly distinct.
+"""
+
+        return f"""{cohost_section}
+## CONVERSATION FLOW (CRITICAL FOR NATURAL DIALOGUE)
+
+**Turn Length — VARY IT:**
+- LONG turns (3-5 sentences): When a speaker is making a complete point, telling an anecdote, or explaining a concept. Let them FINISH their thought without interruption.
+- MEDIUM turns (1-2 sentences): Adding a perspective, asking a substantive question, or making a specific observation.
+- SHORT turns (partial sentence): Reactions, interruptions, backchannels — "That's wild", "Wait—", "Exactly!"
+- DO NOT make every turn the same length. A conversation where both speakers always say 2 sentences each is robotic.
+
+**Leadership Pattern: {leader_pattern}**
+- The "leader" of a topic makes the main point (3-5 sentences).
+- The other speaker reacts, asks follow-ups, challenges, or adds (1-2 sentences).
+- Then leadership can shift. Neither person should dominate the ENTIRE episode.
+
+**Callbacks & Threading:**
+- Reference earlier points: "Going back to what you said about X..."
+- Build on previous disagreements: "I've been thinking about your earlier point..."
+- Create continuity: ideas from early in the conversation should echo later.
+
+**Natural Reactions (NOT just "Mm-hmm"):**
+- "That's wild", "I never thought of it that way", "Okay wait—", "See, this is what I mean"
+- Let reactions sometimes interrupt, sometimes come after a [short pause]
+- Match reactions to personality — analytical hosts react differently than energetic hosts
+
+**{interruption_style}**
+
+REMEMBER: The goal is a conversation that sounds like two real people who actually care about this topic, not a scripted dialogue where both speakers politely take turns."""
+
     def build_genre_and_expertise_instructions(
         self,
         book_genres: Optional[list[str]],
@@ -442,53 +764,109 @@ Use your expertise as a lens where it naturally fits the content. If the book's 
 
         return "\n\n".join(sections)
 
-    def build_episode_type_instructions(self, episode_type: str) -> str:
-        """Get instructions based on episode type.
+    def build_episode_type_instructions(self, episode_type: str, episode_theme: str = "LECTURE") -> str:
+        """Get instructions based on episode type and theme combination.
 
-        Includes Gemini TTS markup guidance for natural speech synthesis.
-        Reference: https://docs.cloud.google.com/text-to-speech/docs/gemini-tts#prompting_tips
+        All 6 combinations are supported:
+        - MONOLOGUE + LECTURE: Single host teaching
+        - MONOLOGUE + DISCUSSION: Thinking out loud, exploring ideas
+        - MONOLOGUE + DEBATE: Internal deliberation, wrestling with ideas
+        - DUO + LECTURE: Teacher/student dynamic
+        - DUO + DISCUSSION: Two people exploring together
+        - DUO + DEBATE: Two people with opposing views
         """
         tts_markup_guide = """
 ## TTS Markup Tags (OFFICIAL TAGS ONLY - others will be spoken aloud!)
 Include ONLY these official markup tags throughout the script:
 
-**Non-Speech Sounds (acted out):**
-- [sigh] - Express frustration, relief, or contemplation
-- [laughing] - Natural laughter reactions
-- [uhm] - Thinking hesitation for naturalness
+**Non-Speech Sounds (acted out, not spoken):**
+- [sigh] - Frustration, relief, contemplation
+- [laughing] - Natural laughter
+- [uhm] - Thinking hesitation
 
-**Pacing/Pauses:**
-- [short pause] - Brief pause (~250ms)
+**Style Modifiers (affect delivery, not spoken):**
+- [whispering] - Quiet, intimate delivery
+- [sarcasm] - Sarcastic tone on following phrase
+- [shouting] - Raised volume for passionate moments
+- [extremely fast] - Rapid delivery for excited tangents
+
+**Pacing:**
+- [short pause] - Brief beat (~250ms)
 - [medium pause] - Sentence break (~500ms)
 - [long pause] - Dramatic pause (~1s)
 
-**Style Modifiers (change delivery):**
-- [whispering] - Quiet, intimate delivery
-- [sarcasm] - Sarcastic tone
+**DO NOT use:** [nodding], [smiling], [thoughtful], [excited], [curious], [scared], [bored],
+[leaning in], [gesturing], or any physical/visual actions. These will be spoken aloud or produce
+unpredictable results.
 
-**IMPORTANT:** Do NOT use tags like [nodding], [thoughtfully], [intrigued], [chuckle],
-[excited], [curious], [smiling], etc. - these are NOT official and will be SPOKEN ALOUD!
-Use descriptive words instead: "That's fascinating" instead of "[intrigued]"
-
-Example usage:
-"So I was reading this book [short pause] and honestly [sigh] it completely changed how I think about productivity."
-"Wait, really? [laughing] That's exactly what happened to me!"
-"[uhm] Let me think about that for a second [medium pause] yeah, I think you're right."
+Example:
+"So I was reading this [short pause] and honestly [sigh] it completely changed how I think about this."
+"[uhm] Let me think about that [medium pause] yeah, I think you're right."
+"[sarcasm] Oh sure, because that always works perfectly."
 """
 
         if episode_type == "MONOLOGUE":
-            return f"""
-Format: Single host speaking directly to the audience.
-Structure: No speaker labels needed - write as continuous prose.
-Style: First person, intimate, as if speaking to a close friend.
+            if episode_theme == "DISCUSSION":
+                return f"""
+Format: Single host thinking out loud — exploratory, questioning your own assumptions.
+Structure: No speaker labels. Write as continuous first-person prose.
+Style: Intimate and vulnerable. You're working through ideas in real-time, not presenting polished conclusions.
+- "Let me work through this... on one hand... but then again..."
+- Question yourself genuinely. Change your mind mid-thought sometimes.
+- Share moments of genuine confusion or surprise.
+- This should feel like the audience is inside your head as you process the book.
+{tts_markup_guide}"""
+            elif episode_theme == "DEBATE":
+                return f"""
+Format: Single host in internal deliberation — genuinely wrestling with the book's ideas.
+Structure: No speaker labels. Write as continuous first-person prose.
+Style: You are arguing BOTH SIDES honestly with yourself. Not performing objectivity — actually struggling.
+- "Part of me agrees with the author here, but I can't shake the feeling that..."
+- "Okay, so the strongest argument FOR this is... but then the strongest argument AGAINST..."
+- Include moments of genuine uncertainty: "I honestly don't know where I land on this."
+- The audience should feel like they're watching someone think critically in real-time.
+- Do NOT just present the book's view then mildly object. BOTH sides must be argued with conviction.
+{tts_markup_guide}"""
+            else:  # LECTURE
+                return f"""
+Format: Single host teaching — structured, authoritative, engaging.
+Structure: No speaker labels. Write as continuous first-person prose.
+Style: First person, intimate, as if explaining to a close friend who's genuinely interested.
+- Speak directly to the audience.
+- Use "you" language: "Here's what you need to understand..."
+- Build concepts on top of each other.
 {tts_markup_guide}"""
 
         else:  # DUO
-            return f"""
-Format: Two-person conversation between HOST and GUEST.
-Structure: Use speaker labels like "HOST:" and "GUEST:" for each speaking turn.
-Style: Natural dialogue with back-and-forth exchange. The guest can challenge or add perspectives.
-Include natural reactions like agreement sounds, laughter, and thoughtful pauses.
+            if episode_theme == "LECTURE":
+                return f"""
+Format: Teacher/student dynamic between HOST (the explainer) and GUEST (the learner).
+Structure: Use "HOST:" and "GUEST:" labels for every speaking turn.
+Style: HOST explains and teaches. GUEST asks the questions the audience is thinking.
+- GUEST is NOT passive — they ask smart questions, push back on unclear explanations, and make connections.
+- "Wait, slow down — what do you mean by that exactly?"
+- "Okay, so if I'm understanding this right..."
+- "But how does that actually work in practice?"
+- GUEST should NOT be sycophantic. Genuine curiosity, not fake enthusiasm.
+{tts_markup_guide}"""
+            elif episode_theme == "DEBATE":
+                return f"""
+Format: Two speakers with genuinely opposing views.
+Structure: Use "HOST:" and "GUEST:" labels for every speaking turn.
+Style: Both speakers COMMIT to their positions. This is not a polite disagreement — it's a real debate.
+- Each speaker must sound genuinely convinced of their position.
+- Direct challenges: "That's exactly the kind of thinking the author warns against..."
+- Don't hedge: avoid "well, you make a good point" unless you're about to demolish it.
+- The audience should be able to clearly identify which side each speaker is on at ALL times.
+{tts_markup_guide}"""
+            else:  # DISCUSSION
+                return f"""
+Format: Two people exploring ideas together in genuine conversation.
+Structure: Use "HOST:" and "GUEST:" labels for every speaking turn.
+Style: Natural dialogue. Both speakers bring their own perspective and react genuinely.
+- Include natural reactions: agreement, surprise, pushback, excitement.
+- Build on each other's points rather than just alternating monologues.
+- Find genuine tensions in the material and explore them together.
 {tts_markup_guide}"""
 
     def build_theme_instructions(
@@ -500,34 +878,58 @@ Include natural reactions like agreement sounds, laughter, and thoughtful pauses
     ) -> str:
         """Get instructions based on episode theme and chaos factor.
 
-        Args:
-            episode_theme: LECTURE, DISCUSSION, or DEBATE
-            chaos_factor: 1-10 scale affecting interruption frequency
-            debate_config: Configuration for debate episodes (required for DEBATE theme)
-            episode_type: DUO (used for debate speaker instructions)
+        Supports all 6 combinations of type × theme.
         """
         if episode_theme == "LECTURE":
-            return """
-Tone: Educational and informative. Present information clearly with examples.
-Goal: Teach the audience about the book's key concepts and insights."""
+            if episode_type == "MONOLOGUE":
+                return """
+Tone: Educational and authoritative, but warm. You're the expert and the audience trusts you.
+Goal: Teach the audience about the book's key concepts. Make complex ideas accessible.
+Build from simple to complex. Use analogies, examples, and "here's why this matters" framing."""
+            else:  # DUO LECTURE
+                return """
+Tone: Educational with genuine curiosity. HOST teaches, GUEST learns and challenges.
+Goal: Make the book's concepts clear and memorable through the teacher/student dynamic.
+The GUEST's questions should elevate the HOST's explanations — good questions make good answers."""
 
         elif episode_theme == "DISCUSSION":
-            # Discussions have occasional friendly backchannels
             backchannel_guidance = self._build_backchannel_guidance(chaos_factor, is_debate=False)
-            return f"""
-Tone: Exploratory and collaborative. Share thoughts and reactions organically.
-Goal: Have a genuine conversation about the book's themes and impact.
+            if episode_type == "MONOLOGUE":
+                return """
+Tone: Exploratory and reflective. You're thinking out loud, not presenting conclusions.
+Goal: Take the audience on your intellectual journey through the book's ideas.
+Include genuine moments of: surprise, confusion, disagreement, excitement, connection.
+Don't be afraid to say "I'm not sure about this" or "this challenges what I used to think." """
+            else:  # DUO DISCUSSION
+                return f"""
+Tone: Exploratory and collaborative. Two people genuinely curious about the same ideas.
+Goal: Have a real conversation — not two prepared speeches taking turns.
+Find the genuine tensions in the material. Where do you see things differently?
 {backchannel_guidance}"""
 
         else:  # DEBATE
-            if debate_config:
-                return self.build_debate_instructions(debate_config, episode_type)
-            else:
-                # Fallback to old behavior if no config provided
-                backchannel_guidance = self._build_backchannel_guidance(chaos_factor, is_debate=True)
-                return f"""
-Tone: Argumentative (friendly). Present different perspectives and challenge ideas.
-Goal: Explore the book through contrasting viewpoints and critical analysis.
+            if episode_type == "MONOLOGUE":
+                return """
+Tone: Internal deliberation — genuinely wrestling, not performing balance.
+Goal: Argue both sides of the book's ideas with real conviction. The audience should feel
+your genuine uncertainty about where you land.
+
+CRITICAL RULES FOR MONOLOGUE DEBATE:
+- Argue the FOR side with genuine passion: "Here's why this is brilliant..."
+- Then argue the AGAINST side with equal conviction: "But here's why that might be completely wrong..."
+- Don't just present then dismiss. Both sides must be compelling.
+- Include moments of genuine uncertainty: "I keep going back and forth on this..."
+- The resolution should feel earned, not predetermined.
+- Use self-interruption: "Wait, actually — no, let me rethink that..."
+"""
+            else:  # DUO DEBATE
+                if debate_config:
+                    return self.build_debate_instructions(debate_config, episode_type)
+                else:
+                    backchannel_guidance = self._build_backchannel_guidance(chaos_factor, is_debate=True)
+                    return f"""
+Tone: Genuinely argumentative. Not polite disagreement — real intellectual conflict.
+Goal: Explore the book through OPPOSING viewpoints. Both sides must be compelling.
 {backchannel_guidance}"""
 
     def build_debate_instructions(self, config: DebateConfig, episode_type: str) -> str:
@@ -605,10 +1007,13 @@ Neither side should be obviously "right" - both must present strong, convincing 
             lines.append(f"   - Speaking style: {chaos_desc}{flavor}")
 
         lines.append("""
-**IMPORTANT:** Speakers must COMMIT to their positions throughout the debate.
-- Don't have speakers agree too easily or abandon their stance
-- Each position should sound genuinely convincing when argued
-- Listeners should find themselves nodding along with BOTH sides at different moments
+**CRITICAL — POSITION COMMITMENT:**
+- Speakers must COMMIT to their positions. Do NOT hedge with "well you make a good point."
+- If you concede a point, it should COST you something — only concede when the argument is genuinely irresistible, and immediately pivot to your counterattack.
+- Each position must sound genuinely convincing — listeners should change their mind MULTIPLE times.
+- The audience must be able to clearly identify which side each speaker is on at ALL times.
+- This is NOT a polite discussion with a sprinkle of disagreement. It is a DEBATE. The speakers fundamentally disagree.
+- Direct challenges are expected: "That's exactly the problem with your thinking..." / "You're assuming X, but what if that's completely wrong?"
 """)
 
         return "\n".join(lines)
@@ -617,11 +1022,11 @@ Neither side should be obviously "right" - both must present strong, convincing 
         """Build debate structure instructions based on formality level."""
 
         outcome_instructions = {
-            DebateOutcome.ADVOCATE_WINS: "The advocate's position emerges as more convincing by the end, though the critic raises valid concerns that are acknowledged.",
-            DebateOutcome.CRITIC_WINS: "The critic's skepticism proves well-founded; advocates concede some key points while defending core merits.",
-            DebateOutcome.SYNTHESIS: "Both sides find unexpected common ground, creating a richer understanding than either started with.",
-            DebateOutcome.AGREE_TO_DISAGREE: "The debate ends with mutual respect but fundamental disagreement - both positions remain valid.",
-            DebateOutcome.UNEXPECTED_ALLIANCE: "A critic or skeptic is genuinely won over by a compelling argument, shifting their position.",
+            DebateOutcome.ADVOCATE_WINS: "The advocate makes a specific argument that the critic genuinely cannot counter. The critic visibly struggles — not because they're weak, but because the argument is that good. The critic doesn't fully surrender but acknowledges 'okay, I can't argue with that.'",
+            DebateOutcome.CRITIC_WINS: "The critic dismantles a core assumption the advocate relies on. The advocate realizes their position had a blind spot they hadn't considered. The advocate doesn't flip completely but admits 'that's... actually a fair point I need to sit with.'",
+            DebateOutcome.SYNTHESIS: "Both speakers realize they were arguing past each other — they actually agree on the CORE issue but disagree on the approach. The moment of realization should feel genuine: 'Wait, are we actually saying the same thing?'",
+            DebateOutcome.AGREE_TO_DISAGREE: "The debate crystallizes a fundamental VALUES difference that can't be resolved with more evidence. Both speakers respect each other but acknowledge: 'We just see the world differently on this.' The audience should understand exactly where the fault line is.",
+            DebateOutcome.UNEXPECTED_ALLIANCE: "One speaker makes a point so compelling that the other has a genuine 'damn, you're right' moment. This should feel earned — built up through the debate, not sudden. The converted speaker should be surprised at their own change of heart.",
         }
 
         if formality <= 3:
@@ -1092,8 +1497,8 @@ Repetition is the enemy of engagement. Keep moving forward with fresh content.
             Complete prompt string
         """
         personality_desc = self.build_personality_description(request.podcaster_personality)
-        type_instructions = self.build_episode_type_instructions(request.episode_type)
         chaos_factor = request.podcaster_personality.chaos_factor
+        type_instructions = self.build_episode_type_instructions(request.episode_type, request.episode_theme)
         theme_instructions = self.build_theme_instructions(
             episode_theme=request.episode_theme,
             chaos_factor=chaos_factor,
@@ -1114,6 +1519,31 @@ Repetition is the enemy of engagement. Keep moving forward with fresh content.
             book_title=request.book_title,
         )
 
+        # Build emotional pacing structure
+        pacing_section = self.build_pacing_structure(
+            episode_theme=request.episode_theme,
+            book_genres=request.book_genres,
+            target_words=target_words,
+        )
+
+        # Build conversation flow for DUO episodes
+        cohost_archetype = None
+        conversation_flow_section = ""
+        if request.episode_type == "DUO":
+            cohost_archetype = self.generate_cohost_archetype(
+                host_personality=request.podcaster_personality,
+                episode_theme=request.episode_theme,
+                book_genres=request.book_genres,
+            )
+            conversation_flow_section = self.build_conversation_flow(
+                episode_type=request.episode_type,
+                episode_theme=request.episode_theme,
+                chaos_factor=chaos_factor,
+                cohost_archetype=cohost_archetype,
+            )
+        # Store for later retrieval by script_generator
+        self._last_cohost_archetype = cohost_archetype
+
         # Build deep dive instructions if content is limited or this is a retry
         deep_dive_section = ""
         if request.content_is_limited or request.retry_count > 0 or request.expansion_ratio >= 1.5:
@@ -1126,13 +1556,13 @@ Repetition is the enemy of engagement. Keep moving forward with fresh content.
         # Adjust target words up for retries (more aggressive with each retry)
         adjusted_target = target_words
         if request.retry_count >= 2:
-            adjusted_target = int(target_words * 1.5)  # 50% more on second retry
+            adjusted_target = int(target_words * 1.5)
             logger.info(f"Second retry: increased target from {target_words} to {adjusted_target} words")
         elif request.retry_count == 1:
-            adjusted_target = int(target_words * 1.3)  # 30% more on first retry
+            adjusted_target = int(target_words * 1.3)
             logger.info(f"First retry: increased target from {target_words} to {adjusted_target} words")
         elif request.content_is_limited or request.expansion_ratio >= 1.5:
-            adjusted_target = int(target_words * 1.15)  # 15% buffer for limited content
+            adjusted_target = int(target_words * 1.15)
 
         prompt = f"""You are {request.podcaster_name}, a podcast host creating an episode about "{request.book_title}"{author_line}.
 
@@ -1146,58 +1576,47 @@ Repetition is the enemy of engagement. Keep moving forward with fresh content.
 
 ## Episode Theme
 {theme_instructions}
+
+{pacing_section}
+
+{conversation_flow_section}
 {deep_dive_section}
 ## Requirements
-- **CRITICAL: MINIMUM LENGTH**: The script MUST be at least {adjusted_target} words. This is approximately {request.target_length_min}-{request.target_length_max} minutes when spoken at ~185 words per minute.
-- DO NOT write a short script. Episodes under {request.target_length_min} minutes are unacceptable and will be rejected.
-- **NEVER BE REPETITIVE** - Each paragraph must add NEW value. Do not rehash or rephrase points you've already made.
-- **INTRODUCTION MUST STATE SCOPE**: In the introduction, clearly state what you're covering (e.g., "Today we're diving into {request.content_scope} from {request.book_title}"{f' - specifically {request.chapter_title}' if request.chapter_title else ''})
-- Include an engaging introduction that hooks the listener (at least 100 words)
-- Cover ALL the key ideas from the book content provided - discuss each point in depth with examples and commentary
-- Add extensive personal insights, analysis, and real-world applications for each concept - use ORIGINAL examples not from the source
-- Include transitions between topics that add value, not just "next, let's talk about..."
-- End with a thorough conclusion that synthesizes key points and provides a call to action (at least 100 words)
-- When content is limited, expand through CREATIVE techniques (new examples, scenarios, historical parallels) - NOT repetition
-
-## TTS TAGS - ONLY USE THESE OFFICIAL TAGS
-The only allowed TTS expression tags are:
-- [sigh], [laughing], [chuckling], [clearing throat], [uhm], [uh]
-- [short pause], [medium pause], [long pause]
-- [whispering]
-**DO NOT use tags like [nodding], [smiling], [thoughtful], [leaning in], [gesturing], [excited], or any visual/physical actions - these cannot be synthesized by TTS!**
+- **CRITICAL: MINIMUM LENGTH**: The script MUST be at least {adjusted_target} words (~{request.target_length_min}-{request.target_length_max} minutes at ~185 wpm).
+- DO NOT write a short script. Episodes under {request.target_length_min} minutes will be rejected.
+- **NEVER BE REPETITIVE** - Each paragraph must add NEW value.
+- **INTRODUCTION MUST STATE SCOPE**: Clearly state what you're covering (e.g., "Today we're diving into {request.content_scope} from {request.book_title}"{f' - specifically {request.chapter_title}' if request.chapter_title else ''})
+- Hook the listener in the first 100 words.
+- Cover ALL key ideas from the source — discuss each with depth, examples, and commentary.
+- Add original real-world examples, insights, and analysis (NOT from the source).
+- Use meaningful transitions, not "next, let's talk about..."
+- End with a thorough conclusion that synthesizes key points and provides a call to action.
 
 ## Book Content to Discuss (THIS IS THE ONLY CONTENT YOU CAN REFERENCE!)
 {request.book_content}
 
-## STRICT CONTENT BOUNDARIES - CRITICAL!
-You are discussing ONLY the content shown above. You must:
-- **NEVER mention any law numbers, chapter titles, or concepts NOT explicitly written above**
-- **NEVER reference other parts of this book that aren't shown above**
-- **NEVER say things like "as we'll see later" or "in other chapters"**
-- **If you know this book, COMPLETELY IGNORE that knowledge - pretend you've never read it**
+## STRICT CONTENT BOUNDARIES
+You are discussing ONLY the content shown above:
+- NEVER mention concepts, chapter titles, or law numbers NOT in the source above.
+- NEVER reference other parts of this book.
+- NEVER say "as we'll see later" or "in other chapters."
+- If you know this book, COMPLETELY IGNORE that knowledge.
 
-## AVOIDING REPETITION - CRITICAL!
-**DO NOT repeat or rephrase the same points multiple times.** Once you've explained a concept, MOVE ON.
-- Only briefly revisit a topic if it's essential for a transition or to connect ideas
-- If content is limited, use CREATIVE EXPANSION (below) instead of circling back
-- Listeners find repetition boring - variety and fresh perspectives keep them engaged
-
-## CREATIVE EXPANSION TECHNIQUES
-When you need to EXPAND beyond the source material, use these techniques INSTEAD of repeating:
-1. **Original real-world examples** - from history, business, politics, sports, celebrities, current events, pop culture (NOT from this book). Create vivid, detailed scenarios.
-2. **Hypothetical scenarios** - "Imagine you're in a meeting and...", "Picture this situation..."
-3. **Personal anecdotes** - hypothetical stories about "someone I know" or "a friend once told me..."
-4. **Deeper psychological analysis** - explore WHY things work, the underlying human nature
-5. **Practical step-by-step applications** - "Here's exactly how you'd use this at work/home/relationships..."
-6. **Counterarguments and debates** - "But some might argue..." and thoughtfully respond
-7. **Historical parallels** - Connect to famous historical figures, events, or decisions
-8. **Modern applications** - How does this apply to social media, remote work, modern relationships?
-9. **Thought experiments** - "What if everyone followed this principle? What would happen?"
-10. **Related wisdom** - Connect to general psychology, philosophy, or common sayings (without citing this book)
+## AVOIDING REPETITION
+Once you've explained a concept, MOVE ON. Do not circle back.
+When content is limited, use CREATIVE EXPANSION instead of repeating:
+1. Original real-world examples (history, business, sports, pop culture)
+2. Hypothetical scenarios ("Imagine you're in a meeting and...")
+3. Personal anecdotes ("someone I know..." / "a friend once told me...")
+4. Deeper psychological analysis (WHY does this work?)
+5. Practical step-by-step applications
+6. Counterarguments ("But some might argue...")
+7. Historical parallels and modern applications
+8. Thought experiments ("What if everyone followed this?")
 
 ## Episode Title
 "{request.episode_title}"
 
 Now write the complete podcast script:
 """
-        return prompt
+        return prompt, cohost_archetype

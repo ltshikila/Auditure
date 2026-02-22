@@ -566,36 +566,52 @@ class GeminiTTSClient:
         script: str,
         voice_assignments: dict[str, str],
         language_code: str = "en-US",
+        voice_configs: Optional[dict[str, "GeminiVoiceConfig"]] = None,
     ) -> str:
         """
-        Format script with speaker labels for multi-speaker TTS.
+        Format script with speaker labels and Director's Notes for multi-speaker TTS.
 
         Converts:
             HOST: Hello everyone!
             GUEST: Great to be here!
 
         To format expected by Gemini multi-speaker:
-            [Director's Notes: All speakers should use a British English accent.]
-            Host: Hello everyone!
-            Guest: Great to be here!
+            [Director's Notes: HOST should speak with warm enthusiasm...
+            GUEST should speak with a questioning, probing delivery...
+            All speakers should use a British English accent.]
+            HOST: Hello everyone!
+            GUEST: Great to be here!
 
         Args:
             script: The raw script with speaker labels
             voice_assignments: Map of speaker labels to voice names
             language_code: Language code for accent (en-US, en-GB, en-AU, en-IN)
+            voice_configs: Optional dict of GeminiVoiceConfig with style_prompt per speaker
         """
         formatted_lines = []
 
-        # Add Director's Notes for non-US accents
-        # Prebuilt voices are American by default, so we need to guide them via prompt
-        # Use emphatic language to ensure consistent accent across independent API calls
+        # Build Director's Notes combining per-speaker style prompts and accent
+        director_notes_parts = []
+
+        # Per-speaker style prompts (from personality/archetype)
+        if voice_configs:
+            for speaker, config in voice_configs.items():
+                if config.style_prompt:
+                    director_notes_parts.append(f"{speaker} should: {config.style_prompt}")
+
+        # Accent guidance for non-US accents
         accent_description = LANGUAGE_CODE_TO_ACCENT_DESCRIPTION.get(language_code)
         if accent_description:
-            formatted_lines.append(
-                f"[Director's Notes: IMPORTANT - All speakers MUST speak with a {accent_description} "
-                f"throughout the entire script. Maintain this accent consistently for every single word. "
-                f"Do NOT switch to an American accent at any point.]"
+            director_notes_parts.append(
+                f"IMPORTANT - All speakers MUST speak with a {accent_description} "
+                f"throughout the entire script. Maintain this accent consistently. "
+                f"Do NOT switch to an American accent at any point."
             )
+
+        # Combine Director's Notes
+        if director_notes_parts:
+            notes_text = " ".join(director_notes_parts)
+            formatted_lines.append(f"[Director's Notes: {notes_text}]")
             formatted_lines.append("")  # Empty line after notes
 
         for line in script.split('\n'):
@@ -669,6 +685,7 @@ class GeminiTTSClient:
         voice_assignments: dict[str, str],
         episode_type: str,
         language_code: str,
+        voice_configs: Optional[dict[str, "GeminiVoiceConfig"]] = None,
     ) -> bytes:
         """
         Generate audio for a single chunk of script.
@@ -678,7 +695,9 @@ class GeminiTTSClient:
         """
         from google.genai import types
 
-        formatted_script = self._format_script_for_gemini(script, voice_assignments, language_code)
+        formatted_script = self._format_script_for_gemini(
+            script, voice_assignments, language_code, voice_configs=voice_configs
+        )
 
         # Count actual unique speakers in the chunk
         actual_speakers = set()
@@ -694,7 +713,7 @@ class GeminiTTSClient:
         # For 3+ speakers, use segment-by-segment generation
         if is_multi_speaker and len(actual_speakers) > 2:
             logger.info(f"[Gemini TTS] Chunk has {len(actual_speakers)} speakers - using segment-by-segment")
-            return self._generate_segment_by_segment(script, voice_assignments, language_code)
+            return self._generate_segment_by_segment(script, voice_assignments, language_code, voice_configs=voice_configs)
 
         if is_multi_speaker:
             # Filter voice_assignments to only include actual speakers
@@ -778,6 +797,7 @@ class GeminiTTSClient:
         script: str,
         voice_assignments: dict[str, str],
         language_code: str,
+        voice_configs: Optional[dict[str, "GeminiVoiceConfig"]] = None,
     ) -> bytes:
         """
         Generate audio segment-by-segment for 3+ speaker scripts.
@@ -838,12 +858,19 @@ class GeminiTTSClient:
             voice = voice_assignments.get(speaker, "Kore")
             logger.info(f"[Gemini TTS] Turn {i+1}/{len(turns)}: {speaker} ({voice}) - {len(dialogue)} chars")
 
-            # Add Director's Notes for accent if needed
+            # Build per-speaker Director's Notes
+            notes_parts = []
+            if voice_configs and speaker in voice_configs and voice_configs[speaker].style_prompt:
+                notes_parts.append(voice_configs[speaker].style_prompt)
             if accent_description:
-                prompt_text = (
-                    f"[Director's Notes: IMPORTANT - You MUST speak with a {accent_description} "
-                    f"throughout. Do NOT use an American accent.]\n\n{dialogue}"
+                notes_parts.append(
+                    f"IMPORTANT - You MUST speak with a {accent_description} throughout. "
+                    f"Do NOT use an American accent."
                 )
+
+            if notes_parts:
+                notes_text = " ".join(notes_parts)
+                prompt_text = f"[Director's Notes: {notes_text}]\n\n{dialogue}"
             else:
                 prompt_text = dialogue
 
@@ -1035,7 +1062,8 @@ class GeminiTTSClient:
 
                     for attempt in range(max_chunk_retries):
                         pcm_data = self._generate_single_chunk(
-                            chunk, voice_assignments, episode_type, language_code
+                            chunk, voice_assignments, episode_type, language_code,
+                            voice_configs=voice_configs,
                         )
 
                         # Analyze chunk audio quality
@@ -1088,8 +1116,10 @@ class GeminiTTSClient:
                 return audio_data
 
             # Single-call generation for shorter scripts
-            # Format script
-            formatted_script = self._format_script_for_gemini(script, voice_assignments, language_code)
+            # Format script with per-speaker Director's Notes
+            formatted_script = self._format_script_for_gemini(
+                script, voice_assignments, language_code, voice_configs=voice_configs
+            )
 
             # Count actual unique speakers in the script
             actual_speakers = set()
@@ -1108,7 +1138,8 @@ class GeminiTTSClient:
                 logger.info(f"[Gemini TTS] {len(actual_speakers)} speakers detected - using segment-by-segment generation")
                 logger.info(f"[Gemini TTS] Actual speakers: {actual_speakers}")
                 pcm_data = self._generate_segment_by_segment(
-                    script, voice_assignments, language_code
+                    script, voice_assignments, language_code,
+                    voice_configs=voice_configs,
                 )
                 audio_data = _pcm_to_wav(pcm_data)
                 logger.info(f"[Gemini TTS] Generated {len(audio_data)} bytes via segment-by-segment")

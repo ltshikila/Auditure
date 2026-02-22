@@ -45,8 +45,8 @@ class EpisodeConsumer(BaseConsumer):
         self.redis_client = get_redis_client()
 
         # LLM client for summary generation
-        from src.generators.llm_client import OpenAIClient
-        self.llm_client = OpenAIClient()
+        from src.generators.llm_client import GeminiTextClient
+        self.llm_client = GeminiTextClient()
 
         self.max_content_chars = settings.max_book_content_chars
 
@@ -229,7 +229,16 @@ class EpisodeConsumer(BaseConsumer):
                 script=script_result.script,
                 podcaster_voice=podcaster_voice,
                 episode_type=message["episodeType"],
+                episode_theme=message["episodeTheme"],
                 voice_tier=voice_tier,
+                cohost_archetype=script_result.cohost_archetype,
+                podcaster_personality={
+                    "tone": podcaster.tone,
+                    "communication_style": podcaster.communication_style,
+                    "humor_level": podcaster.humor_level,
+                    "conversational_depth": podcaster.conversational_depth,
+                    "chaos_factor": podcaster.chaos_factor,
+                },
             )
 
             logger.info(f"[STEP 8/10] Audio generated: {tts_result.duration}s ({tts_result.format})")

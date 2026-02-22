@@ -119,7 +119,10 @@ class TTSEngine:
         script: str,
         podcaster_voice: PodcasterVoice,
         episode_type: str,
+        episode_theme: str = "LECTURE",
         voice_tier: Optional[str] = None,
+        cohost_archetype: Optional[object] = None,
+        podcaster_personality: Optional[dict] = None,
     ) -> TTSResult:
         """
         Generate audio from podcast script.
@@ -128,7 +131,10 @@ class TTSEngine:
             script: The podcast script text
             podcaster_voice: Main podcaster's voice settings
             episode_type: MONOLOGUE or DUO
+            episode_theme: LECTURE, DISCUSSION, or DEBATE
             voice_tier: Override voice tier for this episode
+            cohost_archetype: CoHostArchetype from script generation (DUO episodes)
+            podcaster_personality: Host personality dict (tone, communication_style, etc.)
 
         Returns:
             TTSResult with audio buffer, duration, and cost estimate
@@ -147,7 +153,10 @@ class TTSEngine:
         if tier_lower == "gemini":
             if self.has_gemini:
                 return self._generate_with_gemini(
-                    script, segments, podcaster_voice, episode_type
+                    script, segments, podcaster_voice, episode_type,
+                    episode_theme=episode_theme,
+                    cohost_archetype=cohost_archetype,
+                    podcaster_personality=podcaster_personality,
                 )
             else:
                 logger.warning("Gemini TTS not configured, falling back to Standard")
@@ -170,6 +179,9 @@ class TTSEngine:
         segments: list[SpeakerSegment],
         podcaster_voice: PodcasterVoice,
         episode_type: str,
+        episode_theme: str = "LECTURE",
+        cohost_archetype: Optional[object] = None,
+        podcaster_personality: Optional[dict] = None,
     ) -> TTSResult:
         """Generate audio using Gemini 2.5 Pro TTS (multi-speaker).
 
@@ -177,6 +189,11 @@ class TTSEngine:
         - gender: filters available voices
         - accent: maps to language_code (en-US, en-GB, en-AU, en-IN)
         - speaking_speed + vocal_pitch: selects best matching voice
+
+        Director's Notes style prompts are built from:
+        - Host personality → warm/serious/witty delivery
+        - Co-host archetype → contrasting delivery style
+        - Episode theme → tone guidance (educational/exploratory/confrontational)
 
         Reference: https://docs.cloud.google.com/text-to-speech/docs/gemini-tts
         """
@@ -188,7 +205,12 @@ class TTSEngine:
 
         # Build voice assignments based on speakers in script
         speakers = self.script_parser.get_unique_speakers(segments)
-        voice_configs = self._assign_gemini_voices(speakers, podcaster_voice)
+        voice_configs = self._assign_gemini_voices(
+            speakers, podcaster_voice,
+            episode_theme=episode_theme,
+            cohost_archetype=cohost_archetype,
+            podcaster_personality=podcaster_personality,
+        )
 
         # Extract voice assignments for logging
         voice_assignments = {
@@ -260,16 +282,27 @@ class TTSEngine:
         self,
         speakers: list[str],
         main_podcaster: PodcasterVoice,
+        episode_theme: str = "LECTURE",
+        cohost_archetype: Optional[object] = None,
+        podcaster_personality: Optional[dict] = None,
     ) -> dict[str, GeminiVoiceConfig]:
-        """Assign Gemini voices to speakers using podcaster settings.
+        """Assign Gemini voices to speakers with Director's Notes style prompts.
 
         Voice assignment strategy:
         - Host: Uses stored gemini_voice_name if available, otherwise computes it
         - Guests: Computed based on alternating genders with slight variations
 
+        Style prompts are built from personality/archetype/theme for expressive TTS:
+        - Host: personality traits → natural language delivery direction
+        - Guest: cohost archetype → contrasting delivery direction
+        - Both: episode theme → tone guidance
+
         Args:
             speakers: List of speaker labels from script
             main_podcaster: Podcaster voice settings from frontend
+            episode_theme: LECTURE, DISCUSSION, or DEBATE
+            cohost_archetype: CoHostArchetype from script generation (DUO)
+            podcaster_personality: Host personality dict
 
         Returns:
             Dict mapping speaker labels to GeminiVoiceConfig objects
@@ -278,6 +311,18 @@ class TTSEngine:
 
         assignments: dict[str, GeminiVoiceConfig] = {}
         guest_index = 0
+
+        # Build host style prompt from personality and theme
+        host_style_prompt = self._build_host_style_prompt(
+            podcaster_personality or {},
+            episode_theme,
+        )
+
+        # Build guest style prompt from cohost archetype and theme
+        guest_style_prompt = self._build_guest_style_prompt(
+            cohost_archetype,
+            episode_theme,
+        )
 
         for speaker in speakers:
             speaker_upper = speaker.upper()
@@ -292,7 +337,7 @@ class TTSEngine:
                     voice_config = GeminiVoiceConfig(
                         speaker_id=voice_name,
                         style=voice_info["style"],
-                        style_prompt=f"Speak in a {voice_info['style'].lower()} manner",
+                        style_prompt=host_style_prompt,
                     )
                 else:
                     # Fallback: compute voice (for legacy podcasters without stored voice)
@@ -305,6 +350,7 @@ class TTSEngine:
                         speaker_index=0,
                         voice_model=main_podcaster.voice_model,
                     )
+                    voice_config.style_prompt = host_style_prompt
                 assignments[speaker] = voice_config
             else:
                 # Alternate genders for variety
@@ -338,13 +384,123 @@ class TTSEngine:
                         voice_config = GeminiVoiceConfig(
                             speaker_id=alt_voice,
                             style=alt_info["style"],
-                            style_prompt=f"Speak in a {alt_info['style'].lower()} manner",
                         )
 
+                voice_config.style_prompt = guest_style_prompt
                 assignments[speaker] = voice_config
                 guest_index += 1
 
+        # Log style prompts
+        for speaker, config in assignments.items():
+            logger.info(f"Voice {speaker} -> {config.speaker_id} | style_prompt: {config.style_prompt[:80]}...")
+
         return assignments
+
+    def _build_host_style_prompt(
+        self,
+        personality: dict,
+        episode_theme: str,
+    ) -> str:
+        """Build a Director's Notes style prompt for the host based on personality.
+
+        Translates numeric personality sliders into natural language voice direction
+        that Gemini TTS can use for expressive speech synthesis.
+        """
+        parts = []
+
+        # Tone: serious ↔ warm/enthusiastic
+        tone = personality.get("tone", 5)
+        if tone <= 3:
+            parts.append("serious and measured delivery")
+        elif tone <= 6:
+            parts.append("warm and approachable delivery")
+        else:
+            parts.append("enthusiastic and engaging delivery")
+
+        # Communication style: formal ↔ casual storytelling
+        comm = personality.get("communication_style", 5)
+        if comm <= 3:
+            parts.append("with a structured, polished speaking style")
+        elif comm <= 6:
+            parts.append("with a natural conversational flow")
+        else:
+            parts.append("with a relaxed storytelling style")
+
+        # Humor: none ↔ witty
+        humor = personality.get("humor_level", 5)
+        if humor >= 7:
+            parts.append("witty and playful")
+        elif humor >= 4:
+            parts.append("with occasional light humor")
+
+        # Chaos/energy: steady ↔ dynamic
+        chaos = personality.get("chaos_factor", 5)
+        if chaos >= 7:
+            parts.append("dynamic energy with surprising shifts in pace and intensity")
+        elif chaos <= 3:
+            parts.append("steady, confident pacing")
+
+        # Theme-specific overlay
+        theme_overlay = {
+            "LECTURE": "Speak with authority and clarity, like an expert sharing knowledge.",
+            "DISCUSSION": "Speak with genuine curiosity and openness, exploring ideas naturally.",
+            "DEBATE": "Speak with conviction and passion, defending positions assertively.",
+        }
+        if episode_theme in theme_overlay:
+            parts.append(theme_overlay[episode_theme])
+
+        return " ".join(parts)
+
+    def _build_guest_style_prompt(
+        self,
+        cohost_archetype: Optional[object],
+        episode_theme: str,
+    ) -> str:
+        """Build a Director's Notes style prompt for the guest/co-host.
+
+        Uses the CoHostArchetype (perspective + speaking_style) to create
+        a voice direction that contrasts with the host.
+        """
+        if cohost_archetype is None:
+            # Fallback for episodes without archetype info
+            theme_defaults = {
+                "LECTURE": "Speak as an engaged, curious listener who asks thoughtful questions.",
+                "DISCUSSION": "Speak with genuine interest and a distinct perspective, naturally conversational.",
+                "DEBATE": "Speak with confident conviction, assertively challenging ideas.",
+            }
+            return theme_defaults.get(episode_theme, "Speak naturally with a distinct personality.")
+
+        parts = []
+
+        # Perspective → delivery angle
+        perspective = getattr(cohost_archetype, "perspective", "")
+        perspective_directions = {
+            "skeptical": "questioning and probing delivery, with a hint of doubt",
+            "enthusiastic": "energetic and excited delivery, genuinely fascinated",
+            "analytical": "measured and precise delivery, methodical and careful",
+            "experiential": "warm storytelling delivery, drawing from real-world experience",
+            "philosophical": "thoughtful and contemplative delivery, with deliberate pauses",
+        }
+        if perspective in perspective_directions:
+            parts.append(perspective_directions[perspective])
+        elif perspective:
+            parts.append(f"{perspective} delivery")
+
+        # Speaking style → communication manner
+        speaking_style = getattr(cohost_archetype, "speaking_style", "")
+        if speaking_style:
+            parts.append(f"with a {speaking_style.lower()} manner")
+
+        # Theme overlay for guest
+        theme_overlay = {
+            "LECTURE": "React naturally as an engaged learner — curious, sometimes surprised.",
+            "DISCUSSION": "Contribute as an equal exploring ideas, building on and sometimes challenging points.",
+            "DEBATE": "Argue passionately from your position, push back firmly when you disagree.",
+        }
+        if episode_theme in theme_overlay:
+            parts.append(theme_overlay[episode_theme])
+
+        return " ".join(parts) if parts else "Speak naturally with a distinct personality."
 
     def _generate_google_monologue(
         self,

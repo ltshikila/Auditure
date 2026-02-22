@@ -1,10 +1,9 @@
-"""OpenAI GPT-4o mini client for script generation."""
+"""Gemini 2.5 Flash client for script generation."""
 
 import logging
 import traceback
 from typing import Optional
 
-from openai import OpenAI
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -25,26 +24,34 @@ class LLMAPIError(Exception):
         self.status_code = status_code
 
 
-class OpenAIClient:
-    """Client for OpenAI GPT-4o mini API."""
+class GeminiTextClient:
+    """Client for Gemini 2.5 Flash text generation API."""
 
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
-        """Initialize OpenAI client."""
+        """Initialize Gemini client."""
         settings = get_settings()
-        self.api_key = api_key or settings.openai_api_key
-        self.model = model or settings.openai_model
-        self.max_tokens = settings.openai_max_tokens
+        self.api_key = api_key or settings.gemini_api_key
+        self.model = model or settings.gemini_script_model
+        self.max_tokens = settings.gemini_max_output_tokens
         self.timeout = settings.script_generation_timeout
+        self.client = None
 
         if self.api_key:
-            self.client = OpenAI(api_key=self.api_key)
+            try:
+                from google import genai
+                self.client = genai.Client(api_key=self.api_key)
+                logger.info(f"Gemini text client initialized (model: {self.model})")
+            except ImportError:
+                logger.error("google-genai package not installed. Run: pip install google-genai")
+            except Exception as e:
+                logger.error(f"Failed to initialize Gemini client: {e}")
         else:
-            self.client = None
+            logger.warning("Gemini text client not configured - no API key found")
 
     @property
     def is_available(self) -> bool:
-        """Check if API key is configured."""
-        return self.api_key is not None and len(self.api_key) > 0
+        """Check if API key is configured and client initialized."""
+        return self.client is not None
 
     @retry(
         stop=stop_after_attempt(3),
@@ -60,13 +67,13 @@ class OpenAIClient:
         system_prompt: Optional[str] = None,
     ) -> str:
         """
-        Generate text using OpenAI GPT-4o mini.
+        Generate text using Gemini 2.5 Flash.
 
         Args:
             prompt: The user prompt
             max_tokens: Maximum tokens to generate (default from settings)
             temperature: Sampling temperature (0.0-2.0)
-            system_prompt: Optional system prompt for context
+            system_prompt: Optional system instruction
 
         Returns:
             Generated text
@@ -75,49 +82,67 @@ class OpenAIClient:
             LLMAPIError: If API call fails
         """
         if not self.is_available:
-            raise LLMAPIError("OpenAI API key not configured")
+            raise LLMAPIError("Gemini API key not configured")
+
+        from google.genai import types
 
         max_tokens = max_tokens or self.max_tokens
 
-        messages = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
+        # Build contents with optional system instruction
+        contents = prompt
 
-        logger.info("[LLM] Calling OpenAI API...")
+        logger.info("[LLM] Calling Gemini API...")
         logger.info(f"[LLM] Model: {self.model}")
         logger.info(f"[LLM] Prompt length: {len(prompt)} chars")
         logger.info(f"[LLM] Max tokens: {max_tokens}, Temperature: {temperature}")
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                max_tokens=max_tokens,
+            config = types.GenerateContentConfig(
+                max_output_tokens=max_tokens,
                 temperature=temperature,
-                timeout=self.timeout,
+            )
+            if system_prompt:
+                config.system_instruction = system_prompt
+
+            response = self.client.models.generate_content(
+                model=self.model,
+                contents=contents,
+                config=config,
             )
 
-            generated = response.choices[0].message.content
-            usage = response.usage
+            generated = response.text
+            if not generated:
+                raise LLMAPIError("Gemini returned empty response")
 
-            logger.info(f"[LLM] Generated {len(generated)} chars ({len(generated.split())} words)")
-            logger.info(f"[LLM] Tokens used - Prompt: {usage.prompt_tokens}, Completion: {usage.completion_tokens}, Total: {usage.total_tokens}")
+            word_count = len(generated.split())
+            logger.info(f"[LLM] Generated {len(generated)} chars ({word_count} words)")
 
-            # Log cost estimate (GPT-4o mini pricing: $0.15/1M input, $0.60/1M output)
-            input_cost = (usage.prompt_tokens / 1_000_000) * 0.15
-            output_cost = (usage.completion_tokens / 1_000_000) * 0.60
-            total_cost = input_cost + output_cost
-            logger.info(f"[LLM] Estimated cost: ${total_cost:.6f}")
+            # Log token usage if available
+            if hasattr(response, 'usage_metadata') and response.usage_metadata:
+                usage = response.usage_metadata
+                input_tokens = getattr(usage, 'prompt_token_count', 0) or 0
+                output_tokens = getattr(usage, 'candidates_token_count', 0) or 0
+                total_tokens = getattr(usage, 'total_token_count', 0) or 0
+                logger.info(
+                    f"[LLM] Tokens used - Prompt: {input_tokens}, "
+                    f"Completion: {output_tokens}, Total: {total_tokens}"
+                )
+
+                # Gemini 2.5 Flash pricing: $0.15/1M input, $0.60/1M output (under 200K context)
+                input_cost = (input_tokens / 1_000_000) * 0.15
+                output_cost = (output_tokens / 1_000_000) * 0.60
+                total_cost = input_cost + output_cost
+                logger.info(f"[LLM] Estimated cost: ${total_cost:.6f}")
 
             return generated
 
+        except LLMAPIError:
+            raise
         except Exception as e:
-            error_msg = f"OpenAI API error: {str(e)}"
+            error_msg = f"Gemini API error: {str(e)}"
             logger.error(error_msg)
             logger.error(f"Exception type: {type(e).__name__}")
             logger.error(f"Exception chain: {repr(e)}")
-            # Log the full cause chain for connection errors
             cause = e.__cause__
             depth = 0
             while cause and depth < 5:
@@ -143,7 +168,6 @@ class OpenAIClient:
             Generated podcast script
         """
         # Estimate tokens needed (roughly 1.3 tokens per word for output)
-        # Add buffer for formatting and speaker labels
         estimated_tokens = int(target_word_count * 1.5)
         max_tokens = min(estimated_tokens, self.max_tokens)
 
@@ -153,24 +177,33 @@ natural-sounding podcast scripts that transform book content into compelling aud
 Key guidelines:
 - Write in a conversational, engaging tone
 - Include natural speech patterns and transitions
-- For multi-speaker formats, create distinct voices and natural dialogue
+- For multi-speaker formats, create genuinely distinct voices and natural dialogue
 - Focus on making complex ideas accessible and interesting
 - Always meet the requested word count - this is critical for episode length
 
 TTS MARKUP - CRITICAL:
-Include these markup tags throughout the script for natural text-to-speech:
-- [short pause], [medium pause], [long pause] - For pacing and emphasis
-- [sigh] - For emotional moments (frustration, relief, contemplation)
-- [laughing], [chuckling] - For humor and reactions
-- [uhm], [uh] - For natural thinking hesitation
-- [whispering] - For quieter, intimate delivery
-- [clearing throat] - For natural transitions
+Include these markup tags throughout the script for natural text-to-speech rendering.
 
-These tags will be rendered as natural speech sounds by the TTS engine.
-Use them liberally but naturally - a good podcast has personality!
-DO NOT use [excited], [nodding], [smiling] or other unofficial tags - they will be spoken aloud!
+Non-speech sounds (rendered as natural audio):
+- [sigh] - Frustration, relief, contemplation
+- [laughing], [chuckling] - Humor and reactions
+- [uhm], [uh] - Natural thinking hesitation
+- [clearing throat] - Transitions
 
-Reference: https://docs.cloud.google.com/text-to-speech/docs/gemini-tts#prompting_tips"""
+Style modifiers (affect delivery style):
+- [whispering] - Quiet, intimate delivery
+- [sarcasm] - Sarcastic tone on the following phrase
+- [shouting] - Raised volume for passionate moments
+- [extremely fast] - Rapid delivery for excited tangents
+
+Pacing:
+- [short pause] - Brief beat (~250ms)
+- [medium pause] - Standard pause (~500ms)
+- [long pause] - Dramatic pause (~1000ms+)
+
+Use them naturally throughout - a good podcast has personality and dynamic delivery!
+DO NOT use [excited], [nodding], [smiling], [scared], [curious], [bored] or other unofficial tags.
+These will either be spoken aloud or produce unpredictable results."""
 
         return self.generate_text(
             prompt=prompt,
@@ -180,6 +213,7 @@ Reference: https://docs.cloud.google.com/text-to-speech/docs/gemini-tts#promptin
         )
 
 
-# Backwards compatibility alias
-HuggingFaceClient = OpenAIClient
+# Backwards compatibility aliases
+HuggingFaceClient = GeminiTextClient
+OpenAIClient = GeminiTextClient
 HuggingFaceAPIError = LLMAPIError
