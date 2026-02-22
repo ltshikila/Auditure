@@ -558,7 +558,9 @@ class PromptBuilder:
         }
 
         pacing = genre_pacing.get(genre_cat, genre_pacing["business"])
-        w = lambda pct: int(target_words * pct)
+
+        def w(pct):
+            return int(target_words * pct)
 
         return f"""## EPISODE PACING (Follow this emotional arc!)
 
@@ -580,7 +582,9 @@ class PromptBuilder:
 DO NOT just linearly walk through the content. Follow this emotional arc — build tension, create revelations, land with impact."""
 
     def _build_discussion_pacing(self, target_words: int) -> str:
-        w = lambda pct: int(target_words * pct)
+        def w(pct):
+            return int(target_words * pct)
+
         return f"""## EPISODE PACING (Follow this conversational arc!)
 
 **1. SPARK (~{w(0.10)} words, ~10%)**
@@ -601,7 +605,9 @@ What does this mean for the listener? Personal takeaways. "If I had to tell some
 DO NOT have a flat conversation where both speakers just agree the whole time. Find the genuine tensions and work through them."""
 
     def _build_debate_pacing(self, target_words: int) -> str:
-        w = lambda pct: int(target_words * pct)
+        def w(pct):
+            return int(target_words * pct)
+
         return f"""## EPISODE PACING (Follow this debate arc!)
 
 **1. OPENING SALVOS (~{w(0.10)} words, ~10%)**

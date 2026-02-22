@@ -8,7 +8,13 @@ from typing import Optional
 from src.config import get_settings
 
 from .llm_client import GeminiTextClient, LLMAPIError
-from .prompt_builder import CoHostArchetype, DebateConfig, PodcasterPersonality, PromptBuilder, ScriptRequest
+from .prompt_builder import (
+    CoHostArchetype,
+    DebateConfig,
+    PodcasterPersonality,
+    PromptBuilder,
+    ScriptRequest,
+)
 from .templates.fallback_generator import FallbackGenerator, FallbackRequest
 
 logger = logging.getLogger(__name__)
