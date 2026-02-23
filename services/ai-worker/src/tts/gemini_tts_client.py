@@ -594,8 +594,19 @@ class GeminiTTSClient:
         """
         formatted_lines = []
 
-        # Build Director's Notes combining per-speaker style prompts and accent
+        # Build Director's Notes combining accent, continuity, and per-speaker style prompts
+        # ORDER MATTERS: accent first (highest priority), then continuity, then style
         director_notes_parts = []
+
+        # Accent guidance FIRST (highest priority — prevents default American accent)
+        accent_description = LANGUAGE_CODE_TO_ACCENT_DESCRIPTION.get(language_code)
+        if accent_description:
+            director_notes_parts.append(
+                f"ACCENT (MANDATORY): ALL speakers MUST use a {accent_description} "
+                f"from the very first word to the very last. "
+                f"Do NOT start with an American accent and switch later. "
+                f"Every single sentence must be in {accent_description}."
+            )
 
         # Cross-chunk voice consistency (critical for multi-chunk episodes)
         if chunk_index > 0 and total_chunks > 1:
@@ -610,15 +621,6 @@ class GeminiTTSClient:
             for speaker, config in voice_configs.items():
                 if config.style_prompt:
                     director_notes_parts.append(f"{speaker} should: {config.style_prompt}")
-
-        # Accent guidance for non-US accents
-        accent_description = LANGUAGE_CODE_TO_ACCENT_DESCRIPTION.get(language_code)
-        if accent_description:
-            director_notes_parts.append(
-                f"IMPORTANT - All speakers MUST speak with a {accent_description} "
-                f"throughout the entire script. Maintain this accent consistently. "
-                f"Do NOT switch to an American accent at any point."
-            )
 
         # Combine Director's Notes
         if director_notes_parts:
@@ -881,15 +883,15 @@ class GeminiTTSClient:
             voice = voice_assignments.get(speaker, "Kore")
             logger.info(f"[Gemini TTS] Turn {i+1}/{len(turns)}: {speaker} ({voice}) - {len(dialogue)} chars")
 
-            # Build per-speaker Director's Notes
+            # Build per-speaker Director's Notes (accent first for priority)
             notes_parts = []
-            if voice_configs and speaker in voice_configs and voice_configs[speaker].style_prompt:
-                notes_parts.append(voice_configs[speaker].style_prompt)
             if accent_description:
                 notes_parts.append(
-                    f"IMPORTANT - You MUST speak with a {accent_description} throughout. "
-                    f"Do NOT use an American accent."
+                    f"ACCENT (MANDATORY): You MUST speak with a {accent_description} "
+                    f"from the very first word. Do NOT use an American accent."
                 )
+            if voice_configs and speaker in voice_configs and voice_configs[speaker].style_prompt:
+                notes_parts.append(voice_configs[speaker].style_prompt)
 
             if notes_parts:
                 notes_text = " ".join(notes_parts)

@@ -1623,6 +1623,13 @@ When content is limited, use CREATIVE EXPANSION instead of repeating:
 ## Episode Title
 "{request.episode_title}"
 
+## MANDATORY STRUCTURE
+Your script MUST have a clear beginning, middle, AND ending.
+- The script MUST end with a proper CONCLUSION — never end mid-discussion or mid-argument.
+- The final 15-20% of your script should wrap up the conversation with closing thoughts.
+- {"For this DEBATE: the debate MUST reach a resolution. Do NOT end while speakers are still arguing. After the climax, both speakers MUST reflect and deliver final thoughts." if request.episode_theme == "DEBATE" else "Synthesize key takeaways and end with a thought-provoking call to action."}
+- If you feel you're running long, CUT the middle section — NEVER cut the ending.
+
 Now write the complete podcast script:
 """
         return prompt, cohost_archetype
