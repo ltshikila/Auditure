@@ -598,29 +598,41 @@ class GeminiTTSClient:
         # ORDER MATTERS: accent first (highest priority), then continuity, then style
         director_notes_parts = []
 
-        # Accent guidance FIRST (highest priority — prevents default American accent)
+        # Voice identity anchoring — tie each speaker to their voice and accent
+        # This is the primary instruction for maintaining consistent voices across chunks
         accent_description = LANGUAGE_CODE_TO_ACCENT_DESCRIPTION.get(language_code)
+        voice_identity_parts = []
+        for speaker, voice_name in voice_assignments.items():
+            voice_info = GEMINI_VOICES.get(voice_name, {})
+            style = voice_info.get("style", "natural")
+            accent_str = f" with a {accent_description}" if accent_description else ""
+            style_prompt_str = ""
+            if voice_configs and speaker in voice_configs and voice_configs[speaker].style_prompt:
+                style_prompt_str = f" — {voice_configs[speaker].style_prompt}"
+            voice_identity_parts.append(
+                f"{speaker} is {voice_name} ({style}{accent_str}){style_prompt_str}."
+            )
+
+        if voice_identity_parts:
+            director_notes_parts.append(
+                "VOICE IDENTITY (MANDATORY — maintain these exact voices throughout): "
+                + " ".join(voice_identity_parts)
+            )
+
+        # Accent reinforcement for non-US accents
         if accent_description:
             director_notes_parts.append(
-                f"ACCENT (MANDATORY): ALL speakers MUST use a {accent_description} "
-                f"from the very first word to the very last. "
-                f"Do NOT start with an American accent and switch later. "
-                f"Every single sentence must be in {accent_description}."
+                f"ACCENT: ALL speakers use a {accent_description} from the very first word. "
+                f"Do NOT use an American accent at any point."
             )
 
         # Cross-chunk voice consistency (critical for multi-chunk episodes)
         if chunk_index > 0 and total_chunks > 1:
             director_notes_parts.append(
-                f"CRITICAL: This is part {chunk_index + 1} of {total_chunks} of the SAME conversation. "
-                "Maintain the EXACT same voice characteristics, tone, speaking style, and accent "
-                "as the previous parts. Do NOT change how any speaker sounds."
+                f"CONTINUITY: This is part {chunk_index + 1} of {total_chunks} of the SAME episode. "
+                "Each speaker must sound IDENTICAL to how they sounded in previous parts — "
+                "same voice, same accent, same delivery style. No changes."
             )
-
-        # Per-speaker style prompts (from personality/archetype)
-        if voice_configs:
-            for speaker, config in voice_configs.items():
-                if config.style_prompt:
-                    director_notes_parts.append(f"{speaker} should: {config.style_prompt}")
 
         # Combine Director's Notes
         if director_notes_parts:
@@ -883,12 +895,19 @@ class GeminiTTSClient:
             voice = voice_assignments.get(speaker, "Kore")
             logger.info(f"[Gemini TTS] Turn {i+1}/{len(turns)}: {speaker} ({voice}) - {len(dialogue)} chars")
 
-            # Build per-speaker Director's Notes (accent first for priority)
+            # Build per-speaker Director's Notes with voice identity
+            voice_info = GEMINI_VOICES.get(voice, {})
+            style = voice_info.get("style", "natural")
             notes_parts = []
+            accent_str = f" with a {accent_description}" if accent_description else ""
+            notes_parts.append(
+                f"You are {voice} ({style}{accent_str}). "
+                f"Maintain this exact voice identity consistently."
+            )
             if accent_description:
                 notes_parts.append(
-                    f"ACCENT (MANDATORY): You MUST speak with a {accent_description} "
-                    f"from the very first word. Do NOT use an American accent."
+                    f"Use a {accent_description} from the very first word. "
+                    f"Do NOT use an American accent."
                 )
             if voice_configs and speaker in voice_configs and voice_configs[speaker].style_prompt:
                 notes_parts.append(voice_configs[speaker].style_prompt)

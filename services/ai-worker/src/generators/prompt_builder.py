@@ -625,6 +625,44 @@ The critical exchange where the core disagreement crystallizes. The audience sho
 **5. RESOLUTION (~{w(0.20)} words, ~20%)**
 Land the plane — how does this debate resolve? Not a cop-out ending. A genuine conclusion that reflects the outcome."""
 
+    def _build_conclusion_requirement(self, episode_theme: str, episode_type: str) -> str:
+        """Build theme-specific conclusion requirement for MANDATORY STRUCTURE."""
+        is_multi = episode_type in ("DUO", "GROUP")
+
+        if episode_theme == "DEBATE":
+            if is_multi:
+                return (
+                    "DEBATE RESOLUTION: The debate MUST reach a resolution. Do NOT end while speakers "
+                    "are still arguing. After the climax, both speakers MUST deliver closing statements "
+                    "with final reflections on the topic."
+                )
+            return (
+                "DEBATE RESOLUTION: After wrestling with both sides, you MUST arrive at a clear "
+                "conclusion. Do NOT end mid-deliberation. State your final position and why."
+            )
+        elif episode_theme == "DISCUSSION":
+            if is_multi:
+                return (
+                    "DISCUSSION WRAP-UP: Both speakers MUST share final reflections and key takeaways. "
+                    "Do NOT end while still exploring a point. Wrap up naturally — 'So if there's one thing "
+                    "to take away from this...' — and give the listener a clear closing thought."
+                )
+            return (
+                "DISCUSSION WRAP-UP: End with a synthesis of what you explored and your main takeaway. "
+                "Do NOT trail off mid-thought. Give the listener a clear, memorable closing."
+            )
+        else:  # LECTURE
+            if is_multi:
+                return (
+                    "LECTURE CLOSE: End with a summary of key insights and actionable takeaways. "
+                    "Both speakers should contribute to the wrap-up. Do NOT stop mid-explanation. "
+                    "Give listeners a clear 'here's what to remember' moment."
+                )
+            return (
+                "LECTURE CLOSE: Summarize the key insights and end with actionable takeaways. "
+                "Do NOT stop mid-explanation. Give the listener a clear, memorable conclusion."
+            )
+
     def build_conversation_flow(
         self,
         episode_type: str,
@@ -1627,7 +1665,7 @@ When content is limited, use CREATIVE EXPANSION instead of repeating:
 Your script MUST have a clear beginning, middle, AND ending.
 - The script MUST end with a proper CONCLUSION — never end mid-discussion or mid-argument.
 - The final 15-20% of your script should wrap up the conversation with closing thoughts.
-- {"For this DEBATE: the debate MUST reach a resolution. Do NOT end while speakers are still arguing. After the climax, both speakers MUST reflect and deliver final thoughts." if request.episode_theme == "DEBATE" else "Synthesize key takeaways and end with a thought-provoking call to action."}
+- {self._build_conclusion_requirement(request.episode_theme, request.episode_type)}
 - If you feel you're running long, CUT the middle section — NEVER cut the ending.
 
 Now write the complete podcast script:
