@@ -594,29 +594,20 @@ class GeminiTTSClient:
         """
         formatted_lines = []
 
-        # Build Director's Notes combining accent, continuity, and per-speaker style prompts
-        # ORDER MATTERS: accent first (highest priority), then continuity, then style
+        # Build Director's Notes — accent and continuity only.
+        # Voice identity is enforced by using actual voice names as speaker labels
+        # in the script text, which directly match the MultiSpeakerVoiceConfig.
         director_notes_parts = []
-
-        # Voice identity anchoring — tie each speaker to their voice and accent
-        # This is the primary instruction for maintaining consistent voices across chunks
         accent_description = LANGUAGE_CODE_TO_ACCENT_DESCRIPTION.get(language_code)
-        voice_identity_parts = []
-        for speaker, voice_name in voice_assignments.items():
-            voice_info = GEMINI_VOICES.get(voice_name, {})
-            style = voice_info.get("style", "natural")
-            accent_str = f" with a {accent_description}" if accent_description else ""
-            style_prompt_str = ""
-            if voice_configs and speaker in voice_configs and voice_configs[speaker].style_prompt:
-                style_prompt_str = f" — {voice_configs[speaker].style_prompt}"
-            voice_identity_parts.append(
-                f"{speaker} is {voice_name} ({style}{accent_str}){style_prompt_str}."
-            )
 
-        if voice_identity_parts:
+        # Per-speaker delivery style from voice configs
+        style_parts = []
+        for speaker, voice_name in voice_assignments.items():
+            if voice_configs and speaker in voice_configs and voice_configs[speaker].style_prompt:
+                style_parts.append(f"{voice_name}: {voice_configs[speaker].style_prompt}")
+        if style_parts:
             director_notes_parts.append(
-                "VOICE IDENTITY (MANDATORY — maintain these exact voices throughout): "
-                + " ".join(voice_identity_parts)
+                "DELIVERY STYLE: " + " | ".join(style_parts)
             )
 
         # Accent reinforcement for non-US accents
@@ -651,8 +642,10 @@ class GeminiTTSClient:
             if match:
                 speaker = match.group(1)
                 dialogue = match.group(2)
-                # Use speaker name as-is for multi-speaker config
-                formatted_lines.append(f"{speaker}: {dialogue}")
+                # Replace role labels (HOST/GUEST) with actual voice names
+                # so the TTS model sees the voice name directly in the text
+                voice_name = voice_assignments.get(speaker, speaker)
+                formatted_lines.append(f"{voice_name}: {dialogue}")
             else:
                 formatted_lines.append(line)
 
@@ -749,17 +742,15 @@ class GeminiTTSClient:
             return self._generate_segment_by_segment(script, voice_assignments, language_code, voice_configs=voice_configs)
 
         if is_multi_speaker:
-            # For DUO: always register both speakers for consistency across chunks
-            # For other multi-speaker: filter to actual speakers in chunk
+            # Use voice names as speaker labels — the formatted script already has
+            # voice names (e.g., "Achird: Hello") so speaker configs must match
+            voice_name_config = {v: v for v in set(voice_assignments.values())}
             if episode_type == "DUO":
-                speaker_configs = self._build_speaker_configs(voice_assignments)
+                speaker_configs = self._build_speaker_configs(voice_name_config)
             else:
-                filtered_assignments = {
-                    speaker: voice
-                    for speaker, voice in voice_assignments.items()
-                    if speaker in actual_speakers
-                }
-                speaker_configs = self._build_speaker_configs(filtered_assignments)
+                actual_voice_names = {voice_assignments[s] for s in actual_speakers if s in voice_assignments}
+                filtered_config = {v: v for v in actual_voice_names}
+                speaker_configs = self._build_speaker_configs(filtered_config)
             speech_config = types.SpeechConfig(
                 language_code=language_code,
                 multi_speaker_voice_config=types.MultiSpeakerVoiceConfig(
@@ -777,7 +768,7 @@ class GeminiTTSClient:
                     )
                 )
             )
-            clean_script = re.sub(r'^[A-Z0-9_]+:\s*', '', formatted_script, flags=re.MULTILINE)
+            clean_script = re.sub(r'^[A-Za-z0-9_]+:\s*', '', formatted_script, flags=re.MULTILINE)
             prompt = clean_script
 
         # Generate audio
@@ -1192,17 +1183,15 @@ class GeminiTTSClient:
                 return audio_data
 
             if is_multi_speaker:
-                # Multi-speaker configuration
-                # For DUO: always register both speakers for consistency
+                # Use voice names as speaker labels — formatted script already has
+                # voice names, so speaker configs must match
+                voice_name_config = {v: v for v in set(voice_assignments.values())}
                 if episode_type == "DUO":
-                    speaker_configs = self._build_speaker_configs(voice_assignments)
+                    speaker_configs = self._build_speaker_configs(voice_name_config)
                 else:
-                    filtered_assignments = {
-                        speaker: voice
-                        for speaker, voice in voice_assignments.items()
-                        if speaker in actual_speakers
-                    }
-                    speaker_configs = self._build_speaker_configs(filtered_assignments)
+                    actual_voice_names = {voice_assignments[s] for s in actual_speakers if s in voice_assignments}
+                    filtered_config = {v: v for v in actual_voice_names}
+                    speaker_configs = self._build_speaker_configs(filtered_config)
                 speech_config = types.SpeechConfig(
                     language_code=language_code,
                     multi_speaker_voice_config=types.MultiSpeakerVoiceConfig(
@@ -1224,7 +1213,7 @@ class GeminiTTSClient:
                 )
                 # For monologue, strip speaker labels and pass directly
                 # Note: Avoid instruction prefixes as Gemini TTS may read them or cause repetition
-                clean_script = re.sub(r'^[A-Z0-9_]+:\s*', '', formatted_script, flags=re.MULTILINE)
+                clean_script = re.sub(r'^[A-Za-z0-9_]+:\s*', '', formatted_script, flags=re.MULTILINE)
                 prompt = clean_script
 
             # Generate audio

@@ -1634,7 +1634,7 @@ Repetition is the enemy of engagement. Keep moving forward with fresh content.
 - Cover ALL key ideas from the source — discuss each with depth, examples, and commentary.
 - Add original real-world examples, insights, and analysis (NOT from the source).
 - Use meaningful transitions, not "next, let's talk about..."
-- End with a thorough conclusion that synthesizes key points and provides a call to action.
+- **ENDING IS NON-NEGOTIABLE**: End with a thorough conclusion. NEVER end abruptly or mid-conversation.
 
 ## Book Content to Discuss (THIS IS THE ONLY CONTENT YOU CAN REFERENCE!)
 {request.book_content}
@@ -1661,12 +1661,18 @@ When content is limited, use CREATIVE EXPANSION instead of repeating:
 ## Episode Title
 "{request.episode_title}"
 
-## MANDATORY STRUCTURE
-Your script MUST have a clear beginning, middle, AND ending.
-- The script MUST end with a proper CONCLUSION — never end mid-discussion or mid-argument.
-- The final 15-20% of your script should wrap up the conversation with closing thoughts.
+## MANDATORY STRUCTURE — PLAN YOUR ENDING BEFORE WRITING!
+BEFORE you start writing, plan your script in three acts:
+1. OPENING (10%): Hook the listener
+2. MIDDLE (70%): Core content — explore, debate, discuss
+3. CONCLUSION (20%, at least {int(adjusted_target * 0.20)} words): Proper wrap-up with closing thoughts
+
+CRITICAL RULES:
+- NEVER end mid-discussion, mid-argument, or mid-sentence. Your script MUST have a complete ending.
+- The LAST 3-5 speaking turns MUST be dedicated to wrapping up and concluding.
 - {self._build_conclusion_requirement(request.episode_theme, request.episode_type)}
-- If you feel you're running long, CUT the middle section — NEVER cut the ending.
+- If you're running long, CUT middle content — NEVER cut the ending.
+- A script without a proper conclusion is REJECTED. Always finish the conversation.
 
 Now write the complete podcast script:
 """
