@@ -6,11 +6,13 @@ export interface CoverExtractionResult {
     coverImageKey: string | null;
     source: 'google_books' | 'open_library' | 'pdf_extraction' | 'epub_extraction' | null;
     genres: string[];
+    apiAuthor?: string | null;
 }
 
 interface GoogleBooksResult {
     coverUrl: string | null;
     genres: string[];
+    author?: string | null;
 }
 
 @Injectable()
@@ -48,6 +50,7 @@ export class CoverExtractionService {
                 coverImageKey: null, // External URL, no local storage
                 source: 'google_books',
                 genres: googleResult.genres,
+                apiAuthor: googleResult.author,
             };
         }
 
@@ -510,13 +513,16 @@ export class CoverExtractionService {
                 }
 
                 const categories: string[] = volumeInfo?.categories || [];
+                const apiAuthor = volumeInfo?.authors?.length > 0
+                    ? volumeInfo.authors[0]
+                    : null;
                 this.logger.log(
-                    `Selected Google Books cover: "${volumeInfo.title}" (score: ${score}, pages: ${volumeInfo.pageCount || '?'}, query: "${query}"): ${cleanUrl}`,
+                    `Selected Google Books cover: "${volumeInfo.title}" by ${apiAuthor || '?'} (score: ${score}, pages: ${volumeInfo.pageCount || '?'}, query: "${query}"): ${cleanUrl}`,
                 );
                 if (categories.length > 0) {
                     this.logger.log(`  Categories: ${categories.join(', ')}`);
                 }
-                return { coverUrl: cleanUrl, genres: categories };
+                return { coverUrl: cleanUrl, genres: categories, author: apiAuthor };
             }
 
             this.logger.debug(`All candidates had placeholder images for query: ${query}`);

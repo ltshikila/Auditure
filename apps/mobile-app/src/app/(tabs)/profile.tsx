@@ -576,44 +576,91 @@ export default function Profile() {
                                 Monthly Usage
                             </Text>
 
-                            {/* Episodes (unified) */}
+                            {/* Episodes usage */}
                             {(() => {
-                                const totalUsed =
-                                    subscription.usage.geminiEpisodes.used +
-                                    subscription.usage.standardEpisodes.used;
-                                const totalLimit =
-                                    subscription.usage.geminiEpisodes.limit !== null
-                                        ? subscription.usage.geminiEpisodes.limit
-                                        : subscription.usage.standardEpisodes.limit;
+                                if (subscription.isPaid) {
+                                    // Paid tiers: unified combined count
+                                    const totalUsed =
+                                        subscription.usage.geminiEpisodes.used +
+                                        subscription.usage.standardEpisodes.used;
+                                    const totalLimit = subscription.usage.geminiEpisodes.limit;
 
-                                return (
-                                    <View>
-                                        <View className="flex-row justify-between mb-1">
-                                            <Text className="font-inter text-gray-600 text-sm">
-                                                Episodes
-                                            </Text>
-                                            <Text className="font-inter text-gray-900 text-sm">
-                                                {totalUsed}
-                                                {totalLimit !== null
-                                                    ? ` / ${totalLimit}`
-                                                    : ' (Unlimited)'}
-                                            </Text>
+                                    return (
+                                        <View>
+                                            <View className="flex-row justify-between mb-1">
+                                                <Text className="font-inter text-gray-600 text-sm">
+                                                    Episodes
+                                                </Text>
+                                                <Text className="font-inter text-gray-900 text-sm">
+                                                    {totalUsed}
+                                                    {totalLimit !== null
+                                                        ? ` / ${totalLimit}`
+                                                        : ' (Unlimited)'}
+                                                </Text>
+                                            </View>
+                                            {totalLimit !== null && (
+                                                <View className="bg-gray-200 rounded-full h-2">
+                                                    <View
+                                                        className="bg-brand-gold rounded-full h-2"
+                                                        style={{
+                                                            width: `${Math.min(
+                                                                (totalUsed / totalLimit) * 100,
+                                                                100,
+                                                            )}%`,
+                                                        }}
+                                                    />
+                                                </View>
+                                            )}
                                         </View>
-                                        {totalLimit !== null && (
-                                            <View className="bg-gray-200 rounded-full h-2">
+                                    );
+                                } else {
+                                    // Free tier: separate Pro and Standard counts
+                                    const gemini = subscription.usage.geminiEpisodes;
+                                    const standard = subscription.usage.standardEpisodes;
+
+                                    return (
+                                        <View>
+                                            <View className="flex-row justify-between mb-1">
+                                                <Text className="font-inter text-gray-600 text-sm">
+                                                    Pro Episodes
+                                                </Text>
+                                                <Text className="font-inter text-gray-900 text-sm">
+                                                    {gemini.used} / {gemini.limit}
+                                                </Text>
+                                            </View>
+                                            <View className="bg-gray-200 rounded-full h-2 mb-3">
                                                 <View
                                                     className="bg-brand-gold rounded-full h-2"
                                                     style={{
                                                         width: `${Math.min(
-                                                            (totalUsed / totalLimit) * 100,
+                                                            (gemini.used / (gemini.limit || 1)) * 100,
                                                             100,
                                                         )}%`,
                                                     }}
                                                 />
                                             </View>
-                                        )}
-                                    </View>
-                                );
+                                            <View className="flex-row justify-between mb-1">
+                                                <Text className="font-inter text-gray-600 text-sm">
+                                                    Standard Episodes
+                                                </Text>
+                                                <Text className="font-inter text-gray-900 text-sm">
+                                                    {standard.used} / {standard.limit}
+                                                </Text>
+                                            </View>
+                                            <View className="bg-gray-200 rounded-full h-2">
+                                                <View
+                                                    className="bg-brand-gold rounded-full h-2"
+                                                    style={{
+                                                        width: `${Math.min(
+                                                            (standard.used / (standard.limit || 1)) * 100,
+                                                            100,
+                                                        )}%`,
+                                                    }}
+                                                />
+                                            </View>
+                                        </View>
+                                    );
+                                }
                             })()}
 
                             {/* Reset/Expires info - only show for paid tiers */}

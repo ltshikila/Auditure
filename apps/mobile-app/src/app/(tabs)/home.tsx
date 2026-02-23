@@ -164,10 +164,10 @@ export default function HomeScreen() {
                     key={tab.key}
                     onPress={() => handleTabChange(tab.key)}
                     style={{
-                        marginRight: 12,
-                        paddingHorizontal: 20,
-                        paddingVertical: 10,
-                        borderRadius: 20,
+                        marginRight: 10,
+                        paddingHorizontal: 14,
+                        paddingVertical: 8,
+                        borderRadius: 18,
                         backgroundColor: activeTab === tab.key ? '#920002' : '#E7E0CB',
                         borderWidth: activeTab === tab.key ? 0 : 1,
                         borderColor: '#E7E0CB',

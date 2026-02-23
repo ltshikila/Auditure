@@ -141,7 +141,7 @@ export default function EpisodesSeeAllScreen() {
                             </Text>
                         </>
                     )}
-                    <Ionicons name="headset-outline" size={14} color="#858585" />
+                    <Ionicons name="play-circle-outline" size={14} color="#858585" />
                     <Text className="font-inter text-[#858585] text-xs ml-1">
                         {formatCount(item.playCount)}
                     </Text>

@@ -50,7 +50,7 @@ export const PodcasterCard: React.FC<PodcasterCardProps> = ({ podcaster, onPress
                     </>
                 ) : (
                     <>
-                        <Ionicons name="headset-outline" size={12} color="#858585" />
+                        <Ionicons name="play-circle-outline" size={12} color="#858585" />
                         <Text className="font-inter text-[#858585] text-xs ml-1">
                             {formatCount(podcaster.playCount)}
                         </Text>

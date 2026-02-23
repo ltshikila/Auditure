@@ -188,10 +188,15 @@ export class BookExtractionWorker implements OnModuleInit {
                 bestTitle = this.cleanupTitle(currentBook.title);
             }
 
-            // Determine best author - prefer PDF metadata, then try to extract from content
-            let bestAuthor = extracted.metadata.author;
-            if (bestAuthor) {
-                bestAuthor = this.cleanMetadataAuthor(bestAuthor);
+            // Determine best author
+            // Priority: Google Books API > PDF metadata > content extraction
+            // Google Books is the most reliable source since it's a curated database
+            let bestAuthor: string | null = coverResult.apiAuthor || null;
+            if (!bestAuthor) {
+                bestAuthor = extracted.metadata.author;
+                if (bestAuthor) {
+                    bestAuthor = this.cleanMetadataAuthor(bestAuthor);
+                }
             }
             if (!bestAuthor && extracted.fullText) {
                 bestAuthor = this.extractAuthorFromContent(extracted.fullText);
@@ -217,7 +222,10 @@ export class BookExtractionWorker implements OnModuleInit {
                         extractionWarnings: extracted.extractionWarnings || [],
                         // Update metadata - always update title/author if we have better versions
                         ...(bestTitle && bestTitle !== currentBook?.title && { title: bestTitle }),
-                        ...(bestAuthor && !currentBook?.author && { author: bestAuthor }),
+                        // Always prefer API author over existing (PDF metadata can be wrong)
+                        ...(bestAuthor && (
+                            !currentBook?.author || coverResult.apiAuthor
+                        ) && { author: bestAuthor }),
                         ...(extracted.metadata.language && { language: extracted.metadata.language }),
                     },
                 }),
