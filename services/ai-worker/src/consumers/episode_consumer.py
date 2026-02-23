@@ -183,18 +183,46 @@ class EpisodeConsumer(BaseConsumer):
             summary = None
             try:
                 summary_prompt = (
-                    f'Summarize this podcast episode in 1-2 sentences (max 250 characters). '
-                    f'Book: "{book.title}" by {book.author}. '
-                    f'Episode: "{message["title"]}".\n\n'
-                    f'Script excerpt:\n{script_result.script[:2000]}'
+                    f'Write a 1-2 sentence summary of this podcast episode (under 300 characters). '
+                    f'The summary must be a complete thought — never end mid-sentence.\n\n'
+                    f'Book: "{book.title}" by {book.author}\n'
+                    f'Episode: "{message["title"]}"\n\n'
+                    f'Script excerpt:\n{script_result.script[:3000]}'
                 )
                 summary = self.llm_client.generate_text(
                     prompt=summary_prompt,
-                    max_tokens=100,
+                    max_tokens=500,
                     temperature=0.5,
-                    system_prompt="Output ONLY a concise summary, no quotes or labels.",
+                    system_prompt=(
+                        "You are a podcast summary writer. Output ONLY the summary text — "
+                        "no quotes, labels, or prefixes like 'Summary:'. "
+                        "Write 1-2 complete sentences that capture what the episode covers. "
+                        "Keep it under 300 characters."
+                    ),
                 )
-                summary = summary.strip()[:250]
+                summary = summary.strip().strip('"').strip("'")
+                # Remove common LLM prefixes
+                for prefix in ("Summary:", "summary:", "Episode Summary:", "Episode summary:"):
+                    if summary.startswith(prefix):
+                        summary = summary[len(prefix):].strip()
+                summary = summary[:300]
+                # If summary is suspiciously short, retry once with a simpler prompt
+                if len(summary) < 30:
+                    logger.warning(
+                        f"[STEP 5/10] Summary too short ({len(summary)} chars), retrying..."
+                    )
+                    summary = self.llm_client.generate_text(
+                        prompt=(
+                            f'In 1-2 sentences, what is this podcast episode about?\n\n'
+                            f'Book: "{book.title}" by {book.author}\n'
+                            f'Episode title: "{message["title"]}"\n\n'
+                            f'Script:\n{script_result.script[:3000]}'
+                        ),
+                        max_tokens=500,
+                        temperature=0.7,
+                        system_prompt="Write 1-2 complete sentences. No labels or prefixes.",
+                    )
+                    summary = summary.strip().strip('"').strip("'")[:300]
                 logger.info(f"[STEP 5/10] Summary generated ({len(summary)} chars): {summary}")
             except Exception as e:
                 logger.warning(f"[STEP 5/10] Summary generation failed (non-critical): {e}")
