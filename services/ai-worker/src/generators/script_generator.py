@@ -177,6 +177,18 @@ class ScriptGenerator:
         else:
             logger.info("LLM not configured, using template generation")
 
+        # Ensure LLM-generated scripts have a proper ending
+        if script is not None and method and method.startswith("llm"):
+            script = self._ensure_proper_ending(
+                script=script,
+                book_title=book_title,
+                book_author=book_author,
+                episode_title=episode_title,
+                episode_type=episode_type,
+                episode_theme=episode_theme,
+                podcaster_name=podcaster_name,
+            )
+
         # Fall back to template generation
         if script is None:
             script = self._generate_with_templates(
@@ -395,6 +407,120 @@ class ScriptGenerator:
         script = self.fallback_generator.generate_script(request)
         logger.info(f"Template generated {len(script.split())} words")
         return script
+
+    def _ensure_proper_ending(
+        self,
+        script: str,
+        book_title: str,
+        book_author: Optional[str],
+        episode_title: str,
+        episode_type: str,
+        episode_theme: str,
+        podcaster_name: str,
+    ) -> str:
+        """Check if script has a proper conclusion; generate one if missing.
+
+        Uses the LLM itself to judge whether the ending is complete — no fragile
+        keyword matching. If the script already concludes naturally, returns it
+        unchanged. Otherwise appends a generated 150-300 word conclusion.
+        """
+        opening = script[:500]
+        recent = script[-2000:]
+
+        # Detect speaker format
+        if episode_type in ("DUO", "GROUP"):
+            speaker_instruction = (
+                "Use the same speaker labels (HOST:/GUEST:) found in the script. "
+                "Both speakers MUST participate in the wrap-up (at least 2 turns each)."
+            )
+        else:
+            speaker_instruction = (
+                "Continue in first person with no speaker labels, matching the existing style."
+            )
+
+        # Theme-specific conclusion guidance
+        theme_guidance = {
+            "DEBATE": (
+                "Resolve the debate. Each side states their final position clearly. "
+                "Acknowledge the strongest point from the other side. Land on the "
+                "predetermined outcome — don't leave it hanging."
+            ),
+            "DISCUSSION": (
+                "Reflect on the key insights discussed. Share what resonated most "
+                "and what the listener should take away. End with a warm sign-off."
+            ),
+            "LECTURE": (
+                "Summarize the key takeaways concisely. Give the listener one or two "
+                "actionable next steps. End with an encouraging sign-off."
+            ),
+        }
+        theme_guide = theme_guidance.get(episode_theme, theme_guidance["DISCUSSION"])
+
+        author_part = f" by {book_author}" if book_author else ""
+
+        system_prompt = (
+            "You are a podcast script editor. Your job is to check whether a script "
+            "has a proper conclusion and, if not, write one."
+        )
+
+        user_prompt = f"""Here is the OPENING of a {episode_type} {episode_theme} podcast episode about '{book_title}'{author_part}:
+
+---OPENING---
+{opening}
+---END OPENING---
+
+Here is how the script currently ENDS:
+
+---ENDING---
+{recent}
+---END ENDING---
+
+TASK:
+If this script already ends with a proper, natural conclusion (wrap-up, final thoughts, sign-off, or any form of deliberate ending), respond with EXACTLY the word COMPLETE and nothing else.
+
+If the script ends abruptly — mid-discussion, mid-argument, mid-sentence, or without any wrap-up — write a 150-300 word conclusion that continues naturally from the last line.
+
+Rules for the conclusion:
+- {theme_guide}
+- {speaker_instruction}
+- Do NOT repeat content already in the script.
+- Do NOT add meta-commentary like "And that wraps up our episode."
+- Continue naturally from the last line as if you are the same writer.
+- The conclusion should feel like an organic part of the conversation, not a tacked-on afterthought.
+- Include natural TTS markup tags like [short pause], [medium pause], [sigh] where appropriate."""
+
+        try:
+            response = self.llm_client.generate_text(
+                prompt=user_prompt,
+                max_tokens=600,
+                temperature=0.7,
+                system_prompt=system_prompt,
+            )
+
+            cleaned_response = response.strip()
+
+            if cleaned_response.upper() == "COMPLETE":
+                logger.info("[ENDING CHECK] Script already has a proper conclusion")
+                return script
+
+            # LLM generated a conclusion — clean and append it
+            conclusion = self._clean_script(cleaned_response, episode_type)
+            if conclusion and len(conclusion.split()) >= 20:
+                logger.info(
+                    f"[ENDING CHECK] Appending generated conclusion "
+                    f"({len(conclusion.split())} words)"
+                )
+                return script.rstrip() + "\n\n" + conclusion
+            else:
+                logger.warning(
+                    f"[ENDING CHECK] Generated conclusion too short "
+                    f"({len(conclusion.split())} words), keeping original script"
+                )
+                return script
+
+        except Exception as e:
+            logger.error(f"[ENDING CHECK] Failed to check/generate conclusion: {e}")
+            return script  # Don't break the pipeline — return original script
 
     def _clean_script(self, script: str, episode_type: str) -> str:
         """Clean and format the generated script."""
