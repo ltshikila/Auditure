@@ -13,7 +13,7 @@ class TestScriptGeneratorIntegration:
     @pytest.fixture
     def generator(self):
         """Create ScriptGenerator with mocked LLM client."""
-        with patch('src.generators.script_generator.GeminiTextClient') as mock_client:
+        with patch('src.generators.script_generator.OpenAIClient') as mock_client:
             mock_instance = MagicMock()
             mock_instance.is_available = False
             mock_client.return_value = mock_instance
@@ -172,7 +172,7 @@ class TestScriptGeneratorIntegration:
         stay philosophical and keep learning!
         """
 
-        with patch('src.generators.script_generator.GeminiTextClient') as mock_client:
+        with patch('src.generators.script_generator.OpenAIClient') as mock_client:
             mock_instance = MagicMock()
             mock_instance.is_available = True
             mock_instance.generate_script.return_value = long_script
@@ -197,7 +197,7 @@ class TestScriptGeneratorIntegration:
 
     def test_generate_falls_back_on_llm_error(self, sample_personality, sample_book_content):
         """Test that generation falls back to templates on LLM error."""
-        with patch('src.generators.script_generator.GeminiTextClient') as mock_client:
+        with patch('src.generators.script_generator.OpenAIClient') as mock_client:
             mock_instance = MagicMock()
             mock_instance.is_available = True
             mock_instance.generate_script.side_effect = Exception("API Error")
