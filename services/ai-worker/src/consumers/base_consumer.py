@@ -16,6 +16,12 @@ from src.config import get_settings
 logger = logging.getLogger(__name__)
 
 
+def _is_connection_error(exc: Exception) -> bool:
+    """Check if an exception is a connection-level error worth retrying."""
+    import ssl
+    return isinstance(exc, (ConnectionError, ssl.SSLError, OSError))
+
+
 class BaseConsumer(ABC):
     """Base class for RabbitMQ consumers with retry logic."""
 
@@ -96,25 +102,50 @@ class BaseConsumer(ABC):
         signal.signal(signal.SIGINT, shutdown_handler)
 
     def start(self) -> None:
-        """Start consuming messages."""
+        """Start consuming messages with automatic reconnection."""
         self._setup_signal_handlers()
-        self.connect()
+        reconnect_delay = 1  # Start at 1 second
+        max_reconnect_delay = 60  # Cap at 60 seconds
 
-        try:
-            self.channel.basic_consume(
-                queue=self.queue_name,
-                on_message_callback=self._handle_message,
-                auto_ack=False,  # Manual acknowledgment
-            )
+        while not self._shutdown:
+            try:
+                self.connect()
+                reconnect_delay = 1  # Reset on successful connection
 
-            logger.info(f"Started consuming from {self.queue_name}")
-            self.channel.start_consuming()
+                self.channel.basic_consume(
+                    queue=self.queue_name,
+                    on_message_callback=self._handle_message,
+                    auto_ack=False,
+                )
 
-        except Exception as e:
-            logger.error(f"Consumer error: {e}")
-            raise
-        finally:
-            self.disconnect()
+                logger.info(f"Started consuming from {self.queue_name}")
+                self.channel.start_consuming()
+
+            except KeyboardInterrupt:
+                self._shutdown = True
+            except pika.exceptions.AMQPConnectionError as e:
+                logger.warning(f"Connection failed: {e}")
+            except pika.exceptions.StreamLostError as e:
+                logger.warning(f"Stream lost: {e}")
+            except pika.exceptions.AMQPHeartbeatTimeout:
+                logger.warning("Heartbeat timeout, connection lost")
+            except Exception as e:
+                if _is_connection_error(e):
+                    logger.warning(f"Connection error ({type(e).__name__}): {e}")
+                else:
+                    logger.error(f"Fatal consumer error: {e}")
+                    raise
+            finally:
+                self.disconnect()
+
+            if self._shutdown:
+                break
+
+            logger.info(f"Reconnecting in {reconnect_delay}s...")
+            time.sleep(reconnect_delay)
+            reconnect_delay = min(reconnect_delay * 2, max_reconnect_delay)
+
+        logger.info("Consumer stopped")
 
     def _handle_message(
         self,

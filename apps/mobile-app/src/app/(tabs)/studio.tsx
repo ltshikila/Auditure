@@ -182,14 +182,12 @@ export default function Studio() {
                                 </Text>
 
                                 {/* Stats */}
-                                {podcaster.playCount > 0 && (
-                                    <View className="flex-row items-center mt-2">
-                                        <Ionicons name="play" size={10} color="#8C8577" />
-                                        <Text className="font-inter text-[10px] text-gray-500 ml-1">
-                                            {formatCount(podcaster.playCount)}
-                                        </Text>
-                                    </View>
-                                )}
+                                <View className="flex-row items-center mt-2">
+                                    <Ionicons name="play" size={10} color="#8C8577" />
+                                    <Text className="font-inter text-[10px] text-gray-500 ml-1">
+                                        {formatCount(podcaster.playCount ?? 0)}
+                                    </Text>
+                                </View>
                             </TouchableOpacity>
                         ))}
                     </View>

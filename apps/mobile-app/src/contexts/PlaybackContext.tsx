@@ -351,7 +351,14 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
             if (token) {
                 const savedProgress = await playbackService.getProgress(ep.id, token);
                 if (savedProgress?.position) {
-                    initialPositionSec = savedProgress.position / 1000;
+                    const positionSec = savedProgress.position / 1000;
+                    const durationSec = ep.duration || 0;
+                    // If episode was completed (position >= 95% of duration), restart from beginning
+                    if (durationSec > 0 && positionSec >= durationSec * 0.95) {
+                        initialPositionSec = 0;
+                    } else {
+                        initialPositionSec = positionSec;
+                    }
                 }
             }
 

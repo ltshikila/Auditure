@@ -205,6 +205,8 @@ class EpisodeConsumer(BaseConsumer):
                 for prefix in ("Summary:", "summary:", "Episode Summary:", "Episode summary:"):
                     if summary.startswith(prefix):
                         summary = summary[len(prefix):].strip()
+                # Strip markdown formatting (bold/italic asterisks)
+                summary = summary.replace("*", "")
                 summary = summary[:300]
                 # If summary is suspiciously short, retry once with a simpler prompt
                 if len(summary) < 30:
@@ -222,7 +224,7 @@ class EpisodeConsumer(BaseConsumer):
                         temperature=0.7,
                         system_prompt="Write 1-2 complete sentences. No labels or prefixes.",
                     )
-                    summary = summary.strip().strip('"').strip("'")[:300]
+                    summary = summary.strip().strip('"').strip("'").replace("*", "")[:300]
                 logger.info(f"[STEP 5/10] Summary generated ({len(summary)} chars): {summary}")
             except Exception as e:
                 logger.warning(f"[STEP 5/10] Summary generation failed (non-critical): {e}")
