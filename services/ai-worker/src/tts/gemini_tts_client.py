@@ -1093,6 +1093,28 @@ class GeminiTTSClient:
         try:
             # Check if script needs chunking (exceeds ~10 min output limit)
             if self._needs_chunking(script):
+                # For multi-speaker episodes, use segment-by-segment generation
+                # to prevent voice swapping that occurs across independent chunk API calls.
+                # Each turn gets its own API call with an explicit single voice.
+                if episode_type in ("DUO", "GROUP"):
+                    logger.info(
+                        f"[Gemini TTS] Long multi-speaker script ({len(script)} chars), "
+                        "using segment-by-segment generation for voice consistency"
+                    )
+                    pcm_data = self._generate_segment_by_segment(
+                        script, voice_assignments, language_code, voice_configs=voice_configs
+                    )
+                    total_duration = len(pcm_data) / (self.SAMPLE_RATE * self.SAMPLE_WIDTH)
+                    audio_tokens = int(total_duration * self.TOKENS_PER_SECOND)
+                    input_tokens = len(script) // 4
+                    total_cost = (input_tokens / 1_000_000) * self.INPUT_PRICE_PER_M + \
+                                 (audio_tokens / 1_000_000) * self.OUTPUT_PRICE_PER_M
+                    logger.info(f"[Gemini TTS] Segment-by-segment complete: {total_duration:.1f}s, cost: ${total_cost:.4f}")
+                    audio_data = _pcm_to_wav(pcm_data)
+                    logger.info(f"[Gemini TTS] Generated {len(audio_data)} bytes")
+                    return audio_data
+
+                # For MONOLOGUE, use chunked generation (single voice, no swapping issue)
                 logger.info(f"[Gemini TTS] Script exceeds {self.MAX_CHUNK_CHARS} chars, using chunked generation")
                 chunks = self._split_script_into_chunks(script)
 
@@ -1123,7 +1145,6 @@ class GeminiTTSClient:
                                 f"(attempt {attempt+1}/{max_chunk_retries}): "
                                 f"RMS={chunk_stats['rms']}, max={chunk_stats['max_amplitude']}"
                             )
-                            # Log first 200 chars of chunk to identify problematic content
                             logger.warning(f"[Gemini TTS] Silent chunk content preview: {chunk[:200]}...")
                             if attempt < max_chunk_retries - 1:
                                 continue  # Retry
