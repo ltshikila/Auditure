@@ -1,4 +1,4 @@
-"""Gemini 2.5 Flash client for script generation."""
+"""OpenAI GPT-4o client for script generation."""
 
 import logging
 import traceback
@@ -24,29 +24,24 @@ class LLMAPIError(Exception):
         self.status_code = status_code
 
 
-class GeminiTextClient:
-    """Client for Gemini 2.5 Flash text generation API."""
+class OpenAIClient:
+    """Client for OpenAI GPT-4o API."""
 
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
-        """Initialize Gemini client."""
+        """Initialize OpenAI client."""
         settings = get_settings()
-        self.api_key = api_key or settings.gemini_api_key
-        self.model = model or settings.gemini_script_model
-        self.max_tokens = settings.gemini_max_output_tokens
+        self.api_key = api_key or settings.openai_api_key
+        self.model = model or settings.openai_model
+        self.max_tokens = settings.openai_max_tokens
         self.timeout = settings.script_generation_timeout
-        self.client = None
 
         if self.api_key:
-            try:
-                from google import genai
-                self.client = genai.Client(api_key=self.api_key)
-                logger.info(f"Gemini text client initialized (model: {self.model})")
-            except ImportError:
-                logger.error("google-genai package not installed. Run: pip install google-genai")
-            except Exception as e:
-                logger.error(f"Failed to initialize Gemini client: {e}")
+            from openai import OpenAI
+            self.client = OpenAI(api_key=self.api_key)
+            logger.info(f"OpenAI client initialized (model: {self.model})")
         else:
-            logger.warning("Gemini text client not configured - no API key found")
+            self.client = None
+            logger.warning("OpenAI client not configured - no API key found")
 
     @property
     def is_available(self) -> bool:
@@ -67,13 +62,13 @@ class GeminiTextClient:
         system_prompt: Optional[str] = None,
     ) -> str:
         """
-        Generate text using Gemini 2.5 Flash.
+        Generate text using OpenAI GPT-4o.
 
         Args:
             prompt: The user prompt
             max_tokens: Maximum tokens to generate (default from settings)
             temperature: Sampling temperature (0.0-2.0)
-            system_prompt: Optional system instruction
+            system_prompt: Optional system prompt for context
 
         Returns:
             Generated text
@@ -82,55 +77,46 @@ class GeminiTextClient:
             LLMAPIError: If API call fails
         """
         if not self.is_available:
-            raise LLMAPIError("Gemini API key not configured")
-
-        from google.genai import types
+            raise LLMAPIError("OpenAI API key not configured")
 
         max_tokens = max_tokens or self.max_tokens
 
-        # Build contents with optional system instruction
-        contents = prompt
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
 
-        logger.info("[LLM] Calling Gemini API...")
+        logger.info("[LLM] Calling OpenAI API...")
         logger.info(f"[LLM] Model: {self.model}")
         logger.info(f"[LLM] Prompt length: {len(prompt)} chars")
         logger.info(f"[LLM] Max tokens: {max_tokens}, Temperature: {temperature}")
 
         try:
-            config = types.GenerateContentConfig(
-                max_output_tokens=max_tokens,
-                temperature=temperature,
-            )
-            if system_prompt:
-                config.system_instruction = system_prompt
-
-            response = self.client.models.generate_content(
+            response = self.client.chat.completions.create(
                 model=self.model,
-                contents=contents,
-                config=config,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                timeout=self.timeout,
             )
 
-            generated = response.text
+            generated = response.choices[0].message.content
             if not generated:
-                raise LLMAPIError("Gemini returned empty response")
+                raise LLMAPIError("OpenAI returned empty response")
 
+            usage = response.usage
             word_count = len(generated.split())
             logger.info(f"[LLM] Generated {len(generated)} chars ({word_count} words)")
 
-            # Log token usage if available
-            if hasattr(response, 'usage_metadata') and response.usage_metadata:
-                usage = response.usage_metadata
-                input_tokens = getattr(usage, 'prompt_token_count', 0) or 0
-                output_tokens = getattr(usage, 'candidates_token_count', 0) or 0
-                total_tokens = getattr(usage, 'total_token_count', 0) or 0
+            if usage:
                 logger.info(
-                    f"[LLM] Tokens used - Prompt: {input_tokens}, "
-                    f"Completion: {output_tokens}, Total: {total_tokens}"
+                    f"[LLM] Tokens used - Prompt: {usage.prompt_tokens}, "
+                    f"Completion: {usage.completion_tokens}, Total: {usage.total_tokens}"
                 )
 
-                # Gemini 2.5 Flash pricing: $0.15/1M input, $0.60/1M output (under 200K context)
-                input_cost = (input_tokens / 1_000_000) * 0.15
-                output_cost = (output_tokens / 1_000_000) * 0.60
+                # GPT-4o pricing: $2.50/1M input, $10.00/1M output
+                input_cost = (usage.prompt_tokens / 1_000_000) * 2.50
+                output_cost = (usage.completion_tokens / 1_000_000) * 10.00
                 total_cost = input_cost + output_cost
                 logger.info(f"[LLM] Estimated cost: ${total_cost:.6f}")
 
@@ -139,7 +125,7 @@ class GeminiTextClient:
         except LLMAPIError:
             raise
         except Exception as e:
-            error_msg = f"Gemini API error: {str(e)}"
+            error_msg = f"OpenAI API error: {str(e)}"
             logger.error(error_msg)
             logger.error(f"Exception type: {type(e).__name__}")
             logger.error(f"Exception chain: {repr(e)}")
@@ -214,6 +200,6 @@ These will either be spoken aloud or produce unpredictable results."""
 
 
 # Backwards compatibility aliases
-HuggingFaceClient = GeminiTextClient
-OpenAIClient = GeminiTextClient
+GeminiTextClient = OpenAIClient
+HuggingFaceClient = OpenAIClient
 HuggingFaceAPIError = LLMAPIError

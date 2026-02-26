@@ -7,7 +7,7 @@ from typing import Optional
 
 from src.config import get_settings
 
-from .llm_client import GeminiTextClient, LLMAPIError
+from .llm_client import LLMAPIError, OpenAIClient
 from .prompt_builder import (
     CoHostArchetype,
     DebateConfig,
@@ -55,7 +55,7 @@ class ScriptGenerator:
     def __init__(self):
         """Initialize script generator with clients."""
         settings = get_settings()
-        self.llm_client = GeminiTextClient()
+        self.llm_client = OpenAIClient()
         self.prompt_builder = PromptBuilder()
         self.fallback_generator = FallbackGenerator()
         self.words_per_minute = settings.words_per_minute
@@ -342,7 +342,7 @@ class ScriptGenerator:
                     f"outcome={debate_config.outcome.value}, formality={debate_config.formality_level}"
                 )
 
-        # Build prompt (single-call — no chunking needed with Gemini 2.5 Flash)
+        # Build prompt (single-call)
         request = ScriptRequest(
             book_content=book_content,
             book_title=book_title,

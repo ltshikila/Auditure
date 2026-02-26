@@ -6,6 +6,9 @@ pydub==0.25.1                  # Audio processing
 ffmpeg-python==0.2.0           # Audio concatenation
 redis==5.0.1                   # Redis client for progress tracking
 
+# LLM - OpenAI GPT-4o (script generation)
+openai>=1.0.0                      # OpenAI API client
+
 # TTS - Google Cloud Text-to-Speech (Standard voices)
 google-cloud-texttospeech>=2.14.0  # Google Cloud TTS API
 

@@ -45,8 +45,8 @@ class EpisodeConsumer(BaseConsumer):
         self.redis_client = get_redis_client()
 
         # LLM client for summary generation
-        from src.generators.llm_client import GeminiTextClient
-        self.llm_client = GeminiTextClient()
+        from src.generators.llm_client import OpenAIClient
+        self.llm_client = OpenAIClient()
 
         self.max_content_chars = settings.max_book_content_chars
 
