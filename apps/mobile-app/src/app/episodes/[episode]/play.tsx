@@ -9,6 +9,7 @@ import { Episode, episodeService } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
 import { resolveCoverUrl } from '@/services/api';
 import { useAlert } from '@/contexts/AlertContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 const icons = {
     star: require('@/assets/icons/star.png'),
@@ -45,6 +46,7 @@ export default function EpisodePlayScreen() {
     const { episode: episodeId } = useLocalSearchParams<{ episode: string }>();
     const { episode, position, duration, play, seekTo, stop } = usePlayback();
     const { showAlert } = useAlert();
+    const { user } = useAuth();
 
     const [localEpisode, setLocalEpisode] = useState<Episode | null>(null);
     const [sliderValue, setSliderValue] = useState(0);
@@ -452,13 +454,15 @@ export default function EpisodePlayScreen() {
                             <Text className="font-inter-medium text-brand-black text-base ml-4">Share Episode</Text>
                         </TouchableOpacity> */}
 
-                        <TouchableOpacity
-                            onPress={handleDeleteEpisode}
-                            className="flex-row items-center py-4"
-                        >
-                            <Ionicons name="trash-outline" size={22} color="#DC2626" />
-                            <Text className="font-inter-medium text-red-600 text-base ml-4">Delete Episode</Text>
-                        </TouchableOpacity>
+                        {user && displayEpisode?.userId === user.id && (
+                            <TouchableOpacity
+                                onPress={handleDeleteEpisode}
+                                className="flex-row items-center py-4"
+                            >
+                                <Ionicons name="trash-outline" size={22} color="#DC2626" />
+                                <Text className="font-inter-medium text-red-600 text-base ml-4">Delete Episode</Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
                 </TouchableOpacity>
             </Modal>
