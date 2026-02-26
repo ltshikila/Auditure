@@ -418,40 +418,49 @@ class ScriptGenerator:
         episode_theme: str,
         podcaster_name: str,
     ) -> str:
-        """Check if script has a proper conclusion; generate one if missing.
+        """Always generate and append a conclusion to the script.
 
-        Uses the LLM itself to judge whether the ending is complete — no fragile
-        keyword matching. If the script already concludes naturally, returns it
-        unchanged. Otherwise appends a generated 150-300 word conclusion.
+        Previous approach asked the LLM to judge + generate — Flash would output
+        19-25 word ambiguous responses instead of real dialogue. New approach:
+        no judging, no COMPLETE option. Always generate conclusion dialogue,
+        always append it. Worst case: a script that already had an ending gets
+        a slightly longer sign-off.
         """
-        opening = script[:500]
         recent = script[-2000:]
 
-        # Detect speaker format
+        # Detect speaker labels from the script
         if episode_type in ("DUO", "GROUP"):
-            speaker_instruction = (
-                "Use the same speaker labels (HOST:/GUEST:) found in the script. "
-                "Both speakers MUST participate in the wrap-up (at least 2 turns each)."
+            speaker_format = (
+                "Write the dialogue using HOST: and GUEST: labels, exactly like the script above. "
+                "Both speakers MUST participate (at least 2-3 turns each)."
+            )
+            example = (
+                "HOST: [dialogue]\n"
+                "GUEST: [dialogue]\n"
+                "HOST: [dialogue]\n"
+                "GUEST: [dialogue]\n"
+                "HOST: [dialogue]"
             )
         else:
-            speaker_instruction = (
-                "Continue in first person with no speaker labels, matching the existing style."
+            speaker_format = (
+                "Write in first person with no speaker labels, matching the monologue style above."
             )
+            example = "[continuous first-person prose wrapping up the discussion]"
 
         # Theme-specific conclusion guidance
         theme_guidance = {
             "DEBATE": (
-                "Resolve the debate. Each side states their final position clearly. "
-                "Acknowledge the strongest point from the other side. Land on the "
-                "predetermined outcome — don't leave it hanging."
+                "Resolve the debate. Each speaker states their final position. "
+                "Acknowledge the strongest point from the opposing side. "
+                "Don't cop out — land firmly on a conclusion."
             ),
             "DISCUSSION": (
-                "Reflect on the key insights discussed. Share what resonated most "
-                "and what the listener should take away. End with a warm sign-off."
+                "Reflect on what was discussed. Share the biggest takeaway. "
+                "End with warmth — thank the listener or tease what's next."
             ),
             "LECTURE": (
-                "Summarize the key takeaways concisely. Give the listener one or two "
-                "actionable next steps. End with an encouraging sign-off."
+                "Summarize 2-3 key takeaways clearly. Give one actionable next step. "
+                "End with encouragement."
             ),
         }
         theme_guide = theme_guidance.get(episode_theme, theme_guidance["DISCUSSION"])
@@ -459,78 +468,62 @@ class ScriptGenerator:
         author_part = f" by {book_author}" if book_author else ""
 
         system_prompt = (
-            "You are a podcast script editor. Your job is to check whether a script "
-            "has a proper conclusion and, if not, write one."
+            "You are a podcast script writer. You write natural, engaging podcast dialogue. "
+            "You ONLY output script dialogue — no meta-commentary, no descriptions, no stage directions. "
+            "Just the spoken words in the correct format."
         )
 
-        user_prompt = f"""Here is the OPENING of a {episode_type} {episode_theme} podcast episode about '{book_title}'{author_part}:
+        user_prompt = f"""You are writing the CONCLUSION of a {episode_type} {episode_theme} podcast episode about '{book_title}'{author_part}.
 
----OPENING---
-{opening}
----END OPENING---
+Here is where the episode currently ends (the last portion of the script):
 
-Here is how the script currently ENDS:
-
----ENDING---
 {recent}
----END ENDING---
 
-TASK:
-If this script already ends with a proper, natural conclusion (wrap-up, final thoughts, sign-off, or any form of deliberate ending), respond with EXACTLY the word COMPLETE and nothing else.
+---
 
-If the script ends abruptly — mid-discussion, mid-argument, mid-sentence, or without any wrap-up — write a 150-300 word conclusion that continues naturally from the last line.
+YOUR TASK: Write the FINAL 5-8 speaking turns that CONCLUDE this episode. This is the wrap-up — the last thing listeners hear.
 
-Rules for the conclusion:
+REQUIREMENTS:
 - {theme_guide}
-- {speaker_instruction}
-- Do NOT repeat content already in the script.
-- Do NOT add meta-commentary like "And that wraps up our episode."
-- Continue naturally from the last line as if you are the same writer.
-- The conclusion should feel like an organic part of the conversation, not a tacked-on afterthought.
-- Include natural TTS markup tags like [short pause], [medium pause], [sigh] where appropriate."""
+- {speaker_format}
+- Write exactly 150-250 words of dialogue.
+- Continue naturally from where the script left off above.
+- Do NOT repeat points already made in the script.
+- Do NOT use meta-commentary like "that wraps up our episode" or "thanks for listening to episode 5."
+- Keep it conversational and natural — this should feel like the speakers are genuinely wrapping up.
+- You may use TTS tags: [short pause], [medium pause], [sigh], [laughing] where natural.
+
+FORMAT — output ONLY the dialogue, nothing else:
+{example}
+
+Write the conclusion now:"""
 
         try:
-            # Try up to 2 times — if first attempt returns a too-short conclusion,
-            # retry with a more explicit prompt
-            for attempt in range(2):
-                response = self.llm_client.generate_text(
-                    prompt=user_prompt if attempt == 0 else (
-                        user_prompt + "\n\nIMPORTANT: Your previous attempt was too short. "
-                        "You MUST write at least 150 words of conclusion dialogue. "
-                        "Do NOT respond with just a brief sentence."
-                    ),
-                    max_tokens=800 if attempt > 0 else 600,
-                    temperature=0.7,
-                    system_prompt=system_prompt,
+            response = self.llm_client.generate_text(
+                prompt=user_prompt,
+                max_tokens=800,
+                temperature=0.8,
+                system_prompt=system_prompt,
+            )
+
+            conclusion = self._clean_script(response.strip(), episode_type)
+            word_count = len(conclusion.split()) if conclusion else 0
+
+            if conclusion and word_count >= 30:
+                logger.info(
+                    f"[ENDING CHECK] Appending generated conclusion ({word_count} words)"
                 )
+                return script.rstrip() + "\n\n" + conclusion
 
-                cleaned_response = response.strip()
-
-                if cleaned_response.upper() == "COMPLETE":
-                    logger.info("[ENDING CHECK] Script already has a proper conclusion")
-                    return script
-
-                # LLM generated a conclusion — clean and append it
-                conclusion = self._clean_script(cleaned_response, episode_type)
-                word_count = len(conclusion.split()) if conclusion else 0
-
-                if conclusion and word_count >= 30:
-                    logger.info(
-                        f"[ENDING CHECK] Appending generated conclusion "
-                        f"({word_count} words, attempt {attempt + 1})"
-                    )
-                    return script.rstrip() + "\n\n" + conclusion
-
-                logger.warning(
-                    f"[ENDING CHECK] Attempt {attempt + 1}: conclusion too short "
-                    f"({word_count} words), {'retrying...' if attempt == 0 else 'keeping original script'}"
-                )
-
+            logger.warning(
+                f"[ENDING CHECK] Conclusion too short ({word_count} words), "
+                f"raw response: {response[:200]!r}"
+            )
             return script
 
         except Exception as e:
-            logger.error(f"[ENDING CHECK] Failed to check/generate conclusion: {e}")
-            return script  # Don't break the pipeline — return original script
+            logger.error(f"[ENDING CHECK] Failed to generate conclusion: {e}")
+            return script
 
     def _clean_script(self, script: str, episode_type: str) -> str:
         """Clean and format the generated script."""
