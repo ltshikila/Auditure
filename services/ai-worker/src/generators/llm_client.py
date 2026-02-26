@@ -1,4 +1,4 @@
-"""OpenAI GPT-4o client for script generation."""
+"""OpenAI GPT-4.1-mini client for script generation."""
 
 import logging
 import traceback
@@ -25,7 +25,7 @@ class LLMAPIError(Exception):
 
 
 class OpenAIClient:
-    """Client for OpenAI GPT-4o API."""
+    """Client for OpenAI GPT-4.1-mini API."""
 
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
         """Initialize OpenAI client."""
@@ -62,7 +62,7 @@ class OpenAIClient:
         system_prompt: Optional[str] = None,
     ) -> str:
         """
-        Generate text using OpenAI GPT-4o.
+        Generate text using OpenAI GPT-4.1-mini.
 
         Args:
             prompt: The user prompt
@@ -114,9 +114,9 @@ class OpenAIClient:
                     f"Completion: {usage.completion_tokens}, Total: {usage.total_tokens}"
                 )
 
-                # GPT-4o pricing: $2.50/1M input, $10.00/1M output
-                input_cost = (usage.prompt_tokens / 1_000_000) * 2.50
-                output_cost = (usage.completion_tokens / 1_000_000) * 10.00
+                # GPT-4.1-mini pricing: $0.40/1M input, $1.60/1M output
+                input_cost = (usage.prompt_tokens / 1_000_000) * 0.40
+                output_cost = (usage.completion_tokens / 1_000_000) * 1.60
                 total_cost = input_cost + output_cost
                 logger.info(f"[LLM] Estimated cost: ${total_cost:.6f}")
 

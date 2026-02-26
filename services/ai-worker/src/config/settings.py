@@ -28,10 +28,10 @@ class Settings(BaseSettings):
     redis_host: str = "localhost"
     redis_port: int = 6379
 
-    # LLM - OpenAI GPT-4o (script generation)
+    # LLM - OpenAI GPT-4.1-mini (script generation)
     openai_api_key: Optional[str] = None
-    openai_model: str = "gpt-4o"
-    openai_max_tokens: int = 16000  # GPT-4o supports up to 16,384 output tokens
+    openai_model: str = "gpt-4.1-mini"
+    openai_max_tokens: int = 16000  # GPT-4.1-mini supports up to 16,384 output tokens
 
     # Google Cloud TTS (Standard voices - $4/1M chars)
     google_cloud_project_id: Optional[str] = None
@@ -54,8 +54,8 @@ class Settings(BaseSettings):
     # Processing
     # Gemini TTS actual speaking rate: ~150 wpm (measured from production data)
     words_per_minute: int = 150
-    max_book_content_chars: int = 50000  # GPT-4o 128K context allows large content
-    script_generation_timeout: int = 120  # GPT-4o timeout
+    max_book_content_chars: int = 50000  # GPT-4.1-mini 1M context allows large content
+    script_generation_timeout: int = 120  # GPT-4.1-mini timeout
 
     # TTS
     tts_temp_dir: str = "./temp/tts"
