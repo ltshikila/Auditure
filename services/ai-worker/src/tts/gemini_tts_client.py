@@ -340,6 +340,14 @@ class GeminiTTSClient:
     MAX_CHUNK_DURATION_SEC = 420  # 7 minutes per chunk
     MAX_CHUNK_CHARS = 7500        # ~7 min at ~180 wpm ≈ 1250 words ≈ 7500 chars
 
+    # Batched segment generation — groups N consecutive turns into a single
+    # multi-speaker API call instead of one call per turn. Reduces API calls
+    # by ~80% (37 calls → 8 for a typical DUO episode).
+    # Original chunked approach (15-20 turns/chunk) caused voice swapping;
+    # 5 turns is small enough to maintain voice consistency.
+    BATCH_MAX_TURNS = 5       # Max speaker turns per batch
+    BATCH_MAX_CHARS = 4000    # Max chars per batch (headroom under 7500 API limit)
+
     def __init__(self, temp_dir: Optional[str] = None):
         """Initialize Gemini TTS client."""
         settings = get_settings()
@@ -708,6 +716,57 @@ class GeminiTTSClient:
 
         return chunks
 
+    def _extract_pcm_from_response(self, response, context_label: str = "chunk") -> bytes:
+        """Extract raw PCM audio data from a Gemini API response.
+
+        Handles base64-encoded strings, base64-encoded bytes, and raw bytes.
+
+        Args:
+            response: The Gemini API response object
+            context_label: Label for error messages (e.g., "batch 3")
+
+        Returns:
+            Raw PCM audio bytes
+
+        Raises:
+            GeminiTTSError: If no audio data can be extracted
+        """
+        if response.candidates and len(response.candidates) > 0:
+            candidate = response.candidates[0]
+            if hasattr(candidate, 'content') and candidate.content and candidate.content.parts:
+                for part in candidate.content.parts:
+                    if hasattr(part, 'inline_data') and part.inline_data:
+                        raw_data = part.inline_data.data
+
+                        if isinstance(raw_data, str):
+                            return base64.b64decode(raw_data)
+                        elif isinstance(raw_data, bytes):
+                            sample = raw_data[:100]
+                            is_likely_base64 = all(
+                                (43 <= b <= 122) or b in (10, 13, 32, 61)
+                                for b in sample
+                            )
+                            if is_likely_base64:
+                                return base64.b64decode(raw_data)
+                            return raw_data
+                        return raw_data
+
+        # Log detailed error info
+        if not response.candidates:
+            logger.error(f"[Gemini TTS] Empty response for {context_label}: no candidates")
+        elif response.candidates:
+            candidate = response.candidates[0]
+            if not hasattr(candidate, 'content'):
+                logger.error(f"[Gemini TTS] {context_label}: candidate has no content attribute")
+            elif candidate.content is None:
+                logger.error(f"[Gemini TTS] {context_label}: content is None (possible filtering)")
+                if hasattr(candidate, 'finish_reason'):
+                    logger.error(f"[Gemini TTS] {context_label} finish reason: {candidate.finish_reason}")
+            elif not candidate.content.parts:
+                logger.error(f"[Gemini TTS] {context_label}: content has no parts")
+
+        raise GeminiTTSError(f"No audio data in {context_label} response")
+
     def _generate_single_chunk(
         self,
         script: str,
@@ -746,10 +805,10 @@ class GeminiTTSClient:
         )
 
         # Gemini multi-speaker API only supports exactly 2 speakers
-        # For 3+ speakers, use segment-by-segment generation
+        # For 3+ speakers, use batched generation
         if is_multi_speaker and len(actual_speakers) > 2:
-            logger.info(f"[Gemini TTS] Chunk has {len(actual_speakers)} speakers - using segment-by-segment")
-            return self._generate_segment_by_segment(script, voice_assignments, language_code, voice_configs=voice_configs)
+            logger.info(f"[Gemini TTS] Chunk has {len(actual_speakers)} speakers - using batched")
+            return self._generate_batched_segments(script, voice_assignments, language_code, voice_configs=voice_configs)
 
         if is_multi_speaker:
             # Use voice names as speaker labels — the formatted script already has
@@ -791,63 +850,67 @@ class GeminiTTSClient:
             )
         )
 
-        # Extract PCM audio data
-        if response.candidates and len(response.candidates) > 0:
-            candidate = response.candidates[0]
-            if hasattr(candidate, 'content') and candidate.content and candidate.content.parts:
-                for part in candidate.content.parts:
-                    if hasattr(part, 'inline_data') and part.inline_data:
-                        raw_data = part.inline_data.data
+        return self._extract_pcm_from_response(response, "chunk")
 
-                        # Handle base64-encoded data
-                        if isinstance(raw_data, str):
-                            return base64.b64decode(raw_data)
-                        elif isinstance(raw_data, bytes):
-                            sample = raw_data[:100]
-                            is_likely_base64 = all(
-                                (43 <= b <= 122) or b in (10, 13, 32, 61)
-                                for b in sample
-                            )
-                            if is_likely_base64:
-                                return base64.b64decode(raw_data)
-                            return raw_data
-                        return raw_data
+    def _batch_turns(
+        self,
+        turns: list[tuple[str, str]],
+    ) -> list[list[tuple[str, str]]]:
+        """Group speaker turns into batches for multi-speaker generation.
 
-        # Log detailed error info for debugging
-        if not response.candidates:
-            logger.error("[Gemini TTS] Empty response: no candidates returned")
-        elif response.candidates:
-            candidate = response.candidates[0]
-            if not hasattr(candidate, 'content'):
-                logger.error("[Gemini TTS] Candidate has no content attribute")
-            elif candidate.content is None:
-                logger.error("[Gemini TTS] Candidate content is None (possible API issue or content filtering)")
-                # Check for finish_reason which might explain why
-                if hasattr(candidate, 'finish_reason'):
-                    logger.error(f"[Gemini TTS] Finish reason: {candidate.finish_reason}")
-            elif not candidate.content.parts:
-                logger.error("[Gemini TTS] Candidate content has no parts")
+        Each batch respects both BATCH_MAX_TURNS and BATCH_MAX_CHARS.
+        A single turn that exceeds BATCH_MAX_CHARS gets its own batch.
 
-        raise GeminiTTSError("No audio data in chunk response")
+        Args:
+            turns: List of (speaker_label, dialogue_text) tuples
 
-    def _generate_segment_by_segment(
+        Returns:
+            List of batches, where each batch is a list of (speaker, dialogue) tuples
+        """
+        batches = []
+        current_batch = []
+        current_chars = 0
+
+        for speaker, dialogue in turns:
+            turn_chars = len(dialogue)
+
+            would_exceed_turns = len(current_batch) >= self.BATCH_MAX_TURNS
+            would_exceed_chars = (current_chars + turn_chars) > self.BATCH_MAX_CHARS and current_batch
+
+            if would_exceed_turns or would_exceed_chars:
+                batches.append(current_batch)
+                current_batch = []
+                current_chars = 0
+
+            current_batch.append((speaker, dialogue))
+            current_chars += turn_chars
+
+        if current_batch:
+            batches.append(current_batch)
+
+        return batches
+
+    def _generate_batched_segments(
         self,
         script: str,
         voice_assignments: dict[str, str],
         language_code: str,
         voice_configs: Optional[dict[str, "GeminiVoiceConfig"]] = None,
     ) -> bytes:
-        """
-        Generate audio segment-by-segment for 3+ speaker scripts.
+        """Generate audio using batched multi-speaker generation.
 
-        Since Gemini multi-speaker only supports exactly 2 voices, this method
-        generates each speaker turn individually with single-speaker mode and
-        concatenates them with crossfade.
+        Groups consecutive speaker turns into small batches (default 5 turns)
+        and generates each batch using MultiSpeakerVoiceConfig. This balances
+        API call efficiency against voice consistency.
+
+        For batches with exactly 2 unique voices, uses multi-speaker mode (1 API call).
+        For batches with 1 or 3+ voices, falls back to single-speaker per turn.
 
         Args:
             script: The podcast script with speaker labels
             voice_assignments: Map of speaker labels to Gemini voice names
             language_code: Language/accent code
+            voice_configs: Optional voice configs with style prompts
 
         Returns:
             Raw PCM audio data (not WAV)
@@ -864,43 +927,231 @@ class GeminiTTSClient:
             if not line:
                 continue
 
-            # Check for speaker label pattern
             match = re.match(r'^([A-Z0-9_]+):\s*(.+)$', line)
             if match:
-                # Save previous turn
                 if current_speaker and current_lines:
                     turns.append((current_speaker, ' '.join(current_lines)))
-
                 current_speaker = match.group(1)
                 current_lines = [match.group(2)]
             elif current_speaker:
-                # Continuation of current speaker's turn
                 current_lines.append(line)
 
-        # Don't forget the last turn
         if current_speaker and current_lines:
             turns.append((current_speaker, ' '.join(current_lines)))
 
         if not turns:
             raise GeminiTTSError("No speaker turns found in script")
 
-        logger.info(f"[Gemini TTS] Segment-by-segment: {len(turns)} turns to generate")
+        # Group turns into batches
+        batches = self._batch_turns(turns)
 
-        # Generate audio for each turn
+        logger.info(
+            f"[Gemini TTS] Batched generation: {len(turns)} turns -> "
+            f"{len(batches)} batches (max {self.BATCH_MAX_TURNS} turns / "
+            f"{self.BATCH_MAX_CHARS} chars per batch)"
+        )
+
+        # Generate audio for each batch
         all_pcm_data = []
-
-        # Get accent guidance for non-US accents
         accent_description = LANGUAGE_CODE_TO_ACCENT_DESCRIPTION.get(language_code)
 
-        for i, (speaker, dialogue) in enumerate(turns):
-            voice = voice_assignments.get(speaker, "Kore")
-            logger.info(f"[Gemini TTS] Turn {i+1}/{len(turns)}: {speaker} ({voice}) - {len(dialogue)} chars")
+        for batch_idx, batch in enumerate(batches):
+            batch_speakers = set(speaker for speaker, _ in batch)
+            batch_voice_names = {
+                voice_assignments.get(s, "Kore") for s in batch_speakers
+            }
+            batch_chars = sum(len(d) for _, d in batch)
 
-            # Build per-speaker Director's Notes with voice identity
+            logger.info(
+                f"[Gemini TTS] Batch {batch_idx + 1}/{len(batches)}: "
+                f"{len(batch)} turns, {batch_chars} chars, "
+                f"speakers={batch_speakers}"
+            )
+
+            # Multi-speaker mode for exactly 2 voices; single-speaker fallback otherwise
+            use_multi_speaker = len(batch_voice_names) == 2
+
+            max_retries = 3
+            pcm_data = None
+
+            for attempt in range(max_retries):
+                try:
+                    if use_multi_speaker:
+                        pcm_data = self._generate_batch_multi_speaker(
+                            batch, voice_assignments, language_code, voice_configs,
+                            batch_idx, len(batches),
+                        )
+                    else:
+                        pcm_data = self._generate_batch_single_speaker(
+                            batch, voice_assignments, language_code,
+                            voice_configs, batch_idx,
+                        )
+
+                    # Validate audio is not silent
+                    chunk_stats = _analyze_pcm_chunk(
+                        pcm_data, batch_idx, self.SAMPLE_RATE, self.SAMPLE_WIDTH
+                    )
+
+                    if chunk_stats.get("is_silent", False):
+                        logger.warning(
+                            f"[Gemini TTS] Batch {batch_idx + 1} is SILENT "
+                            f"(attempt {attempt + 1}/{max_retries}): "
+                            f"RMS={chunk_stats['rms']}, max={chunk_stats['max_amplitude']}"
+                        )
+                        if attempt < max_retries - 1:
+                            pcm_data = None
+                            continue
+                        else:
+                            logger.error(
+                                f"[Gemini TTS] Batch {batch_idx + 1} still silent "
+                                f"after {max_retries} attempts"
+                            )
+                    else:
+                        duration = chunk_stats["duration_sec"]
+                        logger.info(
+                            f"[Gemini TTS] Batch {batch_idx + 1} generated: "
+                            f"{duration:.1f}s (RMS={chunk_stats['rms']})"
+                        )
+                    break
+
+                except GeminiTTSError:
+                    raise
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        logger.warning(
+                            f"[Gemini TTS] Batch {batch_idx + 1} failed "
+                            f"(attempt {attempt + 1}), retrying: {e}"
+                        )
+                        continue
+                    raise GeminiTTSError(
+                        f"Failed to generate batch {batch_idx + 1}: {str(e)}"
+                    ) from e
+
+            if pcm_data is None:
+                raise GeminiTTSError(
+                    f"Failed to generate audio for batch {batch_idx + 1} "
+                    f"after {max_retries} attempts"
+                )
+
+            all_pcm_data.append(pcm_data)
+
+        # Crossfade all batch segments
+        logger.info(f"[Gemini TTS] Crossfading {len(all_pcm_data)} batches...")
+        combined_pcm = _crossfade_pcm_chunks(
+            all_pcm_data,
+            sample_rate=self.SAMPLE_RATE,
+            sample_width=self.SAMPLE_WIDTH,
+            crossfade_ms=30,
+        )
+
+        total_duration = len(combined_pcm) / (self.SAMPLE_RATE * self.SAMPLE_WIDTH)
+        logger.info(
+            f"[Gemini TTS] Batched generation complete: "
+            f"{total_duration:.1f}s total from {len(batches)} batches"
+        )
+
+        return combined_pcm
+
+    def _generate_batch_multi_speaker(
+        self,
+        batch: list[tuple[str, str]],
+        voice_assignments: dict[str, str],
+        language_code: str,
+        voice_configs: Optional[dict[str, "GeminiVoiceConfig"]],
+        batch_idx: int,
+        total_batches: int,
+    ) -> bytes:
+        """Generate audio for a batch of turns using multi-speaker mode.
+
+        Reconstructs a mini-script from the batch, formats it with Director's Notes
+        via _format_script_for_gemini(), and uses MultiSpeakerVoiceConfig.
+
+        Args:
+            batch: List of (speaker_label, dialogue) tuples
+            voice_assignments: Map of speaker labels to Gemini voice names
+            language_code: Language/accent code
+            voice_configs: Optional voice configs with style prompts
+            batch_idx: Current batch index (0-based)
+            total_batches: Total number of batches
+
+        Returns:
+            Raw PCM audio data
+        """
+        from google.genai import types
+
+        # Reconstruct the mini-script for this batch
+        batch_lines = [f"{speaker}: {dialogue}" for speaker, dialogue in batch]
+        batch_script = '\n'.join(batch_lines)
+
+        # Format with Director's Notes and voice name substitution
+        formatted_script = self._format_script_for_gemini(
+            batch_script, voice_assignments, language_code,
+            voice_configs=voice_configs,
+            chunk_index=batch_idx, total_chunks=total_batches,
+        )
+
+        # Build multi-speaker config with voices in this batch
+        batch_speakers = set(speaker for speaker, _ in batch)
+        batch_voice_map = {
+            voice_assignments[s]: voice_assignments[s]
+            for s in batch_speakers
+            if s in voice_assignments
+        }
+        speaker_configs = self._build_speaker_configs(batch_voice_map)
+
+        speech_config = types.SpeechConfig(
+            language_code=language_code,
+            multi_speaker_voice_config=types.MultiSpeakerVoiceConfig(
+                speaker_voice_configs=speaker_configs
+            )
+        )
+
+        response = self.client.models.generate_content(
+            model=self.MODEL_NAME,
+            contents=formatted_script,
+            config=types.GenerateContentConfig(
+                response_modalities=["AUDIO"],
+                speech_config=speech_config,
+            )
+        )
+
+        return self._extract_pcm_from_response(response, f"batch {batch_idx + 1}")
+
+    def _generate_batch_single_speaker(
+        self,
+        batch: list[tuple[str, str]],
+        voice_assignments: dict[str, str],
+        language_code: str,
+        voice_configs: Optional[dict[str, "GeminiVoiceConfig"]],
+        batch_idx: int,
+    ) -> bytes:
+        """Generate audio for a batch turn-by-turn using single-speaker mode.
+
+        Used when a batch has 1 speaker or 3+ speakers (Gemini multi-speaker
+        only supports exactly 2 voices).
+
+        Args:
+            batch: List of (speaker_label, dialogue) tuples
+            voice_assignments: Map of speaker labels to Gemini voice names
+            language_code: Language/accent code
+            voice_configs: Optional voice configs with style prompts
+            batch_idx: Current batch index (0-based)
+
+        Returns:
+            Raw PCM audio data (crossfaded if multiple turns)
+        """
+        from google.genai import types
+
+        accent_description = LANGUAGE_CODE_TO_ACCENT_DESCRIPTION.get(language_code)
+        turn_pcm_data = []
+
+        for i, (speaker, dialogue) in enumerate(batch):
+            voice = voice_assignments.get(speaker, "Kore")
             voice_info = GEMINI_VOICES.get(voice, {})
             style = voice_info.get("style", "natural")
+
+            # Build per-speaker Director's Notes
             notes_parts = []
-            # Accent FIRST — top priority
             if accent_description:
                 notes_parts.append(
                     f"ACCENT (MANDATORY): Speak with a {accent_description} from the very first word. "
@@ -915,120 +1166,41 @@ class GeminiTTSClient:
             if voice_configs and speaker in voice_configs and voice_configs[speaker].style_prompt:
                 notes_parts.append(voice_configs[speaker].style_prompt)
 
-            if notes_parts:
-                notes_text = " ".join(notes_parts)
-                prompt_text = f"[Director's Notes: {notes_text}]\n\n{dialogue}"
-            else:
-                prompt_text = dialogue
+            notes_text = " ".join(notes_parts)
+            prompt_text = f"[Director's Notes: {notes_text}]\n\n{dialogue}"
 
-            # Single-speaker generation with retry for silent audio
-            max_retries = 3
-            pcm_data = None
-
-            for attempt in range(max_retries):
-                speech_config = types.SpeechConfig(
-                    language_code=language_code,
-                    voice_config=types.VoiceConfig(
-                        prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                            voice_name=voice,
-                        )
+            speech_config = types.SpeechConfig(
+                language_code=language_code,
+                voice_config=types.VoiceConfig(
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                        voice_name=voice,
                     )
                 )
+            )
 
-                try:
-                    response = self.client.models.generate_content(
-                        model=self.MODEL_NAME,
-                        contents=prompt_text,
-                        config=types.GenerateContentConfig(
-                            response_modalities=["AUDIO"],
-                            speech_config=speech_config,
-                        )
-                    )
+            response = self.client.models.generate_content(
+                model=self.MODEL_NAME,
+                contents=prompt_text,
+                config=types.GenerateContentConfig(
+                    response_modalities=["AUDIO"],
+                    speech_config=speech_config,
+                )
+            )
 
-                    # Extract PCM audio data
-                    if response.candidates and len(response.candidates) > 0:
-                        candidate = response.candidates[0]
-                        if hasattr(candidate, 'content') and candidate.content and candidate.content.parts:
-                            for part in candidate.content.parts:
-                                if hasattr(part, 'inline_data') and part.inline_data:
-                                    raw_data = part.inline_data.data
+            pcm = self._extract_pcm_from_response(
+                response, f"batch {batch_idx + 1} turn {i + 1}"
+            )
+            turn_pcm_data.append(pcm)
 
-                                    # Handle base64-encoded data
-                                    if isinstance(raw_data, str):
-                                        pcm_data = base64.b64decode(raw_data)
-                                    elif isinstance(raw_data, bytes):
-                                        sample = raw_data[:100]
-                                        is_likely_base64 = all(
-                                            (43 <= b <= 122) or b in (10, 13, 32, 61)
-                                            for b in sample
-                                        )
-                                        if is_likely_base64:
-                                            pcm_data = base64.b64decode(raw_data)
-                                        else:
-                                            pcm_data = raw_data
-                                    else:
-                                        pcm_data = raw_data
+        if len(turn_pcm_data) == 1:
+            return turn_pcm_data[0]
 
-                                    # Validate audio is not silent
-                                    chunk_stats = _analyze_pcm_chunk(pcm_data, i, self.SAMPLE_RATE, self.SAMPLE_WIDTH)
-                                    duration = chunk_stats["duration_sec"]
-
-                                    if chunk_stats.get("is_silent", False):
-                                        logger.warning(
-                                            f"[Gemini TTS] Turn {i+1} audio is SILENT "
-                                            f"(attempt {attempt+1}/{max_retries}): "
-                                            f"RMS={chunk_stats['rms']}, max={chunk_stats['max_amplitude']}"
-                                        )
-                                        logger.warning(f"[Gemini TTS] Silent dialogue: {dialogue[:100]}...")
-                                        if attempt < max_retries - 1:
-                                            pcm_data = None  # Reset to trigger retry
-                                            continue  # Retry
-                                        else:
-                                            logger.error(f"[Gemini TTS] Turn {i+1} still silent after {max_retries} attempts")
-                                            # Use the silent audio as last resort
-                                    else:
-                                        logger.info(
-                                            f"[Gemini TTS] Turn {i+1} generated: {duration:.1f}s "
-                                            f"(RMS={chunk_stats['rms']}, max={chunk_stats['max_amplitude']})"
-                                        )
-                                    break
-                            else:
-                                raise GeminiTTSError(f"No audio data in turn {i+1} response")
-                        else:
-                            raise GeminiTTSError(f"No content in turn {i+1} response")
-                    else:
-                        raise GeminiTTSError(f"No candidates in turn {i+1} response")
-
-                    # If we got valid audio, break out of retry loop
-                    if pcm_data is not None:
-                        break
-
-                except GeminiTTSError:
-                    raise
-                except Exception as e:
-                    if attempt < max_retries - 1:
-                        logger.warning(f"[Gemini TTS] Turn {i+1} failed (attempt {attempt+1}), retrying: {e}")
-                        continue
-                    raise GeminiTTSError(f"Failed to generate turn {i+1}: {str(e)}") from e
-
-            if pcm_data is None:
-                raise GeminiTTSError(f"Failed to generate audio for turn {i+1} after {max_retries} attempts")
-
-            all_pcm_data.append(pcm_data)
-
-        # Crossfade all segments
-        logger.info(f"[Gemini TTS] Crossfading {len(all_pcm_data)} segments...")
-        combined_pcm = _crossfade_pcm_chunks(
-            all_pcm_data,
+        return _crossfade_pcm_chunks(
+            turn_pcm_data,
             sample_rate=self.SAMPLE_RATE,
             sample_width=self.SAMPLE_WIDTH,
-            crossfade_ms=30,  # Shorter crossfade for segment transitions
+            crossfade_ms=30,
         )
-
-        total_duration = len(combined_pcm) / (self.SAMPLE_RATE * self.SAMPLE_WIDTH)
-        logger.info(f"[Gemini TTS] Segment-by-segment complete: {total_duration:.1f}s total")
-
-        return combined_pcm
 
     @retry(
         stop=stop_after_attempt(3),
@@ -1093,15 +1265,15 @@ class GeminiTTSClient:
         try:
             # Check if script needs chunking (exceeds ~10 min output limit)
             if self._needs_chunking(script):
-                # For multi-speaker episodes, use segment-by-segment generation
-                # to prevent voice swapping that occurs across independent chunk API calls.
-                # Each turn gets its own API call with an explicit single voice.
+                # For multi-speaker episodes, use batched generation to prevent
+                # voice swapping. Groups turns into small batches (5 turns each)
+                # with multi-speaker mode per batch.
                 if episode_type in ("DUO", "GROUP"):
                     logger.info(
                         f"[Gemini TTS] Long multi-speaker script ({len(script)} chars), "
-                        "using segment-by-segment generation for voice consistency"
+                        "using batched generation for voice consistency"
                     )
-                    pcm_data = self._generate_segment_by_segment(
+                    pcm_data = self._generate_batched_segments(
                         script, voice_assignments, language_code, voice_configs=voice_configs
                     )
                     total_duration = len(pcm_data) / (self.SAMPLE_RATE * self.SAMPLE_WIDTH)
@@ -1109,7 +1281,7 @@ class GeminiTTSClient:
                     input_tokens = len(script) // 4
                     total_cost = (input_tokens / 1_000_000) * self.INPUT_PRICE_PER_M + \
                                  (audio_tokens / 1_000_000) * self.OUTPUT_PRICE_PER_M
-                    logger.info(f"[Gemini TTS] Segment-by-segment complete: {total_duration:.1f}s, cost: ${total_cost:.4f}")
+                    logger.info(f"[Gemini TTS] Batched complete: {total_duration:.1f}s, cost: ${total_cost:.4f}")
                     audio_data = _pcm_to_wav(pcm_data)
                     logger.info(f"[Gemini TTS] Generated {len(audio_data)} bytes")
                     return audio_data
@@ -1203,16 +1375,16 @@ class GeminiTTSClient:
             )
 
             # Gemini multi-speaker API only supports exactly 2 speakers
-            # For 3+ speakers, fall back to segment-by-segment generation
+            # For 3+ speakers, fall back to batched generation
             if is_multi_speaker and len(actual_speakers) > 2:
-                logger.info(f"[Gemini TTS] {len(actual_speakers)} speakers detected - using segment-by-segment generation")
+                logger.info(f"[Gemini TTS] {len(actual_speakers)} speakers detected - using batched generation")
                 logger.info(f"[Gemini TTS] Actual speakers: {actual_speakers}")
-                pcm_data = self._generate_segment_by_segment(
+                pcm_data = self._generate_batched_segments(
                     script, voice_assignments, language_code,
                     voice_configs=voice_configs,
                 )
                 audio_data = _pcm_to_wav(pcm_data)
-                logger.info(f"[Gemini TTS] Generated {len(audio_data)} bytes via segment-by-segment")
+                logger.info(f"[Gemini TTS] Generated {len(audio_data)} bytes via batched")
                 return audio_data
 
             if is_multi_speaker:
