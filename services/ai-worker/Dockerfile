@@ -18,7 +18,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Verify critical imports work (fail fast at build time, not runtime)
 RUN python -c "from google.cloud import storage; print('google-cloud-storage OK')" && \
     python -c "from google.cloud import texttospeech; print('google-cloud-texttospeech OK')" && \
-    python -c "import google.genai; print('google-genai OK')"
+    python -c "import google.genai; print('google-genai OK')" && \
+    python -c "import openai; print('openai OK')"
 
 # Copy application code
 COPY . .
