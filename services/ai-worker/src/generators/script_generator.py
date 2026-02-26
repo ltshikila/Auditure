@@ -490,33 +490,43 @@ Rules for the conclusion:
 - Include natural TTS markup tags like [short pause], [medium pause], [sigh] where appropriate."""
 
         try:
-            response = self.llm_client.generate_text(
-                prompt=user_prompt,
-                max_tokens=600,
-                temperature=0.7,
-                system_prompt=system_prompt,
-            )
-
-            cleaned_response = response.strip()
-
-            if cleaned_response.upper() == "COMPLETE":
-                logger.info("[ENDING CHECK] Script already has a proper conclusion")
-                return script
-
-            # LLM generated a conclusion — clean and append it
-            conclusion = self._clean_script(cleaned_response, episode_type)
-            if conclusion and len(conclusion.split()) >= 20:
-                logger.info(
-                    f"[ENDING CHECK] Appending generated conclusion "
-                    f"({len(conclusion.split())} words)"
+            # Try up to 2 times — if first attempt returns a too-short conclusion,
+            # retry with a more explicit prompt
+            for attempt in range(2):
+                response = self.llm_client.generate_text(
+                    prompt=user_prompt if attempt == 0 else (
+                        user_prompt + "\n\nIMPORTANT: Your previous attempt was too short. "
+                        "You MUST write at least 150 words of conclusion dialogue. "
+                        "Do NOT respond with just a brief sentence."
+                    ),
+                    max_tokens=800 if attempt > 0 else 600,
+                    temperature=0.7,
+                    system_prompt=system_prompt,
                 )
-                return script.rstrip() + "\n\n" + conclusion
-            else:
+
+                cleaned_response = response.strip()
+
+                if cleaned_response.upper() == "COMPLETE":
+                    logger.info("[ENDING CHECK] Script already has a proper conclusion")
+                    return script
+
+                # LLM generated a conclusion — clean and append it
+                conclusion = self._clean_script(cleaned_response, episode_type)
+                word_count = len(conclusion.split()) if conclusion else 0
+
+                if conclusion and word_count >= 30:
+                    logger.info(
+                        f"[ENDING CHECK] Appending generated conclusion "
+                        f"({word_count} words, attempt {attempt + 1})"
+                    )
+                    return script.rstrip() + "\n\n" + conclusion
+
                 logger.warning(
-                    f"[ENDING CHECK] Generated conclusion too short "
-                    f"({len(conclusion.split())} words), keeping original script"
+                    f"[ENDING CHECK] Attempt {attempt + 1}: conclusion too short "
+                    f"({word_count} words), {'retrying...' if attempt == 0 else 'keeping original script'}"
                 )
-                return script
+
+            return script
 
         except Exception as e:
             logger.error(f"[ENDING CHECK] Failed to check/generate conclusion: {e}")

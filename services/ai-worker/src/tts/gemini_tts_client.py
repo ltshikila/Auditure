@@ -594,27 +594,37 @@ class GeminiTTSClient:
         """
         formatted_lines = []
 
-        # Build Director's Notes — accent and continuity only.
+        # Build Director's Notes — accent is the TOP PRIORITY instruction,
+        # followed by per-speaker delivery style.
         # Voice identity is enforced by using actual voice names as speaker labels
         # in the script text, which directly match the MultiSpeakerVoiceConfig.
         director_notes_parts = []
         accent_description = LANGUAGE_CODE_TO_ACCENT_DESCRIPTION.get(language_code)
 
-        # Per-speaker delivery style from voice configs
+        # ACCENT FIRST — must be the very first instruction the model sees
+        if accent_description:
+            speaker_names = [voice_assignments.get(s, s) for s in voice_assignments]
+            per_speaker_accent = ", ".join(
+                f"{name} speaks with a {accent_description}"
+                for name in speaker_names
+            )
+            director_notes_parts.append(
+                f"ACCENT (MANDATORY): {per_speaker_accent}. "
+                f"Every single word must be in a {accent_description}. "
+                f"Do NOT use an American accent at any point for any speaker."
+            )
+
+        # Per-speaker delivery style — include accent per-speaker too
         style_parts = []
         for speaker, voice_name in voice_assignments.items():
+            accent_prefix = f"[{accent_description}] " if accent_description else ""
             if voice_configs and speaker in voice_configs and voice_configs[speaker].style_prompt:
-                style_parts.append(f"{voice_name}: {voice_configs[speaker].style_prompt}")
+                style_parts.append(f"{voice_name}: {accent_prefix}{voice_configs[speaker].style_prompt}")
+            elif accent_prefix:
+                style_parts.append(f"{voice_name}: {accent_prefix}natural delivery")
         if style_parts:
             director_notes_parts.append(
                 "DELIVERY STYLE: " + " | ".join(style_parts)
-            )
-
-        # Accent reinforcement for non-US accents
-        if accent_description:
-            director_notes_parts.append(
-                f"ACCENT: ALL speakers use a {accent_description} from the very first word. "
-                f"Do NOT use an American accent at any point."
             )
 
         # Cross-chunk voice consistency (critical for multi-chunk episodes)
@@ -890,16 +900,18 @@ class GeminiTTSClient:
             voice_info = GEMINI_VOICES.get(voice, {})
             style = voice_info.get("style", "natural")
             notes_parts = []
+            # Accent FIRST — top priority
+            if accent_description:
+                notes_parts.append(
+                    f"ACCENT (MANDATORY): Speak with a {accent_description} from the very first word. "
+                    f"Every word must be in a {accent_description}. "
+                    f"Do NOT use an American accent."
+                )
             accent_str = f" with a {accent_description}" if accent_description else ""
             notes_parts.append(
                 f"You are {voice} ({style}{accent_str}). "
                 f"Maintain this exact voice identity consistently."
             )
-            if accent_description:
-                notes_parts.append(
-                    f"Use a {accent_description} from the very first word. "
-                    f"Do NOT use an American accent."
-                )
             if voice_configs and speaker in voice_configs and voice_configs[speaker].style_prompt:
                 notes_parts.append(voice_configs[speaker].style_prompt)
 
