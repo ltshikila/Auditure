@@ -1789,15 +1789,31 @@ Repetition is the enemy of engagement. Keep moving forward with fresh content.
         if is_chunked:
             is_first = request.chunk_num == 1
             is_last = request.chunk_num == request.total_chunks
+
+            # Build chunk-specific requirement lines
+            intro_lines = ""
+            if is_first:
+                scope_detail = f" - specifically {request.chapter_title}" if request.chapter_title else ""
+                intro_lines = (
+                    f'- **INTRODUCTION MUST STATE SCOPE**: Clearly state what you are covering '
+                    f'(e.g., "Today we are diving into {request.content_scope} from {request.book_title}"{scope_detail})\n'
+                    f'- Hook the listener in the first 100 words.'
+                )
+
+            ending_line = (
+                "- **ENDING IS NON-NEGOTIABLE**: End with a thorough conclusion. NEVER end abruptly or mid-conversation."
+                if is_last
+                else "- Do NOT conclude or wrap up — this part continues in the next segment."
+            )
+
             requirements_section = f"""## Requirements
 - **CRITICAL: LENGTH**: Write approximately {adjusted_target} words for this part.
 - **NEVER BE REPETITIVE** - Each paragraph must add NEW value.
-{f'- **INTRODUCTION MUST STATE SCOPE**: Clearly state what you are covering (e.g., "Today we are diving into {request.content_scope} from {request.book_title}"{chr(39) + " - specifically " + request.chapter_title + chr(39) if request.chapter_title else ""})' if is_first else ''}
-{f'- Hook the listener in the first 100 words.' if is_first else ''}
+{intro_lines}
 - Cover key ideas from the source — discuss each with depth, examples, and commentary.
 - Add original real-world examples, insights, and analysis (NOT from the source).
 - Use meaningful transitions, not "next, let's talk about..."
-{f'- **ENDING IS NON-NEGOTIABLE**: End with a thorough conclusion. NEVER end abruptly or mid-conversation.' if is_last else '- Do NOT conclude or wrap up — this part continues in the next segment.'}"""
+{ending_line}"""
         else:
             requirements_section = f"""## Requirements
 - **CRITICAL: MINIMUM LENGTH**: The script MUST be at least {adjusted_target} words (~{request.target_length_min}-{request.target_length_max} minutes at ~150 wpm).
