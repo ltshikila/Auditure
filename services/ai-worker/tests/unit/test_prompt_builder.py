@@ -43,8 +43,13 @@ class TestPromptBuilder:
 
     def test_get_trait_description_high(self, builder):
         """Test high value trait description."""
-        desc = builder._get_trait_description(9, builder.TONE_MAP)
+        desc = builder._get_trait_description(8, builder.TONE_MAP)
         assert desc == "energetic, enthusiastic, and dynamic"
+
+    def test_get_trait_description_extreme(self, builder):
+        """Test extreme value trait description (9-10 tier)."""
+        desc = builder._get_trait_description(9, builder.TONE_MAP)
+        assert "ELECTRIC" in desc
 
     # Personality description tests
     def test_build_personality_description(self, builder, sample_personality):

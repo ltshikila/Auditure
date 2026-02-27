@@ -320,25 +320,29 @@ class PromptBuilder:
     TONE_MAP = {
         (1, 3): "calm, measured, and thoughtful",
         (4, 6): "balanced and conversational",
-        (7, 10): "energetic, enthusiastic, and dynamic",
+        (7, 8): "energetic, enthusiastic, and dynamic",
+        (9, 10): "ELECTRIC — bursting with energy, infectious excitement, voice dripping with passion, practically jumping out of their seat",
     }
 
     COMMUNICATION_MAP = {
         (1, 3): "storytelling and narrative-focused",
         (4, 6): "balanced between stories and analysis",
-        (7, 10): "analytical and fact-driven",
+        (7, 8): "analytical and fact-driven",
+        (9, 10): "rapid-fire analysis — rattles off facts, connects dots at lightning speed, builds argument chains like a courtroom lawyer on espresso",
     }
 
     HUMOR_MAP = {
         (1, 3): "serious and professional",
         (4, 6): "occasional light humor",
-        (7, 10): "comedic and entertaining",
+        (7, 8): "comedic and entertaining",
+        (9, 10): "relentlessly funny — roasts everything, drops one-liners constantly, turns serious points into comedy bits, makes the other speaker crack up",
     }
 
     DEPTH_MAP = {
         (1, 3): "accessible and surface-level",
         (4, 6): "moderately detailed",
-        (7, 10): "deep philosophical exploration",
+        (7, 8): "deep philosophical exploration",
+        (9, 10): "obsessively deep — goes down rabbit holes, pulls in obscure references, won't let a single point go unexamined, 'but wait, there's ANOTHER layer to this'",
     }
 
     CHAOS_MAP = {
