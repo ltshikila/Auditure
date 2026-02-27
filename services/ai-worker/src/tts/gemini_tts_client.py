@@ -915,8 +915,6 @@ class GeminiTTSClient:
         Returns:
             Raw PCM audio data (not WAV)
         """
-        from google.genai import types
-
         # Parse script into speaker turns
         turns = []
         current_speaker = None
@@ -953,10 +951,9 @@ class GeminiTTSClient:
 
         # Generate audio for each batch
         all_pcm_data = []
-        accent_description = LANGUAGE_CODE_TO_ACCENT_DESCRIPTION.get(language_code)
 
         for batch_idx, batch in enumerate(batches):
-            batch_speakers = set(speaker for speaker, _ in batch)
+            batch_speakers = {speaker for speaker, _ in batch}
             batch_voice_names = {
                 voice_assignments.get(s, "Kore") for s in batch_speakers
             }
@@ -1091,7 +1088,7 @@ class GeminiTTSClient:
         )
 
         # Build multi-speaker config with voices in this batch
-        batch_speakers = set(speaker for speaker, _ in batch)
+        batch_speakers = {speaker for speaker, _ in batch}
         batch_voice_map = {
             voice_assignments[s]: voice_assignments[s]
             for s in batch_speakers
