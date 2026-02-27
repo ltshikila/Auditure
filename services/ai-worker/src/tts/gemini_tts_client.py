@@ -345,7 +345,7 @@ class GeminiTTSClient:
     # by ~80% (37 calls → 8 for a typical DUO episode).
     # Original chunked approach (15-20 turns/chunk) caused voice swapping;
     # 5 turns is small enough to maintain voice consistency.
-    BATCH_MAX_TURNS = 5       # Max speaker turns per batch
+    BATCH_MAX_TURNS = 4       # Max speaker turns per batch
     BATCH_MAX_CHARS = 4000    # Max chars per batch (headroom under 7500 API limit)
 
     def __init__(self, temp_dir: Optional[str] = None):

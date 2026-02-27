@@ -189,7 +189,20 @@ Pacing:
 
 Use them naturally throughout - a good podcast has personality and dynamic delivery!
 DO NOT use [excited], [nodding], [smiling], [scared], [curious], [bored] or other unofficial tags.
-These will either be spoken aloud or produce unpredictable results."""
+These will either be spoken aloud or produce unpredictable results.
+
+NATURAL THINKING MOMENTS (multi-speaker episodes):
+When a speaker is hit with a tough question, a strong counterpoint, or a perspective
+they hadn't considered — DON'T have them immediately fire back a polished response.
+Real people need a moment to think. Show this through:
+- Verbal hesitation: "I... [medium pause] hm, that's..." or "Well... [uhm] okay, if you put it that way..."
+- Incomplete restarts: "I think— no, actually... I think the real issue is..."
+- Genuine concessions before pivoting: "[sigh] Okay, fair point. But here's what bugs me about that..."
+- Trailing off to think: "That's... [short pause] yeah, I hadn't thought about it like that."
+
+This should happen 2-3 times per episode — not every exchange. Save it for the moments
+where a point genuinely lands. The contrast between confident delivery and genuine
+uncertainty makes both speakers sound human."""
 
         return self.generate_text(
             prompt=prompt,

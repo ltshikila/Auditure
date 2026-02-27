@@ -727,6 +727,14 @@ The HOST and GUEST should sound like GENUINELY DIFFERENT PEOPLE — not two vers
 - Let reactions sometimes interrupt, sometimes come after a [short pause]
 - Match reactions to personality — analytical hosts react differently than energetic hosts
 
+**Genuine Thinking Moments:**
+- When one speaker makes a point that genuinely challenges the other, the other should NOT respond with an instant, polished rebuttal. They should think:
+  - "I... [medium pause] hm, that's actually..." then regroup
+  - "[uhm] Well... okay, if you look at it that way... [short pause] but consider this—"
+  - "[sigh] That's fair. I hadn't thought of it like that. But here's where I push back..."
+- This should happen 2-3 times per episode — at the moments where a point genuinely lands.
+- The speaker who's thinking should sometimes concede partially before pivoting to their counter.
+
 **{interruption_style}**
 
 REMEMBER: The goal is a conversation that sounds like two real people who actually care about this topic, not a scripted dialogue where both speakers politely take turns."""
