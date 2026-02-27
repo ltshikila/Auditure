@@ -173,7 +173,7 @@ class DebateConfig:
                 personality_flavor=flavor,
             ))
 
-        outcome = cls._determine_outcome(host_position, guest_personalities)
+        outcome = cls._determine_outcome(host_position, guest_personalities, formality_level)
         tension_arc = cls._generate_tension_arc(formality_level, outcome)
 
         return cls(
@@ -188,8 +188,23 @@ class DebateConfig:
     def _determine_outcome(
         host_position: DebatePosition,
         guest_personalities: list[GuestPersonality],
+        formality_level: int = 5,
     ) -> DebateOutcome:
-        """Randomly determine debate outcome."""
+        """Randomly determine debate outcome. High chaos biases toward stubbornness."""
+        # At extreme chaos (9-10), stubbornness dominates — nobody concedes
+        if formality_level >= 9:
+            outcome_weights = [
+                (DebateOutcome.ADVOCATE_WINS, 0.05),
+                (DebateOutcome.CRITIC_WINS, 0.05),
+                (DebateOutcome.SYNTHESIS, 0.0),
+                (DebateOutcome.AGREE_TO_DISAGREE, 0.90),
+                (DebateOutcome.UNEXPECTED_ALLIANCE, 0.0),
+            ]
+            return random.choices(
+                [o for o, _ in outcome_weights],
+                weights=[w for _, w in outcome_weights]
+            )[0]
+
         positions = [host_position] + [g.position for g in guest_personalities]
         advocate_count = sum(1 for p in positions if p == DebatePosition.ADVOCATE)
         critic_count = sum(1 for p in positions if p in [DebatePosition.CRITIC, DebatePosition.DEVILS_ADVOCATE])
@@ -329,7 +344,8 @@ class PromptBuilder:
     CHAOS_MAP = {
         (1, 3): "structured and organized",
         (4, 6): "semi-structured with tangents",
-        (7, 10): "spontaneous and free-flowing",
+        (7, 8): "spontaneous and free-flowing",
+        (9, 10): "UNHINGED — chaotic, provocative, wildly unpredictable, goes on rants, picks fights, says things that make the other speaker go 'did you really just say that?!'",
     }
 
     def _get_trait_description(
@@ -691,8 +707,10 @@ Land the plane — how does this debate resolve? Not a cop-out ending. A genuine
             interruption_style = "Rare interruptions — let each person finish their thought. When you do interrupt, it should feel purposeful."
         elif chaos_factor <= 6:
             interruption_style = "Natural interruptions when something is too interesting to wait — 'Oh wait, that reminds me of—' or 'Hold on, I need to push back on that.'"
-        else:
+        elif chaos_factor <= 8:
             interruption_style = "Frequent, energetic interruptions — talking over each other, finishing each other's sentences, 'No no no, let me stop you right there—'"
+        else:  # 9-10
+            interruption_style = "RELENTLESS interruptions — cutting each other off mid-word, shouting over each other, personal jabs, 'Oh PLEASE, you can't seriously believe—', '[laughing] That is the MOST ridiculous thing I've ever heard', refusing to let the other finish a single point"
 
         cohost_section = ""
         if cohost_archetype:
@@ -1035,7 +1053,8 @@ Neither side should be obviously "right" - both must present strong, convincing 
         chaos_descriptors = {
             (1, 3): "measured and thoughtful",
             (4, 6): "engaged and animated",
-            (7, 10): "passionate and fiery",
+            (7, 8): "passionate and fiery",
+            (9, 10): "UNHINGED — throws verbal grenades, gets personally offended, refuses to concede ANYTHING, laughs mockingly at opposing points, goes on passionate rants",
         }
 
         def get_chaos_descriptor(chaos: int) -> str:
@@ -1073,11 +1092,27 @@ Neither side should be obviously "right" - both must present strong, convincing 
     def _build_debate_structure(self, formality: int, outcome: DebateOutcome) -> str:
         """Build debate structure instructions based on formality level."""
 
+        # At extreme chaos, AGREE_TO_DISAGREE means stubborn warfare, not polite respect
+        if formality >= 9:
+            agree_to_disagree_text = (
+                "Neither speaker concedes an INCH. Both walk away absolutely convinced they're right. "
+                "The ending should feel like the argument could restart at any moment — not a polite "
+                "'agree to disagree' but a stubborn 'I STILL think you're completely wrong and nothing "
+                "you said changed my mind.' One speaker might even get the last word with a mocking "
+                "laugh or a 'whatever you say' dismissal. The audience should feel the tension NEVER resolved."
+            )
+        else:
+            agree_to_disagree_text = (
+                "The debate crystallizes a fundamental VALUES difference that can't be resolved with more evidence. "
+                "Both speakers respect each other but acknowledge: 'We just see the world differently on this.' "
+                "The audience should understand exactly where the fault line is."
+            )
+
         outcome_instructions = {
             DebateOutcome.ADVOCATE_WINS: "The advocate makes a specific argument that the critic genuinely cannot counter. The critic visibly struggles — not because they're weak, but because the argument is that good. The critic doesn't fully surrender but acknowledges 'okay, I can't argue with that.'",
             DebateOutcome.CRITIC_WINS: "The critic dismantles a core assumption the advocate relies on. The advocate realizes their position had a blind spot they hadn't considered. The advocate doesn't flip completely but admits 'that's... actually a fair point I need to sit with.'",
             DebateOutcome.SYNTHESIS: "Both speakers realize they were arguing past each other — they actually agree on the CORE issue but disagree on the approach. The moment of realization should feel genuine: 'Wait, are we actually saying the same thing?'",
-            DebateOutcome.AGREE_TO_DISAGREE: "The debate crystallizes a fundamental VALUES difference that can't be resolved with more evidence. Both speakers respect each other but acknowledge: 'We just see the world differently on this.' The audience should understand exactly where the fault line is.",
+            DebateOutcome.AGREE_TO_DISAGREE: agree_to_disagree_text,
             DebateOutcome.UNEXPECTED_ALLIANCE: "One speaker makes a point so compelling that the other has a genuine 'damn, you're right' moment. This should feel earned — built up through the debate, not sudden. The converted speaker should be surprised at their own change of heart.",
         }
 
@@ -1354,7 +1389,7 @@ The debate should breathe: build tension, release some, build higher, release, c
 - Voices get more animated as debate heats up
 - Natural [laughing] at good points or absurdities"""
 
-        else:
+        elif combined_chaos <= 8:
             return """## INTERACTION STYLE (Heated)
 
 **Interruption Frequency:** Frequent (7+ times)
@@ -1378,6 +1413,35 @@ The debate should breathe: build tension, release some, build higher, release, c
 - Think podcast hosts who genuinely disagree but respect each other
 - Memorable moments > polished delivery"""
 
+        else:  # combined_chaos > 8
+            return """## INTERACTION STYLE (Explosive)
+
+**Interruption Frequency:** CONSTANT — barely let the other person finish a sentence
+- "STOP. Stop right there—", "Are you HEARING yourself?!", "That's—no. Just no."
+- Talk over each other, voices rising, neither willing to back down
+- "You're COMPLETELY missing the point!", "Oh, so NOW you're an expert?"
+
+**Verbal Warfare:**
+- Personal jabs: "With all due respect, that's absurd", "You clearly haven't thought this through"
+- Mocking: "[laughing] Oh that's RICH", "Sure, and I'm the Queen of England"
+- Exasperation: "[sigh] I can't BELIEVE we're still arguing about this"
+- Stubbornness: "I don't care what you say, I'm RIGHT about this"
+- Disbelief: "Did you seriously just say that?!", "I'm sorry, WHAT?"
+
+**Energy:**
+- START hot and STAY hot — no cooling down periods
+- Both speakers should sound like they're genuinely fired up
+- Long [laughing] at absurd points — not polite chuckles, REAL belly laughs
+- Controversial takes that make the listener go "oh damn"
+- Wild analogies and tangents: "you know what, that's like saying..."
+
+**The Vibe:**
+- Think heated bar argument between two smart people who REFUSE to lose
+- Personal stakes — they take the disagreement personally
+- Unpredictable — sudden tangents, wild comparisons, dramatic reactions
+- This should make listeners laugh, gasp, and pick sides
+- Neither speaker gives the other an inch — EVER"""
+
     def _build_backchannel_guidance(self, chaos_factor: int, is_debate: bool) -> str:
         """Build guidance for backchannels and interruptions based on chaos factor.
 
@@ -1397,10 +1461,14 @@ The debate should breathe: build tension, release some, build higher, release, c
                 frequency = "regularly (4-6 times)"
                 style = "engaged interruptions and reactions"
                 examples = '"Wait, wait—I have to push back on that—", "—yes! Exactly—", "No no no, here\'s the thing—", "Mm-hmm, mm-hmm, but consider—"'
-            else:  # chaos 7-10
+            elif chaos <= 8:
                 frequency = "frequently (7+ times)"
                 style = "passionate interruptions and heated exchanges"
                 examples = '"—hold on, that\'s not quite right—", "—I completely disagree—", "Right right right, but—!", "See, THIS is where I think—", "[laughing] Oh come on—"'
+            else:  # chaos 9-10
+                frequency = "CONSTANTLY (10+ times)"
+                style = "aggressive, mocking, relentless verbal combat"
+                examples = '"—STOP. That is RIDICULOUS—", "[laughing] Oh PLEASE, you can\'t be serious!", "Are you even LISTENING to yourself?!", "No no NO, you\'re WRONG and here\'s why—", "[sigh] I genuinely cannot believe you just said that"'
 
             return f"""
 ## Natural Conversation Flow
