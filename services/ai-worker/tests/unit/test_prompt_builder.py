@@ -97,13 +97,6 @@ class TestPromptBuilder:
         assert "GUEST" in instructions
         assert "teacher" in instructions.lower() or "two" in instructions.lower()
 
-    def test_episode_type_group(self, builder):
-        """Test group instructions."""
-        instructions = builder.build_episode_type_instructions("GROUP")
-
-        assert "GUEST" in instructions
-        assert "HOST" in instructions
-
     # Episode theme instructions tests
     def test_episode_theme_lecture(self, builder):
         """Test lecture theme instructions."""

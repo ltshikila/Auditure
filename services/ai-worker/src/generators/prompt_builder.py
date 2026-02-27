@@ -56,7 +56,7 @@ class DebateOutcome(str, Enum):
 @dataclass
 class GuestPersonality:
     """Individual guest personality for debates/discussions."""
-    name: str  # GUEST, GUEST1, GUEST2, etc.
+    name: str  # GUEST (always single guest for DUO episodes)
     chaos_factor: int  # 1-10, randomly generated
     position: Optional[DebatePosition] = None  # For debates
     personality_flavor: Optional[str] = None  # Brief descriptor
@@ -94,10 +94,7 @@ class DebateConfig:
             weights=[w for _, w in host_position_weights]
         )[0]
 
-        # Generate guest personalities
-        guest_personalities = []
-        num_guests = 1
-
+        # Generate guest personality (single guest for DUO)
         advocate_flavors = [
             "enthusiastic supporter", "thoughtful believer", "practical implementer",
             "passionate advocate", "experiential endorser", "optimistic applier"
@@ -111,95 +108,52 @@ class DebateConfig:
             "open-minded explorer", "fair assessor"
         ]
 
-        for i in range(num_guests):
-            guest_name = "GUEST" if num_guests == 1 else f"GUEST{i + 1}"
-            guest_chaos = random.randint(1, 10)
+        guest_chaos = random.randint(1, 10)
 
-            # Assign contrasting positions — in DUO, guest MUST oppose the host
-            # (two advocates or two critics = discussion, not debate)
-            if episode_type == "DUO":
-                if host_position == DebatePosition.ADVOCATE:
-                    guest_position_weights = [
-                        (DebatePosition.CRITIC, 0.55),
-                        (DebatePosition.MODERATE, 0.25),
-                        (DebatePosition.DEVILS_ADVOCATE, 0.20),
-                    ]
-                elif host_position == DebatePosition.CRITIC:
-                    guest_position_weights = [
-                        (DebatePosition.ADVOCATE, 0.55),
-                        (DebatePosition.MODERATE, 0.25),
-                        (DebatePosition.DEVILS_ADVOCATE, 0.20),
-                    ]
-                elif host_position == DebatePosition.DEVILS_ADVOCATE:
-                    guest_position_weights = [
-                        (DebatePosition.ADVOCATE, 0.55),
-                        (DebatePosition.MODERATE, 0.25),
-                        (DebatePosition.CRITIC, 0.20),
-                    ]
-                else:  # MODERATE host
-                    guest_position_weights = [
-                        (DebatePosition.ADVOCATE, 0.40),
-                        (DebatePosition.CRITIC, 0.40),
-                        (DebatePosition.DEVILS_ADVOCATE, 0.20),
-                    ]
-            else:
-                # GROUP episodes: allow some overlap for richer dynamics
-                if host_position == DebatePosition.ADVOCATE:
-                    guest_position_weights = [
-                        (DebatePosition.CRITIC, 0.45),
-                        (DebatePosition.MODERATE, 0.3),
-                        (DebatePosition.ADVOCATE, 0.15),
-                        (DebatePosition.DEVILS_ADVOCATE, 0.1),
-                    ]
-                elif host_position == DebatePosition.CRITIC:
-                    guest_position_weights = [
-                        (DebatePosition.ADVOCATE, 0.45),
-                        (DebatePosition.MODERATE, 0.3),
-                        (DebatePosition.CRITIC, 0.15),
-                        (DebatePosition.DEVILS_ADVOCATE, 0.1),
-                    ]
-                else:
-                    guest_position_weights = [
-                        (DebatePosition.ADVOCATE, 0.35),
-                        (DebatePosition.CRITIC, 0.35),
-                        (DebatePosition.MODERATE, 0.2),
-                        (DebatePosition.DEVILS_ADVOCATE, 0.1),
-                    ]
+        # Guest MUST oppose the host (same-side = discussion, not debate)
+        if host_position == DebatePosition.ADVOCATE:
+            guest_position_weights = [
+                (DebatePosition.CRITIC, 0.55),
+                (DebatePosition.MODERATE, 0.25),
+                (DebatePosition.DEVILS_ADVOCATE, 0.20),
+            ]
+        elif host_position == DebatePosition.CRITIC:
+            guest_position_weights = [
+                (DebatePosition.ADVOCATE, 0.55),
+                (DebatePosition.MODERATE, 0.25),
+                (DebatePosition.DEVILS_ADVOCATE, 0.20),
+            ]
+        elif host_position == DebatePosition.DEVILS_ADVOCATE:
+            guest_position_weights = [
+                (DebatePosition.ADVOCATE, 0.55),
+                (DebatePosition.MODERATE, 0.25),
+                (DebatePosition.CRITIC, 0.20),
+            ]
+        else:  # MODERATE host
+            guest_position_weights = [
+                (DebatePosition.ADVOCATE, 0.40),
+                (DebatePosition.CRITIC, 0.40),
+                (DebatePosition.DEVILS_ADVOCATE, 0.20),
+            ]
 
-            # Ensure variety in debates with multiple guests
-            if num_guests == 2 and i == 1 and guest_personalities:
-                first_pos = guest_personalities[0].position
-                if first_pos == DebatePosition.ADVOCATE:
-                    guest_position_weights = [
-                        (DebatePosition.CRITIC, 0.5),
-                        (DebatePosition.MODERATE, 0.35),
-                        (DebatePosition.DEVILS_ADVOCATE, 0.15),
-                    ]
-                elif first_pos == DebatePosition.CRITIC:
-                    guest_position_weights = [
-                        (DebatePosition.ADVOCATE, 0.5),
-                        (DebatePosition.MODERATE, 0.35),
-                        (DebatePosition.DEVILS_ADVOCATE, 0.15),
-                    ]
+        guest_position = random.choices(
+            [p for p, _ in guest_position_weights],
+            weights=[w for _, w in guest_position_weights]
+        )[0]
 
-            guest_position = random.choices(
-                [p for p, _ in guest_position_weights],
-                weights=[w for _, w in guest_position_weights]
-            )[0]
+        if guest_position == DebatePosition.ADVOCATE:
+            flavor = random.choice(advocate_flavors)
+        elif guest_position in [DebatePosition.CRITIC, DebatePosition.DEVILS_ADVOCATE]:
+            flavor = random.choice(critic_flavors)
+        else:
+            flavor = random.choice(moderate_flavors)
 
-            if guest_position == DebatePosition.ADVOCATE:
-                flavor = random.choice(advocate_flavors)
-            elif guest_position in [DebatePosition.CRITIC, DebatePosition.DEVILS_ADVOCATE]:
-                flavor = random.choice(critic_flavors)
-            else:
-                flavor = random.choice(moderate_flavors)
-
-            guest_personalities.append(GuestPersonality(
-                name=guest_name,
-                chaos_factor=guest_chaos,
-                position=guest_position,
-                personality_flavor=flavor,
-            ))
+        guest_personalities = [GuestPersonality(
+            name="GUEST",
+            chaos_factor=guest_chaos,
+            position=guest_position,
+            personality_flavor=flavor,
+        )]
 
         outcome = cls._determine_outcome(host_position, guest_personalities, formality_level)
         tension_arc = cls._generate_tension_arc(formality_level, outcome)
@@ -747,7 +701,7 @@ Continue naturally from this point — do NOT re-introduce the topic.""")
 
     def _build_conclusion_requirement(self, episode_theme: str, episode_type: str) -> str:
         """Build theme-specific conclusion requirement for MANDATORY STRUCTURE."""
-        is_multi = episode_type in ("DUO", "GROUP")
+        is_multi = episode_type == "DUO"
 
         if episode_theme == "DEBATE":
             if is_multi:

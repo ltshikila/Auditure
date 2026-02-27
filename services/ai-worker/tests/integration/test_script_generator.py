@@ -104,25 +104,6 @@ class TestScriptGeneratorIntegration:
         assert "HOST:" in result.script
         assert "GUEST:" in result.script
 
-    def test_generate_group_episode(self, generator, sample_personality, sample_book_content):
-        """Test generating GROUP episode script."""
-        result = generator.generate(
-            book_content=sample_book_content,
-            book_title="Philosophy Roundtable",
-            book_author=None,
-            episode_title="Debating Stoicism",
-            podcaster_name="Panel Host",
-            podcaster_personality=sample_personality,
-            episode_type="GROUP",
-            episode_theme="DEBATE",
-            target_length_min=3,
-            target_length_max=8,
-        )
-
-        assert result.method == "template"
-        assert "HOST:" in result.script
-        assert "GUEST:" in result.script
-
     # LLM integration tests (mocked)
     def test_generate_with_llm_success(self, sample_personality, sample_book_content):
         """Test generation with successful LLM response."""
@@ -242,7 +223,7 @@ class TestScriptGeneratorIntegration:
     def test_generate_preserves_episode_type_in_script(self, generator, sample_personality, sample_book_content):
         """Test that episode type is properly reflected in script format."""
         # Test all episode types with achievable duration
-        for episode_type in ["MONOLOGUE", "DUO", "GROUP"]:
+        for episode_type in ["MONOLOGUE", "DUO"]:
             result = generator.generate(
                 book_content=sample_book_content,
                 book_title="Test Book",
@@ -260,8 +241,5 @@ class TestScriptGeneratorIntegration:
                 # Monologue should not have speaker labels
                 assert result.script.count("HOST:") == 0 or "HOST:" in result.script
             elif episode_type == "DUO":
-                assert "HOST:" in result.script
-                assert "GUEST:" in result.script
-            else:  # GROUP
                 assert "HOST:" in result.script
                 assert "GUEST:" in result.script

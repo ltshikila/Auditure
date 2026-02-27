@@ -620,11 +620,11 @@ class ScriptGenerator:
 
         script = "\n".join(cleaned_lines)
 
-        # Normalize speaker labels for DUO/GROUP
-        # LLMs (especially Gemini) often wrap labels in markdown: **HOST:**, **Host:**
+        # Normalize speaker labels for DUO
+        # LLMs often wrap labels in markdown: **HOST:**, **Host:**
         # This strips markdown and normalizes case so the parser and TTS client
         # can reliably find HOST:/GUEST: at the start of lines.
-        if episode_type in ("DUO", "GROUP"):
+        if episode_type == "DUO":
             # Strip markdown bold/italic around speaker labels
             # Handles: **HOST:**, **HOST**:, *Host:*, ***GUEST:***, etc.
             script = re.sub(

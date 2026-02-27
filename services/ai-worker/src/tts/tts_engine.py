@@ -358,7 +358,7 @@ class TTSEngine:
         for speaker in speakers:
             speaker_upper = speaker.upper()
 
-            if speaker_upper in ["HOST", "HOST1", "NARRATOR"]:
+            if speaker_upper in ["HOST", "NARRATOR"]:
                 # Use stored voice if available (permanent voice assignment)
                 if main_podcaster.gemini_voice_name and main_podcaster.gemini_voice_name in GEMINI_VOICES:
                     voice_name = main_podcaster.gemini_voice_name
@@ -643,7 +643,7 @@ class TTSEngine:
         for speaker in speakers:
             speaker_upper = speaker.upper()
 
-            if speaker_upper in ["HOST", "HOST1", "NARRATOR"]:
+            if speaker_upper in ["HOST", "NARRATOR"]:
                 # Use main podcaster voice
                 voice_configs[speaker] = main_config
             else:

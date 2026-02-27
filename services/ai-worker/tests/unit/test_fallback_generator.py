@@ -86,14 +86,6 @@ class TestFallbackGenerator:
         assert "GUEST:" in intro
         assert "Philosophy Phil" in intro
 
-    def test_generate_intro_group(self, generator, sample_request):
-        """Test generating group intro."""
-        sample_request.episode_type = "GROUP"
-        intro = generator.generate_intro(sample_request)
-
-        assert "HOST:" in intro
-        assert "GUEST:" in intro
-
     def test_generate_intro_without_author(self, generator, sample_request):
         """Test generating intro without author."""
         sample_request.book_author = None
@@ -121,15 +113,6 @@ class TestFallbackGenerator:
         assert "HOST:" in body
         assert "GUEST:" in body
 
-    def test_generate_body_group(self, generator, sample_request):
-        """Test generating group body."""
-        sample_request.episode_type = "GROUP"
-        sentences = ["First.", "Second.", "Third.", "Fourth."]
-        body = generator.generate_body(sample_request, sentences)
-
-        assert "HOST:" in body
-        assert "GUEST:" in body
-
     # Conclusion generation tests
     def test_generate_conclusion_monologue(self, generator, sample_request):
         """Test generating monologue conclusion."""
@@ -141,14 +124,6 @@ class TestFallbackGenerator:
     def test_generate_conclusion_duo(self, generator, sample_request):
         """Test generating duo conclusion."""
         sample_request.episode_type = "DUO"
-        conclusion = generator.generate_conclusion(sample_request)
-
-        assert "HOST:" in conclusion
-        assert "GUEST:" in conclusion
-
-    def test_generate_conclusion_group(self, generator, sample_request):
-        """Test generating group conclusion."""
-        sample_request.episode_type = "GROUP"
         conclusion = generator.generate_conclusion(sample_request)
 
         assert "HOST:" in conclusion

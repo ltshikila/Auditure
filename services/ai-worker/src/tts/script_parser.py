@@ -18,9 +18,9 @@ class SpeakerSegment:
 class ScriptParser:
     """Parse podcast scripts into speaker segments."""
 
-    # Pattern to match speaker labels like "HOST:", "GUEST1:", "SPEAKER2:", etc.
+    # Pattern to match speaker labels like "HOST:", "GUEST:", "NARRATOR:"
     SPEAKER_PATTERN = re.compile(
-        r"^(HOST\d?|GUEST\d?|SPEAKER\d?|NARRATOR):\s*",
+        r"^(HOST|GUEST|NARRATOR):\s*",
         re.IGNORECASE | re.MULTILINE,
     )
 
@@ -95,7 +95,7 @@ class ScriptParser:
     def _is_speaker_label(self, text: str) -> bool:
         """Check if text is a speaker label."""
         text = text.upper().strip()
-        return bool(re.match(r"^(HOST\d?|GUEST\d?|SPEAKER\d?|NARRATOR)$", text))
+        return bool(re.match(r"^(HOST|GUEST|NARRATOR)$", text))
 
     def _parse_by_paragraphs(
         self,

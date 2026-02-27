@@ -517,7 +517,7 @@ class GeminiTTSClient:
         Get appropriate Gemini voice configuration for a speaker.
 
         Args:
-            speaker_type: "HOST", "GUEST1", "GUEST2", etc.
+            speaker_type: "HOST" or "GUEST"
             gender: "MALE" or "FEMALE"
             speaking_speed: 1-10 scale from frontend
             vocal_pitch: 1-10 scale from frontend
@@ -527,7 +527,7 @@ class GeminiTTSClient:
         Returns:
             GeminiVoiceConfig with voice settings
         """
-        if speaker_type.upper() in ["HOST", "HOST1", "NARRATOR"]:
+        if speaker_type.upper() in ["HOST", "NARRATOR"]:
             voice_name = self.select_best_voice(gender, speaking_speed, vocal_pitch, voice_model)
         else:
             # For guests, shift speed/pitch slightly for variety
@@ -800,26 +800,13 @@ class GeminiTTSClient:
         # For DUO episodes, ALWAYS use multi-speaker mode to maintain voice
         # consistency across chunks. Even if a chunk only has one speaker's lines,
         # registering both speakers ensures the same TTS path and voice config.
-        is_multi_speaker = episode_type == "DUO" or (
-            len(actual_speakers) > 1 and episode_type != "MONOLOGUE"
-        )
-
-        # Gemini multi-speaker API only supports exactly 2 speakers
-        # For 3+ speakers, use batched generation
-        if is_multi_speaker and len(actual_speakers) > 2:
-            logger.info(f"[Gemini TTS] Chunk has {len(actual_speakers)} speakers - using batched")
-            return self._generate_batched_segments(script, voice_assignments, language_code, voice_configs=voice_configs)
+        is_multi_speaker = episode_type == "DUO"
 
         if is_multi_speaker:
             # Use voice names as speaker labels — the formatted script already has
             # voice names (e.g., "Achird: Hello") so speaker configs must match
             voice_name_config = {v: v for v in set(voice_assignments.values())}
-            if episode_type == "DUO":
-                speaker_configs = self._build_speaker_configs(voice_name_config)
-            else:
-                actual_voice_names = {voice_assignments[s] for s in actual_speakers if s in voice_assignments}
-                filtered_config = {v: v for v in actual_voice_names}
-                speaker_configs = self._build_speaker_configs(filtered_config)
+            speaker_configs = self._build_speaker_configs(voice_name_config)
             speech_config = types.SpeechConfig(
                 language_code=language_code,
                 multi_speaker_voice_config=types.MultiSpeakerVoiceConfig(
@@ -1124,8 +1111,8 @@ class GeminiTTSClient:
     ) -> bytes:
         """Generate audio for a batch turn-by-turn using single-speaker mode.
 
-        Used when a batch has 1 speaker or 3+ speakers (Gemini multi-speaker
-        only supports exactly 2 voices).
+        Used when a batch has only 1 unique speaker (Gemini multi-speaker
+        requires exactly 2 voices).
 
         Args:
             batch: List of (speaker_label, dialogue) tuples
@@ -1242,10 +1229,8 @@ class GeminiTTSClient:
             guest_voice = self.get_random_guest_voice(host_voice)
             voice_assignments = {
                 "HOST": host_voice,
-                "HOST1": host_voice,
                 "NARRATOR": host_voice,
                 "GUEST": guest_voice,
-                "GUEST1": guest_voice,
             }
 
         # Build voice assignments from configs if provided
@@ -1265,7 +1250,7 @@ class GeminiTTSClient:
                 # For multi-speaker episodes, use batched generation to prevent
                 # voice swapping. Groups turns into small batches (5 turns each)
                 # with multi-speaker mode per batch.
-                if episode_type in ("DUO", "GROUP"):
+                if episode_type == "DUO":
                     logger.info(
                         f"[Gemini TTS] Long multi-speaker script ({len(script)} chars), "
                         "using batched generation for voice consistency"
@@ -1366,34 +1351,14 @@ class GeminiTTSClient:
                 if match:
                     actual_speakers.add(match.group(1))
 
-            # For DUO episodes, always use multi-speaker mode for voice consistency
-            is_multi_speaker = episode_type == "DUO" or (
-                len(actual_speakers) > 1 and episode_type != "MONOLOGUE"
-            )
-
-            # Gemini multi-speaker API only supports exactly 2 speakers
-            # For 3+ speakers, fall back to batched generation
-            if is_multi_speaker and len(actual_speakers) > 2:
-                logger.info(f"[Gemini TTS] {len(actual_speakers)} speakers detected - using batched generation")
-                logger.info(f"[Gemini TTS] Actual speakers: {actual_speakers}")
-                pcm_data = self._generate_batched_segments(
-                    script, voice_assignments, language_code,
-                    voice_configs=voice_configs,
-                )
-                audio_data = _pcm_to_wav(pcm_data)
-                logger.info(f"[Gemini TTS] Generated {len(audio_data)} bytes via batched")
-                return audio_data
+            # DUO episodes use multi-speaker mode for voice consistency
+            is_multi_speaker = episode_type == "DUO"
 
             if is_multi_speaker:
                 # Use voice names as speaker labels — formatted script already has
                 # voice names, so speaker configs must match
                 voice_name_config = {v: v for v in set(voice_assignments.values())}
-                if episode_type == "DUO":
-                    speaker_configs = self._build_speaker_configs(voice_name_config)
-                else:
-                    actual_voice_names = {voice_assignments[s] for s in actual_speakers if s in voice_assignments}
-                    filtered_config = {v: v for v in actual_voice_names}
-                    speaker_configs = self._build_speaker_configs(filtered_config)
+                speaker_configs = self._build_speaker_configs(voice_name_config)
                 speech_config = types.SpeechConfig(
                     language_code=language_code,
                     multi_speaker_voice_config=types.MultiSpeakerVoiceConfig(

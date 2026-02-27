@@ -119,31 +119,6 @@ class TestTTSEngineIntegration:
         GUEST: My pleasure!
         """
 
-    @pytest.fixture
-    def group_script(self):
-        """Create sample group script."""
-        return """
-        HOST: Welcome to our panel discussion on philosophy!
-
-        GUEST1: Excited to be here with everyone.
-
-        GUEST2: Same here! This should be a great conversation.
-
-        HOST: Let's start with our first topic.
-
-        GUEST1: I think the key insight is about control.
-
-        GUEST2: I agree, but I'd add that perspective matters too.
-
-        HOST: Excellent points from both of you!
-
-        GUEST1: The practical applications are endless.
-
-        GUEST2: Especially in today's chaotic world.
-
-        HOST: Thanks to both of you for this enlightening discussion!
-        """
-
     # Monologue generation tests
     def test_generate_monologue(self, engine, sample_voice, monologue_script, mock_gemini_tts):
         """Test generating monologue audio."""
@@ -173,21 +148,6 @@ class TestTTSEngineIntegration:
         assert isinstance(result, TTSResult)
         assert result.audio_buffer is not None
         assert result.format == "mp3"
-
-        # Should call Gemini TTS for generation
-        mock_gemini_tts.generate_audio.assert_called()
-
-    # Group generation tests
-    def test_generate_group(self, engine, sample_voice, group_script, mock_gemini_tts, mock_audio_processor):
-        """Test generating group audio."""
-        result = engine.generate(
-            script=group_script,
-            podcaster_voice=sample_voice,
-            episode_type="GROUP",
-        )
-
-        assert isinstance(result, TTSResult)
-        assert result.audio_buffer is not None
 
         # Should call Gemini TTS for generation
         mock_gemini_tts.generate_audio.assert_called()
