@@ -311,6 +311,12 @@ class ScriptRequest:
     debate_config: Optional[DebateConfig] = None
     # Book genres from Google Books API (e.g., ["Fiction / Fantasy / Epic"])
     book_genres: Optional[list[str]] = None
+    # Chunking fields (for long episode generation)
+    chunk_num: Optional[int] = None  # 1-indexed chunk number
+    total_chunks: Optional[int] = None  # Total chunks planned
+    chunk_target_words: Optional[int] = None  # Per-chunk word target (overrides calculated)
+    previous_summary: Optional[str] = None  # Last ~3 sentences from previous chunk
+    topics_covered: Optional[list[str]] = None  # Anti-repetition list from prior chunks
 
 
 class PromptBuilder:
@@ -644,6 +650,72 @@ The critical exchange where the core disagreement crystallizes. The audience sho
 
 **5. RESOLUTION (~{w(0.20)} words, ~20%)**
 Land the plane — how does this debate resolve? Not a cop-out ending. A genuine conclusion that reflects the outcome."""
+
+    def _build_chunk_position_instructions(
+        self,
+        chunk_num: int,
+        total_chunks: int,
+        words_per_chunk: int,
+        episode_type: str,
+        content_scope: str,
+        book_title: str,
+        chapter_title: Optional[str] = None,
+    ) -> str:
+        """Build position-specific instructions for chunked generation."""
+        is_first = chunk_num == 1
+        is_last = chunk_num == total_chunks
+
+        if is_first:
+            return f"""## CHUNK POSITION: Part {chunk_num} of {total_chunks} — INTRODUCTION
+This is the OPENING of the episode. You MUST:
+- Start with an engaging hook to grab listeners
+- Introduce "{book_title}" and clearly state you're covering {content_scope}{f" — specifically {chapter_title}" if chapter_title else ""}
+- Set up the key themes you'll be discussing
+- Begin exploring the first key concepts from the content
+- Write approximately {words_per_chunk} words
+- Do NOT conclude or wrap up — this continues in the next part
+- End naturally mid-discussion — NOT with "see you next time" or any closing remarks"""
+        elif is_last:
+            return f"""## CHUNK POSITION: Part {chunk_num} of {total_chunks} — CONCLUSION
+This is the FINAL part of the episode. You MUST:
+- Continue naturally from where the previous part left off (NO "welcome back" — this is seamless)
+- Discuss any remaining insights and concepts that haven't been covered yet
+- Provide a thorough conclusion summarizing key takeaways
+- End with a compelling closing thought for listeners
+- Write approximately {words_per_chunk} words"""
+        else:
+            return f"""## CHUNK POSITION: Part {chunk_num} of {total_chunks} — CONTINUATION
+This is a MIDDLE section of the episode. You MUST:
+- Continue naturally from where the previous part left off (NO "welcome back" — this is seamless)
+- Dive deeper into NEW concepts from the source (not ones already covered!)
+- Add examples, analysis, and personal insights
+- Write approximately {words_per_chunk} words
+- Do NOT conclude or wrap up — the episode continues after this
+- End naturally mid-discussion — NOT with any closing remarks"""
+
+    def _build_chunk_context(
+        self,
+        previous_summary: Optional[str] = None,
+        topics_covered: Optional[list[str]] = None,
+    ) -> str:
+        """Build context from previous chunks for anti-repetition."""
+        sections = []
+
+        if topics_covered:
+            topics_list = "\n".join(f"  - {topic}" for topic in topics_covered)
+            sections.append(f"""## ALREADY COVERED — DO NOT REPEAT!
+The following topics, examples, and references were used in previous parts.
+DO NOT repeat them or use similar examples. Use FRESH illustrations:
+{topics_list}""")
+
+        if previous_summary:
+            sections.append(f"""## PREVIOUS CONTEXT (continue from here)
+The previous part ended with:
+{previous_summary}
+
+Continue naturally from this point — do NOT re-introduce the topic.""")
+
+        return "\n\n".join(sections) + "\n" if sections else ""
 
     def _build_conclusion_requirement(self, episode_theme: str, episode_type: str) -> str:
         """Build theme-specific conclusion requirement for MANDATORY STRUCTURE."""
@@ -1677,16 +1749,83 @@ Repetition is the enemy of engagement. Keep moving forward with fresh content.
                 target_words=target_words,
             )
 
-        # Adjust target words up for retries (more aggressive with each retry)
-        adjusted_target = target_words
-        if request.retry_count >= 2:
-            adjusted_target = int(target_words * 1.5)
-            logger.info(f"Second retry: increased target from {target_words} to {adjusted_target} words")
-        elif request.retry_count == 1:
-            adjusted_target = int(target_words * 1.3)
-            logger.info(f"First retry: increased target from {target_words} to {adjusted_target} words")
-        elif request.content_is_limited or request.expansion_ratio >= 1.5:
-            adjusted_target = int(target_words * 1.15)
+        # Determine effective word target
+        is_chunked = request.chunk_num is not None and request.total_chunks is not None
+        if is_chunked:
+            # Chunked generation: use per-chunk target
+            adjusted_target = request.chunk_target_words or target_words
+        else:
+            # Single-call generation: adjust for retries
+            adjusted_target = target_words
+            if request.retry_count >= 2:
+                adjusted_target = int(target_words * 1.5)
+                logger.info(f"Second retry: increased target from {target_words} to {adjusted_target} words")
+            elif request.retry_count == 1:
+                adjusted_target = int(target_words * 1.3)
+                logger.info(f"First retry: increased target from {target_words} to {adjusted_target} words")
+            elif request.content_is_limited or request.expansion_ratio >= 1.5:
+                adjusted_target = int(target_words * 1.15)
+
+        # Build chunk-specific sections
+        chunk_position_section = ""
+        chunk_context_section = ""
+        if is_chunked:
+            chunk_position_section = self._build_chunk_position_instructions(
+                chunk_num=request.chunk_num,
+                total_chunks=request.total_chunks,
+                words_per_chunk=adjusted_target,
+                episode_type=request.episode_type,
+                content_scope=request.content_scope,
+                book_title=request.book_title,
+                chapter_title=request.chapter_title,
+            )
+            if request.topics_covered or request.previous_summary:
+                chunk_context_section = self._build_chunk_context(
+                    previous_summary=request.previous_summary,
+                    topics_covered=request.topics_covered,
+                )
+
+        # Build requirements section (different for chunks vs single-call)
+        if is_chunked:
+            is_first = request.chunk_num == 1
+            is_last = request.chunk_num == request.total_chunks
+            requirements_section = f"""## Requirements
+- **CRITICAL: LENGTH**: Write approximately {adjusted_target} words for this part.
+- **NEVER BE REPETITIVE** - Each paragraph must add NEW value.
+{f'- **INTRODUCTION MUST STATE SCOPE**: Clearly state what you are covering (e.g., "Today we are diving into {request.content_scope} from {request.book_title}"{chr(39) + " - specifically " + request.chapter_title + chr(39) if request.chapter_title else ""})' if is_first else ''}
+{f'- Hook the listener in the first 100 words.' if is_first else ''}
+- Cover key ideas from the source — discuss each with depth, examples, and commentary.
+- Add original real-world examples, insights, and analysis (NOT from the source).
+- Use meaningful transitions, not "next, let's talk about..."
+{f'- **ENDING IS NON-NEGOTIABLE**: End with a thorough conclusion. NEVER end abruptly or mid-conversation.' if is_last else '- Do NOT conclude or wrap up — this part continues in the next segment.'}"""
+        else:
+            requirements_section = f"""## Requirements
+- **CRITICAL: MINIMUM LENGTH**: The script MUST be at least {adjusted_target} words (~{request.target_length_min}-{request.target_length_max} minutes at ~150 wpm).
+- DO NOT write a short script. Episodes under {request.target_length_min} minutes will be rejected.
+- **NEVER BE REPETITIVE** - Each paragraph must add NEW value.
+- **INTRODUCTION MUST STATE SCOPE**: Clearly state what you're covering (e.g., "Today we're diving into {request.content_scope} from {request.book_title}"{f' - specifically {request.chapter_title}' if request.chapter_title else ''})
+- Hook the listener in the first 100 words.
+- Cover ALL key ideas from the source — discuss each with depth, examples, and commentary.
+- Add original real-world examples, insights, and analysis (NOT from the source).
+- Use meaningful transitions, not "next, let's talk about..."
+- **ENDING IS NON-NEGOTIABLE**: End with a thorough conclusion. NEVER end abruptly or mid-conversation."""
+
+        # Build structure section (different for chunks vs single-call)
+        if is_chunked:
+            structure_section = chunk_position_section
+        else:
+            structure_section = f"""## MANDATORY STRUCTURE — PLAN YOUR ENDING BEFORE WRITING!
+BEFORE you start writing, plan your script in three acts:
+1. OPENING (10%): Hook the listener
+2. MIDDLE (70%): Core content — explore, debate, discuss
+3. CONCLUSION (20%, at least {int(adjusted_target * 0.20)} words): Proper wrap-up with closing thoughts
+
+CRITICAL RULES:
+- NEVER end mid-discussion, mid-argument, or mid-sentence. Your script MUST have a complete ending.
+- The LAST 3-5 speaking turns MUST be dedicated to wrapping up and concluding.
+- {self._build_conclusion_requirement(request.episode_theme, request.episode_type)}
+- If you're running long, CUT middle content — NEVER cut the ending.
+- A script without a proper conclusion is REJECTED. Always finish the conversation."""
 
         prompt = f"""You are {request.podcaster_name}, a podcast host creating an episode about "{request.book_title}"{author_line}.
 
@@ -1705,16 +1844,7 @@ Repetition is the enemy of engagement. Keep moving forward with fresh content.
 
 {conversation_flow_section}
 {deep_dive_section}
-## Requirements
-- **CRITICAL: MINIMUM LENGTH**: The script MUST be at least {adjusted_target} words (~{request.target_length_min}-{request.target_length_max} minutes at ~150 wpm).
-- DO NOT write a short script. Episodes under {request.target_length_min} minutes will be rejected.
-- **NEVER BE REPETITIVE** - Each paragraph must add NEW value.
-- **INTRODUCTION MUST STATE SCOPE**: Clearly state what you're covering (e.g., "Today we're diving into {request.content_scope} from {request.book_title}"{f' - specifically {request.chapter_title}' if request.chapter_title else ''})
-- Hook the listener in the first 100 words.
-- Cover ALL key ideas from the source — discuss each with depth, examples, and commentary.
-- Add original real-world examples, insights, and analysis (NOT from the source).
-- Use meaningful transitions, not "next, let's talk about..."
-- **ENDING IS NON-NEGOTIABLE**: End with a thorough conclusion. NEVER end abruptly or mid-conversation.
+{requirements_section}
 
 ## Book Content to Discuss (THIS IS THE ONLY CONTENT YOU CAN REFERENCE!)
 {request.book_content}
@@ -1737,23 +1867,12 @@ When content is limited, use CREATIVE EXPANSION instead of repeating:
 6. Counterarguments ("But some might argue...")
 7. Historical parallels and modern applications
 8. Thought experiments ("What if everyone followed this?")
-
+{chunk_context_section}
 ## Episode Title
 "{request.episode_title}"
 
-## MANDATORY STRUCTURE — PLAN YOUR ENDING BEFORE WRITING!
-BEFORE you start writing, plan your script in three acts:
-1. OPENING (10%): Hook the listener
-2. MIDDLE (70%): Core content — explore, debate, discuss
-3. CONCLUSION (20%, at least {int(adjusted_target * 0.20)} words): Proper wrap-up with closing thoughts
+{structure_section}
 
-CRITICAL RULES:
-- NEVER end mid-discussion, mid-argument, or mid-sentence. Your script MUST have a complete ending.
-- The LAST 3-5 speaking turns MUST be dedicated to wrapping up and concluding.
-- {self._build_conclusion_requirement(request.episode_theme, request.episode_type)}
-- If you're running long, CUT middle content — NEVER cut the ending.
-- A script without a proper conclusion is REJECTED. Always finish the conversation.
-
-Now write the complete podcast script:
+Now write {"Part " + str(request.chunk_num) + " of " + str(request.total_chunks) + " of " if is_chunked else ""}the {"complete " if not is_chunked else ""}podcast script:
 """
         return prompt, cohost_archetype

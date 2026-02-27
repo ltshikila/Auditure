@@ -258,10 +258,12 @@ class ScriptGenerator:
         target_length_max: int,
         wpm: Optional[int] = None,
     ) -> int:
-        """Calculate target word count from time range (midpoint)."""
+        """Calculate target word count from time range.
+
+        Targets the MAX duration — the min is just the acceptable floor.
+        """
         words_per_min = wpm or self.words_per_minute
-        target_minutes = (target_length_min + target_length_max) / 2
-        return int(target_minutes * words_per_min)
+        return int(target_length_max * words_per_min)
 
     def _estimate_duration_seconds(self, word_count: int, wpm: Optional[int] = None) -> int:
         """Estimate audio duration in seconds from word count."""
@@ -291,6 +293,189 @@ class ScriptGenerator:
             f"(source: {source_words} words, target: {target_words} words)"
         )
         return ratio
+
+    def _needs_chunked_generation(self, target_words: int) -> bool:
+        """Determine if we need to generate in chunks.
+
+        GPT-4.1-mini reliably generates ~1200-1500 words per call.
+        For longer scripts, we need to generate in chunks.
+        """
+        return target_words > 1800
+
+    def _generate_chunked(
+        self,
+        book_content: str,
+        book_title: str,
+        book_author: Optional[str],
+        episode_title: str,
+        podcaster_name: str,
+        personality: PodcasterPersonality,
+        episode_type: str,
+        episode_theme: str,
+        target_length_min: int,
+        target_length_max: int,
+        target_words: int,
+        content_is_limited: bool,
+        expansion_ratio: float,
+        content_scope: str,
+        chapter_title: Optional[str],
+        debate_config: Optional[DebateConfig],
+        book_genres: Optional[list[str]],
+    ) -> tuple[str, Optional[CoHostArchetype]]:
+        """Generate a long script in multiple chunks and combine them.
+
+        GPT-4.1-mini struggles with generating >1500 words in one call.
+        This method splits the generation into chunks, each using the full
+        PromptBuilder prompt with chunk-specific position instructions.
+        """
+        target_words_per_chunk = 1300
+        num_chunks = max(2, (target_words + target_words_per_chunk - 1) // target_words_per_chunk)
+        words_per_chunk = target_words // num_chunks
+
+        logger.info(
+            f"Using chunked generation: {num_chunks} chunks, ~{words_per_chunk} words each "
+            f"(total target: {target_words} words)"
+        )
+
+        chunks = []
+        cohost_archetype = None
+        previous_summary = ""
+        topics_covered: list[str] = []
+
+        for chunk_num in range(1, num_chunks + 1):
+            request = ScriptRequest(
+                book_content=book_content,
+                book_title=book_title,
+                book_author=book_author,
+                episode_title=episode_title,
+                podcaster_name=podcaster_name,
+                podcaster_personality=personality,
+                episode_type=episode_type,
+                episode_theme=episode_theme,
+                target_length_min=target_length_min,
+                target_length_max=target_length_max,
+                content_is_limited=content_is_limited,
+                expansion_ratio=expansion_ratio,
+                content_scope=content_scope,
+                chapter_title=chapter_title,
+                debate_config=debate_config,
+                book_genres=book_genres,
+                chunk_num=chunk_num,
+                total_chunks=num_chunks,
+                chunk_target_words=words_per_chunk,
+                previous_summary=previous_summary if chunk_num > 1 else None,
+                topics_covered=topics_covered if chunk_num > 1 else None,
+            )
+
+            logger.info(f"Generating chunk {chunk_num}/{num_chunks}...")
+            prompt, chunk_cohost = self.prompt_builder.build_prompt(request)
+
+            # Keep cohost from first chunk (consistent throughout episode)
+            if chunk_num == 1:
+                cohost_archetype = chunk_cohost
+
+            chunk_script = self.llm_client.generate_script(prompt, words_per_chunk)
+            chunk_script = self._clean_script(chunk_script, episode_type)
+            chunk_word_count = len(chunk_script.split())
+
+            logger.info(f"Chunk {chunk_num} generated: {chunk_word_count} words")
+            chunks.append(chunk_script)
+
+            # Build context for next chunk
+            if chunk_num < num_chunks:
+                sentences = chunk_script.replace('\n', ' ').split('. ')
+                previous_summary = '. '.join(sentences[-3:]) if len(sentences) > 3 else chunk_script[-500:]
+
+                new_topics = self._extract_topics_from_chunk(chunk_script)
+                topics_covered.extend(new_topics)
+                logger.info(f"Topics covered so far: {topics_covered}")
+
+        combined_script = self._combine_chunks(chunks, episode_type)
+        total_words = len(combined_script.split())
+        logger.info(f"Combined script: {total_words} words from {num_chunks} chunks")
+
+        return combined_script, cohost_archetype
+
+    def _extract_topics_from_chunk(self, chunk_script: str) -> list[str]:
+        """Extract key topics, concepts, and examples from a chunk to avoid repetition."""
+        topics = []
+
+        # Topic discussion patterns
+        topic_patterns = [
+            r"let's (?:talk about|discuss|explore|dive into) ([^.!?]+)",
+            r"the (?:key|main|first|second|third|next) (?:concept|idea|point|principle|lesson) (?:is|here is) ([^.!?]+)",
+            r"this (?:is|shows|demonstrates|illustrates) ([^.!?]+)",
+            r"the (?:idea|concept|principle) of ([^.!?]+)",
+        ]
+
+        text_lower = chunk_script.lower()
+        for pattern in topic_patterns:
+            matches = re.findall(pattern, text_lower)
+            for match in matches:
+                topic = match.strip()[:100]
+                if len(topic) > 10:
+                    topics.append(f"Topic: {topic}")
+
+        # Example/scenario patterns
+        example_patterns = [
+            r"for (?:example|instance),?\s+([^.!?]{20,150})",
+            r"(?:imagine|picture|suppose|say)\s+([^.!?]{20,150})",
+            r"(?:a|one|another) (?:good |great |perfect |classic )?example (?:is|would be)\s+([^.!?]{20,150})",
+            r"(?:think of it like|it's like|it's similar to)\s+([^.!?]{20,150})",
+        ]
+
+        for pattern in example_patterns:
+            matches = re.findall(pattern, text_lower)
+            for match in matches:
+                example = match.strip()[:120]
+                if len(example) > 15:
+                    topics.append(f"Example used: {example}")
+
+        # Quoted concepts
+        quoted = re.findall(r'"([^"]{10,50})"', chunk_script)
+        for q in quoted[:3]:
+            topics.append(f"Quote/concept: {q}")
+
+        # Named proper nouns (case studies, people, companies)
+        proper_nouns = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b', chunk_script)
+        common_words = {
+            'The', 'This', 'That', 'What', 'When', 'Where', 'How', 'Why', 'Who',
+            'And', 'But', 'Or', 'So', 'Well', 'Now', 'Today', 'Here', 'There',
+            'Chapter', 'Part', 'Section', 'Book', 'Author', 'Host', 'Guest',
+        }
+        unique_nouns = set()
+        for noun in proper_nouns:
+            if noun not in common_words and len(noun) > 3:
+                unique_nouns.add(noun)
+        for noun in list(unique_nouns)[:3]:
+            topics.append(f"Referenced: {noun}")
+
+        # Deduplicate
+        seen = set()
+        unique_topics = []
+        for topic in topics:
+            topic_key = topic.lower().strip()
+            if topic_key not in seen:
+                seen.add(topic_key)
+                unique_topics.append(topic)
+
+        return unique_topics[:10]
+
+    def _combine_chunks(self, chunks: list[str], episode_type: str) -> str:
+        """Combine multiple script chunks into a cohesive script."""
+        if not chunks:
+            return ""
+
+        if episode_type == "MONOLOGUE":
+            return "\n\n".join(chunks)
+
+        # For dialogues, join with single newline for speaker label continuity
+        combined = []
+        for i, chunk in enumerate(chunks):
+            if i > 0:
+                combined.append("\n")
+            combined.append(chunk)
+        return "\n".join(combined)
 
     def _generate_with_llm(
         self,
@@ -330,7 +515,30 @@ class ScriptGenerator:
                     f"outcome={debate_config.outcome.value}, formality={debate_config.formality_level}"
                 )
 
-        # Build prompt (single-call)
+        # Use chunked generation for long scripts
+        if self._needs_chunked_generation(target_words):
+            logger.info(f"Target {target_words} words exceeds threshold, using chunked generation")
+            return self._generate_chunked(
+                book_content=book_content,
+                book_title=book_title,
+                book_author=book_author,
+                episode_title=episode_title,
+                podcaster_name=podcaster_name,
+                personality=personality,
+                episode_type=episode_type,
+                episode_theme=episode_theme,
+                target_length_min=target_length_min,
+                target_length_max=target_length_max,
+                target_words=target_words,
+                content_is_limited=content_is_limited,
+                expansion_ratio=expansion_ratio,
+                content_scope=content_scope,
+                chapter_title=chapter_title,
+                debate_config=debate_config,
+                book_genres=book_genres,
+            )
+
+        # Single-call generation for shorter scripts
         request = ScriptRequest(
             book_content=book_content,
             book_title=book_title,
