@@ -1,6 +1,6 @@
 # Auditure AI Worker
 
-Python microservice for AI-powered podcast generation. Handles script generation (via OpenAI GPT-4o mini with template fallback) and text-to-speech conversion (via Google Cloud TTS + Gemini 2.5 TTS).
+Python microservice for AI-powered podcast generation. Handles script generation (via OpenAI GPT-4.1-mini with template fallback) and text-to-speech conversion (via Google Cloud TTS + Gemini 2.5 Flash TTS).
 
 **SDK:** Uses the official `google-genai` SDK for Gemini TTS integration.
 
@@ -35,7 +35,7 @@ This is an acceptable trade-off for specialized AI workloads.
 
 ### Why Chunked Generation?
 
-OpenAI has token limits and quality degrades for very long outputs:
+The LLM has token limits and quality degrades for very long outputs:
 
 ```
 SINGLE GENERATION (problematic)        CHUNKED GENERATION (our approach)
@@ -57,7 +57,7 @@ May hit token limits                   Chunk 2: "Generate middle, avoid: [topics
 ```
 
 **Why chunk at 1,800 words?**
-- OpenAI output limits: ~4K tokens ≈ 3,000 words max
+- LLM output limits: ~4K tokens ≈ 3,000 words max
 - Quality sweet spot: Models produce better content under 1,500 words
 - Buffer for variance: Target 1,300 words/chunk, allows some overflow
 
@@ -91,7 +91,7 @@ ai-worker/
 
 ## Features
 
-- **Script Generation**: OpenAI GPT-4o mini with template fallback
+- **Script Generation**: OpenAI GPT-4.1-mini with template fallback
 - **Chapter-Aware Scripts**: Episode introductions specify exact chapters being covered
 - **Chunked Generation**: Long scripts (>1800 words) split into multiple chunks with topic tracking
 - **Anti-Repetition**: Automatic extraction of covered topics and examples to prevent repetition
@@ -104,6 +104,8 @@ ai-worker/
 - **Multi-Speaker**: Native support (up to 9 speakers per episode)
 - **Dynamic WPM**: Script length adjusts based on podcaster speaking speed
 - **Natural Interruptions**: Backchannels and interjections based on chaos factor
+- **Natural Thinking Moments**: Speakers pause and hesitate when challenged with tough points
+- **Batched TTS**: Multi-turn batching reduces API calls by ~80% (4 turns/batch max)
 - **Trailing Silence**: 1 second of silence at episode end for natural fade-out
 - **Retry Logic**: 3 automatic retries with exponential backoff
 - **Dead Letter Queue**: Failed jobs routed to DLQ after max retries
@@ -235,6 +237,18 @@ Script length automatically adjusts based on the podcaster's **speaking speed** 
 
 This ensures that faster-speaking podcasters get more words in their scripts, while slower speakers get fewer words, maintaining consistent episode duration.
 
+### Personality Traits (4-Tier System)
+
+Each podcaster has 5 personality traits on a 1-10 scale. All traits use a proportional 4-tier system so every value produces a meaningfully different result:
+
+| Trait | 1-3 | 4-6 | 7-8 | 9-10 |
+|-------|-----|-----|-----|------|
+| **Tone** | Calm, measured, thoughtful | Balanced, conversational | Energetic, enthusiastic, dynamic | ELECTRIC — bursting with passion, infectious excitement |
+| **Communication** | Storytelling, narrative-focused | Balanced stories & analysis | Analytical, fact-driven | Rapid-fire analysis — courtroom lawyer on espresso |
+| **Humor** | Serious, professional | Occasional light humor | Comedic, entertaining | Relentlessly funny — roasts everything, drops one-liners |
+| **Depth** | Accessible, surface-level | Moderately detailed | Deep philosophical exploration | Obsessively deep — rabbit holes, obscure references |
+| **Chaos** | Structured, organized | Semi-structured with tangents | Spontaneous, free-flowing | UNHINGED — chaotic, provocative, wildly unpredictable |
+
 ### Natural Interruptions & Backchannels
 
 Multi-speaker episodes (DUO) include verbal cues for natural conversation flow. The frequency and intensity are controlled by the podcaster's **chaos factor** setting.
@@ -245,7 +259,8 @@ Multi-speaker episodes (DUO) include verbal cues for natural conversation flow. 
 |--------------|-------|-----------|----------|
 | 1-3 | Gentle | Rare | "Mm-hmm", "I see", "That's interesting..." |
 | 4-6 | Warm | 3-4 times | "Oh interesting!", "Yes! And building on that—" |
-| 7-10 | Energetic | 5+ times | "Yes yes yes!", "Ha! So true—" |
+| 7-8 | Energetic | 5+ times | "Yes yes yes!", "Ha! So true—" |
+| 9-10 | Explosive | 7+ times | "Oh PLEASE—", "[laughing] That's RIDICULOUS!", "No no no—" |
 
 #### LECTURE Episodes
 No interruptions (monologue format).
@@ -279,7 +294,8 @@ Debate episodes use a comprehensive **DebateConfig** system that randomizes spea
 |-----------|-------|-----------|------------|
 | **1-3 (Formal)** | Oxford-style debate | Opening statements → Evidence → Rebuttals → Resolution | Steel-manning, evidence-based arguments, graceful concessions |
 | **4-6 (Conversational)** | Friends who disagree | Opening hook → Back-and-forth → Peak tension → Landing | Quick acknowledgments, real-world examples, strategic concessions |
-| **7-10 (Heated)** | Entertainment-first | Explosive opening → Escalating clash → Climax → Resolution | Visceral examples, strategic provocations, humor as weapon |
+| **7-8 (Heated)** | Entertainment-first | Explosive opening → Escalating clash → Climax → Resolution | Visceral examples, strategic provocations, humor as weapon |
+| **9-10 (Explosive)** | All-out verbal warfare | START hot, STAY hot — no cooling down | Personal jabs, mocking laughs, stubborn refusal to concede anything |
 
 #### Interaction Style by Combined Chaos
 
@@ -289,7 +305,8 @@ The interaction intensity is determined by averaging the host's formality level 
 |----------------|---------------|-------|
 | 1-3 | 2-3 times | Measured, polite interjections |
 | 4-6 | 4-6 times | Engaged, "Sorry to interrupt, but—" |
-| 7-10 | 7+ times | Heated, rapid-fire exchanges |
+| 7-8 | 7+ times | Heated, rapid-fire exchanges |
+| 9-10 | CONSTANT | Explosive — shouting over each other, personal jabs, mocking laughs, neither backs down |
 
 #### Debate Outcomes
 
@@ -300,6 +317,8 @@ The interaction intensity is determined by averaging the host's formality level 
 | **SYNTHESIS** | Both sides find unexpected common ground |
 | **AGREE_TO_DISAGREE** | Mutual respect but fundamental disagreement remains |
 | **UNEXPECTED_ALLIANCE** | A critic is genuinely won over by a compelling argument |
+
+**Chaos-aware outcomes:** At chaos 9-10, the outcome is heavily biased (90%) toward **AGREE_TO_DISAGREE** — but instead of polite respect, neither speaker concedes an inch. The ending feels like the argument could restart at any moment.
 
 #### Entertainment Goal
 
@@ -378,13 +397,13 @@ REDIS_PORT=6379
 
 # LLM - OpenAI
 OPENAI_API_KEY=your_openai_key_here
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_MODEL=gpt-4.1-mini
 
 # Google Cloud TTS (Standard voices)
 GOOGLE_CLOUD_PROJECT_ID=your_project_id
 GOOGLE_CLOUD_CREDENTIALS_PATH=/path/to/credentials.json
 
-# Gemini 2.5 Pro TTS (Multi-speaker)
+# Gemini 2.5 Flash TTS (Multi-speaker)
 GEMINI_API_KEY=your_gemini_api_key
 
 # TTS Configuration
@@ -443,16 +462,16 @@ docker run -e RABBITMQ_URL=amqp://host:5672 \
 1. Job received from RabbitMQ (episode_generation queue)
 2. Status: PENDING → SCRIPT_GENERATING (progress: 10%)
 3. Fetch book content + podcaster from database (progress: 20%)
-4. Generate script (OpenAI GPT-4o mini or templates) (progress: 40%)
+4. Generate script (OpenAI GPT-4.1-mini or templates) (progress: 40%)
 5. Status: SCRIPT_GENERATED (progress: 60%)
 6. Status: AUDIO_GENERATING (progress: 80%)
-7. Generate audio (Gemini 2.5 Pro TTS or Standard based on tier)
+7. Generate audio (Gemini 2.5 Flash TTS or Standard based on tier)
 8. Concatenate segments (if multi-voice, or Standard tier)
 9. Save to storage: {userId}/{episodeId}/audio.mp3
 10. Status: COMPLETED (progress: 100%)
 ```
 
-**Note:** Gemini 2.5 Pro TTS has a max output of ~11 minutes. For longer episodes, audio is chunked and stitched.
+**Note:** Gemini 2.5 Flash TTS has a max output of ~11 minutes. For longer episodes, audio is chunked and stitched.
 
 ### Progress Tracking
 
