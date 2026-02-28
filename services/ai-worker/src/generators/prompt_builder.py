@@ -639,6 +639,7 @@ Land the plane — how does this debate resolve? Not a cop-out ending. A genuine
         total_chunks: int,
         words_per_chunk: int,
         episode_type: str,
+        episode_theme: str,
         content_scope: str,
         book_title: str,
         chapter_title: Optional[str] = None,
@@ -658,13 +659,26 @@ This is the OPENING of the episode. You MUST:
 - Do NOT conclude or wrap up — this continues in the next part
 - End naturally mid-discussion — NOT with "see you next time" or any closing remarks"""
         elif is_last:
-            return f"""## CHUNK POSITION: Part {chunk_num} of {total_chunks} — CONCLUSION
+            conclusion_words = max(250, int(words_per_chunk * 0.25))
+            content_words = words_per_chunk - conclusion_words
+            conclusion_req = self._build_conclusion_requirement(episode_theme, episode_type)
+            return f"""## CHUNK POSITION: Part {chunk_num} of {total_chunks} — FINAL SECTION & CONCLUSION
+## MANDATORY STRUCTURE — PLAN YOUR ENDING BEFORE WRITING!
+BEFORE you start writing, plan this section in two acts:
+1. REMAINING CONTENT (~{content_words} words, 75%): Cover any final insights not yet discussed
+2. CONCLUSION (~{conclusion_words} words, 25%): Full, complete wrap-up with closing thoughts and goodbyes
+
 This is the FINAL part of the episode. You MUST:
 - Continue naturally from where the previous part left off (NO "welcome back" — this is seamless)
 - Discuss any remaining insights and concepts that haven't been covered yet
-- Provide a thorough conclusion summarizing key takeaways
-- End with a compelling closing thought for listeners
-- Write approximately {words_per_chunk} words"""
+- Write approximately {words_per_chunk} words total
+
+CRITICAL CONCLUSION RULES:
+- The LAST 3-5 speaking turns MUST be dedicated to wrapping up and saying goodbye
+- {conclusion_req}
+- If you're running long, CUT middle content — NEVER cut the ending
+- A script without a proper conclusion is REJECTED. The host MUST finish their final goodbye
+- NEVER end mid-sentence or mid-thought. The very last line must be a complete farewell"""
         else:
             return f"""## CHUNK POSITION: Part {chunk_num} of {total_chunks} — CONTINUATION
 This is a MIDDLE section of the episode. You MUST:
@@ -1757,6 +1771,7 @@ Repetition is the enemy of engagement. Keep moving forward with fresh content.
                 total_chunks=request.total_chunks,
                 words_per_chunk=adjusted_target,
                 episode_type=request.episode_type,
+                episode_theme=request.episode_theme,
                 content_scope=request.content_scope,
                 book_title=request.book_title,
                 chapter_title=request.chapter_title,
