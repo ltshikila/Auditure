@@ -161,8 +161,9 @@ class OpenAIClient:
         """
         # Estimate tokens needed — podcast scripts with speaker labels (HOST:, GUEST:),
         # TTS markup tags ([sigh], [medium pause]), and dialogue formatting use ~2 tokens/word.
-        # Add 20% buffer to avoid truncation at the conclusion.
-        estimated_tokens = int(target_word_count * 2.4)
+        # 1.8x gives enough headroom for markup without letting the LLM massively overshoot
+        # word count targets (2.4x caused 80% overshoot on chunked generation).
+        estimated_tokens = int(target_word_count * 1.8)
         max_tokens = min(estimated_tokens, self.max_tokens)
 
         system_prompt = """You are an expert podcast script writer. Your task is to create engaging,

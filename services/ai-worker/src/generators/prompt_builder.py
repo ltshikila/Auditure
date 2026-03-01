@@ -648,6 +648,8 @@ Land the plane — how does this debate resolve? Not a cop-out ending. A genuine
         is_first = chunk_num == 1
         is_last = chunk_num == total_chunks
 
+        max_words = int(words_per_chunk * 1.15)
+
         if is_first:
             return f"""## CHUNK POSITION: Part {chunk_num} of {total_chunks} — INTRODUCTION
 This is the OPENING of the episode. You MUST:
@@ -655,9 +657,13 @@ This is the OPENING of the episode. You MUST:
 - Introduce "{book_title}" and clearly state you're covering {content_scope}{f" — specifically {chapter_title}" if chapter_title else ""}
 - Set up the key themes you'll be discussing
 - Begin exploring the first key concepts from the content
-- Write approximately {words_per_chunk} words
 - Do NOT conclude or wrap up — this continues in the next part
-- End naturally mid-discussion — NOT with "see you next time" or any closing remarks"""
+- End naturally mid-discussion — NOT with "see you next time" or any closing remarks
+
+## WORD COUNT — HARD LIMIT
+Target: {words_per_chunk} words. Maximum: {max_words} words.
+Going OVER {max_words} words is WORSE than going slightly under. Your output will be cut off if too long.
+Count your words as you write — stop introducing new points once you approach {words_per_chunk} words."""
         elif is_last:
             conclusion_words = max(250, int(words_per_chunk * 0.25))
             content_words = words_per_chunk - conclusion_words
@@ -685,9 +691,13 @@ This is a MIDDLE section of the episode. You MUST:
 - Continue naturally from where the previous part left off (NO "welcome back" — this is seamless)
 - Dive deeper into NEW concepts from the source (not ones already covered!)
 - Add examples, analysis, and personal insights
-- Write approximately {words_per_chunk} words
 - Do NOT conclude or wrap up — the episode continues after this
-- End naturally mid-discussion — NOT with any closing remarks"""
+- End naturally mid-discussion — NOT with any closing remarks
+
+## WORD COUNT — HARD LIMIT
+Target: {words_per_chunk} words. Maximum: {max_words} words.
+Going OVER {max_words} words is WORSE than going slightly under. Your output will be cut off if too long.
+Count your words as you write — stop introducing new points once you approach {words_per_chunk} words."""
 
     def _build_chunk_context(
         self,

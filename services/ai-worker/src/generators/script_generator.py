@@ -381,7 +381,12 @@ class ScriptGenerator:
             if chunk_num == 1:
                 cohost_archetype = chunk_cohost
 
-            chunk_script = self.llm_client.generate_script(prompt, words_per_chunk)
+            # Final chunk gets extra token headroom so the conclusion is never truncated.
+            # Non-final chunks use exact target — truncation there is acceptable since
+            # content continues in the next chunk.
+            is_final_chunk = chunk_num == num_chunks
+            token_target = int(words_per_chunk * 1.4) if is_final_chunk else words_per_chunk
+            chunk_script = self.llm_client.generate_script(prompt, token_target)
             chunk_script = self._clean_script(chunk_script, episode_type)
             chunk_word_count = len(chunk_script.split())
 
