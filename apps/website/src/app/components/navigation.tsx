@@ -31,9 +31,9 @@ export function Navigation() {
 
           {/* CTA Button */}
           <div className="flex items-center gap-4">
-            <button className="hidden sm:flex items-center gap-2 bg-[#920002] hover:bg-[#760002] text-white px-6 py-3 rounded-[12px] transition-colors font-['Plus_Jakarta_Sans',sans-serif]">
+            <button className="hidden sm:flex items-center gap-2 bg-[#920002]/80 text-white px-6 py-3 rounded-[12px] font-['Plus_Jakarta_Sans',sans-serif] cursor-default">
               <img src={googlePlayIcon} alt="" width="20" height="20" />
-              Download
+              Coming Soon
             </button>
 
             {/* Mobile Menu Button */}

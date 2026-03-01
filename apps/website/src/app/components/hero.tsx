@@ -21,9 +21,9 @@ export function Hero() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4">
-            <button className="bg-[#920002] hover:bg-[#760002] text-white px-8 py-4 rounded-[15px] transition-colors shadow-md font-['Plus_Jakarta_Sans',sans-serif] flex items-center justify-center gap-3">
+            <button className="bg-[#920002]/80 text-white px-8 py-4 rounded-[15px] shadow-md font-['Plus_Jakarta_Sans',sans-serif] flex items-center justify-center gap-3 cursor-default">
               <img src={googlePlayIcon} alt="" width="24" height="24" />
-              Get it on Google Play
+              Android Coming Soon
             </button>
             <button className="bg-white border-2 border-[#2f2f2f] text-[#2f2f2f] px-8 py-4 rounded-[15px] transition-all hover:bg-[#2f2f2f] hover:text-white font-['Plus_Jakarta_Sans',sans-serif] flex items-center justify-center gap-3">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">

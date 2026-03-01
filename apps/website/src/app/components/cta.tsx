@@ -16,9 +16,9 @@ export function CTA() {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-          <button className="bg-[#920002] hover:bg-[#760002] text-white px-10 py-5 rounded-[15px] transition-colors shadow-lg font-['Plus_Jakarta_Sans',sans-serif] text-lg flex items-center justify-center gap-3">
+          <button className="bg-[#920002]/80 text-white px-10 py-5 rounded-[15px] shadow-lg font-['Plus_Jakarta_Sans',sans-serif] text-lg flex items-center justify-center gap-3 cursor-default">
             <img src={googlePlayIcon} alt="" width="28" height="28" />
-            Get it on Google Play
+            Android Coming Soon
           </button>
           <button className="bg-white/10 hover:bg-white/20 text-white border-2 border-white/30 px-10 py-5 rounded-[15px] transition-colors font-['Plus_Jakarta_Sans',sans-serif] text-lg flex items-center justify-center gap-3">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
@@ -82,7 +82,7 @@ export function CTA() {
         {/* Footer Note */}
         <div className="mt-16 pt-12 border-t border-white/10">
           <p className="font-['Plus_Jakarta_Sans',sans-serif] text-white/60 text-sm">
-            Available now on Android &middot; iOS launching Q2 2026
+            Android &amp; iOS launching soon
           </p>
         </div>
       </div>
