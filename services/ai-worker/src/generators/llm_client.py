@@ -100,13 +100,19 @@ class OpenAIClient:
                 timeout=self.timeout,
             )
 
-            generated = response.choices[0].message.content
+            choice = response.choices[0]
+            generated = choice.message.content
             if not generated:
                 raise LLMAPIError("OpenAI returned empty response")
 
+            # Check for truncation
+            finish_reason = choice.finish_reason
+            if finish_reason == "length":
+                logger.warning(f"[LLM] Response TRUNCATED (finish_reason=length, max_tokens={max_tokens})")
+
             usage = response.usage
             word_count = len(generated.split())
-            logger.info(f"[LLM] Generated {len(generated)} chars ({word_count} words)")
+            logger.info(f"[LLM] Generated {len(generated)} chars ({word_count} words), finish_reason={finish_reason}")
 
             if usage:
                 logger.info(
@@ -153,8 +159,10 @@ class OpenAIClient:
         Returns:
             Generated podcast script
         """
-        # Estimate tokens needed (roughly 1.3 tokens per word for output)
-        estimated_tokens = int(target_word_count * 1.5)
+        # Estimate tokens needed — podcast scripts with speaker labels (HOST:, GUEST:),
+        # TTS markup tags ([sigh], [medium pause]), and dialogue formatting use ~2 tokens/word.
+        # Add 20% buffer to avoid truncation at the conclusion.
+        estimated_tokens = int(target_word_count * 2.4)
         max_tokens = min(estimated_tokens, self.max_tokens)
 
         system_prompt = """You are an expert podcast script writer. Your task is to create engaging,
