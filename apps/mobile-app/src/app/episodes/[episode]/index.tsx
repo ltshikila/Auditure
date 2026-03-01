@@ -886,6 +886,7 @@ export default function EpisodeInfoScreen() {
                                         autoFocus
                                         onSubmitEditing={handleSaveTitle}
                                         returnKeyType="done"
+                                        maxLength={100}
                                     />
                                     <TouchableOpacity onPress={handleSaveTitle} className="ml-2 p-1" disabled={savingTitle}>
                                         {savingTitle ? (
@@ -909,14 +910,9 @@ export default function EpisodeInfoScreen() {
                                     disabled={!isOwner}
                                     activeOpacity={isOwner ? 0.6 : 1}
                                 >
-                                    <View className="flex-row items-center flex-wrap">
-                                        <Text className="font-inter text-2xl text-brand-black">
-                                            {episode.title}
-                                        </Text>
-                                        {isOwner && (
-                                            <Ionicons name="pencil" size={16} color="#858585" style={{ marginLeft: 6 }} />
-                                        )}
-                                    </View>
+                                    <Text className="font-inter text-2xl text-brand-black">
+                                        {episode.title}
+                                    </Text>
                                 </TouchableOpacity>
                             )}
                             <TouchableOpacity

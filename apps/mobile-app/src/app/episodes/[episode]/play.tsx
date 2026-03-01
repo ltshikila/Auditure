@@ -310,7 +310,7 @@ export default function EpisodePlayScreen() {
             </View>
 
             {/* Info */}
-            <View className="mt-6">
+            <View className="mt-6 px-6">
                 <Text
                     className="font-inter text-2xl text-brand-black text-center"
                     numberOfLines={2}>

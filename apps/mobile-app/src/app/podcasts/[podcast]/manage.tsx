@@ -273,6 +273,7 @@ export default function ManagePodcaster() {
               onChangeText={setName}
               placeholder="Enter podcaster name"
               placeholderTextColor="#858585"
+              maxLength={50}
             />
           </View>
         </View>
@@ -290,6 +291,7 @@ export default function ManagePodcaster() {
               multiline
               numberOfLines={4}
               textAlignVertical="top"
+              maxLength={200}
             />
           </View>
         </View>
