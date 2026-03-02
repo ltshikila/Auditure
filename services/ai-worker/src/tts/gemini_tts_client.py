@@ -127,6 +127,25 @@ VOICE_MODEL_TO_STYLES: dict[str, list[str]] = {
     "CUSTOM": [],  # No style preference, use speed/pitch only
 }
 
+# Short throwaway sentences to prime the model into the target accent.
+# Prepended to each batch; the resulting audio is trimmed from the output.
+# Sentences contain accent-distinctive phonemes to force the model into
+# the right accent before the real content starts.
+ACCENT_PRIMING_SENTENCES: dict[str, dict[str, str]] = {
+    "en-GB": {
+        "HOST": "Right then, let us carry on with the programme.",
+        "GUEST": "Absolutely, I rather think we shall.",
+    },
+    "en-AU": {
+        "HOST": "No worries, let's have a go at this, mate.",
+        "GUEST": "Yeah, too easy, let's get into it.",
+    },
+    "en-IN": {
+        "HOST": "Very well, let us proceed with the discussion.",
+        "GUEST": "Of course, I am looking forward to this.",
+    },
+}
+
 
 def _pcm_to_wav(
     pcm_data: bytes,
@@ -341,12 +360,12 @@ class GeminiTTSClient:
     MAX_CHUNK_CHARS = 7500        # ~7 min at ~180 wpm ≈ 1250 words ≈ 7500 chars
 
     # Batched segment generation — groups N consecutive turns into a single
-    # multi-speaker API call instead of one call per turn. Reduces API calls
-    # by ~80% (37 calls → 8 for a typical DUO episode).
-    # Original chunked approach (15-20 turns/chunk) caused voice swapping;
-    # 5 turns is small enough to maintain voice consistency.
-    BATCH_MAX_TURNS = 4       # Max speaker turns per batch
-    BATCH_MAX_CHARS = 4000    # Max chars per batch (headroom under 7500 API limit)
+    # multi-speaker API call instead of one call per turn.
+    # Larger batches = fewer independent API calls = fewer accent drift boundaries.
+    # MultiSpeakerVoiceConfig explicitly assigns voices, so voice swapping
+    # is not a risk even with bigger batches.
+    BATCH_MAX_TURNS = 8       # Max speaker turns per batch (was 4)
+    BATCH_MAX_CHARS = 6000    # Max chars per batch (was 4000, headroom under 7500 API limit)
 
     def __init__(self, temp_dir: Optional[str] = None):
         """Initialize Gemini TTS client."""
@@ -569,6 +588,20 @@ class GeminiTTSClient:
             )
         return configs
 
+    def _estimate_priming_duration_bytes(self, priming_text: str) -> int:
+        """Estimate PCM byte count for priming sentence to trim from output.
+
+        Uses a conservative 180 WPM rate to estimate duration, then adds
+        a 0.5s safety margin to ensure the entire priming sentence is removed.
+        """
+        words = len(priming_text.split())
+        duration_sec = (words / 180) * 60  # seconds at 180 WPM
+        duration_sec += 0.5  # Safety margin
+        bytes_to_trim = int(duration_sec * self.SAMPLE_RATE * self.SAMPLE_WIDTH)
+        # Align to sample boundary
+        bytes_to_trim = (bytes_to_trim // self.SAMPLE_WIDTH) * self.SAMPLE_WIDTH
+        return bytes_to_trim
+
     def _format_script_for_gemini(
         self,
         script: str,
@@ -617,15 +650,16 @@ class GeminiTTSClient:
                 for name in speaker_names
             )
             director_notes_parts.append(
-                f"ACCENT (MANDATORY): {per_speaker_accent}. "
-                f"Every single word must be in a {accent_description}. "
-                f"Do NOT use an American accent at any point for any speaker."
+                f"ACCENT (MANDATORY, NON-NEGOTIABLE): {per_speaker_accent}. "
+                f"This is a {accent_description} podcast — every syllable, every word, every sentence "
+                f"MUST be spoken in a {accent_description}. Never revert to an American accent. "
+                f"Maintain the {accent_description} consistently from the very first word to the very last."
             )
 
         # Per-speaker delivery style — include accent per-speaker too
         style_parts = []
         for speaker, voice_name in voice_assignments.items():
-            accent_prefix = f"[{accent_description}] " if accent_description else ""
+            accent_prefix = f"ALWAYS use {accent_description}. " if accent_description else ""
             if voice_configs and speaker in voice_configs and voice_configs[speaker].style_prompt:
                 style_parts.append(f"{voice_name}: {accent_prefix}{voice_configs[speaker].style_prompt}")
             elif accent_prefix:
@@ -666,6 +700,20 @@ class GeminiTTSClient:
                 formatted_lines.append(f"{voice_name}: {dialogue}")
             else:
                 formatted_lines.append(line)
+
+        # Inject inline accent reminders every 2nd speaker turn
+        # This reinforces the accent instruction within the dialogue itself
+        if accent_description:
+            speaker_turn_count = 0
+            for idx, line in enumerate(formatted_lines):
+                if re.match(r'^[A-Za-z]+:\s*.+$', line):
+                    speaker_turn_count += 1
+                    if speaker_turn_count % 2 == 0:
+                        match = re.match(r'^([A-Za-z]+):\s*(.+)$', line)
+                        if match:
+                            voice_name = match.group(1)
+                            dialogue = match.group(2)
+                            formatted_lines[idx] = f"{voice_name}: *({accent_description})* {dialogue}"
 
         return '\n'.join(formatted_lines)
 
@@ -1063,8 +1111,28 @@ class GeminiTTSClient:
         """
         from google.genai import types
 
-        # Reconstruct the mini-script for this batch
-        batch_lines = [f"{speaker}: {dialogue}" for speaker, dialogue in batch]
+        # Prepend accent priming sentences to force the model into the right accent
+        priming_lines = []
+        priming_duration_bytes = 0
+        accent_priming = ACCENT_PRIMING_SENTENCES.get(language_code, {})
+
+        if accent_priming:
+            seen_speakers = []
+            seen = set()
+            for speaker, _ in batch:
+                if speaker not in seen:
+                    seen_speakers.append(speaker)
+                    seen.add(speaker)
+
+            for speaker in seen_speakers:
+                role = "HOST" if speaker.upper() in ("HOST", "NARRATOR") else "GUEST"
+                priming_text = accent_priming.get(role, "")
+                if priming_text:
+                    priming_lines.append(f"{speaker}: {priming_text}")
+                    priming_duration_bytes += self._estimate_priming_duration_bytes(priming_text)
+
+        # Reconstruct the mini-script for this batch (with priming prepended)
+        batch_lines = priming_lines + [f"{speaker}: {dialogue}" for speaker, dialogue in batch]
         batch_script = '\n'.join(batch_lines)
 
         # Format with Director's Notes and voice name substitution
@@ -1099,7 +1167,23 @@ class GeminiTTSClient:
             )
         )
 
-        return self._extract_pcm_from_response(response, f"batch {batch_idx + 1}")
+        pcm_data = self._extract_pcm_from_response(response, f"batch {batch_idx + 1}")
+
+        # Trim priming audio from the start
+        if priming_duration_bytes > 0 and len(pcm_data) > priming_duration_bytes:
+            logger.info(
+                f"[Gemini TTS] Trimming {priming_duration_bytes} bytes "
+                f"({priming_duration_bytes / (self.SAMPLE_RATE * self.SAMPLE_WIDTH):.1f}s) "
+                f"of accent priming from batch {batch_idx + 1}"
+            )
+            pcm_data = pcm_data[priming_duration_bytes:]
+        elif priming_duration_bytes > 0:
+            logger.warning(
+                f"[Gemini TTS] Priming trim ({priming_duration_bytes}B) >= "
+                f"audio size ({len(pcm_data)}B) for batch {batch_idx + 1}, skipping trim"
+            )
+
+        return pcm_data
 
     def _generate_batch_single_speaker(
         self,
@@ -1138,9 +1222,9 @@ class GeminiTTSClient:
             notes_parts = []
             if accent_description:
                 notes_parts.append(
-                    f"ACCENT (MANDATORY): Speak with a {accent_description} from the very first word. "
-                    f"Every word must be in a {accent_description}. "
-                    f"Do NOT use an American accent."
+                    f"ACCENT (MANDATORY, NON-NEGOTIABLE): Speak with a {accent_description} from the very first word. "
+                    f"Every syllable, every word, every sentence MUST be in a {accent_description}. "
+                    f"Never revert to an American accent. Maintain the {accent_description} consistently throughout."
                 )
             accent_str = f" with a {accent_description}" if accent_description else ""
             notes_parts.append(
@@ -1151,7 +1235,21 @@ class GeminiTTSClient:
                 notes_parts.append(voice_configs[speaker].style_prompt)
 
             notes_text = " ".join(notes_parts)
-            prompt_text = f"[Director's Notes: {notes_text}]\n\n{dialogue}"
+
+            # Prepend accent priming sentence if non-American accent
+            priming_text = ""
+            priming_bytes = 0
+            accent_priming = ACCENT_PRIMING_SENTENCES.get(language_code, {})
+            if accent_priming:
+                role = "HOST" if speaker.upper() in ("HOST", "NARRATOR") else "GUEST"
+                priming_text = accent_priming.get(role, "")
+                if priming_text:
+                    priming_bytes = self._estimate_priming_duration_bytes(priming_text)
+
+            if priming_text:
+                prompt_text = f"[Director's Notes: {notes_text}]\n\n{priming_text}\n\n{dialogue}"
+            else:
+                prompt_text = f"[Director's Notes: {notes_text}]\n\n{dialogue}"
 
             speech_config = types.SpeechConfig(
                 language_code=language_code,
@@ -1174,6 +1272,21 @@ class GeminiTTSClient:
             pcm = self._extract_pcm_from_response(
                 response, f"batch {batch_idx + 1} turn {i + 1}"
             )
+
+            # Trim priming audio from the start
+            if priming_bytes > 0 and len(pcm) > priming_bytes:
+                logger.info(
+                    f"[Gemini TTS] Trimming {priming_bytes}B "
+                    f"({priming_bytes / (self.SAMPLE_RATE * self.SAMPLE_WIDTH):.1f}s) "
+                    f"of accent priming from batch {batch_idx + 1} turn {i + 1}"
+                )
+                pcm = pcm[priming_bytes:]
+            elif priming_bytes > 0:
+                logger.warning(
+                    f"[Gemini TTS] Priming trim ({priming_bytes}B) >= "
+                    f"audio size ({len(pcm)}B) for batch {batch_idx + 1} turn {i + 1}, skipping trim"
+                )
+
             turn_pcm_data.append(pcm)
 
         if len(turn_pcm_data) == 1:
