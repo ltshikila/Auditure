@@ -170,8 +170,11 @@ export class FeedService {
                 );
             }
 
-            // Get all playback progress for user from Redis
-            const playbackProgress = await this.redisService.getAllPlaybackProgress(userId);
+            // Get all playback progress and timestamps for user from Redis
+            const [playbackProgress, playbackTimestamps] = await Promise.all([
+                this.redisService.getAllPlaybackProgress(userId),
+                this.redisService.getAllPlaybackTimestamps(userId),
+            ]);
             const episodeIds = Object.keys(playbackProgress);
 
             if (episodeIds.length === 0) {
@@ -253,7 +256,12 @@ export class FeedService {
                     } as EpisodeFeedItem;
                 })
                 .filter((item): item is EpisodeFeedItem => item !== null)
-                .sort((a, b) => (b.progressMs || 0) - (a.progressMs || 0)) // Sort by most recently played (highest progress first as proxy)
+                .sort((a, b) => {
+                    // Sort by last played time (most recent first)
+                    const tsA = playbackTimestamps[a.id] || 0;
+                    const tsB = playbackTimestamps[b.id] || 0;
+                    return tsB - tsA;
+                })
                 .slice(0, FEED_CONFIG.CONTINUE_LISTENING_MAX_ITEMS);
 
             // Cache the result
@@ -885,15 +893,7 @@ export class FeedService {
                 orderBy = { createdAt: 'desc' };
                 break;
             case EpisodeSectionId.CONTINUE_LISTENING:
-                // Continue listening doesn't support pagination in the same way
-                return {
-                    items: [],
-                    page,
-                    limit,
-                    totalCount: 0,
-                    totalPages: 0,
-                    hasMore: false,
-                };
+                return this.getContinueListeningPaginated(userId, offset, limit, page);
         }
 
         const [episodes, totalCount] = await Promise.all([
@@ -941,6 +941,91 @@ export class FeedService {
             totalPages,
             hasMore: page < totalPages,
         };
+    }
+
+    private async getContinueListeningPaginated(
+        userId: string,
+        offset: number,
+        limit: number,
+        page: number,
+    ): Promise<SectionPaginationResponse<EpisodeFeedItem>> {
+        this.logger.log(`getContinueListeningPaginated() called for userId: ${userId}`);
+
+        const [playbackProgress, playbackTimestamps] = await Promise.all([
+            this.redisService.getAllPlaybackProgress(userId),
+            this.redisService.getAllPlaybackTimestamps(userId),
+        ]);
+        const episodeIds = Object.keys(playbackProgress);
+
+        if (episodeIds.length === 0) {
+            return { items: [], page, limit, totalCount: 0, totalPages: 0, hasMore: false };
+        }
+
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - FEED_CONFIG.CONTINUE_LISTENING_MAX_DAYS);
+
+        const episodes = await this.databaseService.episode.findMany({
+            where: {
+                id: { in: episodeIds },
+                generationStatus: 'COMPLETED',
+                updatedAt: { gte: thirtyDaysAgo },
+            },
+            include: {
+                book: {
+                    select: { id: true, title: true, author: true, coverImageUrl: true },
+                },
+                podcaster: {
+                    select: { id: true, name: true, profilePictureUrl: true },
+                },
+                user: {
+                    select: { id: true, firstName: true, lastName: true },
+                },
+            },
+        });
+
+        const allItems: EpisodeFeedItem[] = episodes
+            .map(episode => {
+                const progressMs = playbackProgress[episode.id] || 0;
+                const durationMs = (episode.duration || 1) * 1000;
+                const progressPercent = (progressMs / durationMs) * 100;
+
+                if (
+                    progressPercent <= FEED_CONFIG.CONTINUE_LISTENING_MIN_PROGRESS_PERCENT ||
+                    progressPercent >= FEED_CONFIG.CONTINUE_LISTENING_MAX_PROGRESS_PERCENT
+                ) {
+                    return null;
+                }
+
+                return {
+                    id: episode.id,
+                    title: episode.title,
+                    description: episode.description,
+                    coverImageUrl: episode.book?.coverImageUrl,
+                    duration: episode.duration,
+                    playCount: episode.playCount,
+                    likeCount: episode.likeCount,
+                    averageRating: episode.averageRating,
+                    ratingCount: episode.ratingCount,
+                    createdAt: episode.createdAt,
+                    progressMs,
+                    progressPercent: Math.round(progressPercent),
+                    book: episode.book,
+                    podcaster: episode.podcaster,
+                    creator: episode.user,
+                } as EpisodeFeedItem;
+            })
+            .filter((item): item is EpisodeFeedItem => item !== null)
+            .sort((a, b) => {
+                const tsA = playbackTimestamps[a.id] || 0;
+                const tsB = playbackTimestamps[b.id] || 0;
+                return tsB - tsA;
+            });
+
+        const totalCount = allItems.length;
+        const totalPages = Math.ceil(totalCount / limit);
+        const items = allItems.slice(offset, offset + limit);
+
+        return { items, page, limit, totalCount, totalPages, hasMore: page < totalPages };
     }
 
     private async getBookSectionPaginated(

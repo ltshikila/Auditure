@@ -238,16 +238,22 @@ class AudioProcessor:
         """
         Get audio duration in seconds using ffprobe.
 
+        Uses stream-level decoding (-count_packets) for accurate duration,
+        especially important for MP3 files where the container/header duration
+        can be inaccurate after sample rate conversion.
+
         Args:
             file_path: Path to audio file
 
         Returns:
-            Duration in seconds
+            Duration in seconds (rounded)
         """
+        # First try: stream-level duration (more accurate for MP3)
         cmd = [
             "ffprobe",
             "-v", "error",
-            "-show_entries", "format=duration",
+            "-select_streams", "a:0",
+            "-show_entries", "stream=duration",
             "-of", "default=noprint_wrappers=1:nokey=1",
             str(file_path),
         ]
@@ -261,8 +267,29 @@ class AudioProcessor:
             )
 
             if result.returncode == 0:
+                raw = result.stdout.strip()
+                if raw and raw != "N/A":
+                    duration = float(raw)
+                    return round(duration)
+
+            # Fallback: format-level duration
+            cmd_fallback = [
+                "ffprobe",
+                "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                str(file_path),
+            ]
+            result = subprocess.run(
+                cmd_fallback,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            if result.returncode == 0:
                 duration = float(result.stdout.strip())
-                return int(duration)
+                return round(duration)
             else:
                 logger.warning(f"ffprobe failed: {result.stderr}")
                 return 0

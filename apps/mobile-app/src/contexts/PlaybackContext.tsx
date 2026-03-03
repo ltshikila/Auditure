@@ -160,8 +160,12 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
     const isPlaying = playbackState.state === State.Playing;
 
     // Convert RNTP progress (seconds) to milliseconds for API compatibility
-    const positionMs = Math.round(progress.position * 1000);
-    const durationMs = Math.round(progress.duration * 1000);
+    // Use the greater of player-reported duration and position so the UI never
+    // shows elapsed time exceeding total duration (MP3 headers can underreport)
+    const rawPositionMs = Math.round(progress.position * 1000);
+    const rawDurationMs = Math.round(progress.duration * 1000);
+    const durationMs = Math.max(rawDurationMs, rawPositionMs);
+    const positionMs = rawPositionMs;
 
     // Keep episodeRef in sync
     useEffect(() => {

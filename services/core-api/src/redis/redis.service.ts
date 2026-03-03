@@ -119,9 +119,15 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
         try {
             const key = `playback:${userId}`;
-            await this.client.hset(key, episodeId, positionMs.toString());
-            // Keep playback progress for 30 days
-            await this.client.expire(key, 30 * 24 * 60 * 60);
+            const tsKey = `playback_ts:${userId}`;
+            const ttl = 30 * 24 * 60 * 60; // 30 days
+
+            await Promise.all([
+                this.client.hset(key, episodeId, positionMs.toString()),
+                this.client.hset(tsKey, episodeId, Date.now().toString()),
+                this.client.expire(key, ttl),
+                this.client.expire(tsKey, ttl),
+            ]);
         } catch (error) {
             this.logger.error(`Error setting playback progress: ${error.message}`);
         }
@@ -155,11 +161,30 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         }
     }
 
+    async getAllPlaybackTimestamps(userId: string): Promise<Record<string, number>> {
+        if (!this.isConnected()) return {};
+
+        try {
+            const data = await this.client.hgetall(`playback_ts:${userId}`);
+            const result: Record<string, number> = {};
+            for (const [key, value] of Object.entries(data)) {
+                result[key] = parseInt(value);
+            }
+            return result;
+        } catch (error) {
+            this.logger.error(`Error getting playback timestamps: ${error.message}`);
+            return {};
+        }
+    }
+
     async deletePlaybackProgress(userId: string, episodeId: string): Promise<void> {
         if (!this.isConnected()) return;
 
         try {
-            await this.client.hdel(`playback:${userId}`, episodeId);
+            await Promise.all([
+                this.client.hdel(`playback:${userId}`, episodeId),
+                this.client.hdel(`playback_ts:${userId}`, episodeId),
+            ]);
         } catch (error) {
             this.logger.error(`Error deleting playback progress: ${error.message}`);
         }
