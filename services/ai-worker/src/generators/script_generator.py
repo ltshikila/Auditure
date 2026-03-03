@@ -394,12 +394,16 @@ class ScriptGenerator:
                 cohost_archetype = chunk_cohost
 
             # Final chunk gets extra token headroom so the conclusion is never truncated.
-            # Non-final chunks use exact target — truncation there is acceptable since
-            # content continues in the next chunk.
             is_final_chunk = chunk_num == num_chunks
             token_target = int(this_chunk_target * 1.4) if is_final_chunk else this_chunk_target
             chunk_script = self.llm_client.generate_script(prompt, token_target)
             chunk_script = self._clean_script(chunk_script, episode_type)
+
+            # If a non-final chunk was truncated (hit max_tokens), trim the
+            # incomplete last line so TTS never reads a half-sentence.
+            if not is_final_chunk and self.llm_client._last_finish_reason == "length":
+                chunk_script = self._trim_incomplete_ending(chunk_script)
+                logger.info(f"Chunk {chunk_num} was truncated — trimmed incomplete ending")
             chunk_word_count = len(chunk_script.split())
             words_generated_so_far += chunk_word_count
 
@@ -628,6 +632,21 @@ class ScriptGenerator:
         script = self.fallback_generator.generate_script(request)
         logger.info(f"Template generated {len(script.split())} words")
         return script
+
+    def _trim_incomplete_ending(self, script: str) -> str:
+        """Trim incomplete last line from a truncated script.
+
+        When the LLM hits max_tokens mid-sentence, the last line ends without
+        punctuation. We walk backwards and drop lines until we find one that
+        ends with sentence-ending punctuation so TTS never reads a half-sentence.
+        """
+        lines = script.rstrip().split('\n')
+        while lines:
+            last = lines[-1].rstrip()
+            if last and last[-1] in '.!?"\'…':
+                break
+            lines.pop()
+        return '\n'.join(lines)
 
     def _clean_script(self, script: str, episode_type: str) -> str:
         """Clean and format the generated script."""

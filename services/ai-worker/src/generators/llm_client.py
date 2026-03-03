@@ -35,6 +35,8 @@ class OpenAIClient:
         self.max_tokens = settings.openai_max_tokens
         self.timeout = settings.script_generation_timeout
 
+        self._last_finish_reason: Optional[str] = None
+
         if self.api_key:
             from openai import OpenAI
             self.client = OpenAI(api_key=self.api_key)
@@ -126,6 +128,7 @@ class OpenAIClient:
                 total_cost = input_cost + output_cost
                 logger.info(f"[LLM] Estimated cost: ${total_cost:.6f}")
 
+            self._last_finish_reason = finish_reason
             return generated
 
         except LLMAPIError:
