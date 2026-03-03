@@ -267,10 +267,11 @@ class ScriptGenerator:
     ) -> int:
         """Calculate target word count from time range.
 
-        Targets the MAX duration — the min is just the acceptable floor.
+        Targets the LOWER BOUND of the duration range. The LLM consistently
+        overshoots by 25-30%, so aiming low lands us in the midrange.
         """
         words_per_min = wpm or self.words_per_minute
-        return int(target_length_max * words_per_min)
+        return int(target_length_min * words_per_min)
 
     def _estimate_duration_seconds(self, word_count: int, wpm: Optional[int] = None) -> int:
         """Estimate audio duration in seconds from word count."""
