@@ -348,8 +348,19 @@ class ScriptGenerator:
         cohost_archetype = None
         previous_summary = ""
         topics_covered: list[str] = []
+        words_generated_so_far = 0
 
         for chunk_num in range(1, num_chunks + 1):
+            # Dynamic budget: divide remaining words evenly among remaining chunks
+            remaining_words = target_words - words_generated_so_far
+            remaining_chunks = num_chunks - chunk_num + 1
+            this_chunk_target = max(400, remaining_words // remaining_chunks)
+
+            logger.info(
+                f"Chunk {chunk_num}/{num_chunks} budget: {this_chunk_target} words "
+                f"(remaining: {remaining_words} words across {remaining_chunks} chunks)"
+            )
+
             request = ScriptRequest(
                 book_content=book_content,
                 book_title=book_title,
@@ -369,7 +380,7 @@ class ScriptGenerator:
                 book_genres=book_genres,
                 chunk_num=chunk_num,
                 total_chunks=num_chunks,
-                chunk_target_words=words_per_chunk,
+                chunk_target_words=this_chunk_target,
                 previous_summary=previous_summary if chunk_num > 1 else None,
                 topics_covered=topics_covered if chunk_num > 1 else None,
             )
@@ -385,12 +396,13 @@ class ScriptGenerator:
             # Non-final chunks use exact target — truncation there is acceptable since
             # content continues in the next chunk.
             is_final_chunk = chunk_num == num_chunks
-            token_target = int(words_per_chunk * 1.4) if is_final_chunk else words_per_chunk
+            token_target = int(this_chunk_target * 1.4) if is_final_chunk else this_chunk_target
             chunk_script = self.llm_client.generate_script(prompt, token_target)
             chunk_script = self._clean_script(chunk_script, episode_type)
             chunk_word_count = len(chunk_script.split())
+            words_generated_so_far += chunk_word_count
 
-            logger.info(f"Chunk {chunk_num} generated: {chunk_word_count} words")
+            logger.info(f"Chunk {chunk_num} generated: {chunk_word_count} words (total so far: {words_generated_so_far}/{target_words})")
             chunks.append(chunk_script)
 
             # Build context for next chunk
