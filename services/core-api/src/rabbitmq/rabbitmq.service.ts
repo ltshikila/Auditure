@@ -4,19 +4,17 @@ import { BookExtractionJob, EpisodeGenerationJob } from './interfaces/jobs.inter
 
 @Injectable()
 export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
+    // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
     private connection: amqp.Connection | null = null;
+    // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
     private channel: amqp.Channel | null = null;
     private readonly logger = new Logger(RabbitMQService.name);
     private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     private isShuttingDown = false;
 
     // Store consumer handlers so they can be re-registered on reconnect
-    private bookExtractionHandler:
-        | ((job: BookExtractionJob) => Promise<void>)
-        | null = null;
-    private episodeGenerationHandler:
-        | ((job: EpisodeGenerationJob) => Promise<void>)
-        | null = null;
+    private bookExtractionHandler: ((job: BookExtractionJob) => Promise<void>) | null = null;
+    private episodeGenerationHandler: ((job: EpisodeGenerationJob) => Promise<void>) | null = null;
 
     async onModuleInit() {
         await this.connect();
@@ -39,7 +37,7 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
             ]);
 
             // Prevent ECONNRESET on the connection from crashing the process
-            this.connection.on('error', (err) => {
+            this.connection.on('error', err => {
                 this.logger.error(`RabbitMQ connection error: ${err.message}`);
             });
 
@@ -54,7 +52,7 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
 
             this.channel = await this.connection.createChannel();
 
-            this.channel.on('error', (err) => {
+            this.channel.on('error', err => {
                 this.logger.error(`RabbitMQ channel error: ${err.message}`);
             });
 
@@ -90,9 +88,9 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
         if (this.reconnectTimer) return;
         const delay = 5_000;
         this.logger.log(`Scheduling RabbitMQ reconnect in ${delay / 1000}s...`);
-        this.reconnectTimer = setTimeout(async () => {
+        this.reconnectTimer = setTimeout(() => {
             this.reconnectTimer = null;
-            await this.connect();
+            void this.connect();
         }, delay);
     }
 
