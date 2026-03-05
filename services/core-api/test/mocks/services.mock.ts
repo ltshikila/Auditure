@@ -38,6 +38,7 @@ export const mockRedisService = {
     setPlaybackProgress: jest.fn().mockResolvedValue(undefined),
     getPlaybackProgress: jest.fn().mockResolvedValue(null),
     getAllPlaybackProgress: jest.fn().mockResolvedValue({}),
+    getAllPlaybackTimestamps: jest.fn().mockResolvedValue({}),
     deletePlaybackProgress: jest.fn().mockResolvedValue(undefined),
     checkRateLimit: jest.fn().mockResolvedValue(true),
     getRateLimitRemaining: jest.fn().mockResolvedValue({ remaining: 10, resetIn: 3600 }),

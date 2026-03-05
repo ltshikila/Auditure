@@ -22,6 +22,7 @@ const mockRedisClient = {
 
 const mockRedisService = {
     getAllPlaybackProgress: jest.fn().mockResolvedValue({}),
+    getAllPlaybackTimestamps: jest.fn().mockResolvedValue({}),
     client: mockRedisClient,
 };
 
