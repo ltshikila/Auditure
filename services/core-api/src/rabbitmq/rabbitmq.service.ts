@@ -4,11 +4,25 @@ import { BookExtractionJob, EpisodeGenerationJob } from './interfaces/jobs.inter
 
 @Injectable()
 export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
-    private connection: amqp.Connection;
-    private channel: amqp.Channel;
+    private connection: amqp.Connection | null = null;
+    private channel: amqp.Channel | null = null;
     private readonly logger = new Logger(RabbitMQService.name);
+    private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    private isShuttingDown = false;
+
+    // Store consumer handlers so they can be re-registered on reconnect
+    private bookExtractionHandler:
+        | ((job: BookExtractionJob) => Promise<void>)
+        | null = null;
+    private episodeGenerationHandler:
+        | ((job: EpisodeGenerationJob) => Promise<void>)
+        | null = null;
 
     async onModuleInit() {
+        await this.connect();
+    }
+
+    private async connect(): Promise<void> {
         try {
             const url = process.env.RABBITMQ_URL || 'amqp://localhost:5672';
 
@@ -23,7 +37,31 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
                     ),
                 ),
             ]);
+
+            // Prevent ECONNRESET on the connection from crashing the process
+            this.connection.on('error', (err) => {
+                this.logger.error(`RabbitMQ connection error: ${err.message}`);
+            });
+
+            this.connection.on('close', () => {
+                this.logger.warn('RabbitMQ connection closed');
+                this.channel = null;
+                this.connection = null;
+                if (!this.isShuttingDown) {
+                    this.scheduleReconnect();
+                }
+            });
+
             this.channel = await this.connection.createChannel();
+
+            this.channel.on('error', (err) => {
+                this.logger.error(`RabbitMQ channel error: ${err.message}`);
+            });
+
+            this.channel.on('close', () => {
+                this.logger.warn('RabbitMQ channel closed');
+                this.channel = null;
+            });
 
             // Declare queues
             await this.channel.assertQueue('book_extraction', { durable: true });
@@ -32,9 +70,30 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
             await this.channel.assertQueue('episode_generation_dlq', { durable: true });
 
             this.logger.log('RabbitMQ connected and queues declared');
+
+            // Re-register consumers on reconnect
+            if (this.bookExtractionHandler) {
+                await this.registerBookExtractionConsumer(this.bookExtractionHandler);
+            }
+            if (this.episodeGenerationHandler) {
+                await this.registerEpisodeGenerationConsumer(this.episodeGenerationHandler);
+            }
         } catch (error) {
             this.logger.error('Failed to connect to RabbitMQ', error);
+            if (!this.isShuttingDown) {
+                this.scheduleReconnect();
+            }
         }
+    }
+
+    private scheduleReconnect(): void {
+        if (this.reconnectTimer) return;
+        const delay = 5_000;
+        this.logger.log(`Scheduling RabbitMQ reconnect in ${delay / 1000}s...`);
+        this.reconnectTimer = setTimeout(async () => {
+            this.reconnectTimer = null;
+            await this.connect();
+        }, delay);
     }
 
     isConnected(): boolean {
@@ -56,6 +115,13 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     async consumeBookExtractionQueue(
         handler: (job: BookExtractionJob) => Promise<void>,
     ): Promise<void> {
+        this.bookExtractionHandler = handler;
+        await this.registerBookExtractionConsumer(handler);
+    }
+
+    private async registerBookExtractionConsumer(
+        handler: (job: BookExtractionJob) => Promise<void>,
+    ): Promise<void> {
         if (!this.channel) {
             this.logger.error('RabbitMQ channel not available');
             return;
@@ -66,20 +132,20 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
                 try {
                     const job: BookExtractionJob = JSON.parse(msg.content.toString());
                     await handler(job);
-                    this.channel.ack(msg);
+                    this.channel?.ack(msg);
                 } catch (error) {
                     this.logger.error('Error processing job', error);
                     // Move to DLQ after 3 retries
                     const retryCount = (msg.properties.headers?.['x-retry-count'] || 0) + 1;
                     if (retryCount >= 3) {
-                        this.channel.sendToQueue('book_extraction_dlq', msg.content);
-                        this.channel.ack(msg);
+                        this.channel?.sendToQueue('book_extraction_dlq', msg.content);
+                        this.channel?.ack(msg);
                         this.logger.error(`Job moved to DLQ after ${retryCount} retries`);
                     } else {
-                        this.channel.nack(msg, false, false);
+                        this.channel?.nack(msg, false, false);
                         // Republish with incremented retry count
                         setTimeout(() => {
-                            this.channel.sendToQueue('book_extraction', msg.content, {
+                            this.channel?.sendToQueue('book_extraction', msg.content, {
                                 headers: { 'x-retry-count': retryCount },
                             });
                         }, 5000 * retryCount); // Exponential backoff
@@ -104,6 +170,13 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     async consumeEpisodeGenerationQueue(
         handler: (job: EpisodeGenerationJob) => Promise<void>,
     ): Promise<void> {
+        this.episodeGenerationHandler = handler;
+        await this.registerEpisodeGenerationConsumer(handler);
+    }
+
+    private async registerEpisodeGenerationConsumer(
+        handler: (job: EpisodeGenerationJob) => Promise<void>,
+    ): Promise<void> {
         if (!this.channel) {
             this.logger.error('RabbitMQ channel not available');
             return;
@@ -114,20 +187,20 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
                 try {
                     const job: EpisodeGenerationJob = JSON.parse(msg.content.toString());
                     await handler(job);
-                    this.channel.ack(msg);
+                    this.channel?.ack(msg);
                 } catch (error) {
                     this.logger.error('Error processing episode generation job', error);
                     // Move to DLQ after 3 retries
                     const retryCount = (msg.properties.headers?.['x-retry-count'] || 0) + 1;
                     if (retryCount >= 3) {
-                        this.channel.sendToQueue('episode_generation_dlq', msg.content);
-                        this.channel.ack(msg);
+                        this.channel?.sendToQueue('episode_generation_dlq', msg.content);
+                        this.channel?.ack(msg);
                         this.logger.error(`Episode job moved to DLQ after ${retryCount} retries`);
                     } else {
-                        this.channel.nack(msg, false, false);
+                        this.channel?.nack(msg, false, false);
                         // Republish with incremented retry count
                         setTimeout(() => {
-                            this.channel.sendToQueue('episode_generation', msg.content, {
+                            this.channel?.sendToQueue('episode_generation', msg.content, {
                                 headers: { 'x-retry-count': retryCount },
                             });
                         }, 5000 * retryCount); // Exponential backoff
@@ -138,6 +211,10 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     }
 
     async onModuleDestroy() {
+        this.isShuttingDown = true;
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+        }
         await this.channel?.close();
         await this.connection?.close();
         this.logger.log('RabbitMQ connection closed');
