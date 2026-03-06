@@ -669,12 +669,20 @@ class GeminiTTSClient:
                 "DELIVERY STYLE: " + " | ".join(style_parts)
             )
 
+        # Pacing instruction — Gemini TTS has no speaking_rate parameter,
+        # so pacing must be controlled via Director's Notes.
+        director_notes_parts.append(
+            "PACING: Speak at a calm, measured, conversational pace throughout. "
+            "Do NOT rush through dense or technical material. Maintain a steady, "
+            "consistent speaking speed from start to finish."
+        )
+
         # Cross-chunk voice consistency (critical for multi-chunk episodes)
         if chunk_index > 0 and total_chunks > 1:
             director_notes_parts.append(
                 f"CONTINUITY: This is part {chunk_index + 1} of {total_chunks} of the SAME episode. "
                 "Each speaker must sound IDENTICAL to how they sounded in previous parts — "
-                "same voice, same accent, same delivery style. No changes."
+                "same voice, same accent, same delivery style, same speaking pace. No changes."
             )
 
         # Combine Director's Notes
