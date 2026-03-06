@@ -22,7 +22,7 @@ export class EmailService {
         const expiryMinutes = process.env.OTP_EXPIRY_MINUTES || '10';
 
         const logoUrl = process.env.EMAIL_LOGO_URL || '';
-        const logoHtml = logoUrl ? `<img src="${logoUrl}" alt="Auditure" width="60" height="60" style="margin-bottom: 10px;" />` : '';
+        const logoHtml = logoUrl ? `<img src="${logoUrl}" alt="Auditure" width="60" height="60" style="margin-bottom: 10px; background-color: #ffffff; border-radius: 50%; padding: 6px;" />` : '';
 
         const htmlContent = `
         <!DOCTYPE html>
@@ -92,7 +92,7 @@ export class EmailService {
         const from = process.env.EMAIL_FROM || 'Auditure <noreply@auditure.app>';
         const expiryMinutes = process.env.OTP_EXPIRY_MINUTES || '10';
         const logoUrl = process.env.EMAIL_LOGO_URL || '';
-        const logoHtml = logoUrl ? `<img src="${logoUrl}" alt="Auditure" width="60" height="60" style="margin-bottom: 10px;" />` : '';
+        const logoHtml = logoUrl ? `<img src="${logoUrl}" alt="Auditure" width="60" height="60" style="margin-bottom: 10px; background-color: #ffffff; border-radius: 50%; padding: 6px;" />` : '';
 
         const htmlContent = `
         <!DOCTYPE html>
