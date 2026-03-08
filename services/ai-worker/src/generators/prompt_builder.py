@@ -108,7 +108,8 @@ class DebateConfig:
             "open-minded explorer", "fair assessor"
         ]
 
-        guest_chaos = random.randint(1, 10)
+        # Debates need assertive guests — floor at 6 so they push back hard
+        guest_chaos = random.randint(6, 10)
 
         # Guest MUST oppose the host (same-side = discussion, not debate)
         if host_position == DebatePosition.ADVOCATE:
@@ -1850,6 +1851,31 @@ CRITICAL RULES:
 - If you're running long, CUT middle content — NEVER cut the ending.
 - A script without a proper conclusion is REJECTED. Always finish the conversation."""
 
+        # Build title focus instruction for DEBATE/DISCUSSION themes
+        # Generic titles like "Chapter 1" shouldn't constrain the topic
+        title_focus_instruction = ""
+        title_lower = request.episode_title.lower().strip()
+        is_generic_title = (
+            title_lower.startswith("chapter")
+            or title_lower.startswith("ch ")
+            or title_lower.startswith("part ")
+            or title_lower == request.book_title.lower().strip()
+        )
+        if not is_generic_title:
+            if request.episode_theme == "DEBATE":
+                title_focus_instruction = (
+                    "**DEBATE TOPIC**: The episode title above IS the central debate question. "
+                    "The ENTIRE debate MUST center around this question. HOST argues one side, "
+                    "GUEST argues the other, using evidence from the book content. "
+                    "Do NOT wander into general book discussion — stay focused on this question."
+                )
+            elif request.episode_theme == "DISCUSSION":
+                title_focus_instruction = (
+                    "**DISCUSSION FOCUS**: The episode title above IS the central topic of this episode. "
+                    "The conversation should be anchored around this theme, exploring it from multiple angles "
+                    "using evidence and ideas from the book content. Stay focused on the title's theme."
+                )
+
         prompt = f"""You are {request.podcaster_name}, a podcast host creating an episode about "{request.book_title}"{author_line}.
 
 ## Your Personality
@@ -1893,7 +1919,7 @@ When content is limited, use CREATIVE EXPANSION instead of repeating:
 {chunk_context_section}
 ## Episode Title
 "{request.episode_title}"
-
+{title_focus_instruction}
 {structure_section}
 
 Now write {"Part " + str(request.chunk_num) + " of " + str(request.total_chunks) + " of " if is_chunked else ""}the {"complete " if not is_chunked else ""}podcast script:
