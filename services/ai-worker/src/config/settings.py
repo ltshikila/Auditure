@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     # Processing
     # Gemini TTS actual speaking rate: ~150 wpm (measured from production data)
     words_per_minute: int = 150
-    max_book_content_chars: int = 50000  # GPT-4.1-mini 1M context allows large content
+    max_book_content_chars: int = 500000  # GPT-4.1-mini 1M context (~125k tokens at ~4 chars/token)
     script_generation_timeout: int = 120  # GPT-4.1-mini timeout
 
     # TTS

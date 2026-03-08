@@ -123,13 +123,23 @@ class EpisodeConsumer(BaseConsumer):
             if not book_content or not book_content.strip():
                 raise ValueError("No book content available for script generation")
 
-            # Log truncation warning if content was truncated
+            # Log truncation warning and notify user if content was truncated
             if content_result["truncated"]:
+                chapters_included = content_result['chapters_included']
+                total_chapters = content_result['total_chapters']
                 logger.warning(
                     f"[STEP 3/10] Content truncated! "
                     f"Used {content_result['returned_chars']:,} of {content_result['total_chars']:,} chars "
-                    f"({content_result['chapters_included']}/{content_result['total_chapters']} chapters fully included). "
+                    f"({chapters_included}/{total_chapters} chapters fully included). "
                     f"Consider using fewer chapters for better coverage."
+                )
+                # Notify user that not all requested content could be included
+                self._send_truncation_warning(
+                    user_id=message["userId"],
+                    episode_id=episode_id,
+                    episode_title=message.get("title", "your episode"),
+                    chapters_included=chapters_included,
+                    total_chapters=total_chapters,
                 )
             else:
                 logger.info(
@@ -449,6 +459,44 @@ class EpisodeConsumer(BaseConsumer):
         except Exception as e:
             logger.error(f"Failed to send notification: {e}")
             # Don't raise - notification failure shouldn't affect episode processing
+
+    def _send_truncation_warning(
+        self,
+        user_id: str,
+        episode_id: str,
+        episode_title: str,
+        chapters_included: int,
+        total_chapters: int,
+    ) -> None:
+        """Notify user that not all requested chapters could be included."""
+        try:
+            title = "Content Trimmed"
+            body = (
+                f'"{episode_title}" only covered {chapters_included} of '
+                f'{total_chapters} selected chapters. Try selecting fewer '
+                f'chapters for more complete coverage.'
+            )
+            data = {"episodeId": episode_id, "route": f"/episodes/{episode_id}"}
+
+            notification_id = self.repository.create_notification(
+                user_id=user_id,
+                notification_type="SYSTEM",
+                title=title,
+                body=body,
+                data=data,
+            )
+
+            if notification_id:
+                self.redis_client.queue_notification(
+                    notification_id=notification_id,
+                    user_id=user_id,
+                    notification_type="SYSTEM",
+                    title=title,
+                    body=body,
+                    data=data,
+                )
+        except Exception as e:
+            logger.error(f"Failed to send truncation warning: {e}")
 
     def _build_content_scope(
         self,
