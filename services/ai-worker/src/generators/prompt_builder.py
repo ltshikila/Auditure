@@ -1594,7 +1594,7 @@ Create an energetic, friendly discussion with frequent engagement (5+ times):
         self,
         target_length_min: int,
         target_length_max: int,
-        words_per_minute: int = 148,  # Gemini TTS ~148 wpm at default speed 5
+        words_per_minute: int = 175,  # Gemini TTS avg ~175 wpm (measured from production)
     ) -> int:
         """Calculate target word count from time range.
 

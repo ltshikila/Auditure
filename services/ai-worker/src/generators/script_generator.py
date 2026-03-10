@@ -245,15 +245,22 @@ class ScriptGenerator:
     def _speed_to_wpm(self, speaking_speed: int, voice_tier: str = "standard") -> int:
         """Convert podcaster speaking speed (1-10) to words per minute.
 
-        Gemini TTS has a FIXED speaking rate (~150 wpm) — the speed slider
-        has no effect on Gemini's output rate. Only Google Cloud Standard TTS
-        honors the speaking_rate parameter.
+        Gemini TTS voices each have their own natural speaking rate — faster
+        voices (higher speed rating) produce more words per minute of audio.
+        The speaking_speed slider selects which voice is used, which in turn
+        determines the actual WPM.
 
-        Production data: 4022 words / 26.9 min = 149.7 wpm (Gemini).
+        Production data (measured from real episodes):
+          Speed 4-5 voices (Charon, Kore, Despina): ~163-179 wpm, avg 173
+          Speed 6 voices (Achird): ~168-172 wpm, avg 170
+          Speed 7+ voices (Puck, Fenrir): estimated ~185-200 wpm
+          Overall average: 173 wpm
+
+        Model: base 155 wpm + 5 wpm per speed point above 1.
         """
         if voice_tier == "gemini":
-            # Gemini TTS speaks at a fixed ~150 wpm regardless of speed slider
-            return self.words_per_minute
+            speed = max(1, min(10, speaking_speed))
+            return 155 + (speed - 1) * 5  # Range: 155-200 wpm
 
         # Google Cloud Standard TTS: speed slider maps to speaking_rate
         speed = max(1, min(10, speaking_speed))
