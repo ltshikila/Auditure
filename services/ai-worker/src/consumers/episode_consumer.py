@@ -193,7 +193,7 @@ class EpisodeConsumer(BaseConsumer):
             summary = None
             try:
                 summary_prompt = (
-                    f'Write a 1-2 sentence summary of this podcast episode (under 300 characters). '
+                    f'Write a 1-2 sentence summary of this podcast episode (under 500 characters). '
                     f'The summary must be a complete thought — never end mid-sentence.\n\n'
                     f'Book: "{book.title}" by {book.author}\n'
                     f'Episode: "{message["title"]}"\n\n'
@@ -207,7 +207,7 @@ class EpisodeConsumer(BaseConsumer):
                         "You are a podcast summary writer. Output ONLY the summary text — "
                         "no quotes, labels, or prefixes like 'Summary:'. "
                         "Write 1-2 complete sentences that capture what the episode covers. "
-                        "Keep it under 300 characters."
+                        "Keep it under 500 characters."
                     ),
                 )
                 summary = summary.strip().strip('"').strip("'")
@@ -217,7 +217,16 @@ class EpisodeConsumer(BaseConsumer):
                         summary = summary[len(prefix):].strip()
                 # Strip markdown formatting (bold/italic asterisks)
                 summary = summary.replace("*", "")
-                summary = summary[:300]
+                # Truncate at sentence boundary if too long
+                if len(summary) > 500:
+                    # Find last sentence-ending punctuation before 500 chars
+                    for end_char in ['. ', '! ', '? ']:
+                        last = summary[:500].rfind(end_char)
+                        if last > 100:
+                            summary = summary[:last + 1]
+                            break
+                    else:
+                        summary = summary[:500]
                 # If summary is suspiciously short, retry once with a simpler prompt
                 if len(summary) < 30:
                     logger.warning(
@@ -234,7 +243,15 @@ class EpisodeConsumer(BaseConsumer):
                         temperature=0.7,
                         system_prompt="Write 1-2 complete sentences. No labels or prefixes.",
                     )
-                    summary = summary.strip().strip('"').strip("'").replace("*", "")[:300]
+                    summary = summary.strip().strip('"').strip("'").replace("*", "")
+                    if len(summary) > 500:
+                        for end_char in ['. ', '! ', '? ']:
+                            last = summary[:500].rfind(end_char)
+                            if last > 100:
+                                summary = summary[:last + 1]
+                                break
+                        else:
+                            summary = summary[:500]
                 logger.info(f"[STEP 5/10] Summary generated ({len(summary)} chars): {summary}")
             except Exception as e:
                 logger.warning(f"[STEP 5/10] Summary generation failed (non-critical): {e}")
