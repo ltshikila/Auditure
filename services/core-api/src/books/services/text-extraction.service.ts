@@ -1869,6 +1869,9 @@ export class TextExtractionService {
         // Decode HTML entities
         let cleaned = he.decode(text);
 
+        // Remove null bytes (PostgreSQL rejects 0x00 in UTF8 text columns)
+        cleaned = cleaned.replace(/\0/g, '');
+
         // Remove excessive whitespace
         cleaned = cleaned.replace(/[ \t]+/g, ' ');
         cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
