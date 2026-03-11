@@ -1,5 +1,4 @@
 import { apiClient } from './api';
-import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 
 // Types
@@ -102,30 +101,21 @@ class SubscriptionService {
                 return { success: false, error: 'Failed to create checkout session' };
             }
 
-            console.log(`[Subscription] Opening checkout URL: ${session.url}`);
+            console.log(`[Subscription] Opening checkout URL in system browser: ${session.url}`);
 
-            // Open checkout in in-app browser
-            const returnUrl = Linking.createURL('subscription');
-            const result = await WebBrowser.openAuthSessionAsync(session.url, returnUrl);
+            // Open checkout in the system browser (not in-app Chrome Custom Tab).
+            // This survives app switching during 3D Secure bank authentication
+            // (e.g. switching to banking app for PIN entry).
+            // After payment, Paystack redirects to server callback which deep links
+            // back to the app via auditure://subscription?status=success.
+            await Linking.openURL(session.url);
 
-            console.log(`[Subscription] Browser result: ${result.type}`);
+            console.log('[Subscription] System browser opened, awaiting deep link callback');
 
-            if (result.type === 'success') {
-                const url = result.url;
-                if (url.includes('success')) {
-                    console.log('[Subscription] Checkout completed successfully');
-                    return { success: true };
-                } else if (url.includes('cancel') || url.includes('failed')) {
-                    console.log('[Subscription] Checkout was cancelled or failed');
-                    return { success: false, cancelled: true };
-                }
-            }
-
-            if (result.type === 'cancel' || result.type === 'dismiss') {
-                return { success: false, cancelled: true };
-            }
-
-            return { success: false, error: 'Checkout did not complete' };
+            // Payment will complete in the browser and return via deep link.
+            // The subscription screen's useFocusEffect will refresh status when
+            // the user returns to the app.
+            return { success: false, cancelled: true };
         } catch (error: any) {
             console.error('[Subscription] Checkout error:', error);
             return {
