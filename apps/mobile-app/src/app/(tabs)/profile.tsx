@@ -664,20 +664,14 @@ export default function Profile() {
                             })()}
 
                             {/* Reset/Expires info - only show for paid tiers */}
-                            {subscription.isPaid && subscription.periodStart && (
+                            {subscription.isPaid && subscription.premiumExpiresAt && (
                                 <Text className="font-inter text-gray-500 text-xs mt-3">
                                     {(() => {
-                                        const periodStart = new Date(subscription.periodStart);
-                                        const nextReset = new Date(
-                                            periodStart.getFullYear(),
-                                            periodStart.getMonth() + 1,
-                                            periodStart.getDate(),
-                                        );
                                         const daysUntilReset = Math.ceil(
-                                            (nextReset.getTime() - Date.now()) /
+                                            (new Date(subscription.premiumExpiresAt).getTime() - Date.now()) /
                                                 (1000 * 60 * 60 * 24),
                                         );
-                                        return `Resets in ${daysUntilReset} days`;
+                                        return `Resets in ${daysUntilReset} day${daysUntilReset !== 1 ? 's' : ''}`;
                                     })()}
                                 </Text>
                             )}
