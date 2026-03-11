@@ -26,12 +26,17 @@ export class BookExtractionWorker implements OnModuleInit {
     ) {}
 
     async onModuleInit() {
-        await this.rabbitMQService.consumeBookExtractionQueue(this.handleExtractionJob.bind(this));
+        await this.rabbitMQService.consumeBookExtractionQueue(
+            (job, retryContext) => this.handleExtractionJob(job, retryContext),
+        );
         this.logger.log('Book extraction worker started');
     }
 
-    private async handleExtractionJob(job: BookExtractionJob): Promise<void> {
-        this.logger.log(`Processing extraction job for book ${job.bookId}`);
+    private async handleExtractionJob(
+        job: BookExtractionJob,
+        retryContext: { attempt: number; maxRetries: number },
+    ): Promise<void> {
+        this.logger.log(`Processing extraction job for book ${job.bookId} (attempt ${retryContext.attempt}/${retryContext.maxRetries})`);
 
         try {
             // 1. Update status to PROCESSING
@@ -287,59 +292,64 @@ export class BookExtractionWorker implements OnModuleInit {
                 this.logger.log(`Queued pending episode ${episode.id} for generation`);
             }
         } catch (error) {
-            this.logger.error(`Failed to extract book ${job.bookId}`);
+            const isFinalAttempt = retryContext.attempt >= retryContext.maxRetries;
+            this.logger.error(`Failed to extract book ${job.bookId} (attempt ${retryContext.attempt}/${retryContext.maxRetries}, final: ${isFinalAttempt})`);
             this.logger.error(error);
 
-            // Store technical error in book for debugging
-            await this.databaseService.withRetry(() =>
-                this.databaseService.book.update({
-                    where: { id: job.bookId },
-                    data: {
-                        extractionStatus: 'FAILED',
-                        extractionError: error.message,
-                    },
-                }),
-            );
-
-            // Notify user of extraction failure
             const userFriendlyError = this.getUserFriendlyError(error, job.sourceType);
-            try {
-                const failedBook = await this.databaseService.withRetry(() =>
-                    this.databaseService.book.findUnique({
+
+            if (isFinalAttempt) {
+                // Only update DB status and notify user on the final attempt
+                await this.databaseService.withRetry(() =>
+                    this.databaseService.book.update({
                         where: { id: job.bookId },
-                        select: { title: true },
+                        data: {
+                            extractionStatus: 'FAILED',
+                            extractionError: error.message,
+                        },
                     }),
                 );
-                const bookTitle = failedBook?.title || 'your book';
-                await this.notificationsService.notifyBookFailed(
-                    job.userId,
-                    bookTitle,
-                    userFriendlyError,
+
+                // Notify user of extraction failure (only once, on final attempt)
+                try {
+                    const failedBook = await this.databaseService.withRetry(() =>
+                        this.databaseService.book.findUnique({
+                            where: { id: job.bookId },
+                            select: { title: true },
+                        }),
+                    );
+                    const bookTitle = failedBook?.title || 'your book';
+                    await this.notificationsService.notifyBookFailed(
+                        job.userId,
+                        bookTitle,
+                        userFriendlyError,
+                    );
+                } catch (notifError) {
+                    this.logger.error(`Failed to send book failed notification: ${notifError.message}`);
+                }
+
+                // Mark all pending episodes for this book as FAILED
+                // so they don't remain stuck in "Queued" state indefinitely
+                const failedEpisodes = await this.databaseService.withRetry(() =>
+                    this.databaseService.episode.updateMany({
+                        where: {
+                            bookId: job.bookId,
+                            generationStatus: 'PENDING',
+                        },
+                        data: {
+                            generationStatus: 'FAILED',
+                            generationError: userFriendlyError,
+                        },
+                    }),
                 );
-            } catch (notifError) {
-                this.logger.error(`Failed to send book failed notification: ${notifError.message}`);
-            }
 
-            // Mark all pending episodes for this book as FAILED
-            // so they don't remain stuck in "Queued" state indefinitely
-
-            const failedEpisodes = await this.databaseService.withRetry(() =>
-                this.databaseService.episode.updateMany({
-                    where: {
-                        bookId: job.bookId,
-                        generationStatus: 'PENDING',
-                    },
-                    data: {
-                        generationStatus: 'FAILED',
-                        generationError: userFriendlyError,
-                    },
-                }),
-            );
-
-            if (failedEpisodes.count > 0) {
-                this.logger.warn(
-                    `Marked ${failedEpisodes.count} pending episode(s) as FAILED due to book extraction failure`,
-                );
+                if (failedEpisodes.count > 0) {
+                    this.logger.warn(
+                        `Marked ${failedEpisodes.count} pending episode(s) as FAILED due to book extraction failure`,
+                    );
+                }
+            } else {
+                this.logger.log(`Will retry extraction for book ${job.bookId}`);
             }
 
             throw error; // Re-throw for RabbitMQ retry logic

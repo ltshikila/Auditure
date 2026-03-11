@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import {
     View,
     Text,
@@ -7,6 +7,9 @@ import {
     ActivityIndicator,
     RefreshControl,
     Image,
+    Modal,
+    ScrollView,
+    Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -162,6 +165,7 @@ export default function NotificationsScreen() {
         deleteAllNotifications,
     } = useNotifications();
     const { showAlert } = useAlert();
+    const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
 
     useEffect(() => {
         fetchNotifications();
@@ -174,10 +178,10 @@ export default function NotificationsScreen() {
     );
 
     const handleNotificationPress = async (notification: Notification) => {
-        // Mark as read only — no navigation
         if (!notification.read) {
             await markAsRead(notification.id);
         }
+        setSelectedNotification(notification);
     };
 
     const handleMarkAllAsRead = () => {
@@ -319,6 +323,72 @@ export default function NotificationsScreen() {
                     }
                 />
             )}
+
+            {/* Notification Detail Modal */}
+            <Modal
+                visible={!!selectedNotification}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setSelectedNotification(null)}
+            >
+                <Pressable
+                    className="flex-1 bg-black/50 justify-end"
+                    onPress={() => setSelectedNotification(null)}
+                >
+                    <Pressable
+                        className="bg-brand-beige rounded-t-3xl max-h-[70%]"
+                        onPress={() => {}}
+                    >
+                        {selectedNotification && (
+                            <>
+                                {/* Handle bar */}
+                                <View className="items-center pt-3 pb-2">
+                                    <View className="w-10 h-1 bg-gray-300 rounded-full" />
+                                </View>
+
+                                <ScrollView className="px-6 pb-8" bounces={false}>
+                                    {/* Icon + Type */}
+                                    <View className="flex-row items-center mb-4 mt-2">
+                                        <View
+                                            className="w-12 h-12 rounded-xl items-center justify-center mr-4"
+                                            style={{ backgroundColor: `${getNotificationColor(selectedNotification.type)}15` }}
+                                        >
+                                            <Ionicons
+                                                name={getNotificationIcon(selectedNotification.type)}
+                                                size={24}
+                                                color={getNotificationColor(selectedNotification.type)}
+                                            />
+                                        </View>
+                                        <Text className="font-inter text-xs text-gray-400">
+                                            {formatTimeAgo(selectedNotification.createdAt)}
+                                        </Text>
+                                    </View>
+
+                                    {/* Title */}
+                                    <Text className="font-inter-bold text-xl text-brand-black mb-3">
+                                        {selectedNotification.title}
+                                    </Text>
+
+                                    {/* Body */}
+                                    <Text className="font-inter text-base text-gray-600 leading-6 mb-6">
+                                        {selectedNotification.body}
+                                    </Text>
+                                </ScrollView>
+
+                                {/* Dismiss button */}
+                                <View className="px-6 pb-8">
+                                    <TouchableOpacity
+                                        onPress={() => setSelectedNotification(null)}
+                                        className="bg-[#F5F5F0] py-3.5 rounded-xl items-center"
+                                    >
+                                        <Text className="font-inter-medium text-gray-600">Dismiss</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </>
+                        )}
+                    </Pressable>
+                </Pressable>
+            </Modal>
         </SafeAreaView>
     );
 }

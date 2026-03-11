@@ -13,7 +13,7 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     private isShuttingDown = false;
 
     // Store consumer handlers so they can be re-registered on reconnect
-    private bookExtractionHandler: ((job: BookExtractionJob) => Promise<void>) | null = null;
+    private bookExtractionHandler: ((job: BookExtractionJob, retryContext: { attempt: number; maxRetries: number }) => Promise<void>) | null = null;
     private episodeGenerationHandler: ((job: EpisodeGenerationJob) => Promise<void>) | null = null;
 
     async onModuleInit() {
@@ -111,31 +111,34 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     }
 
     async consumeBookExtractionQueue(
-        handler: (job: BookExtractionJob) => Promise<void>,
+        handler: (job: BookExtractionJob, retryContext: { attempt: number; maxRetries: number }) => Promise<void>,
     ): Promise<void> {
         this.bookExtractionHandler = handler;
         await this.registerBookExtractionConsumer(handler);
     }
 
     private async registerBookExtractionConsumer(
-        handler: (job: BookExtractionJob) => Promise<void>,
+        handler: (job: BookExtractionJob, retryContext: { attempt: number; maxRetries: number }) => Promise<void>,
     ): Promise<void> {
         if (!this.channel) {
             this.logger.error('RabbitMQ channel not available');
             return;
         }
 
+        const maxRetries = 3;
+
         await this.channel.consume('book_extraction', async msg => {
             if (msg) {
                 try {
                     const job: BookExtractionJob = JSON.parse(msg.content.toString());
-                    await handler(job);
+                    const retryCount = msg.properties.headers?.['x-retry-count'] || 0;
+                    await handler(job, { attempt: retryCount + 1, maxRetries });
                     this.channel?.ack(msg);
                 } catch (error) {
                     this.logger.error('Error processing job', error);
-                    // Move to DLQ after 3 retries
+                    // Move to DLQ after max retries
                     const retryCount = (msg.properties.headers?.['x-retry-count'] || 0) + 1;
-                    if (retryCount >= 3) {
+                    if (retryCount >= maxRetries) {
                         this.channel?.sendToQueue('book_extraction_dlq', msg.content);
                         this.channel?.ack(msg);
                         this.logger.error(`Job moved to DLQ after ${retryCount} retries`);
