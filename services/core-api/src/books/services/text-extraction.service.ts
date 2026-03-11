@@ -1866,8 +1866,11 @@ export class TextExtractionService {
     }
 
     private cleanText(text: string): string {
+        if (!text || typeof text !== 'string') return '';
+
         // Decode HTML entities
         let cleaned = he.decode(text);
+        if (typeof cleaned !== 'string') cleaned = String(cleaned ?? '');
 
         // Remove null bytes (PostgreSQL rejects 0x00 in UTF8 text columns)
         cleaned = cleaned.replace(/\0/g, '');
@@ -1960,6 +1963,7 @@ export class TextExtractionService {
     }
 
     private stripHtml(html: string): string {
+        if (!html || typeof html !== 'string') return '';
         // Simple HTML tag removal
         return html
             .replace(/<[^>]*>/g, ' ')
