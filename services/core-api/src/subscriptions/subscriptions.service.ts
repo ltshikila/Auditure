@@ -573,6 +573,8 @@ export class SubscriptionsService {
                         premiumExpiresAt,
                         geminiEpisodeLimit: limits.geminiEpisodeLimit,
                         standardEpisodeLimit: limits.standardEpisodeLimit,
+                        geminiEpisodesUsed: 0,
+                        standardEpisodesUsed: 0,
                         paystackCustomerCode:
                             transaction.customer?.customer_code ||
                             subscription.paystackCustomerCode,
@@ -902,12 +904,14 @@ export class SubscriptionsService {
                     premiumExpiresAt: this.calculateNextBillingDate(),
                     geminiEpisodeLimit: limits.geminiEpisodeLimit,
                     standardEpisodeLimit: limits.standardEpisodeLimit,
+                    geminiEpisodesUsed: 0,
+                    standardEpisodesUsed: 0,
                     paystackCustomerCode:
                         data.customer?.customer_code || subscription.paystackCustomerCode,
                 },
             });
 
-            this.logger.log(`User ${userId} payment successful, tier: ${subscriptionTier}`);
+            this.logger.log(`User ${userId} payment successful, tier: ${subscriptionTier}, usage reset`);
 
             const tierName = subscriptionTier === 'PRO' ? 'Pro' : 'Starter';
             await this.notificationsService.notifySystem(
@@ -968,10 +972,12 @@ export class SubscriptionsService {
                     : this.calculateNextBillingDate(),
                 geminiEpisodeLimit: limits.geminiEpisodeLimit,
                 standardEpisodeLimit: limits.standardEpisodeLimit,
+                geminiEpisodesUsed: 0,
+                standardEpisodesUsed: 0,
             },
         });
 
-        this.logger.log(`User ${subscription.userId} subscribed to ${tier}`);
+        this.logger.log(`User ${subscription.userId} subscribed to ${tier}, usage reset`);
 
         const tierName = tier === 'PRO' ? 'Pro' : 'Starter';
         await this.notificationsService.notifySystem(
