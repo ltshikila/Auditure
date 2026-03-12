@@ -32,7 +32,7 @@ export class DatabaseService extends PrismaClient implements OnModuleInit, OnMod
             keepAliveInitialDelayMillis: 10_000,
         });
 
-        const adapter = new PrismaPg(pool);
+        const adapter = new PrismaPg(pool as any);
 
         super({
             adapter,

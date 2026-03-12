@@ -12,7 +12,7 @@ const pool = new Pool({
   user: 'admin',
   password: 'password',
 });
-const adapter = new PrismaPg(pool);
+const adapter = new PrismaPg(pool as any);
 
 const prisma = new PrismaClient({
   adapter,
