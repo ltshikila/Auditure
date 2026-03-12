@@ -400,9 +400,10 @@ class ScriptGenerator:
             if chunk_num == 1:
                 cohost_archetype = chunk_cohost
 
-            # Final chunk gets extra token headroom so the conclusion is never truncated.
+            # Give all chunks token headroom so the LLM doesn't hit max_tokens mid-sentence.
+            # Final chunk gets more headroom so the conclusion is never truncated.
             is_final_chunk = chunk_num == num_chunks
-            token_target = int(this_chunk_target * 1.4) if is_final_chunk else this_chunk_target
+            token_target = int(this_chunk_target * 1.4) if is_final_chunk else int(this_chunk_target * 1.2)
             chunk_script = self.llm_client.generate_script(prompt, token_target)
             chunk_script = self._clean_script(chunk_script, episode_type)
 
