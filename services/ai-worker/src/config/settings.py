@@ -55,7 +55,7 @@ class Settings(BaseSettings):
     # Gemini TTS baseline WPM — actual rate varies per voice (155-200 wpm)
     # Dynamic calculation in script_generator._speed_to_wpm() overrides this
     words_per_minute: int = 175
-    max_book_content_chars: int = 500000  # GPT-4.1-mini 1M context (~125k tokens at ~4 chars/token)
+    max_book_content_chars: int = 1000000  # GPT-4.1-mini 1M context (~250k tokens at ~4 chars/token)
     script_generation_timeout: int = 120  # GPT-4.1-mini timeout
 
     # TTS
