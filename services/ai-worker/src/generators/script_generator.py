@@ -401,9 +401,15 @@ class ScriptGenerator:
                 cohost_archetype = chunk_cohost
 
             # Give all chunks token headroom so the LLM doesn't hit max_tokens mid-sentence.
-            # Final chunk gets more headroom so the conclusion is never truncated.
+            # Final chunk gets extra headroom so the conclusion is never truncated.
             is_final_chunk = chunk_num == num_chunks
-            token_target = int(this_chunk_target * 1.4) if is_final_chunk else int(this_chunk_target * 1.2)
+            if is_final_chunk:
+                # Final chunk must have enough room for a proper conclusion,
+                # even if earlier chunks overshot their budgets.
+                # Floor of 1000 words ensures ~1800 max_tokens for the outro.
+                token_target = max(int(this_chunk_target * 1.4), 1000)
+            else:
+                token_target = int(this_chunk_target * 1.2)
             chunk_script = self.llm_client.generate_script(prompt, token_target)
             chunk_script = self._clean_script(chunk_script, episode_type)
 
