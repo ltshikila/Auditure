@@ -369,6 +369,11 @@ class ScriptGenerator:
                 f"(remaining: {remaining_words} words across {remaining_chunks} chunks)"
             )
 
+            # Deflate the word target in the prompt — the LLM consistently
+            # overshoots by ~50%, so asking for 75% of the budget keeps actual
+            # output close to the real budget.
+            prompt_target = int(this_chunk_target * 0.75)
+
             request = ScriptRequest(
                 book_content=book_content,
                 book_title=book_title,
@@ -388,7 +393,7 @@ class ScriptGenerator:
                 book_genres=book_genres,
                 chunk_num=chunk_num,
                 total_chunks=num_chunks,
-                chunk_target_words=this_chunk_target,
+                chunk_target_words=prompt_target,
                 previous_summary=previous_summary if chunk_num > 1 else None,
                 topics_covered=topics_covered if chunk_num > 1 else None,
             )
@@ -400,16 +405,10 @@ class ScriptGenerator:
             if chunk_num == 1:
                 cohost_archetype = chunk_cohost
 
-            # Give all chunks token headroom so the LLM doesn't hit max_tokens mid-sentence.
-            # Final chunk gets extra headroom so the conclusion is never truncated.
+            # Token budget based on the real chunk target (not the deflated prompt target).
+            # 1.2x headroom for non-final, 1.4x for final chunk.
             is_final_chunk = chunk_num == num_chunks
-            if is_final_chunk:
-                # Final chunk must have enough room for a proper conclusion,
-                # even if earlier chunks overshot their budgets.
-                # Floor of 1000 words ensures ~1800 max_tokens for the outro.
-                token_target = max(int(this_chunk_target * 1.4), 1000)
-            else:
-                token_target = int(this_chunk_target * 1.2)
+            token_target = int(this_chunk_target * 1.4) if is_final_chunk else int(this_chunk_target * 1.2)
             chunk_script = self.llm_client.generate_script(prompt, token_target)
             chunk_script = self._clean_script(chunk_script, episode_type)
 
