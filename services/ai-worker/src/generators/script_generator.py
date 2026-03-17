@@ -358,21 +358,16 @@ class ScriptGenerator:
         topics_covered: list[str] = []
         words_generated_so_far = 0
 
+        # Fixed budget per chunk — no dynamic rebudgeting.
+        # This prevents later chunks from being starved when earlier ones overshoot.
+        fixed_chunk_target = words_per_chunk
+
         for chunk_num in range(1, num_chunks + 1):
-            # Dynamic budget: divide remaining words evenly among remaining chunks
-            remaining_words = target_words - words_generated_so_far
-            remaining_chunks = num_chunks - chunk_num + 1
-            this_chunk_target = max(400, remaining_words // remaining_chunks)
+            is_final_chunk = chunk_num == num_chunks
 
             logger.info(
-                f"Chunk {chunk_num}/{num_chunks} budget: {this_chunk_target} words "
-                f"(remaining: {remaining_words} words across {remaining_chunks} chunks)"
+                f"Chunk {chunk_num}/{num_chunks} budget: {fixed_chunk_target} words (fixed)"
             )
-
-            # Deflate the word target in the prompt — the LLM consistently
-            # overshoots by ~50%, so asking for 75% of the budget keeps actual
-            # output close to the real budget.
-            prompt_target = int(this_chunk_target * 0.75)
 
             request = ScriptRequest(
                 book_content=book_content,
@@ -393,7 +388,7 @@ class ScriptGenerator:
                 book_genres=book_genres,
                 chunk_num=chunk_num,
                 total_chunks=num_chunks,
-                chunk_target_words=prompt_target,
+                chunk_target_words=fixed_chunk_target,
                 previous_summary=previous_summary if chunk_num > 1 else None,
                 topics_covered=topics_covered if chunk_num > 1 else None,
             )
@@ -405,10 +400,9 @@ class ScriptGenerator:
             if chunk_num == 1:
                 cohost_archetype = chunk_cohost
 
-            # Token budget based on the real chunk target (not the deflated prompt target).
-            # 1.2x headroom for non-final, 1.4x for final chunk.
-            is_final_chunk = chunk_num == num_chunks
-            token_target = int(this_chunk_target * 1.4) if is_final_chunk else int(this_chunk_target * 1.2)
+            # Non-final chunks: fixed ceiling based on chunk budget.
+            # Final chunk: generous ceiling (3000 tokens) so the conclusion is never truncated.
+            token_target = 3000 if is_final_chunk else fixed_chunk_target
             chunk_script = self.llm_client.generate_script(prompt, token_target)
             chunk_script = self._clean_script(chunk_script, episode_type)
 
