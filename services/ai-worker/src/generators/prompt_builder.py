@@ -704,9 +704,30 @@ Count your words as you write — stop introducing new points once you approach 
         self,
         previous_summary: Optional[str] = None,
         topics_covered: Optional[list[str]] = None,
+        debate_config: Optional[DebateConfig] = None,
     ) -> str:
         """Build context from previous chunks for anti-repetition."""
         sections = []
+
+        # Reinforce debate role assignments so the LLM doesn't drift across chunks
+        if debate_config:
+            position_descriptions = {
+                DebatePosition.ADVOCATE: "SUPPORTS the book's ideas",
+                DebatePosition.CRITIC: "CHALLENGES the book's ideas",
+                DebatePosition.MODERATE: "BALANCED perspective",
+                DebatePosition.DEVILS_ADVOCATE: "plays devil's advocate",
+            }
+            host_role = position_descriptions.get(debate_config.host_position, "")
+            guest_roles = []
+            for g in debate_config.guest_personalities:
+                role = position_descriptions.get(g.position, "")
+                guest_roles.append(f"**{g.name}:** {role}")
+            sections.append(
+                f"## ROLE REMINDER — DO NOT SWAP!\n"
+                f"**HOST:** {host_role}\n"
+                + "\n".join(guest_roles)
+                + "\nMaintain these exact positions. Do NOT let speakers drift into the other's role."
+            )
 
         if topics_covered:
             topics_list = "\n".join(f"  - {topic}" for topic in topics_covered)
@@ -1791,6 +1812,7 @@ Repetition is the enemy of engagement. Keep moving forward with fresh content.
                 chunk_context_section = self._build_chunk_context(
                     previous_summary=request.previous_summary,
                     topics_covered=request.topics_covered,
+                    debate_config=request.debate_config if request.chunk_num > 1 else None,
                 )
 
         # Build requirements section (different for chunks vs single-call)

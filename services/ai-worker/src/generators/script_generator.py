@@ -646,13 +646,18 @@ class ScriptGenerator:
         When the LLM hits max_tokens mid-sentence, the last line ends without
         punctuation. We walk backwards and drop lines until we find one that
         ends with sentence-ending punctuation so TTS never reads a half-sentence.
+
+        Safety: never remove more than 5 lines to avoid wiping the entire chunk.
         """
         lines = script.rstrip().split('\n')
-        while lines:
+        max_trim = min(5, len(lines) - 1)  # Always keep at least 1 line
+        trimmed = 0
+        while trimmed < max_trim:
             last = lines[-1].rstrip()
             if last and last[-1] in '.!?"\'…':
                 break
             lines.pop()
+            trimmed += 1
         return '\n'.join(lines)
 
     def _clean_script(self, script: str, episode_type: str) -> str:
