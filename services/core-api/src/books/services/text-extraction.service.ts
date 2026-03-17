@@ -1498,8 +1498,9 @@ export class TextExtractionService {
                     `Chapter ${chapters.length + 1}`;
 
                 // Skip non-content sections (table of contents, copyright, dedication, etc.)
+                // Also catches abbreviated EPUB spine IDs like "cop", "itr", "fm2", "ded", "toc"
                 const lowerTitle = title.toLowerCase();
-                if (/^(contents?|table of contents|copyright|dedication|acknowledgements?|about the author|also by|books by)$/i.test(lowerTitle)) {
+                if (/^(contents?|table of contents|copyright|cop|dedication|ded|acknowledgements?|ack|about the author|also by|books by|title page|itr|toc|fm\d*|bm\d*|frontmatter|backmatter|half-?title|ht|epigraph|epi)$/i.test(lowerTitle)) {
                     continue;
                 }
 
