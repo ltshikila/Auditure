@@ -737,11 +737,12 @@ DO NOT repeat them or use similar examples. Use FRESH illustrations:
 {topics_list}""")
 
         if previous_summary:
-            sections.append(f"""## PREVIOUS CONTEXT (continue from here)
-The previous part ended with:
+            sections.append(f"""## PREVIOUS PART SCRIPT (continue from here)
+Here is the full script from the previous part — match its tone, energy, and flow exactly:
+
 {previous_summary}
 
-Continue naturally from this point — do NOT re-introduce the topic.""")
+Continue naturally from where this left off — do NOT re-introduce the topic or reset the conversation.""")
 
         return "\n\n".join(sections) + "\n" if sections else ""
 

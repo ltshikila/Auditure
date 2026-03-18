@@ -417,10 +417,10 @@ class ScriptGenerator:
             logger.info(f"Chunk {chunk_num} generated: {chunk_word_count} words (total so far: {words_generated_so_far}/{target_words})")
             chunks.append(chunk_script)
 
-            # Build context for next chunk
+            # Build context for next chunk — pass the full previous chunk
+            # so the LLM can match tone, pacing, and conversational flow.
             if chunk_num < num_chunks:
-                sentences = chunk_script.replace('\n', ' ').split('. ')
-                previous_summary = '. '.join(sentences[-3:]) if len(sentences) > 3 else chunk_script[-500:]
+                previous_summary = chunk_script
 
                 new_topics = self._extract_topics_from_chunk(chunk_script)
                 topics_covered.extend(new_topics)
