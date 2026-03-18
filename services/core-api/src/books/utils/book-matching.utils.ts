@@ -46,8 +46,15 @@ export function titlesMatch(titleA: string, titleB: string): boolean {
     // Exact match
     if (normA === normB) return true;
 
-    // Containment (e.g. "A Game of Thrones" vs "A Game of Thrones: A Song of Ice and Fire")
-    if (normA.includes(normB) || normB.includes(normA)) return true;
+    // Containment — but only if the shorter title is a significant portion of the longer.
+    // "Dune" (4 chars) matching "Dune Messiah" (12 chars) = 33% → reject.
+    // "A Game of Thrones" in "A Game of Thrones A Song of Ice and Fire" → 45%, but
+    // that case is caught by the main-title match below. This check handles cases like
+    // "Frankenstein" vs "Frankenstein or the Modern Prometheus" (37%) — those are caught
+    // by main-title match too. So we use a high threshold here to avoid false positives.
+    const shorter = normA.length <= normB.length ? normA : normB;
+    const longer = normA.length > normB.length ? normA : normB;
+    if (longer.includes(shorter) && shorter.length / longer.length >= 0.7) return true;
 
     // Main title match (before colon/dash separator)
     const mainA = normA.split(/[:\-\u2013\u2014]/)[0].trim();
