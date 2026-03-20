@@ -280,6 +280,91 @@ def _crossfade_pcm_chunks(
     return bytes(result)
 
 
+def _trim_long_silences(
+    pcm_data: bytes,
+    sample_rate: int = 24000,
+    sample_width: int = 2,
+    max_silence_ms: int = 600,
+    silence_threshold: int = 300,
+    window_ms: int = 25,
+) -> bytes:
+    """Trim excessively long silences in PCM audio down to max_silence_ms.
+
+    Gemini TTS sometimes generates long pauses (1-3s) between speaker turns.
+    This detects silent regions and caps them at max_silence_ms.
+
+    Args:
+        pcm_data: Raw PCM audio data (16-bit signed)
+        sample_rate: Audio sample rate in Hz
+        sample_width: Bytes per sample (2 for 16-bit)
+        max_silence_ms: Maximum allowed silence duration in ms
+        silence_threshold: RMS below this is considered silence
+        window_ms: Analysis window size in ms
+
+    Returns:
+        PCM data with long silences trimmed
+    """
+    import struct
+
+    if not pcm_data or len(pcm_data) < sample_width * 2:
+        return pcm_data
+
+    window_samples = int(sample_rate * window_ms / 1000)
+    max_silence_samples = int(sample_rate * max_silence_ms / 1000)
+    num_samples = len(pcm_data) // sample_width
+
+    result = bytearray()
+    silence_start = -1
+    i = 0
+
+    while i < num_samples:
+        window_end = min(i + window_samples, num_samples)
+        window_rms = 0.0
+        count = 0
+        for j in range(i, window_end):
+            offset = j * sample_width
+            if offset + sample_width <= len(pcm_data):
+                sample = struct.unpack('<h', pcm_data[offset:offset + sample_width])[0]
+                window_rms += sample * sample
+                count += 1
+
+        if count > 0:
+            window_rms = (window_rms / count) ** 0.5
+
+        if window_rms < silence_threshold:
+            if silence_start == -1:
+                silence_start = i
+        else:
+            if silence_start != -1:
+                silence_length = i - silence_start
+                if silence_length > max_silence_samples:
+                    keep_samples = max_silence_samples
+                    result.extend(pcm_data[silence_start * sample_width:(silence_start + keep_samples) * sample_width])
+                else:
+                    result.extend(pcm_data[silence_start * sample_width:i * sample_width])
+                silence_start = -1
+
+            result.extend(pcm_data[i * sample_width:window_end * sample_width])
+
+        i = window_end
+
+    # Handle trailing silence
+    if silence_start != -1:
+        silence_length = num_samples - silence_start
+        keep_samples = min(silence_length, max_silence_samples)
+        result.extend(pcm_data[silence_start * sample_width:(silence_start + keep_samples) * sample_width])
+
+    trimmed_duration = len(result) / (sample_rate * sample_width)
+    original_duration = len(pcm_data) / (sample_rate * sample_width)
+    if original_duration - trimmed_duration > 0.5:
+        logger.info(
+            f"[Gemini TTS] Trimmed silences: {original_duration:.1f}s -> {trimmed_duration:.1f}s "
+            f"(removed {original_duration - trimmed_duration:.1f}s)"
+        )
+
+    return bytes(result)
+
+
 def _analyze_pcm_chunk(chunk: bytes, chunk_index: int, sample_rate: int = 24000, sample_width: int = 2) -> dict:
     """Analyze PCM chunk for diagnostic purposes.
 
@@ -1073,6 +1158,13 @@ class GeminiTTSClient:
                     f"after {max_retries} attempts"
                 )
 
+            # Trim long silences within each batch
+            pcm_data = _trim_long_silences(
+                pcm_data,
+                sample_rate=self.SAMPLE_RATE,
+                sample_width=self.SAMPLE_WIDTH,
+                max_silence_ms=600,
+            )
             all_pcm_data.append(pcm_data)
 
         # Crossfade all batch segments
@@ -1448,6 +1540,13 @@ class GeminiTTSClient:
                     sample_rate=self.SAMPLE_RATE,
                     sample_width=self.SAMPLE_WIDTH,
                     crossfade_ms=50,  # 50ms crossfade for smooth transitions
+                )
+                # Trim any excessively long silences between speaker turns
+                combined_pcm = _trim_long_silences(
+                    combined_pcm,
+                    sample_rate=self.SAMPLE_RATE,
+                    sample_width=self.SAMPLE_WIDTH,
+                    max_silence_ms=600,
                 )
                 total_duration = len(combined_pcm) / (self.SAMPLE_RATE * self.SAMPLE_WIDTH)
 
