@@ -733,7 +733,8 @@ Count your words as you write — stop introducing new points once you approach 
             topics_list = "\n".join(f"  - {topic}" for topic in topics_covered)
             sections.append(f"""## ALREADY COVERED — DO NOT REPEAT!
 The following topics, examples, and references were used in previous parts.
-DO NOT repeat them or use similar examples. Use FRESH illustrations:
+DO NOT repeat them, rephrase them, or use similar examples. Cover DIFFERENT scenes, events, and ideas from the source material.
+If the previous part discussed a character's trait or action, do NOT revisit the same trait or action — find NEW aspects to explore:
 {topics_list}""")
 
         if previous_summary:
@@ -742,7 +743,11 @@ Here is the full script from the previous part — match its tone, energy, and f
 
 {previous_summary}
 
-Continue naturally from where this left off — do NOT re-introduce the topic or reset the conversation.""")
+Continue naturally from where this left off. CRITICAL RULES:
+- Do NOT re-introduce the topic or reset the conversation
+- Do NOT revisit ANY specific examples, anecdotes, character actions, or plot points from above
+- Move FORWARD to new material from the source chapters — there is plenty of content you haven't covered yet
+- The listener has already heard everything above, so repeating it will bore them""")
 
         return "\n\n".join(sections) + "\n" if sections else ""
 
