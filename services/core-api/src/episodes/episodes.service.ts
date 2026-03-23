@@ -184,7 +184,7 @@ export class EpisodesService {
             const voiceTier = createEpisodeDto.voiceTier || 'STANDARD';
             const hasQuota = await this.usersService.checkQuota(userId, voiceTier);
             if (!hasQuota) {
-                const tierLabel = String(voiceTier) === 'GEMINI' ? 'Gemini' : 'Standard';
+                const tierLabel = String(voiceTier) === 'GEMINI' ? 'Pro' : 'Standard';
                 throw new BadRequestException(
                     `You've reached your monthly ${tierLabel} episode limit. Upgrade your plan for more episodes.`,
                 );
@@ -310,7 +310,7 @@ export class EpisodesService {
             const voiceTier = createEpisodeDto.voiceTier || 'STANDARD';
             const hasQuota = await this.usersService.checkQuota(userId, voiceTier);
             if (!hasQuota) {
-                const tierLabel = String(voiceTier) === 'GEMINI' ? 'Gemini' : 'Standard';
+                const tierLabel = String(voiceTier) === 'GEMINI' ? 'Pro' : 'Standard';
                 throw new BadRequestException(
                     `You've reached your monthly ${tierLabel} episode limit. Upgrade your plan for more episodes.`,
                 );

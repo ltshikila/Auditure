@@ -7,7 +7,7 @@ import {
     ActivityIndicator,
     Modal,
 } from 'react-native';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import { PodcasterSelector } from '@/components/PodcasterSelector';
 import { InfoTooltip } from '@/components/InfoTooltip';
+import { SkeletonBox, SkeletonProvider } from '@/components/skeleton';
 import { podcasterService, Podcaster } from '@/services/podcaster.service';
 import { episodeService, EpisodeType, EpisodeTheme, ContentCoverage, FileUpload, VoiceTier } from '@/services/episode.service';
 import { bookService, Book, Chapter } from '@/services/book.service';
@@ -225,11 +226,32 @@ const Create = () => {
         });
     };
 
-    // Filter books by search term
-    const filteredBooks = userBooks.filter(book =>
-        book.title.toLowerCase().includes(bookSearch.toLowerCase()) ||
-        (book.author && book.author.toLowerCase().includes(bookSearch.toLowerCase()))
-    );
+    // Filter to ready books, deduplicate by title (keep most recent), then apply search
+    const filteredBooks = useMemo(() => {
+        // Only show books with completed extraction
+        const readyBooks = userBooks.filter(
+            book => book.extractionStatus === 'COMPLETED' || book.extractionStatus === 'PARTIALLY_COMPLETED'
+        );
+
+        // Deduplicate by title (case-insensitive), keeping the most recently uploaded
+        const deduped = new Map<string, Book>();
+        for (const book of readyBooks) {
+            const key = book.title.toLowerCase().trim();
+            const existing = deduped.get(key);
+            if (!existing || new Date(book.createdAt) > new Date(existing.createdAt)) {
+                deduped.set(key, book);
+            }
+        }
+        const uniqueBooks = Array.from(deduped.values());
+
+        // Apply search filter
+        if (!bookSearch) return uniqueBooks;
+        const query = bookSearch.toLowerCase();
+        return uniqueBooks.filter(book =>
+            book.title.toLowerCase().includes(query) ||
+            (book.author && book.author.toLowerCase().includes(query))
+        );
+    }, [userBooks, bookSearch]);
 
     // Parse chapters input
     const parseChapters = (input: string): number[] => {
@@ -459,7 +481,7 @@ const Create = () => {
                             Create
                         </Text>
                     </View>
-                    <Text className="font-jakarta text-[#1A1C1E] text-sm mt-1 ml-10">
+                    <Text className="font-jakarta text-[#1A1C1E] text-sm mt-1">
                         Create a podcast episode or your own virtual podcaster
                     </Text>
                 </View>
@@ -660,12 +682,19 @@ const Create = () => {
                             {!selectedBook && (
                                 <View className="max-h-48">
                                     {isLoadingBooks ? (
-                                        <View className="py-6 items-center">
-                                            <ActivityIndicator size="small" color="#BF9A54" />
-                                            <Text className="font-inter text-[#858585] text-sm mt-2">
-                                                Loading your books...
-                                            </Text>
-                                        </View>
+                                        <SkeletonProvider>
+                                            {[0, 1, 2].map((i) => (
+                                                <View key={i} className="bg-brand-input rounded-xl px-4 py-3 mb-2">
+                                                    <View className="flex-row items-center">
+                                                        <SkeletonBox width={36} height={36} borderRadius={8} style={{ marginRight: 12 }} />
+                                                        <View className="flex-1">
+                                                            <SkeletonBox width="70%" height={14} borderRadius={4} />
+                                                            <SkeletonBox width="40%" height={10} borderRadius={4} style={{ marginTop: 6 }} />
+                                                        </View>
+                                                    </View>
+                                                </View>
+                                            ))}
+                                        </SkeletonProvider>
                                     ) : filteredBooks.length === 0 ? (
                                         <View className="py-6 items-center">
                                             <Ionicons name="book-outline" size={32} color="#858585" />
@@ -699,44 +728,11 @@ const Create = () => {
                                                             <Text className="font-inter-medium text-[#1A1C1E] text-sm" numberOfLines={1}>
                                                                 {book.title}
                                                             </Text>
-                                                            <View className="flex-row items-center mt-0.5">
-                                                                {book.author && (
-                                                                    <Text className="font-inter text-[#858585] text-xs mr-2">
-                                                                        {book.author}
-                                                                    </Text>
-                                                                )}
-                                                                <View
-                                                                    className={`px-2 py-0.5 rounded-full ${
-                                                                        book.extractionStatus === 'COMPLETED'
-                                                                            ? 'bg-green-100'
-                                                                            : book.extractionStatus === 'PROCESSING'
-                                                                            ? 'bg-yellow-100'
-                                                                            : book.extractionStatus === 'FAILED'
-                                                                            ? 'bg-red-100'
-                                                                            : 'bg-gray-100'
-                                                                    }`}
-                                                                >
-                                                                    <Text
-                                                                        className={`font-inter text-[10px] ${
-                                                                            book.extractionStatus === 'COMPLETED'
-                                                                                ? 'text-green-700'
-                                                                                : book.extractionStatus === 'PROCESSING'
-                                                                                ? 'text-yellow-700'
-                                                                                : book.extractionStatus === 'FAILED'
-                                                                                ? 'text-red-700'
-                                                                                : 'text-gray-700'
-                                                                        }`}
-                                                                    >
-                                                                        {book.extractionStatus === 'COMPLETED'
-                                                                            ? 'Ready'
-                                                                            : book.extractionStatus === 'PROCESSING'
-                                                                            ? 'Processing'
-                                                                            : book.extractionStatus === 'FAILED'
-                                                                            ? 'Failed'
-                                                                            : 'Pending'}
-                                                                    </Text>
-                                                                </View>
-                                                            </View>
+                                                            {book.author && (
+                                                                <Text className="font-inter text-[#858585] text-xs mt-0.5">
+                                                                    {book.author}
+                                                                </Text>
+                                                            )}
                                                         </View>
                                                         <Ionicons name="chevron-forward" size={20} color="#858585" />
                                                     </View>

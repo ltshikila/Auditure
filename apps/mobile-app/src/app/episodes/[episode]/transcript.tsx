@@ -383,9 +383,8 @@ export default function TranscriptScreen() {
                     )}
                 </View>
 
-                <TouchableOpacity className="w-10 h-10 items-center justify-center">
-                    <Ionicons name="share-outline" size={22} color={COLORS.icon} />
-                </TouchableOpacity>
+                {/* Spacer to balance the back button */}
+                <View className="w-10 h-10" />
             </View>
 
             {/* Transcript Container */}
