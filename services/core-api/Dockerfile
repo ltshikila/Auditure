@@ -1,5 +1,5 @@
 # Auditure Core API Dockerfile
-FROM node:20-alpine AS builder
+FROM node:20-alpine3.20 AS builder
 
 # Install build dependencies for native modules (canvas, bcrypt)
 RUN apk add --no-cache \
@@ -33,7 +33,7 @@ COPY . .
 RUN npm run build
 
 # Production stage
-FROM node:20-alpine AS runner
+FROM node:20-alpine3.20 AS runner
 
 # Install runtime dependencies for canvas
 RUN apk add --no-cache \
