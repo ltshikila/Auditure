@@ -256,10 +256,23 @@ const Create = () => {
     // Parse chapters input
     const parseChapters = (input: string): number[] => {
         if (!input.trim()) return [];
-        return input
-            .split(',')
-            .map(s => parseInt(s.trim(), 10))
-            .filter(n => !isNaN(n) && n > 0);
+        const result: number[] = [];
+        for (const part of input.split(',')) {
+            const trimmed = part.trim();
+            if (!trimmed) continue;
+            const rangeMatch = trimmed.match(/^(\d+)\s*-\s*(\d+)$/);
+            if (rangeMatch) {
+                const start = parseInt(rangeMatch[1], 10);
+                const end = parseInt(rangeMatch[2], 10);
+                if (start > 0 && end >= start) {
+                    for (let i = start; i <= end; i++) result.push(i);
+                }
+            } else {
+                const n = parseInt(trimmed, 10);
+                if (!isNaN(n) && n > 0) result.push(n);
+            }
+        }
+        return [...new Set(result)].sort((a, b) => a - b);
     };
 
     // Handle file picking
@@ -788,14 +801,14 @@ const Create = () => {
                                             placeholder={
                                                 contentCoverage === 'SINGLE_CHAPTER'
                                                     ? 'Enter chapter number (e.g., 3)'
-                                                    : 'Enter chapter numbers (e.g., 1, 2, 3)'
+                                                    : 'Enter chapters (e.g., 1, 2, 3 or 1-5)'
                                             }
                                             placeholderTextColor="#858585"
                                             keyboardType="default"
                                         />
                                     </View>
                                     <Text className="font-inter text-[#858585] text-xs mt-1 ml-1">
-                                        Separate multiple chapters with commas
+                                        Use commas to separate and hyphens for ranges (e.g., 1-5, 13, 20-22)
                                     </Text>
                                 </View>
                             )}
