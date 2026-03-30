@@ -34,7 +34,7 @@ export class BooksController {
     @Post('upload')
     @UseInterceptors(
         FileInterceptor('file', {
-            limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+            limits: { fileSize: 32 * 1024 * 1024 }, // 32MB (Cloud Run HTTP/1 max request size)
             fileFilter: bookFileFilter,
         }),
     )

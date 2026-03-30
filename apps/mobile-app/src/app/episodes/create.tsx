@@ -285,6 +285,14 @@ const Create = () => {
 
             if (!result.canceled && result.assets && result.assets.length > 0) {
                 const asset = result.assets[0];
+                const MAX_FILE_SIZE = 32 * 1024 * 1024; // 32MB
+                if (asset.size && asset.size > MAX_FILE_SIZE) {
+                    showAlert({
+                        title: 'File Too Large',
+                        message: `This file is ${Math.round(asset.size / 1024 / 1024)}MB. The maximum upload size is 32MB. Please use a smaller file.`,
+                    });
+                    return;
+                }
                 setSelectedFile({
                     uri: asset.uri,
                     name: asset.name,
@@ -635,7 +643,7 @@ const Create = () => {
                                         Tap to upload a book
                                     </Text>
                                     <Text className="font-inter text-[#858585] text-xs">
-                                        PDF or EPUB files up to 50MB
+                                        PDF or EPUB files up to 32MB
                                     </Text>
                                 </TouchableOpacity>
                             )}
