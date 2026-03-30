@@ -110,6 +110,52 @@ const BACK_MATTER_PATTERNS = new Set([
     'back cover',
 ]);
 
+// Written-out number words → numeric value (supports 1-99, covers virtually all books)
+const WORD_TO_NUMBER: Record<string, number> = {
+    one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+    eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17,
+    eighteen: 18, nineteen: 19, twenty: 20, 'twenty-one': 21, 'twenty-two': 22, 'twenty-three': 23,
+    'twenty-four': 24, 'twenty-five': 25, 'twenty-six': 26, 'twenty-seven': 27, 'twenty-eight': 28,
+    'twenty-nine': 29, thirty: 30, 'thirty-one': 31, 'thirty-two': 32, 'thirty-three': 33,
+    'thirty-four': 34, 'thirty-five': 35, 'thirty-six': 36, 'thirty-seven': 37, 'thirty-eight': 38,
+    'thirty-nine': 39, forty: 40, 'forty-one': 41, 'forty-two': 42, 'forty-three': 43,
+    'forty-four': 44, 'forty-five': 45, 'forty-six': 46, 'forty-seven': 47, 'forty-eight': 48,
+    'forty-nine': 49, fifty: 50, 'fifty-one': 51, 'fifty-two': 52, 'fifty-three': 53,
+    'fifty-four': 54, 'fifty-five': 55, 'fifty-six': 56, 'fifty-seven': 57, 'fifty-eight': 58,
+    'fifty-nine': 59, sixty: 60, 'sixty-one': 61, 'sixty-two': 62, 'sixty-three': 63,
+    'sixty-four': 64, 'sixty-five': 65, 'sixty-six': 66, 'sixty-seven': 67, 'sixty-eight': 68,
+    'sixty-nine': 69, seventy: 70, 'seventy-one': 71, 'seventy-two': 72, 'seventy-three': 73,
+    'seventy-four': 74, 'seventy-five': 75, 'seventy-six': 76, 'seventy-seven': 77,
+    'seventy-eight': 78, 'seventy-nine': 79, eighty: 80, 'eighty-one': 81, 'eighty-two': 82,
+    'eighty-three': 83, 'eighty-four': 84, 'eighty-five': 85, 'eighty-six': 86, 'eighty-seven': 87,
+    'eighty-eight': 88, 'eighty-nine': 89, ninety: 90, 'ninety-one': 91, 'ninety-two': 92,
+    'ninety-three': 93, 'ninety-four': 94, 'ninety-five': 95, 'ninety-six': 96, 'ninety-seven': 97,
+    'ninety-eight': 98, 'ninety-nine': 99,
+};
+
+/**
+ * Parse a written-out number word to its numeric value.
+ * Handles: "One" → 1, "Twenty-Five" → 25, "THIRTY-THREE" → 33
+ * Returns undefined if not a recognized number word.
+ */
+function parseWordNumber(word: string): number | undefined {
+    return WORD_TO_NUMBER[word.toLowerCase().trim()];
+}
+
+// Regex fragment matching any written-out number (case-insensitive)
+// Compound numbers (e.g., "twenty-five") must come before simple ones so the regex is greedy
+const WORD_NUMBER_PATTERN =
+    '(?:twenty-one|twenty-two|twenty-three|twenty-four|twenty-five|twenty-six|twenty-seven|twenty-eight|twenty-nine|' +
+    'thirty-one|thirty-two|thirty-three|thirty-four|thirty-five|thirty-six|thirty-seven|thirty-eight|thirty-nine|' +
+    'forty-one|forty-two|forty-three|forty-four|forty-five|forty-six|forty-seven|forty-eight|forty-nine|' +
+    'fifty-one|fifty-two|fifty-three|fifty-four|fifty-five|fifty-six|fifty-seven|fifty-eight|fifty-nine|' +
+    'sixty-one|sixty-two|sixty-three|sixty-four|sixty-five|sixty-six|sixty-seven|sixty-eight|sixty-nine|' +
+    'seventy-one|seventy-two|seventy-three|seventy-four|seventy-five|seventy-six|seventy-seven|seventy-eight|seventy-nine|' +
+    'eighty-one|eighty-two|eighty-three|eighty-four|eighty-five|eighty-six|eighty-seven|eighty-eight|eighty-nine|' +
+    'ninety-one|ninety-two|ninety-three|ninety-four|ninety-five|ninety-six|ninety-seven|ninety-eight|ninety-nine|' +
+    'one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|' +
+    'eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)';
+
 // Quality thresholds for OCR text detection
 const MAX_AVG_WORD_LENGTH = 12; // Words longer than this suggest merged words
 const MIN_SPACE_RATIO = 0.1; // At least 10% of characters should be spaces
@@ -477,15 +523,24 @@ export class TextExtractionService {
                     }
 
                     // Try to extract chapter number from title
-                    // Supports: Chapter, Law, Rule, Principle, Lesson, Unit, Module, Step, Habit, Part, Section
+                    // Supports: "Chapter 5", "LAW 3", "Chapter Twenty-Five", etc.
                     const chapterMatch = title.match(
                         /^(?:Chapter|LAW|Law|Rule|Principle|Lesson|Unit|Module|Step|Habit|Secret|Key|Commandment|Part|Section)?\s*(\d+)/i,
                     );
-                    const extractedChapterNum = isChapter
-                        ? chapterMatch
-                            ? parseInt(chapterMatch[1])
-                            : chapterCounter++
-                        : undefined;
+                    // Also try written-out numbers: "Chapter One", "Chapter Thirty-Five"
+                    const wordNumberMatch = title.match(
+                        new RegExp(`^(?:Chapter|Law|Rule|Principle|Lesson|Step|Habit)\\s+(${WORD_NUMBER_PATTERN})`, 'i'),
+                    );
+                    let extractedChapterNum: number | undefined;
+                    if (isChapter) {
+                        if (chapterMatch) {
+                            extractedChapterNum = parseInt(chapterMatch[1]);
+                        } else if (wordNumberMatch) {
+                            extractedChapterNum = parseWordNumber(wordNumberMatch[1]);
+                        } else {
+                            extractedChapterNum = chapterCounter++;
+                        }
+                    }
 
                     // Get page label (e.g., "iv", "12", "A-3")
                     const pageLabel = pageLabels.get(pageNumber);
@@ -1090,6 +1145,12 @@ export class TextExtractionService {
             /^(\d{1,2})\.[\s]+([A-Z][^\n]+?)\s+(\d{1,4})\s*$/gm,
         ];
 
+        // Written-out TOC patterns: "Chapter One ... 23", "Chapter Twenty-Five: Title 45"
+        const wordTocPatterns = [
+            new RegExp(`^(Chapter\\s+(${WORD_NUMBER_PATTERN}))(?:[\\s:.]+([^\\d\\n]+?))?\\s+(\\d{1,4})\\s*$`, 'gim'),
+            new RegExp(`^(CHAPTER\\s+(${WORD_NUMBER_PATTERN}))(?:[\\s:.]+([^\\d\\n]+?))?\\s+(\\d{1,4})\\s*$`, 'gim'),
+        ];
+
         for (const pattern of patterns) {
             let match: RegExpExecArray | null;
             const regex = new RegExp(pattern);
@@ -1148,6 +1209,43 @@ export class TextExtractionService {
             // If we found entries with this pattern, don't try other patterns
             if (entries.length >= 3) {
                 break;
+            }
+        }
+
+        // If no numeric TOC entries found, try written-out number patterns
+        if (entries.length < 3) {
+            for (const pattern of wordTocPatterns) {
+                let match: RegExpExecArray | null;
+                const regex = new RegExp(pattern);
+
+                while ((match = regex.exec(tocSection)) !== null) {
+                    // group 2 = word number, group 3 = title (optional), group 4 = page
+                    const chapterNum = parseWordNumber(match[2]);
+                    if (chapterNum === undefined) continue;
+
+                    let title = (match[3] || '').trim();
+                    const pageNum = parseInt(match[4]);
+
+                    title = title
+                        .replace(/\.{2,}\s*$/, '')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+
+                    if (entries.some(e => e.chapterNumber === chapterNum)) continue;
+                    if (chapterNum > 100) continue;
+
+                    if (pageNum >= 1 && pageNum <= 9999) {
+                        entries.push({
+                            title: title || `Chapter ${chapterNum}`,
+                            pageNumber: pageNum,
+                            chapterNumber: chapterNum,
+                            level: 0,
+                            isChapter: true,
+                        });
+                    }
+                }
+
+                if (entries.length >= 3) break;
             }
         }
 
@@ -1568,6 +1666,12 @@ export class TextExtractionService {
             /^(Habit\s*(\d+))[:\s.]*(.*)$/gim,
         ];
 
+        // Written-out number patterns: "Chapter One", "Chapter Twenty-Five", etc.
+        const wordNumberPatterns = [
+            new RegExp(`^(Chapter\\s+(${WORD_NUMBER_PATTERN}))(?:[:\\s.]+(.*))?$`, 'gim'),
+            new RegExp(`^(CHAPTER\\s+(${WORD_NUMBER_PATTERN}))(?:[:\\s.]+(.*))?$`, 'gim'),
+        ];
+
         interface ChapterMatch {
             chapterNumber: number;
             title: string;
@@ -1579,6 +1683,7 @@ export class TextExtractionService {
         const chapterMatches: ChapterMatch[] = [];
         let matches: RegExpExecArray | null;
 
+        // Try numeric patterns first
         for (const pattern of chapterPatterns) {
             const regex = new RegExp(pattern);
             while ((matches = regex.exec(text)) !== null) {
@@ -1619,6 +1724,29 @@ export class TextExtractionService {
                 });
             }
             if (chapterMatches.length > 0) break;
+        }
+
+        // If no numeric matches, try written-out number patterns ("Chapter One", "Chapter Twenty-Five")
+        if (chapterMatches.length === 0) {
+            for (const pattern of wordNumberPatterns) {
+                const regex = new RegExp(pattern);
+                while ((matches = regex.exec(text)) !== null) {
+                    const chapterNum = parseWordNumber(matches[2]);
+                    if (chapterNum === undefined) continue;
+
+                    const title = matches[3]?.trim().replace(/\s+\d{1,4}\s*$/, '').trim()
+                        || `Chapter ${chapterNum}`;
+
+                    chapterMatches.push({
+                        chapterNumber: chapterNum,
+                        title,
+                        position: matches.index,
+                        matchLength: matches[0].length,
+                        fullMatch: matches[0],
+                    });
+                }
+                if (chapterMatches.length > 0) break;
+            }
         }
 
         if (chapterMatches.length === 0) {
