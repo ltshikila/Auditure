@@ -11,7 +11,7 @@
  * - Edition noise: "- Free PDF", "(Original)", "_ OceanofPDF.com"
  */
 export function cleanMetadataTitle(title: string): string {
-    if (!title) return title;
+    if (!title || typeof title !== 'string') return String(title ?? '');
 
     let cleaned = title;
 
@@ -49,7 +49,7 @@ export function cleanMetadataTitle(title: string): string {
  * Returns null if the author is rejected (not a real person name).
  */
 export function cleanMetadataAuthor(author: string): string | null {
-    if (!author) return null;
+    if (!author || typeof author !== 'string') return null;
 
     const cleaned = author.trim();
 
