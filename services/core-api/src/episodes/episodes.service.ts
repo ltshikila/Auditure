@@ -14,6 +14,7 @@ import { RabbitMQService } from '../rabbitmq/rabbitmq.service';
 import { RedisService } from '../redis/redis.service';
 import { StorageService } from '../common/storage.service';
 import { BooksService } from '../books/books.service';
+import { BookExtractionDispatcher } from '../books/services/book-extraction-dispatcher.service';
 import { UsersService } from '../users/users.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PodcastersService } from '../podcasters/podcasters.service';
@@ -42,6 +43,7 @@ export class EpisodesService {
         private storageService: StorageService,
         @Inject(forwardRef(() => BooksService))
         private booksService: BooksService,
+        private bookExtractionDispatcher: BookExtractionDispatcher,
         private usersService: UsersService,
         private notificationsService: NotificationsService,
         private podcastersService: PodcastersService,
@@ -1152,13 +1154,8 @@ export class EpisodesService {
                 },
             });
 
-            // Re-queue book extraction (which will then queue the episode when done)
-            await this.rabbitMQService.publishBookExtractionJob({
-                bookId: episode.bookId,
-                userId: episode.userId,
-                fileStorageKey: episode.book.fileStorageKey,
-                sourceType: episode.book.sourceType as 'PDF' | 'EPUB',
-            });
+            // Re-dispatch book extraction (which will then queue the episode when done)
+            await this.bookExtractionDispatcher.dispatch(episode.bookId);
 
             this.logger.log(
                 `Retrying book extraction for ${episode.bookId}, episode ${episode.id} will be queued after extraction`,

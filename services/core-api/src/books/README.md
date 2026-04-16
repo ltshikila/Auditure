@@ -585,17 +585,21 @@ Abstraction layer for file storage:
 - `LocalStorageBackend` - Filesystem storage (current)
 - `S3StorageBackend` - AWS S3 (future)
 
-#### RabbitMQService
-Message queue integration:
-- `publishBookExtractionJob()` - Queue extraction task
-- `consumeBookExtractionQueue()` - Process extraction jobs
-- Retry logic with exponential backoff
-- Dead letter queue (DLQ) after 3 attempts
+#### BookExtractionDispatcher
+Triggers the book-extractor Cloud Run Job for extraction work:
+- `dispatch(bookId)` - Kicks off a new Job execution with `BOOK_ID` env override
+- Uses the `@google-cloud/run` SDK
+- Retries are handled by Cloud Run Jobs itself (configured via `--max-retries`)
+
+Why a Job (not RabbitMQ + always-on worker): book extraction is bursty and idle most of the day.
+Running it inside a scale-to-zero Service caused Cloud Run to kill the container mid-extraction
+for large books. Each Job execution is independent and gets its own 24h budget.
 
 ### Workers
 
 #### BookExtractionWorker
-Background worker that processes extraction jobs:
+The `extractBook(bookId, context)` method runs the actual extraction pipeline. It's invoked
+by `src/book-extractor-main.ts` inside the Cloud Run Job execution container:
 1. Download file from storage
 2. Extract text based on file type
 3. Clean metadata titles (strip download site tags like `(PDFDrive.com)`, `[BooksLD]`, file extensions)
@@ -604,6 +608,7 @@ Background worker that processes extraction jobs:
 6. Store extracted text and chapters
 7. Update book status
 8. Post-extraction consolidation: compare quality with existing copies and establish canonical version
+9. Publish episode_generation jobs for any pending episodes tied to this book
 
 ### DTOs
 
@@ -770,17 +775,20 @@ When no TOC exists, falls back to pattern matching:
 **Filtering Logic:**
 - Skips Table of Contents entries (detected by page number patterns like `Chapter 1 ... 42`)
 - Skips index references
+- Skips mid-sentence references by checking the word after the chapter number — e.g., `"Chapter 2 is your intuitive prediction..."` gets rejected because "is" is a common sentence starter. The filter includes short words like `is`, `in`, `it`, `as`, `at`, `by`, `of`, `on`, `to` since these are the most common mid-sentence starters.
 - Skips unreasonably high chapter numbers (> 50)
-- Requires minimum 1000 characters per chapter
+- Requires minimum 2500 characters per chapter
+- **Sanity check**: if only one chapter is detected AND it contains >70% of the total book text, rejects the detection as a false positive. This triggers the "Full Book" fallback with a user-facing warning, rather than silently producing one bogus chapter that swallows the whole book.
 
 **Detection Strategy:**
 1. Try TOC-based extraction first (most accurate)
 2. Apply dynamic pattern detection to identify chapter naming convention
 3. Fall back to regex if no TOC or TOC extraction fails
-4. Search for chapter markers in text
+4. Search for chapter markers in text (numeric first, then written-out like "Chapter One")
 5. Split text at chapter boundaries
-6. Filter out TOC/index entries
-7. Store individual chapter text
+6. Filter out TOC/index entries and mid-sentence references
+7. Apply single-chapter-dominance sanity check
+8. Store individual chapter text, or fall through to "Full Book" fallback
 
 ### OCR for Scanned PDFs
 

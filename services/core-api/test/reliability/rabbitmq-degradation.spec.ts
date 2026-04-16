@@ -10,10 +10,7 @@
  * internal `channel` remains undefined.
  */
 import { RabbitMQService } from '../../src/rabbitmq/rabbitmq.service';
-import {
-    BookExtractionJob,
-    EpisodeGenerationJob,
-} from '../../src/rabbitmq/interfaces/jobs.interface';
+import { EpisodeGenerationJob } from '../../src/rabbitmq/interfaces/jobs.interface';
 
 describe('RabbitMQService - Degraded Mode (Channel Unavailable)', () => {
     let service: RabbitMQService;
@@ -32,19 +29,6 @@ describe('RabbitMQService - Degraded Mode (Channel Unavailable)', () => {
     // ============================================
 
     describe('Publishing Jobs', () => {
-        it('publishBookExtractionJob should throw when channel is null', async () => {
-            const job: BookExtractionJob = {
-                bookId: 'book-123',
-                userId: 'user-456',
-                fileStorageKey: 'users/user-456/book-123/original.pdf',
-                sourceType: 'PDF',
-            };
-
-            await expect(service.publishBookExtractionJob(job)).rejects.toThrow(
-                'Message queue unavailable',
-            );
-        });
-
         it('publishEpisodeGenerationJob should throw when channel is null', async () => {
             const job: EpisodeGenerationJob = {
                 episodeId: 'episode-789',
@@ -72,12 +56,6 @@ describe('RabbitMQService - Degraded Mode (Channel Unavailable)', () => {
     // ============================================
 
     describe('Consuming Queues', () => {
-        it('consumeBookExtractionQueue should not throw when channel is null', async () => {
-            const handler = jest.fn();
-            await expect(service.consumeBookExtractionQueue(handler)).resolves.toBeUndefined();
-            expect(handler).not.toHaveBeenCalled();
-        });
-
         it('consumeEpisodeGenerationQueue should not throw when channel is null', async () => {
             const handler = jest.fn();
             await expect(service.consumeEpisodeGenerationQueue(handler)).resolves.toBeUndefined();

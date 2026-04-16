@@ -5,6 +5,7 @@ import { RabbitMQService } from '../rabbitmq/rabbitmq.service';
 import { RedisService } from '../redis/redis.service';
 import { StorageService } from '../common/storage.service';
 import { BooksService } from '../books/books.service';
+import { BookExtractionDispatcher } from '../books/services/book-extraction-dispatcher.service';
 import { UsersService } from '../users/users.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PodcastersService } from '../podcasters/podcasters.service';
@@ -22,6 +23,7 @@ import {
     mockStorageService,
     mockRedisService,
     mockRabbitMQServiceWithEpisodes,
+    mockBookExtractionDispatcher,
 } from '../../test/mocks/services.mock';
 
 describe('EpisodesService', () => {
@@ -95,6 +97,10 @@ describe('EpisodesService', () => {
                 {
                     provide: BooksService,
                     useValue: mockBooksService,
+                },
+                {
+                    provide: BookExtractionDispatcher,
+                    useValue: mockBookExtractionDispatcher,
                 },
                 {
                     provide: UsersService,

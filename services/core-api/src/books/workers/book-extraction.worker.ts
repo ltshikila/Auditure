@@ -1,40 +1,64 @@
-import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
-import { RabbitMQService } from '../../rabbitmq/rabbitmq.service';
-import { TextExtractionService } from '../services/text-extraction.service';
+import { Injectable, Logger } from '@nestjs/common';
+import { TextExtractionService, ExtractedContent } from '../services/text-extraction.service';
 import { CoverExtractionService } from '../services/cover-extraction.service';
 import { StorageService } from '../../common/storage.service';
 import { DatabaseService } from '../../database/database.service';
 import { NotificationsService } from '../../notifications/notifications.service';
-import { BookExtractionJob } from '../../rabbitmq/interfaces/jobs.interface';
+import { RabbitMQService } from '../../rabbitmq/rabbitmq.service';
 import { normalizeBookTitle, booksMatch, computeBookQualityScore } from '../utils/book-matching.utils';
 import {
     cleanMetadataTitle as sharedCleanMetadataTitle,
     cleanMetadataAuthor as sharedCleanMetadataAuthor,
 } from '../utils/metadata-cleaning.utils';
 
+export interface ExtractionContext {
+    /** 1-indexed current attempt */
+    attempt: number;
+    /** Max number of attempts allowed (from Job config) */
+    maxRetries: number;
+}
+
 @Injectable()
-export class BookExtractionWorker implements OnModuleInit {
+export class BookExtractionWorker {
     private readonly logger = new Logger(BookExtractionWorker.name);
 
     constructor(
-        private rabbitMQService: RabbitMQService,
         private textExtractionService: TextExtractionService,
         private coverExtractionService: CoverExtractionService,
         private storageService: StorageService,
         private databaseService: DatabaseService,
         private notificationsService: NotificationsService,
+        private rabbitMQService: RabbitMQService,
     ) {}
 
-    async onModuleInit() {
-        await this.rabbitMQService.consumeBookExtractionQueue(
-            (job, retryContext) => this.handleExtractionJob(job, retryContext),
+    /**
+     * Extract a book by ID. Looks up file location and source type from the database.
+     * Designed to be invoked as a Cloud Run Job execution.
+     */
+    async extractBook(bookId: string, context: ExtractionContext): Promise<void> {
+        const book = await this.databaseService.withRetry(() =>
+            this.databaseService.book.findUnique({ where: { id: bookId } }),
         );
-        this.logger.log('Book extraction worker started');
+
+        if (!book) {
+            this.logger.error(`Book ${bookId} not found - nothing to extract`);
+            return;
+        }
+
+        await this.handleExtractionJob(
+            {
+                bookId: book.id,
+                userId: book.userId,
+                fileStorageKey: book.fileStorageKey,
+                sourceType: book.sourceType as 'PDF' | 'EPUB',
+            },
+            context,
+        );
     }
 
     private async handleExtractionJob(
-        job: BookExtractionJob,
-        retryContext: { attempt: number; maxRetries: number },
+        job: { bookId: string; userId: string; fileStorageKey: string; sourceType: 'PDF' | 'EPUB' },
+        retryContext: ExtractionContext,
     ): Promise<void> {
         this.logger.log(`Processing extraction job for book ${job.bookId} (attempt ${retryContext.attempt}/${retryContext.maxRetries})`);
 
@@ -51,7 +75,7 @@ export class BookExtractionWorker implements OnModuleInit {
             const fileBuffer = await this.storageService.downloadFile(job.fileStorageKey);
 
             // 3. Extract content based on source type
-            let extracted;
+            let extracted: ExtractedContent;
             if (job.sourceType === 'PDF') {
                 extracted = await this.textExtractionService.extractFromPdf(fileBuffer);
             } else if (job.sourceType === 'EPUB') {
@@ -198,7 +222,7 @@ export class BookExtractionWorker implements OnModuleInit {
             // Google Books is the most reliable source since it's a curated database
             let bestAuthor: string | null = coverResult.apiAuthor || null;
             if (!bestAuthor) {
-                bestAuthor = extracted.metadata.author;
+                bestAuthor = extracted.metadata.author ?? null;
                 if (bestAuthor) {
                     bestAuthor = this.cleanMetadataAuthor(bestAuthor);
                 }
@@ -260,7 +284,7 @@ export class BookExtractionWorker implements OnModuleInit {
             try {
                 const bookTitle = bestTitle || currentBook?.title || 'your book';
                 await this.notificationsService.notifyBookReady(job.userId, bookTitle, job.bookId);
-            } catch (notifError) {
+            } catch (notifError: any) {
                 this.logger.error(`Failed to send book ready notification: ${notifError.message}`);
             }
 
@@ -291,7 +315,7 @@ export class BookExtractionWorker implements OnModuleInit {
                 });
                 this.logger.log(`Queued pending episode ${episode.id} for generation`);
             }
-        } catch (error) {
+        } catch (error: any) {
             const isFinalAttempt = retryContext.attempt >= retryContext.maxRetries;
             this.logger.error(`Failed to extract book ${job.bookId} (attempt ${retryContext.attempt}/${retryContext.maxRetries}, final: ${isFinalAttempt})`);
             this.logger.error(error);
@@ -324,7 +348,7 @@ export class BookExtractionWorker implements OnModuleInit {
                         bookTitle,
                         userFriendlyError,
                     );
-                } catch (notifError) {
+                } catch (notifError: any) {
                     this.logger.error(`Failed to send book failed notification: ${notifError.message}`);
                 }
 
@@ -352,7 +376,7 @@ export class BookExtractionWorker implements OnModuleInit {
                 this.logger.log(`Will retry extraction for book ${job.bookId}`);
             }
 
-            throw error; // Re-throw for RabbitMQ retry logic
+            throw error; // Re-throw so Cloud Run Job marks execution as failed (triggers retry)
         }
     }
 
@@ -511,7 +535,7 @@ export class BookExtractionWorker implements OnModuleInit {
                 );
                 return canonicalId;
             }
-        } catch (error) {
+        } catch (error: any) {
             this.logger.error(
                 `Error in consolidateWithCanonical: ${error.message}`,
             );
@@ -557,10 +581,6 @@ export class BookExtractionWorker implements OnModuleInit {
         return cleaned;
     }
 
-    /**
-     * Clean junk from PDF/EPUB metadata titles.
-     * Delegates to shared utility, adds logging.
-     */
     private cleanMetadataTitle(title: string): string {
         const cleaned = sharedCleanMetadataTitle(title);
         if (cleaned !== title) {
@@ -569,10 +589,6 @@ export class BookExtractionWorker implements OnModuleInit {
         return cleaned;
     }
 
-    /**
-     * Clean junk from PDF/EPUB metadata author fields.
-     * Delegates to shared utility, adds logging.
-     */
     private cleanMetadataAuthor(author: string): string | null {
         const cleaned = sharedCleanMetadataAuthor(author);
         if (author && !cleaned) {
@@ -624,7 +640,6 @@ export class BookExtractionWorker implements OnModuleInit {
     private getUserFriendlyError(error: Error, sourceType: string): string {
         const errorMessage = error.message?.toLowerCase() || '';
 
-        // File format/parsing errors
         if (
             errorMessage.includes('is not a function') ||
             errorMessage.includes('cannot read') ||
@@ -633,7 +648,6 @@ export class BookExtractionWorker implements OnModuleInit {
             return `Unsupported ${sourceType} format. Try a different file.`;
         }
 
-        // File corruption
         if (
             errorMessage.includes('invalid') ||
             errorMessage.includes('malformed') ||
@@ -642,7 +656,6 @@ export class BookExtractionWorker implements OnModuleInit {
             return `File appears corrupted. Try a different copy.`;
         }
 
-        // DRM/encryption
         if (
             errorMessage.includes('encrypted') ||
             errorMessage.includes('drm') ||
@@ -651,7 +664,6 @@ export class BookExtractionWorker implements OnModuleInit {
             return `File is DRM protected. Use a DRM-free version.`;
         }
 
-        // Empty/no content
         if (
             errorMessage.includes('empty') ||
             errorMessage.includes('no content') ||
@@ -660,12 +672,10 @@ export class BookExtractionWorker implements OnModuleInit {
             return `No readable text found in this file.`;
         }
 
-        // Timeout/resource
         if (errorMessage.includes('timeout') || errorMessage.includes('memory')) {
             return `File too large or complex. Try a smaller file.`;
         }
 
-        // Generic fallback - don't expose technical details
         return `Could not process this file. Please try again.`;
     }
 }

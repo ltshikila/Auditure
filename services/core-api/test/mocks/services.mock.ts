@@ -14,8 +14,11 @@ export const mockStorageService = {
 };
 
 export const mockRabbitMQService = {
-    publishBookExtractionJob: jest.fn().mockResolvedValue(undefined),
-    consumeBookExtractionQueue: jest.fn().mockResolvedValue(undefined),
+    publishEpisodeGenerationJob: jest.fn().mockResolvedValue(undefined),
+};
+
+export const mockBookExtractionDispatcher = {
+    dispatch: jest.fn().mockResolvedValue(undefined),
 };
 
 export const mockTextExtractionService = {
@@ -46,7 +49,6 @@ export const mockRedisService = {
 
 export const mockRabbitMQServiceWithEpisodes = {
     ...mockRabbitMQService,
-    publishEpisodeGenerationJob: jest.fn().mockResolvedValue(undefined),
 };
 
 // ============================================

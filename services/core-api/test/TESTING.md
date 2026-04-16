@@ -47,11 +47,12 @@ Verifies that `RedisService` degrades gracefully when Redis is disconnected. The
 Verifies `RabbitMQService` behaviour when the AMQP channel is unavailable.
 
 **What's tested:**
-- `publishBookExtractionJob` **throws** `"Message queue unavailable"` (callers handle failure)
-- `publishEpisodeGenerationJob` **throws** `"Message queue unavailable"`
-- `consumeBookExtractionQueue` resolves without executing the handler
+- `publishEpisodeGenerationJob` **throws** `"Message queue unavailable"` (callers handle failure)
 - `consumeEpisodeGenerationQueue` resolves without executing the handler
 - `onModuleDestroy` handles undefined channel/connection
+
+Note: book extraction no longer uses RabbitMQ — it runs as a Cloud Run Job triggered by
+`BookExtractionDispatcher`. See `src/books/services/book-extraction-dispatcher.service.spec.ts`.
 
 ### Webhook Idempotency (`webhook-idempotency.spec.ts`)
 

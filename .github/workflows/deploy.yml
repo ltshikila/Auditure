@@ -83,7 +83,7 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --port 3000 \
-            --set-env-vars "NODE_ENV=production,STORAGE_BACKEND=gcs,GCS_BUCKET_NAME=auditure-storage-prod,REDIS_HOST=10.3.19.75,REDIS_PORT=6379,PAYSTACK_PLAN_CODE_STARTER=PLN_xm7trebza6clbu9,PAYSTACK_PLAN_CODE_PRO=PLN_9gsbdjplzsh2kze,PAYSTACK_PUBLIC_KEY=pk_live_8f93ef4b485aaf14b74e1ad517ca0e277dd88368,EMAIL_LOGO_URL=https://storage.googleapis.com/auditure-storage-prod/branding/logo_1_hd.png,MOBILE_APP_SCHEME=auditure,APP_URL=https://api.auditure.app" \
+            --set-env-vars "NODE_ENV=production,STORAGE_BACKEND=gcs,GCS_BUCKET_NAME=auditure-storage-prod,REDIS_HOST=10.3.19.75,REDIS_PORT=6379,PAYSTACK_PLAN_CODE_STARTER=PLN_xm7trebza6clbu9,PAYSTACK_PLAN_CODE_PRO=PLN_9gsbdjplzsh2kze,PAYSTACK_PUBLIC_KEY=pk_live_8f93ef4b485aaf14b74e1ad517ca0e277dd88368,EMAIL_LOGO_URL=https://storage.googleapis.com/auditure-storage-prod/branding/logo_1_hd.png,MOBILE_APP_SCHEME=auditure,APP_URL=https://api.auditure.app,GCP_PROJECT_ID=${{ env.PROJECT_ID }},GCP_REGION=${{ env.REGION }},BOOK_EXTRACTOR_JOB_NAME=book-extractor" \
             --set-secrets "DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_ACCESS_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,PAYSTACK_SECRET_KEY=PAYSTACK_SECRET_KEY:latest,RESEND_API_KEY=RESEND_API_KEY:latest,RABBITMQ_URL=RABBITMQ_URL:latest,SENTRY_DSN=SENTRY_DSN:latest,EXPO_ACCESS_TOKEN=EXPO_ACCESS_TOKEN:latest" \
             --add-cloudsql-instances ${{ env.PROJECT_ID }}:${{ env.REGION }}:auditure-db \
             --vpc-connector projects/${{ env.PROJECT_ID }}/locations/${{ env.REGION }}/connectors/auditure-connector \
@@ -94,6 +94,28 @@ jobs:
             --memory 1Gi \
             --cpu 1 \
             --timeout 300
+
+      # Deploy the book-extractor Cloud Run Job (same image, different command)
+      # This runs book extraction work that needs to survive container lifecycle.
+      # `deploy` creates the Job if missing, updates it otherwise.
+      - name: Deploy book-extractor Cloud Run Job
+        run: |
+          gcloud run jobs deploy book-extractor \
+            --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/auditure/core-api:${{ github.sha }} \
+            --region ${{ env.REGION }} \
+            --command node \
+            --args dist/src/book-extractor-main.js \
+            --set-env-vars "NODE_ENV=production,STORAGE_BACKEND=gcs,GCS_BUCKET_NAME=auditure-storage-prod,REDIS_HOST=10.3.19.75,REDIS_PORT=6379,EMAIL_LOGO_URL=https://storage.googleapis.com/auditure-storage-prod/branding/logo_1_hd.png,JOB_MAX_RETRIES=3" \
+            --set-secrets "DATABASE_URL=DATABASE_URL:latest,RABBITMQ_URL=RABBITMQ_URL:latest,SENTRY_DSN=SENTRY_DSN:latest,EXPO_ACCESS_TOKEN=EXPO_ACCESS_TOKEN:latest" \
+            --set-cloudsql-instances ${{ env.PROJECT_ID }}:${{ env.REGION }}:auditure-db \
+            --vpc-connector projects/${{ env.PROJECT_ID }}/locations/${{ env.REGION }}/connectors/auditure-connector \
+            --vpc-egress private-ranges-only \
+            --memory 2Gi \
+            --cpu 2 \
+            --task-timeout 3600 \
+            --max-retries 3 \
+            --parallelism 1 \
+            --tasks 1
 
   # Build and deploy AI Worker
   deploy-ai-worker:

@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BooksService } from './books.service';
 import { DatabaseService } from '../database/database.service';
 import { StorageService } from '../common/storage.service';
-import { RabbitMQService } from '../rabbitmq/rabbitmq.service';
+import { BookExtractionDispatcher } from './services/book-extraction-dispatcher.service';
 import { NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import {
     createMockBook,
@@ -13,14 +13,14 @@ import {
     mockGetTextDto,
 } from '../../test/fixtures/books.fixture';
 import { mockPrismaClient } from '../../test/mocks/database.mock';
-import { mockStorageService, mockRabbitMQService } from '../../test/mocks/services.mock';
+import { mockStorageService, mockBookExtractionDispatcher } from '../../test/mocks/services.mock';
 import { MetadataProbeService } from './services/metadata-probe.service';
 
 describe('BooksService', () => {
     let service: BooksService;
     let databaseService: DatabaseService;
     let storageService: StorageService;
-    let rabbitMQService: RabbitMQService;
+    let bookExtractionDispatcher: BookExtractionDispatcher;
 
     const mockUserId = 'user-123';
 
@@ -37,8 +37,8 @@ describe('BooksService', () => {
                     useValue: mockStorageService,
                 },
                 {
-                    provide: RabbitMQService,
-                    useValue: mockRabbitMQService,
+                    provide: BookExtractionDispatcher,
+                    useValue: mockBookExtractionDispatcher,
                 },
                 {
                     provide: MetadataProbeService,
@@ -55,7 +55,7 @@ describe('BooksService', () => {
         service = module.get<BooksService>(BooksService);
         databaseService = module.get<DatabaseService>(DatabaseService);
         storageService = module.get<StorageService>(StorageService);
-        rabbitMQService = module.get<RabbitMQService>(RabbitMQService);
+        bookExtractionDispatcher = module.get<BookExtractionDispatcher>(BookExtractionDispatcher);
 
         // Clear all mocks before each test
         jest.clearAllMocks();
@@ -82,13 +82,7 @@ describe('BooksService', () => {
                 mockFile.mimetype,
             );
             expect(databaseService.book.create).toHaveBeenCalled();
-            expect(rabbitMQService.publishBookExtractionJob).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    bookId: mockBook.id,
-                    userId: mockUserId,
-                    sourceType: mockCreateBookDto.sourceType,
-                }),
-            );
+            expect(bookExtractionDispatcher.dispatch).toHaveBeenCalledWith(mockBook.id);
         });
 
         it('should throw BadRequestException if file is missing', async () => {
@@ -380,7 +374,7 @@ describe('BooksService', () => {
                     extractionError: null,
                 },
             });
-            expect(rabbitMQService.publishBookExtractionJob).toHaveBeenCalled();
+            expect(bookExtractionDispatcher.dispatch).toHaveBeenCalled();
             expect(result.extractionStatus).toBe('PENDING');
         });
 
@@ -392,7 +386,7 @@ describe('BooksService', () => {
                 BadRequestException,
             );
 
-            expect(rabbitMQService.publishBookExtractionJob).not.toHaveBeenCalled();
+            expect(bookExtractionDispatcher.dispatch).not.toHaveBeenCalled();
         });
 
         it('should throw NotFoundException if book does not exist', async () => {
@@ -430,17 +424,17 @@ describe('BooksService', () => {
             expect(databaseService.book.create).not.toHaveBeenCalled();
         });
 
-        it('should handle RabbitMQ publish failure gracefully', async () => {
+        it('should handle dispatcher failure gracefully', async () => {
             const mockBook = createMockBook({ userId: mockUserId });
 
             // Reset storage mock to success for this test
             mockStorageService.uploadFile.mockResolvedValue('mock-storage-key');
             mockPrismaClient.book.create.mockResolvedValue(mockBook);
-            mockRabbitMQService.publishBookExtractionJob.mockRejectedValue(
-                new Error('RabbitMQ connection failed'),
+            mockBookExtractionDispatcher.dispatch.mockRejectedValue(
+                new Error('Cloud Run Jobs API unavailable'),
             );
 
-            // Should still create the book even if job queueing fails (doesn't throw)
+            // Should still create the book even if dispatch fails (doesn't throw)
             const result = await service.uploadBook(mockUserId, mockFile, mockCreateBookDto);
 
             expect(result).toEqual(mockBook);

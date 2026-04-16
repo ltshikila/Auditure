@@ -442,25 +442,43 @@ If we did these synchronously:
 3. User stares at loading spinner
 
 Instead, we use the **task offloading pattern**:
+
+**Book extraction (Cloud Run Jobs):**
 ```
 User uploads book → API returns immediately with "PENDING" status
                          ↓
-                    RabbitMQ queue
+              BookExtractionDispatcher → Cloud Run Jobs API
                          ↓
-                  Worker picks up job
+                  Job execution spins up
                          ↓
-                  Processes in background
+                  Runs src/book-extractor-main.js with BOOK_ID env
                          ↓
                   Updates status to "COMPLETED"
+                         ↓
+                  Publishes pending episode_generation messages
                          ↓
                   Client polls or gets push notification
 ```
 
-- **BookExtractionWorker** - Processes book text extraction jobs
-  - Downloads file from storage
-  - Extracts text based on file type
-  - Detects chapters automatically
-  - Stores results in database
+**Episode generation (RabbitMQ + ai-worker):**
+```
+Episode record created → episode_generation queue → ai-worker
+                                                          ↓
+                                              Script → TTS → stored
+```
+
+- **BookExtractionWorker** (`workers/book-extraction.worker.ts`) - Exposes
+  `extractBook(bookId, {attempt, maxRetries})` that's invoked by the Cloud Run Job
+  entry point. Downloads the file, extracts text, detects chapters, writes results,
+  and queues any pending episodes.
+- **BookExtractionDispatcher** (`services/book-extraction-dispatcher.service.ts`) -
+  Triggers a new Cloud Run Job execution from core-api when a book is uploaded or
+  re-extraction is requested.
+
+**Why Jobs for book extraction, not Services with RabbitMQ:** core-api is scale-to-zero
+(for cost). A RabbitMQ consumer inside a scale-to-zero container gets killed
+mid-extraction for large books. Jobs are independent executions with their own 24h
+budget — they run to completion regardless of core-api's lifecycle.
 
 ### Message Queue
 

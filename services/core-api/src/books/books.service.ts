@@ -7,12 +7,12 @@ import {
 } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { StorageService } from '../common/storage.service';
-import { RabbitMQService } from '../rabbitmq/rabbitmq.service';
 import { CreateBookDto } from './dto/create-book.dto';
 import { GetTextDto } from './dto/get-text.dto';
 import { randomUUID } from 'crypto';
 import { normalizeBookTitle, booksMatch, computeBookQualityScore } from './utils/book-matching.utils';
 import { MetadataProbeService } from './services/metadata-probe.service';
+import { BookExtractionDispatcher } from './services/book-extraction-dispatcher.service';
 
 @Injectable()
 export class BooksService {
@@ -21,7 +21,7 @@ export class BooksService {
     constructor(
         private databaseService: DatabaseService,
         private storageService: StorageService,
-        private rabbitMQService: RabbitMQService,
+        private bookExtractionDispatcher: BookExtractionDispatcher,
         private metadataProbeService: MetadataProbeService,
     ) {}
 
@@ -268,22 +268,17 @@ export class BooksService {
                 throw new BadRequestException(`Failed to create book record: ${dbError.message}`);
             }
 
-            // 5. Queue extraction job
-            this.logger.log('Publishing book extraction job to RabbitMQ...');
+            // 5. Dispatch extraction as a Cloud Run Job
+            this.logger.log('Dispatching book extraction job...');
             try {
-                await this.rabbitMQService.publishBookExtractionJob({
-                    bookId: book.id,
-                    userId,
-                    fileStorageKey: storageKey,
-                    sourceType: createBookDto.sourceType as 'PDF' | 'EPUB',
-                });
-                this.logger.log('Extraction job published successfully');
-            } catch (mqError) {
-                this.logger.error(`RabbitMQ publish failed: ${mqError.message}`);
-                this.logger.error(`RabbitMQ error stack: ${mqError.stack}`);
+                await this.bookExtractionDispatcher.dispatch(book.id);
+                this.logger.log('Extraction job dispatched successfully');
+            } catch (dispatchError: any) {
+                this.logger.error(`Extraction dispatch failed: ${dispatchError.message}`);
+                this.logger.error(`Dispatch error stack: ${dispatchError.stack}`);
                 // Don't throw - the book is created, extraction can be retried
                 this.logger.warn(
-                    'Book created but extraction job failed to queue - can be retried later',
+                    'Book created but extraction job failed to dispatch - can be retried later',
                 );
             }
 
@@ -623,13 +618,8 @@ export class BooksService {
             },
         });
 
-        // Re-queue job
-        await this.rabbitMQService.publishBookExtractionJob({
-            bookId: book.id,
-            userId: book.userId,
-            fileStorageKey: book.fileStorageKey,
-            sourceType: book.sourceType as 'PDF' | 'EPUB',
-        });
+        // Re-dispatch extraction job
+        await this.bookExtractionDispatcher.dispatch(book.id);
 
         return this.findOne(userId, id);
     }
@@ -661,13 +651,8 @@ export class BooksService {
             },
         });
 
-        // Re-queue job
-        await this.rabbitMQService.publishBookExtractionJob({
-            bookId: book.id,
-            userId: book.userId,
-            fileStorageKey: book.fileStorageKey,
-            sourceType: book.sourceType as 'PDF' | 'EPUB',
-        });
+        // Re-dispatch extraction job
+        await this.bookExtractionDispatcher.dispatch(book.id);
 
         return this.findOne(userId, id);
     }
@@ -705,16 +690,11 @@ export class BooksService {
             },
         });
 
-        // Queue extraction job
-        await this.rabbitMQService.publishBookExtractionJob({
-            bookId: book.id,
-            userId: book.userId,
-            fileStorageKey: book.fileStorageKey,
-            sourceType: book.sourceType as 'PDF' | 'EPUB',
-        });
+        // Dispatch extraction job
+        await this.bookExtractionDispatcher.dispatch(book.id);
 
         this.logger.log(
-            `Queued re-extraction for book ${bookId} (triggered by metadata probe)`,
+            `Dispatched re-extraction for book ${bookId} (triggered by metadata probe)`,
         );
     }
 }

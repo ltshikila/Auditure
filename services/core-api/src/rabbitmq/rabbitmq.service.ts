@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import * as amqp from 'amqplib';
-import { BookExtractionJob, EpisodeGenerationJob } from './interfaces/jobs.interface';
+import { EpisodeGenerationJob } from './interfaces/jobs.interface';
 
 @Injectable()
 export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
@@ -12,8 +12,7 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     private isShuttingDown = false;
 
-    // Store consumer handlers so they can be re-registered on reconnect
-    private bookExtractionHandler: ((job: BookExtractionJob, retryContext: { attempt: number; maxRetries: number }) => Promise<void>) | null = null;
+    // Store consumer handler so it can be re-registered on reconnect
     private episodeGenerationHandler: ((job: EpisodeGenerationJob) => Promise<void>) | null = null;
 
     async onModuleInit() {
@@ -62,17 +61,12 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
             });
 
             // Declare queues
-            await this.channel.assertQueue('book_extraction', { durable: true });
-            await this.channel.assertQueue('book_extraction_dlq', { durable: true });
             await this.channel.assertQueue('episode_generation', { durable: true });
             await this.channel.assertQueue('episode_generation_dlq', { durable: true });
 
             this.logger.log('RabbitMQ connected and queues declared');
 
-            // Re-register consumers on reconnect
-            if (this.bookExtractionHandler) {
-                await this.registerBookExtractionConsumer(this.bookExtractionHandler);
-            }
+            // Re-register consumer on reconnect
             if (this.episodeGenerationHandler) {
                 await this.registerEpisodeGenerationConsumer(this.episodeGenerationHandler);
             }
@@ -96,64 +90,6 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
 
     isConnected(): boolean {
         return !!this.channel;
-    }
-
-    async publishBookExtractionJob(job: BookExtractionJob): Promise<void> {
-        if (!this.channel) {
-            this.logger.error('RabbitMQ channel not available, cannot publish job');
-            throw new Error('Message queue unavailable - book extraction job cannot be queued');
-        }
-
-        await this.channel.sendToQueue('book_extraction', Buffer.from(JSON.stringify(job)), {
-            persistent: true,
-        });
-        this.logger.log(`Published extraction job for book ${job.bookId}`);
-    }
-
-    async consumeBookExtractionQueue(
-        handler: (job: BookExtractionJob, retryContext: { attempt: number; maxRetries: number }) => Promise<void>,
-    ): Promise<void> {
-        this.bookExtractionHandler = handler;
-        await this.registerBookExtractionConsumer(handler);
-    }
-
-    private async registerBookExtractionConsumer(
-        handler: (job: BookExtractionJob, retryContext: { attempt: number; maxRetries: number }) => Promise<void>,
-    ): Promise<void> {
-        if (!this.channel) {
-            this.logger.error('RabbitMQ channel not available');
-            return;
-        }
-
-        const maxRetries = 3;
-
-        await this.channel.consume('book_extraction', async msg => {
-            if (msg) {
-                try {
-                    const job: BookExtractionJob = JSON.parse(msg.content.toString());
-                    const retryCount = msg.properties.headers?.['x-retry-count'] || 0;
-                    await handler(job, { attempt: retryCount + 1, maxRetries });
-                    this.channel?.ack(msg);
-                } catch (error) {
-                    this.logger.error('Error processing job', error);
-                    // Move to DLQ after max retries
-                    const retryCount = (msg.properties.headers?.['x-retry-count'] || 0) + 1;
-                    if (retryCount >= maxRetries) {
-                        this.channel?.sendToQueue('book_extraction_dlq', msg.content);
-                        this.channel?.ack(msg);
-                        this.logger.error(`Job moved to DLQ after ${retryCount} retries`);
-                    } else {
-                        this.channel?.nack(msg, false, false);
-                        // Republish with incremented retry count
-                        setTimeout(() => {
-                            this.channel?.sendToQueue('book_extraction', msg.content, {
-                                headers: { 'x-retry-count': retryCount },
-                            });
-                        }, 5000 * retryCount); // Exponential backoff
-                    }
-                }
-            }
-        });
     }
 
     async publishEpisodeGenerationJob(job: EpisodeGenerationJob): Promise<void> {

@@ -51,7 +51,7 @@ A comprehensive notification system for the Auditure mobile app, providing in-ap
 
 ### Why Redis Streams (Not Pub/Sub or RabbitMQ)?
 
-We already use RabbitMQ for book extraction. Why Redis Streams for notifications?
+We use RabbitMQ for episode generation (ai-worker queue). Why Redis Streams for notifications instead?
 
 | Approach | Pros | Cons | Best For |
 |----------|------|------|----------|
