@@ -26,6 +26,6 @@ import { NotificationsModule } from '../notifications/notifications.module';
         BookExtractionDispatcher,
         MetadataProbeService,
     ],
-    exports: [BooksService], // For Episodes and Feed modules to consume
+    exports: [BooksService, BookExtractionDispatcher], // For Episodes and Feed modules to consume
 })
 export class BooksModule {}
