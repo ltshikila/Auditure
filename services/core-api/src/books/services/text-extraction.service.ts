@@ -1696,15 +1696,16 @@ export class TextExtractionService {
                     title = `Chapter ${chapterNum}`;
                 }
 
-                // Skip if this looks like a mid-sentence reference rather than a chapter heading
+                // Skip if this looks like a mid-sentence reference rather than a chapter heading.
                 // Chapter headings typically have capitalized titles like "Overview", "User Authentication"
-                // References look like "Chapter 1 listed a number..." or "Chapter 4. The matrix..."
+                // References look like "Chapter 1 listed a number..." or "Chapter 2 is your intuitive prediction..."
+                // Note: short words like "is", "in", "it", "as" are the most common mid-sentence starters,
+                // so we check them explicitly — no length filter.
                 const firstWord = title.split(/\s+/)[0];
-                if (firstWord && firstWord.length > 2) {
-                    // If first word starts lowercase or is a common verb, it's likely a sentence
+                if (firstWord) {
                     const looksLikeSentence =
                         /^[a-z]/.test(firstWord) || // starts with lowercase
-                        /^(the|a|an|is|are|was|were|has|have|had|will|would|could|should|can|may|might|must|listed|includes|describes|explains|provides|contains|discusses|presents|covers|shows|demonstrates|illustrates|introduces|examines|explores|considers|addresses|deals|focuses|offers|gives|takes|makes|uses|also|then|this|that|these|those|it|its|such|each|both|all|any|some|most|many|few|several|various|other|another|more|less|further|additional|following|preceding|above|below|previous|next|first|second|third|last|final|later|earlier|recently|currently|already|still|yet|now|here|there|where|when|how|why|what|which|who|whom|whose)$/i.test(
+                        /^(the|a|an|is|in|it|as|at|by|of|on|to|or|so|if|be|we|he|she|you|they|i|are|was|were|has|have|had|will|would|could|should|can|may|might|must|listed|includes|describes|explains|provides|contains|discusses|presents|covers|shows|demonstrates|illustrates|introduces|examines|explores|considers|addresses|deals|focuses|offers|gives|takes|makes|uses|also|then|this|that|these|those|its|such|each|both|all|any|some|most|many|few|several|various|other|another|more|less|further|additional|following|preceding|above|below|previous|next|first|second|third|last|final|later|earlier|recently|currently|already|still|yet|now|here|there|where|when|how|why|what|which|who|whom|whose)$/i.test(
                             firstWord,
                         );
                     if (looksLikeSentence) {
@@ -1797,6 +1798,22 @@ export class TextExtractionService {
                 `All ${chapters.length} detected chapters had insufficient content - detection may have failed`,
             );
             return [];
+        }
+
+        // Sanity check: if we only detected 1 chapter and it swallows >70% of the book text,
+        // this is almost certainly a false positive (a stray "Chapter N" reference in body text
+        // caused us to grab everything from that point onward). Reject it — caller will fall
+        // back to a single "Full Book" chapter with the appropriate warning.
+        // Real books with real chapter markers always produce multiple detected chapters.
+        if (validChapters.length === 1 && text.length > 50000) {
+            const coverage = validChapters[0].text.length / text.length;
+            if (coverage > 0.7) {
+                this.logger.warn(
+                    `Single-chapter detection covers ${(coverage * 100).toFixed(0)}% of book text ` +
+                        `(${validChapters[0].text.length}/${text.length} chars) — rejecting as false positive`,
+                );
+                return [];
+            }
         }
 
         return validChapters;
