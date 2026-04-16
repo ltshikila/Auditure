@@ -106,7 +106,7 @@ jobs:
             --command node \
             --args dist/src/book-extractor-main.js \
             --set-env-vars "NODE_ENV=production,STORAGE_BACKEND=gcs,GCS_BUCKET_NAME=auditure-storage-prod,REDIS_HOST=10.3.19.75,REDIS_PORT=6379,EMAIL_LOGO_URL=https://storage.googleapis.com/auditure-storage-prod/branding/logo_1_hd.png,JOB_MAX_RETRIES=3" \
-            --set-secrets "DATABASE_URL=DATABASE_URL:latest,RABBITMQ_URL=RABBITMQ_URL:latest,SENTRY_DSN=SENTRY_DSN:latest,EXPO_ACCESS_TOKEN=EXPO_ACCESS_TOKEN:latest" \
+            --set-secrets "DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_ACCESS_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,RABBITMQ_URL=RABBITMQ_URL:latest,RESEND_API_KEY=RESEND_API_KEY:latest,SENTRY_DSN=SENTRY_DSN:latest,EXPO_ACCESS_TOKEN=EXPO_ACCESS_TOKEN:latest" \
             --set-cloudsql-instances ${{ env.PROJECT_ID }}:${{ env.REGION }}:auditure-db \
             --vpc-connector projects/${{ env.PROJECT_ID }}/locations/${{ env.REGION }}/connectors/auditure-connector \
             --vpc-egress private-ranges-only \
