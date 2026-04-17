@@ -17,7 +17,7 @@ export const FeaturedBookCard: React.FC<FeaturedBookCardProps> = ({
         <View className="mr-4" style={{ width: 220 }}>
             <TouchableOpacity onPress={onPress} activeOpacity={0.9}>
                 {/* Card Container */}
-                <View className="w-[220px] h-[300px] rounded-2xl overflow-hidden bg-brand-input shadow-md">
+                <View className="w-[220px] h-[300px] rounded-2xl overflow-hidden bg-brand-input dark:bg-brand-dark-input shadow-md">
                     {/* Book Cover */}
                     {resolveCoverUrl(book.coverImageUrl) ? (
                         <Image

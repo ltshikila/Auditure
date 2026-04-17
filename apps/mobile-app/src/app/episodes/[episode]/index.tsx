@@ -414,7 +414,7 @@ export default function EpisodeInfoScreen() {
 
     if (loading) {
         return (
-            <SafeAreaView className="flex-1 bg-brand-beige">
+            <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
                 <EpisodeDetailSkeleton />
             </SafeAreaView>
         );
@@ -422,7 +422,7 @@ export default function EpisodeInfoScreen() {
 
     if (error || !episode) {
         return (
-            <SafeAreaView className="flex-1 bg-brand-beige items-center justify-center px-6">
+            <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg items-center justify-center px-6">
                 <Ionicons name="alert-circle-outline" size={48} color="#920002" />
                 <Text className="font-inter text-[#920002] text-center mt-4">
                     {error || 'Episode not found'}
@@ -456,16 +456,16 @@ export default function EpisodeInfoScreen() {
     const renderSummaryTab = () => (
         <View className="px-6 mt-4 mb-32">
             {episode.summary ? (
-                <Text className="font-jakarta text-[#666666] leading-6 text-base">
+                <Text className="font-jakarta text-[#666666] dark:text-brand-dark-text-secondary leading-6 text-base">
                     {episode.summary}
                 </Text>
             ) : (
                 <View className="items-center py-12">
                     <Ionicons name="document-text-outline" size={48} color="#D1D5DB" />
-                    <Text className="font-inter text-gray-400 mt-4 text-center">
+                    <Text className="font-inter text-gray-400 dark:text-brand-dark-text-muted mt-4 text-center">
                         No summary available yet.
                     </Text>
-                    <Text className="font-inter text-gray-400 text-sm text-center mt-1">
+                    <Text className="font-inter text-gray-400 dark:text-brand-dark-text-muted text-sm text-center mt-1">
                         Summary will appear once the episode is generated.
                     </Text>
                 </View>
@@ -475,7 +475,7 @@ export default function EpisodeInfoScreen() {
 
     const renderDetailsTab = () => (
         <View className="px-6 mt-4 mb-32">
-            <View className="bg-[#F5F5F0] rounded-2xl p-4" style={{
+            <View className="bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-2xl p-4" style={{
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.05,
@@ -490,14 +490,14 @@ export default function EpisodeInfoScreen() {
                         }
                     }}
                     disabled={!episode.podcaster?.id}
-                    className="flex-row items-center py-3 border-b border-gray-200"
+                    className="flex-row items-center py-3 border-b border-gray-200 dark:border-brand-dark-border"
                 >
                     <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                         <Ionicons name="mic-outline" size={16} color="#BF9A54" />
                     </View>
                     <View className="flex-1">
-                        <Text className="font-inter text-xs text-gray-500">Podcaster</Text>
-                        <Text className="font-inter-medium text-brand-black">
+                        <Text className="font-inter text-xs text-gray-500 dark:text-brand-dark-text-muted">Podcaster</Text>
+                        <Text className="font-inter-medium text-brand-black dark:text-brand-dark-text">
                             {episode.podcaster?.name || 'Virtual Podcaster'}
                         </Text>
                     </View>
@@ -510,14 +510,14 @@ export default function EpisodeInfoScreen() {
                 {episode.book && (
                     <TouchableOpacity
                         onPress={() => router.push(`/${episode.book!.id}`)}
-                        className="flex-row items-center py-3 border-b border-gray-200"
+                        className="flex-row items-center py-3 border-b border-gray-200 dark:border-brand-dark-border"
                     >
                         <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                             <Image source={icons.books} style={{ width: 16, height: 16, tintColor: '#BF9A54' }} />
                         </View>
                         <View className="flex-1">
-                            <Text className="font-inter text-xs text-gray-500">Book Inspiration</Text>
-                            <Text className="font-inter-medium text-brand-black">
+                            <Text className="font-inter text-xs text-gray-500 dark:text-brand-dark-text-muted">Book Inspiration</Text>
+                            <Text className="font-inter-medium text-brand-black dark:text-brand-dark-text">
                                 {episode.book.title}{episode.book.author ? ` by ${episode.book.author}` : ''}
                             </Text>
                         </View>
@@ -526,65 +526,65 @@ export default function EpisodeInfoScreen() {
                 )}
 
                 {/* Episode Type */}
-                <View className="flex-row items-center py-3 border-b border-gray-200">
+                <View className="flex-row items-center py-3 border-b border-gray-200 dark:border-brand-dark-border">
                     <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                         <Ionicons name="people-outline" size={16} color="#BF9A54" />
                     </View>
                     <View className="flex-1">
-                        <Text className="font-inter text-xs text-gray-500">Type</Text>
-                        <Text className="font-inter-medium text-brand-black">
+                        <Text className="font-inter text-xs text-gray-500 dark:text-brand-dark-text-muted">Type</Text>
+                        <Text className="font-inter-medium text-brand-black dark:text-brand-dark-text">
                             {getEpisodeTypeLabel(episode.episodeType)} ({getEpisodeThemeLabel(episode.episodeTheme)})
                         </Text>
                     </View>
                 </View>
 
                 {/* Duration */}
-                <View className="flex-row items-center py-3 border-b border-gray-200">
+                <View className="flex-row items-center py-3 border-b border-gray-200 dark:border-brand-dark-border">
                     <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                         <Ionicons name="time-outline" size={16} color="#BF9A54" />
                     </View>
                     <View className="flex-1">
-                        <Text className="font-inter text-xs text-gray-500">Duration</Text>
-                        <Text className="font-inter-medium text-brand-black">
+                        <Text className="font-inter text-xs text-gray-500 dark:text-brand-dark-text-muted">Duration</Text>
+                        <Text className="font-inter-medium text-brand-black dark:text-brand-dark-text">
                             {formatDuration(episode.duration)}
                         </Text>
                     </View>
                 </View>
 
                 {/* Format */}
-                <View className="flex-row items-center py-3 border-b border-gray-200">
+                <View className="flex-row items-center py-3 border-b border-gray-200 dark:border-brand-dark-border">
                     <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                         <Ionicons name="musical-note-outline" size={16} color="#BF9A54" />
                     </View>
                     <View className="flex-1">
-                        <Text className="font-inter text-xs text-gray-500">Format</Text>
-                        <Text className="font-inter-medium text-brand-black">
+                        <Text className="font-inter text-xs text-gray-500 dark:text-brand-dark-text-muted">Format</Text>
+                        <Text className="font-inter-medium text-brand-black dark:text-brand-dark-text">
                             {episode.audioFormat?.toUpperCase() || 'MP3'}
                         </Text>
                     </View>
                 </View>
 
                 {/* Plays */}
-                <View className="flex-row items-center py-3 border-b border-gray-200">
+                <View className="flex-row items-center py-3 border-b border-gray-200 dark:border-brand-dark-border">
                     <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                         <Ionicons name="play-circle-outline" size={16} color="#BF9A54" />
                     </View>
                     <View className="flex-1">
-                        <Text className="font-inter text-xs text-gray-500">Total Plays</Text>
-                        <Text className="font-inter-medium text-brand-black">
+                        <Text className="font-inter text-xs text-gray-500 dark:text-brand-dark-text-muted">Total Plays</Text>
+                        <Text className="font-inter-medium text-brand-black dark:text-brand-dark-text">
                             {formatCount(episode.playCount)}
                         </Text>
                     </View>
                 </View>
 
                 {/* Likes */}
-                <View className="flex-row items-center py-3 border-b border-gray-200">
+                <View className="flex-row items-center py-3 border-b border-gray-200 dark:border-brand-dark-border">
                     <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                         <Ionicons name="heart-outline" size={16} color="#BF9A54" />
                     </View>
                     <View className="flex-1">
-                        <Text className="font-inter text-xs text-gray-500">Likes</Text>
-                        <Text className="font-inter-medium text-brand-black">
+                        <Text className="font-inter text-xs text-gray-500 dark:text-brand-dark-text-muted">Likes</Text>
+                        <Text className="font-inter-medium text-brand-black dark:text-brand-dark-text">
                             {formatCount(episode.likeCount)}
                         </Text>
                     </View>
@@ -596,8 +596,8 @@ export default function EpisodeInfoScreen() {
                         <Ionicons name="calendar-outline" size={16} color="#BF9A54" />
                     </View>
                     <View className="flex-1">
-                        <Text className="font-inter text-xs text-gray-500">Created</Text>
-                        <Text className="font-inter-medium text-brand-black">
+                        <Text className="font-inter text-xs text-gray-500 dark:text-brand-dark-text-muted">Created</Text>
+                        <Text className="font-inter-medium text-brand-black dark:text-brand-dark-text">
                             {formatDate(episode.createdAt)}
                         </Text>
                     </View>
@@ -611,7 +611,7 @@ export default function EpisodeInfoScreen() {
             return (
                 <View className="px-6 mt-4 mb-32 items-center py-12">
                     <ActivityIndicator size="large" color="#BF9A54" />
-                    <Text className="font-inter text-gray-500 mt-4">Loading author info...</Text>
+                    <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted mt-4">Loading author info...</Text>
                 </View>
             );
         }
@@ -620,7 +620,7 @@ export default function EpisodeInfoScreen() {
             return (
                 <View className="px-6 mt-4 mb-32 items-center py-12">
                     <Ionicons name="alert-circle-outline" size={48} color="#D1D5DB" />
-                    <Text className="font-inter text-gray-500 mt-4 text-center">{authorError}</Text>
+                    <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted mt-4 text-center">{authorError}</Text>
                     <TouchableOpacity onPress={fetchAuthorInfo} className="mt-4">
                         <Text className="font-inter-medium text-brand-gold">Try Again</Text>
                     </TouchableOpacity>
@@ -632,11 +632,11 @@ export default function EpisodeInfoScreen() {
             return (
                 <View className="px-6 mt-4 mb-32 items-center py-12">
                     <Ionicons name="person-outline" size={48} color="#D1D5DB" />
-                    <Text className="font-inter text-gray-400 mt-4 text-center">
+                    <Text className="font-inter text-gray-400 dark:text-brand-dark-text-muted mt-4 text-center">
                         Author information not available.
                     </Text>
                     {episode.book?.author && (
-                        <Text className="font-inter text-gray-500 text-sm mt-2">
+                        <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted text-sm mt-2">
                             Book by: {episode.book.author}
                         </Text>
                     )}
@@ -646,7 +646,7 @@ export default function EpisodeInfoScreen() {
 
         return (
             <View className="px-6 mt-4 mb-32">
-                <View className="bg-[#F5F5F0] rounded-2xl p-5" style={{
+                <View className="bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-2xl p-5" style={{
                     shadowColor: '#000',
                     shadowOffset: { width: 0, height: 2 },
                     shadowOpacity: 0.05,
@@ -658,7 +658,7 @@ export default function EpisodeInfoScreen() {
                         {authorInfo.photoUrl && !authorImageFailed ? (
                             <Image
                                 source={{ uri: authorInfo.photoUrl }}
-                                className="w-16 h-16 rounded-full bg-gray-200"
+                                className="w-16 h-16 rounded-full bg-gray-200 dark:bg-brand-dark-border"
                                 onError={() => setAuthorImageFailed(true)}
                             />
                         ) : (
@@ -667,11 +667,11 @@ export default function EpisodeInfoScreen() {
                             </View>
                         )}
                         <View className="ml-4 flex-1">
-                            <Text className="font-inter-bold text-lg text-brand-black">
+                            <Text className="font-inter-bold text-lg text-brand-black dark:text-brand-dark-text">
                                 {authorInfo.name}
                             </Text>
                             {(authorInfo.birthDate || authorInfo.deathDate) && (
-                                <Text className="font-inter text-gray-500 text-sm">
+                                <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted text-sm">
                                     {authorInfo.birthDate}
                                     {authorInfo.deathDate ? ` - ${authorInfo.deathDate}` : ''}
                                 </Text>
@@ -687,8 +687,8 @@ export default function EpisodeInfoScreen() {
                     {/* Bio */}
                     {authorInfo.bio && (
                         <View className="mt-2">
-                            <Text className="font-inter-medium text-brand-black mb-2">About</Text>
-                            <Text className="font-jakarta text-[#666666] leading-6">
+                            <Text className="font-inter-medium text-brand-black dark:text-brand-dark-text mb-2">About</Text>
+                            <Text className="font-jakarta text-[#666666] dark:text-brand-dark-text-secondary leading-6">
                                 {authorInfo.bio.length > 600
                                     ? authorInfo.bio.substring(0, 600) + '...'
                                     : authorInfo.bio}
@@ -726,13 +726,13 @@ export default function EpisodeInfoScreen() {
                             <Image source={icons.profile} style={{ width: 20, height: 20, tintColor: 'white' }} />
                         )}
                     </View>
-                    <View className="flex-1 flex-row bg-[#F5F5F0] rounded-full items-center pr-2">
+                    <View className="flex-1 flex-row bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-full items-center pr-2">
                         <TextInput
                             value={newComment}
                             onChangeText={setNewComment}
                             placeholder="Add a comment..."
                             placeholderTextColor="#858585"
-                            className="flex-1 font-inter text-brand-black px-4 py-3"
+                            className="flex-1 font-inter text-brand-black dark:text-brand-dark-text px-4 py-3"
                             multiline={false}
                             editable={!submittingComment}
                         />
@@ -755,12 +755,12 @@ export default function EpisodeInfoScreen() {
                 {commentsLoading ? (
                     <View className="items-center py-12">
                         <ActivityIndicator size="large" color="#BF9A54" />
-                        <Text className="font-inter text-gray-500 mt-4">Loading comments...</Text>
+                        <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted mt-4">Loading comments...</Text>
                     </View>
                 ) : commentsError ? (
                     <View className="items-center py-12">
                         <Ionicons name="alert-circle-outline" size={48} color="#D1D5DB" />
-                        <Text className="font-inter text-gray-500 mt-4 text-center">
+                        <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted mt-4 text-center">
                             {commentsError}
                         </Text>
                         <TouchableOpacity onPress={fetchComments} className="mt-4">
@@ -770,16 +770,16 @@ export default function EpisodeInfoScreen() {
                 ) : comments.length === 0 ? (
                     <View className="items-center py-12">
                         <Ionicons name="chatbubble-outline" size={48} color="#D1D5DB" />
-                        <Text className="font-inter text-gray-400 mt-4 text-center">
+                        <Text className="font-inter text-gray-400 dark:text-brand-dark-text-muted mt-4 text-center">
                             No comments yet.
                         </Text>
-                        <Text className="font-inter text-gray-400 text-sm text-center mt-1">
+                        <Text className="font-inter text-gray-400 dark:text-brand-dark-text-muted text-sm text-center mt-1">
                             Be the first to share your thoughts!
                         </Text>
                     </View>
                 ) : (
                     <View>
-                        <Text className="font-inter-medium text-gray-500 mb-4">
+                        <Text className="font-inter-medium text-gray-500 dark:text-brand-dark-text-muted mb-4">
                             {comments.length} {comments.length === 1 ? 'comment' : 'comments'}
                         </Text>
                         {comments.map((comment) => (
@@ -797,14 +797,14 @@ export default function EpisodeInfoScreen() {
                                     </View>
                                     <View className="flex-1">
                                         <View className="flex-row items-center justify-between">
-                                            <Text className="font-inter-medium text-brand-black">
+                                            <Text className="font-inter-medium text-brand-black dark:text-brand-dark-text">
                                                 {comment.user.firstName} {comment.user.lastName}
                                             </Text>
-                                            <Text className="font-inter text-gray-400 text-xs">
+                                            <Text className="font-inter text-gray-400 dark:text-brand-dark-text-muted text-xs">
                                                 {formatTimeAgo(comment.createdAt)}
                                             </Text>
                                         </View>
-                                        <Text className="font-inter text-[#666666] mt-1 leading-5">
+                                        <Text className="font-inter text-[#666666] dark:text-brand-dark-text-secondary mt-1 leading-5">
                                             {comment.content}
                                         </Text>
 
@@ -829,7 +829,7 @@ export default function EpisodeInfoScreen() {
     };
 
     return (
-        <SafeAreaView edges={['top']} className="flex-1 bg-brand-beige">
+        <SafeAreaView edges={['top']} className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
             <KeyboardAwareScrollView
                 showsVerticalScrollIndicator={false}
                 extraScrollHeight={Platform.OS === 'ios' ? 120 : 80}
@@ -843,7 +843,7 @@ export default function EpisodeInfoScreen() {
                             className="w-10 h-10 items-center justify-center -ml-2">
                             <Image source={icons.back} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
                         </TouchableOpacity>
-                        <Text className="font-jakarta-medium text-lg text-brand-black">About</Text>
+                        <Text className="font-jakarta-medium text-lg text-brand-black dark:text-brand-dark-text">About</Text>
                         <TouchableOpacity
                             onPress={handleLike}
                             className="w-10 h-10 items-center justify-center">
@@ -858,7 +858,7 @@ export default function EpisodeInfoScreen() {
                     {/* Book Cover */}
                     <View className="px-6 pt-4 items-center">
                         <View
-                            className="rounded-xl overflow-hidden bg-brand-input"
+                            className="rounded-xl overflow-hidden bg-brand-input dark:bg-brand-dark-input"
                             style={{ width: 154, height: 230 }}>
                             {resolveCoverUrl(episode.book?.coverImageUrl) ? (
                                 <Image
@@ -880,7 +880,7 @@ export default function EpisodeInfoScreen() {
                             {isEditingTitle ? (
                                 <View className="flex-row items-center">
                                     <TextInput
-                                        className="font-inter text-2xl text-brand-black flex-1 border-b border-brand-gold pb-1"
+                                        className="font-inter text-2xl text-brand-black dark:text-brand-dark-text flex-1 border-b border-brand-gold pb-1"
                                         value={editedTitle}
                                         onChangeText={setEditedTitle}
                                         autoFocus
@@ -910,7 +910,7 @@ export default function EpisodeInfoScreen() {
                                     disabled={!isOwner}
                                     activeOpacity={isOwner ? 0.6 : 1}
                                 >
-                                    <Text className="font-inter text-2xl text-brand-black">
+                                    <Text className="font-inter text-2xl text-brand-black dark:text-brand-dark-text">
                                         {episode.title}
                                     </Text>
                                 </TouchableOpacity>
@@ -922,7 +922,7 @@ export default function EpisodeInfoScreen() {
                                     }
                                 }}
                                 disabled={!episode.podcaster?.id}>
-                                <Text className="font-jakarta text-[#858585] mt-1">
+                                <Text className="font-jakarta text-[#858585] dark:text-brand-dark-text-secondary mt-1">
                                     By {episode.podcaster?.name || 'Virtual Podcaster'}
                                 </Text>
                             </TouchableOpacity>
@@ -949,7 +949,7 @@ export default function EpisodeInfoScreen() {
                                 style={{ width: 20, height: 20 }}
                                 resizeMode="contain"
                             />
-                            <Text className="font-jakarta text-brand-black">
+                            <Text className="font-jakarta text-brand-black dark:text-brand-dark-text">
                                 {episode.averageRating > 0 ? episode.averageRating.toFixed(1) : 'Rate'}
                             </Text>
                         </TouchableOpacity>
@@ -960,7 +960,7 @@ export default function EpisodeInfoScreen() {
                                 style={{ width: 20, height: 20 }}
                                 resizeMode="contain"
                             />
-                            <Text className="font-jakarta text-brand-black">
+                            <Text className="font-jakarta text-brand-black dark:text-brand-dark-text">
                                 {episode.book?.language?.toUpperCase() || 'EN'}
                             </Text>
                         </View>
@@ -971,7 +971,7 @@ export default function EpisodeInfoScreen() {
                                 style={{ width: 20, height: 20 }}
                                 resizeMode="contain"
                             />
-                            <Text className="font-jakarta text-brand-black">
+                            <Text className="font-jakarta text-brand-black dark:text-brand-dark-text">
                                 {formatDuration(episode.duration)}
                             </Text>
                         </View>
@@ -981,7 +981,7 @@ export default function EpisodeInfoScreen() {
                     {isGenerating && (
                         <View className="px-6 mt-4">
                             <View
-                                className="bg-[#F5F5F0] rounded-2xl p-4 items-center mb-3 justify-center shadow-md"
+                                className="bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-2xl p-4 items-center mb-3 justify-center shadow-md"
                                 style={{
                                     shadowColor: '#000',
                                     shadowOffset: { width: 0, height: 2 },
@@ -992,7 +992,7 @@ export default function EpisodeInfoScreen() {
                                 <View className="flex-row items-center justify-between mb-2">
                                     <View className="flex-row items-center">
                                         <ActivityIndicator size="small" color="#BF9A54" />
-                                        <Text className="font-inter-medium text-brand-black ml-2">
+                                        <Text className="font-inter-medium text-brand-black dark:text-brand-dark-text ml-2">
                                             Generating...
                                         </Text>
                                     </View>
@@ -1006,7 +1006,7 @@ export default function EpisodeInfoScreen() {
                                         style={{ width: `${generationProgress?.progress ?? 0}%` }}
                                     />
                                 </View>
-                                <Text className="font-inter text-[#858585] text-xs mt-2 text-center">
+                                <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-xs mt-2 text-center">
                                     {getStatusText(generationProgress?.status)}
                                 </Text>
                             </View>
@@ -1032,7 +1032,7 @@ export default function EpisodeInfoScreen() {
                             className={`pb-3 mr-8 ${activeTab === 'summary' ? 'border-b-2 border-[#E06065]' : ''}`}>
                             <Text
                                 className={`font-inter${activeTab === 'summary' ? '-medium' : ''} ${
-                                    activeTab === 'summary' ? 'text-[#E06065]' : 'text-[#858585]'
+                                    activeTab === 'summary' ? 'text-[#E06065]' : 'text-[#858585] dark:text-brand-dark-text-secondary'
                                 } ml-1`}>
                                 Summary
                             </Text>
@@ -1042,7 +1042,7 @@ export default function EpisodeInfoScreen() {
                             className={`pb-3 mr-8 ${activeTab === 'details' ? 'border-b-2 border-[#E06065]' : ''}`}>
                             <Text
                                 className={`font-inter${activeTab === 'details' ? '-medium' : ''} ${
-                                    activeTab === 'details' ? 'text-[#E06065]' : 'text-[#858585]'
+                                    activeTab === 'details' ? 'text-[#E06065]' : 'text-[#858585] dark:text-brand-dark-text-secondary'
                                 }`}>
                                 Details
                             </Text>
@@ -1052,7 +1052,7 @@ export default function EpisodeInfoScreen() {
                             className={`pb-3 mr-8 ${activeTab === 'author' ? 'border-b-2 border-[#E06065]' : ''}`}>
                             <Text
                                 className={`font-inter${activeTab === 'author' ? '-medium' : ''} ${
-                                    activeTab === 'author' ? 'text-[#E06065]' : 'text-[#858585]'
+                                    activeTab === 'author' ? 'text-[#E06065]' : 'text-[#858585] dark:text-brand-dark-text-secondary'
                                 }`}>
                                 Author
                             </Text>
@@ -1062,7 +1062,7 @@ export default function EpisodeInfoScreen() {
                             className={`pb-3 ${activeTab === 'comments' ? 'border-b-2 border-[#E06065]' : ''}`}>
                             <Text
                                 className={`font-inter${activeTab === 'comments' ? '-medium' : ''} ${
-                                    activeTab === 'comments' ? 'text-[#E06065]' : 'text-[#858585]'
+                                    activeTab === 'comments' ? 'text-[#E06065]' : 'text-[#858585] dark:text-brand-dark-text-secondary'
                                 } mr-1`}>
                                 Comments
                             </Text>
@@ -1086,13 +1086,13 @@ export default function EpisodeInfoScreen() {
                     className="flex-1 bg-black/50 items-center justify-center"
                 >
                     <View
-                        className="bg-[#F5F0E8] rounded-3xl p-6 mx-8 w-[85%]"
+                        className="bg-[#F5F0E8] dark:bg-brand-dark-surface rounded-3xl p-6 mx-8 w-[85%]"
                         onStartShouldSetResponder={() => true}
                     >
-                        <Text className="font-inter-bold text-xl text-brand-black text-center mb-2">
+                        <Text className="font-inter-bold text-xl text-brand-black dark:text-brand-dark-text text-center mb-2">
                             Rate this Episode
                         </Text>
-                        <Text className="font-inter text-gray-500 text-center text-sm mb-6">
+                        <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted text-center text-sm mb-6">
                             {episode?.title}
                         </Text>
 

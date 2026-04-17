@@ -101,7 +101,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
             onPress={onPress}
             onLongPress={onDelete}
             className={`flex-row p-4 mx-4 mb-3 rounded-2xl ${
-                !notification.read ? 'bg-white' : 'bg-[#F5F5F0]'
+                !notification.read ? 'bg-white dark:bg-brand-dark-surface' : 'bg-[#F5F5F0] dark:bg-brand-dark-surface'
             }`}
             style={{
                 shadowColor: !notification.read ? '#000' : 'transparent',
@@ -129,7 +129,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                 <View className="flex-row items-start justify-between mb-1">
                     <Text
                         className={`font-inter-bold text-base flex-1 mr-2 ${
-                            !notification.read ? 'text-brand-black' : 'text-gray-600'
+                            !notification.read ? 'text-brand-black dark:text-brand-dark-text' : 'text-gray-600 dark:text-brand-dark-text-secondary'
                         }`}
                         numberOfLines={1}
                     >
@@ -140,7 +140,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                     </Text>
                 </View>
                 <Text
-                    className={`font-inter text-sm ${!notification.read ? 'text-gray-600' : 'text-gray-400'}`}
+                    className={`font-inter text-sm ${!notification.read ? 'text-gray-600 dark:text-brand-dark-text-secondary' : 'text-gray-400 dark:text-brand-dark-text-muted'}`}
                     numberOfLines={2}
                 >
                     {notification.body}
@@ -234,10 +234,10 @@ export default function NotificationsScreen() {
                         <Ionicons name="notifications-outline" size={40} color="#BF9A54" />
                     </View>
                 </View>
-                <Text className="font-inter-bold text-2xl text-brand-black mb-3">
+                <Text className="font-inter-bold text-2xl text-brand-black dark:text-brand-dark-text mb-3">
                     All caught up!
                 </Text>
-                <Text className="font-jakarta text-gray-500 text-center text-base leading-6">
+                <Text className="font-jakarta text-gray-500 dark:text-brand-dark-text-muted text-center text-base leading-6">
                     You have no new notifications.{'\n'}We&apos;ll let you know when something arrives.
                 </Text>
             </View>
@@ -254,9 +254,9 @@ export default function NotificationsScreen() {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-brand-beige" edges={['top', 'left', 'right']}>
+        <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg" edges={['top', 'left', 'right']}>
             {/* Header */}
-            <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100">
+            <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-brand-dark-border">
                 <View className="flex-row items-center">
                     <TouchableOpacity
                         onPress={() => router.back()}
@@ -264,7 +264,7 @@ export default function NotificationsScreen() {
                     >
                         <Image source={require('../../assets/icons/back.png')} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
                     </TouchableOpacity>
-                    <Text className="font-jakarta-bold text-xl text-gray-900 ml-2">
+                    <Text className="font-jakarta-bold text-xl text-gray-900 dark:text-brand-dark-text ml-2">
                         Notifications
                     </Text>
                     {unreadCount > 0 && (
@@ -336,7 +336,7 @@ export default function NotificationsScreen() {
                     onPress={() => setSelectedNotification(null)}
                 >
                     <Pressable
-                        className="bg-brand-beige rounded-t-3xl max-h-[70%]"
+                        className="bg-brand-beige dark:bg-brand-dark-bg rounded-t-3xl max-h-[70%]"
                         onPress={() => {}}
                     >
                         {selectedNotification && (
@@ -359,18 +359,18 @@ export default function NotificationsScreen() {
                                                 color={getNotificationColor(selectedNotification.type)}
                                             />
                                         </View>
-                                        <Text className="font-inter text-xs text-gray-400">
+                                        <Text className="font-inter text-xs text-gray-400 dark:text-brand-dark-text-muted">
                                             {formatTimeAgo(selectedNotification.createdAt)}
                                         </Text>
                                     </View>
 
                                     {/* Title */}
-                                    <Text className="font-inter-bold text-xl text-brand-black mb-3">
+                                    <Text className="font-inter-bold text-xl text-brand-black dark:text-brand-dark-text mb-3">
                                         {selectedNotification.title}
                                     </Text>
 
                                     {/* Body */}
-                                    <Text className="font-inter text-base text-gray-600 leading-6 mb-6">
+                                    <Text className="font-inter text-base text-gray-600 dark:text-brand-dark-text-secondary leading-6 mb-6">
                                         {selectedNotification.body}
                                     </Text>
                                 </ScrollView>
@@ -379,9 +379,9 @@ export default function NotificationsScreen() {
                                 <View className="px-6 pb-8">
                                     <TouchableOpacity
                                         onPress={() => setSelectedNotification(null)}
-                                        className="bg-[#F5F5F0] py-3.5 rounded-xl items-center"
+                                        className="bg-[#F5F5F0] dark:bg-brand-dark-surface py-3.5 rounded-xl items-center"
                                     >
-                                        <Text className="font-inter-medium text-gray-600">Dismiss</Text>
+                                        <Text className="font-inter-medium text-gray-600 dark:text-brand-dark-text-secondary">Dismiss</Text>
                                     </TouchableOpacity>
                                 </View>
                             </>

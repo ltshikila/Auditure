@@ -29,13 +29,13 @@ export const ContinueListeningCard: React.FC<ContinueListeningCardProps> = ({ ep
     return (
         <TouchableOpacity
             onPress={onPress}
-            className="mr-4 bg-white rounded-xl overflow-hidden shadow-sm"
+            className="mr-4 bg-white dark:bg-brand-dark-surface rounded-xl overflow-hidden shadow-sm"
             style={{ width: 200 }}
         >
             {/* Top Section with Cover and Info */}
             <View className="flex-row p-3">
                 {/* Book Cover */}
-                <View className="w-[60px] h-[80px] rounded-lg overflow-hidden bg-brand-input mr-3">
+                <View className="w-[60px] h-[80px] rounded-lg overflow-hidden bg-brand-input dark:bg-brand-dark-input mr-3">
                     {resolveCoverUrl(episode.book?.coverImageUrl) ? (
                         <Image
                             source={{ uri: resolveCoverUrl(episode.book?.coverImageUrl)! }}
@@ -53,15 +53,15 @@ export const ContinueListeningCard: React.FC<ContinueListeningCardProps> = ({ ep
 
                 {/* Episode Info */}
                 <View className="flex-1 justify-center">
-                    <Text className="font-inter-medium text-[#1A1C1E] text-sm" numberOfLines={2}>
+                    <Text className="font-inter-medium text-[#1A1C1E] dark:text-brand-dark-text text-sm" numberOfLines={2}>
                         {episode.title}
                     </Text>
-                    <Text className="font-inter text-[#858585] text-xs mt-1" numberOfLines={1}>
+                    <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-xs mt-1" numberOfLines={1}>
                         {episode.podcaster?.name || 'Unknown Podcaster'}
                     </Text>
                     <View className="flex-row items-center mt-1">
                         <Ionicons name="time-outline" size={12} color="#858585" />
-                        <Text className="font-inter text-[#858585] text-xs ml-1">
+                        <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-xs ml-1">
                             {remainingTime} left
                         </Text>
                     </View>
@@ -79,7 +79,7 @@ export const ContinueListeningCard: React.FC<ContinueListeningCardProps> = ({ ep
             </View>
 
             {/* Progress Bar */}
-            <View className="h-1 bg-gray-200">
+            <View className="h-1 bg-gray-200 dark:bg-brand-dark-border">
                 <View
                     className="h-full bg-brand-red"
                     style={{ width: `${progressPercent}%` }}

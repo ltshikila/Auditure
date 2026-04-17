@@ -6,17 +6,17 @@ import { Ionicons } from '@expo/vector-icons';
 
 export default function TermsOfService() {
     return (
-        <SafeAreaView className="flex-1 bg-brand-beige">
+        <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
             {/* Header */}
-            <View className="flex-row items-center px-5 py-4 border-b border-gray-200">
+            <View className="flex-row items-center px-5 py-4 border-b border-gray-200 dark:border-brand-dark-border">
                 <TouchableOpacity onPress={() => router.back()} className="mr-4">
                     <Ionicons name="arrow-back" size={24} color="#2F2F2F" />
                 </TouchableOpacity>
-                <Text className="font-inter-bold text-xl text-brand-black">Terms of Service</Text>
+                <Text className="font-inter-bold text-xl text-brand-black dark:text-brand-dark-text">Terms of Service</Text>
             </View>
 
             <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
-                <Text className="font-inter text-gray-500 text-sm mb-6">
+                <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted text-sm mb-6">
                     Last updated: February 2026
                 </Text>
 
@@ -119,8 +119,8 @@ export default function TermsOfService() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
     return (
         <View className="mb-6">
-            <Text className="font-inter-bold text-base text-brand-black mb-2">{title}</Text>
-            <Text className="font-inter text-sm text-gray-700 leading-5">{children}</Text>
+            <Text className="font-inter-bold text-base text-brand-black dark:text-brand-dark-text mb-2">{title}</Text>
+            <Text className="font-inter text-sm text-gray-700 dark:text-brand-dark-text-secondary leading-5">{children}</Text>
         </View>
     );
 }

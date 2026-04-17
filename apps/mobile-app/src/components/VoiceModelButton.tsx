@@ -18,7 +18,7 @@ export const VoiceModelButton: React.FC<VoiceModelButtonProps> = ({
     return (
         <TouchableOpacity
             onPress={onPress}
-            className="w-[30%] rounded-2xl p-4 py-6 items-center mb-3 aspect-[0.9] justify-center bg-[#F5F5F0]"
+            className="w-[30%] rounded-2xl p-4 py-6 items-center mb-3 aspect-[0.9] justify-center bg-[#F5F5F0] dark:bg-brand-dark-surface"
             style={
                 isSelected
                     ? {
@@ -46,7 +46,7 @@ export const VoiceModelButton: React.FC<VoiceModelButtonProps> = ({
             </View>
             <Text
                 className={`font-inter text-center ${
-                    isSelected ? 'text-brand-gold font-inter-medium' : 'text-[#1A1C1E]'
+                    isSelected ? 'text-brand-gold font-inter-medium' : 'text-[#1A1C1E] dark:text-brand-dark-text'
                 }`}>
                 {label}
             </Text>

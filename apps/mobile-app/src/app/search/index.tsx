@@ -61,7 +61,7 @@ const StarRating = ({ rating, count }: { rating: number; count?: number }) => {
                 <Image key={`empty-${i}`} source={starIcon} style={{ width: 12, height: 12, tintColor: '#D1D5DB' }} />
             ))}
             {count !== undefined && (
-                <Text className="font-inter text-xs text-gray-500 ml-1">{count} Ratings</Text>
+                <Text className="font-inter text-xs text-gray-500 dark:text-brand-dark-text-muted ml-1">{count} Ratings</Text>
             )}
         </View>
     );
@@ -273,19 +273,19 @@ export default function SearchScreen() {
                 {resolveCoverUrl(episode.book.coverImageUrl) ? (
                     <Image
                         source={{ uri: resolveCoverUrl(episode.book.coverImageUrl)! }}
-                        className="w-14 h-20 rounded bg-gray-200"
+                        className="w-14 h-20 rounded bg-gray-200 dark:bg-brand-dark-border"
                         resizeMode="cover"
                     />
                 ) : (
-                    <View className="w-14 h-20 rounded bg-gray-200 items-center justify-center">
+                    <View className="w-14 h-20 rounded bg-gray-200 dark:bg-brand-dark-border items-center justify-center">
                         <Ionicons name="musical-notes" size={24} color="#9CA3AF" />
                     </View>
                 )}
                 <View className="flex-1 ml-3">
-                    <Text className="font-jakarta-semibold text-base text-gray-900" numberOfLines={1}>
+                    <Text className="font-jakarta-semibold text-base text-gray-900 dark:text-brand-dark-text" numberOfLines={1}>
                         {episode.title}
                     </Text>
-                    <Text className="font-inter text-sm text-gray-500 mb-1" numberOfLines={1}>
+                    <Text className="font-inter text-sm text-gray-500 dark:text-brand-dark-text-muted mb-1" numberOfLines={1}>
                         {episode.podcaster.name}
                     </Text>
                     {episode.averageRating > 0 && (
@@ -315,19 +315,19 @@ export default function SearchScreen() {
             {resolveCoverUrl(book.coverImageUrl) ? (
                 <Image
                     source={{ uri: resolveCoverUrl(book.coverImageUrl)! }}
-                    className="w-14 h-20 rounded bg-gray-200"
+                    className="w-14 h-20 rounded bg-gray-200 dark:bg-brand-dark-border"
                     resizeMode="cover"
                 />
             ) : (
-                <View className="w-14 h-20 rounded bg-gray-200 items-center justify-center">
+                <View className="w-14 h-20 rounded bg-gray-200 dark:bg-brand-dark-border items-center justify-center">
                     <Image source={booksIcon} style={{ width: 26, height: 26, tintColor: '#9CA3AF' }} />
                 </View>
             )}
             <View className="flex-1 ml-3">
-                <Text className="font-jakarta-semibold text-base text-gray-900" numberOfLines={1}>
+                <Text className="font-jakarta-semibold text-base text-gray-900 dark:text-brand-dark-text" numberOfLines={1}>
                     {book.title}
                 </Text>
-                <Text className="font-inter text-sm text-gray-500" numberOfLines={1}>
+                <Text className="font-inter text-sm text-gray-500 dark:text-brand-dark-text-muted" numberOfLines={1}>
                     {book.author || 'Author Name'}
                 </Text>
             </View>
@@ -353,10 +353,10 @@ export default function SearchScreen() {
                     </View>
                 )}
                 <View className="flex-1 ml-3">
-                    <Text className="font-jakarta-semibold text-base text-gray-900" numberOfLines={1}>
+                    <Text className="font-jakarta-semibold text-base text-gray-900 dark:text-brand-dark-text" numberOfLines={1}>
                         {podcaster.name}
                     </Text>
-                    <Text className="font-inter text-sm text-[#858585] mb-1" numberOfLines={1}>
+                    <Text className="font-inter text-sm text-[#858585] dark:text-brand-dark-text-secondary mb-1" numberOfLines={1}>
                         {podcaster.expertiseTags.length > 0
                             ? podcaster.expertiseTags.slice(0, 2).join(', ')
                             : 'Genre(s)'}
@@ -384,7 +384,7 @@ export default function SearchScreen() {
         return (
             <View className="mb-4">
                 <View className="flex-row items-center justify-between px-4 mb-2">
-                    <Text className="font-jakarta-bold text-lg text-gray-900">{title}</Text>
+                    <Text className="font-jakarta-bold text-lg text-gray-900 dark:text-brand-dark-text">{title}</Text>
                     {hasMore && (
                         <TouchableOpacity onPress={() => setActiveTab(scope as TabType)}>
                             <Text className="font-inter-medium text-sm text-red-500">View all</Text>
@@ -402,7 +402,7 @@ export default function SearchScreen() {
         return (
             <View className="px-4 pt-4">
                 <View className="flex-row items-center justify-between mb-3">
-                    <Text className="font-inter-medium text-lg text-gray-900">Recent Searches</Text>
+                    <Text className="font-inter-medium text-lg text-gray-900 dark:text-brand-dark-text">Recent Searches</Text>
                     <TouchableOpacity onPress={clearRecentSearches}>
                         <Text className="font-inter-medium text-sm text-brand-red">Clear</Text>
                     </TouchableOpacity>
@@ -414,7 +414,7 @@ export default function SearchScreen() {
                         className="flex-row items-center py-3"
                     >
                         <Ionicons name="time-outline" size={20} color="#9CA3AF" />
-                        <Text className="font-inter text-base text-gray-700 flex-1 ml-3">
+                        <Text className="font-inter text-base text-gray-700 dark:text-brand-dark-text-secondary flex-1 ml-3">
                             {search}
                         </Text>
                         <TouchableOpacity
@@ -436,11 +436,11 @@ export default function SearchScreen() {
 
         return (
             <View className="flex-1 items-center justify-center py-20">
-                <View className="w-24 h-24 bg-gray-100 rounded-full items-center justify-center mb-4">
+                <View className="w-24 h-24 bg-gray-100 dark:bg-brand-dark-input rounded-full items-center justify-center mb-4">
                     <Image source={searchIcon} style={{ width: 48, height: 48, tintColor: '#9CA3AF' }} />
                 </View>
-                <Text className="font-jakarta-bold text-xl text-gray-900 mb-2">No results found</Text>
-                <Text className="font-inter text-gray-500 text-center px-8">
+                <Text className="font-jakarta-bold text-xl text-gray-900 dark:text-brand-dark-text mb-2">No results found</Text>
+                <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted text-center px-8">
                     Try searching for something else or check your spelling.
                 </Text>
             </View>
@@ -522,7 +522,7 @@ export default function SearchScreen() {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-brand-beige" edges={['top', 'left', 'right']}>
+        <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg" edges={['top', 'left', 'right']}>
             {/* Header with Title */}
             <View className="flex-row items-center justify-center px-4 py-3 relative">
                 <TouchableOpacity
@@ -531,7 +531,7 @@ export default function SearchScreen() {
                 >
                     <Image source={require('../../assets/icons/back.png')} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
                 </TouchableOpacity>
-                <Text className="font-jakarta text-lg text-gray-900">Search</Text>
+                <Text className="font-jakarta text-lg text-gray-900 dark:text-brand-dark-text">Search</Text>
             </View>
 
             {/* Search Bar */}
@@ -540,7 +540,7 @@ export default function SearchScreen() {
                     <Image source={searchIcon} style={{ width: 20, height: 20, tintColor: '#2F2F2F' }} />
                     <TextInput
                         ref={searchInputRef}
-                        className="flex-1 font-jakarta text-base text-gray-900 ml-3"
+                        className="flex-1 font-jakarta text-base text-gray-900 dark:text-brand-dark-text ml-3"
                         placeholder="Search episodes, books, podcasters..."
                         placeholderTextColor="#2F2F2F"
                         value={query}
@@ -580,7 +580,7 @@ export default function SearchScreen() {
                             >
                                 <Text
                                     className={`font-inter-medium text-sm ${
-                                        activeTab === tab.key ? 'text-white' : 'text-gray-700'
+                                        activeTab === tab.key ? 'text-white' : 'text-gray-700 dark:text-brand-dark-text-secondary'
                                     }`}
                                 >
                                     {tab.label}
@@ -595,7 +595,7 @@ export default function SearchScreen() {
             {loading ? (
                 <View className="flex-1 items-center justify-center">
                     <ActivityIndicator size="large" color="#BF9A54" />
-                    <Text className="font-inter text-gray-500 mt-4">Searching...</Text>
+                    <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted mt-4">Searching...</Text>
                 </View>
             ) : activeTab === 'all' ? (
                 renderAllResults()

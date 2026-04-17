@@ -53,9 +53,9 @@ export default function AuthInput({
   };
 
   const dateFieldContent = (
-    <View className={`flex-row items-center bg-[#F1EEE3] rounded-xl ${focused || showDatePicker ? 'border-2 border-brand-gold' : 'border-2 border-transparent'} ${error ? 'border-red-500' : ''}`}>
+    <View className={`flex-row items-center bg-[#F1EEE3] dark:bg-brand-dark-input rounded-xl ${focused || showDatePicker ? 'border-2 border-brand-gold' : 'border-2 border-transparent'} ${error ? 'border-red-500' : ''}`}>
       <Text
-        className={`flex-1 font-inter py-4 px-4 ${value ? 'text-[#1A1C1E]' : 'text-[#858585]'}`}
+        className={`flex-1 font-inter py-4 px-4 ${value ? 'text-[#1A1C1E] dark:text-brand-dark-text' : 'text-[#858585] dark:text-brand-dark-text-secondary'}`}
       >
         {value ? formatDisplayDate(value) : placeholder || 'Select date'}
       </Text>
@@ -67,7 +67,7 @@ export default function AuthInput({
 
   return (
     <View className="mb-4">
-      <Text className="text-[#1A1C1E] font-jakarta mb-1 ml-1">{label}</Text>
+      <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-jakarta mb-1 ml-1">{label}</Text>
 
       {isDateField ? (
         <TouchableOpacity
@@ -77,9 +77,9 @@ export default function AuthInput({
           {dateFieldContent}
         </TouchableOpacity>
       ) : (
-        <View className={`flex-row items-center bg-[#F1EEE3] rounded-xl ${focused ? 'border-2 border-brand-gold' : 'border-2 border-transparent'} ${error ? 'border-red-500' : ''}`}>
+        <View className={`flex-row items-center bg-[#F1EEE3] dark:bg-brand-dark-input rounded-xl ${focused ? 'border-2 border-brand-gold' : 'border-2 border-transparent'} ${error ? 'border-red-500' : ''}`}>
           <TextInput
-            className="flex-1 font-inter py-4 px-4 text-[#1A1C1E]"
+            className="flex-1 font-inter py-4 px-4 text-[#1A1C1E] dark:text-brand-dark-text"
             value={value}
             onChangeText={onChangeText}
             secureTextEntry={isPasswordField && !isPasswordVisible}

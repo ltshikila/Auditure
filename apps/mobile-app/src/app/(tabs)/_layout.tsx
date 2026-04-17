@@ -4,6 +4,7 @@ import React from 'react';
 import { ActivityIndicator, View, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
+import { useColors } from '@/hooks/use-colors';
 
 // Import custom icons
 const icons = {
@@ -25,6 +26,7 @@ type TabIconProps = {
 };
 
 function TabIcon({ focused, icon, iconFilled }: TabIconProps) {
+  const colors = useColors();
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center', width: 44, height: 55 }}>
       <Image
@@ -32,7 +34,7 @@ function TabIcon({ focused, icon, iconFilled }: TabIconProps) {
         style={{
           width: 29,
           height: 29,
-          tintColor: focused ? '#2F2F2F' : '#848282',
+          tintColor: focused ? colors.tabIconSelected : colors.tabIconDefault,
         }}
         resizeMode="contain"
       />
@@ -56,6 +58,7 @@ function TabIcon({ focused, icon, iconFilled }: TabIconProps) {
 export default function TabLayout() {
   const { isAuthenticated, loading } = useAuth();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
 
   // Base tab bar height (85% of original 72) + bottom safe area inset
   const tabBarHeight = 61 + insets.bottom;
@@ -77,10 +80,10 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
-        tabBarActiveTintColor: '#1F1F1F',
-        tabBarInactiveTintColor: '#858585',
+        tabBarActiveTintColor: colors.tabIconSelected,
+        tabBarInactiveTintColor: colors.tabIconDefault,
         tabBarStyle: {
-          backgroundColor: '#FBF8F2',
+          backgroundColor: colors.tabBarBackground,
           borderTopWidth: 0,
           elevation: 0,
           shadowOpacity: 0,

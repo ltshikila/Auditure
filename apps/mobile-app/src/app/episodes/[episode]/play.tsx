@@ -266,15 +266,15 @@ export default function EpisodePlayScreen() {
 
     if (!displayEpisode) {
         return (
-            <SafeAreaView className="flex-1 bg-brand-beige items-center justify-center">
+            <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg items-center justify-center">
                 <ActivityIndicator size="large" color="#BF9A54" />
-                <Text className="font-inter text-[#858585] mt-4">Loading episode...</Text>
+                <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary mt-4">Loading episode...</Text>
             </SafeAreaView>
         );
     }
 
     return (
-        <SafeAreaView edges={['top']} className="flex-1 bg-brand-beige">
+        <SafeAreaView edges={['top']} className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
             {/* Header */}
             <View className="px-6 flex-row items-center justify-between">
                 <TouchableOpacity
@@ -282,7 +282,7 @@ export default function EpisodePlayScreen() {
                     className="w-10 h-10 items-center justify-center">
                     <Ionicons name="chevron-down" size={28} color="#1A1C1E" />
                 </TouchableOpacity>
-                <Text className="font-inter-medium text-brand-black">Now Playing</Text>
+                <Text className="font-inter-medium text-brand-black dark:text-brand-dark-text">Now Playing</Text>
                 <TouchableOpacity
                     onPress={() => setShowMenu(true)}
                     className="w-10 h-10 items-center justify-center">
@@ -293,7 +293,7 @@ export default function EpisodePlayScreen() {
             {/* Cover Art */}
             <View className="items-center mt-4">
                 <View
-                    className="rounded-2xl shadow-2xl bg-brand-input overflow-hidden"
+                    className="rounded-2xl shadow-2xl bg-brand-input dark:bg-brand-dark-input overflow-hidden"
                     style={{ borderRadius: 16 }}>
                     {resolveCoverUrl(displayEpisode.book?.coverImageUrl) ? (
                         <Image
@@ -312,11 +312,11 @@ export default function EpisodePlayScreen() {
             {/* Info */}
             <View className="mt-6 px-6">
                 <Text
-                    className="font-inter text-2xl text-brand-black text-center"
+                    className="font-inter text-2xl text-brand-black dark:text-brand-dark-text text-center"
                     numberOfLines={2}>
                     {displayEpisode.title}
                 </Text>
-                <Text className="font-jakarta text-[#858585] text-center mt-1">
+                <Text className="font-jakarta text-[#858585] dark:text-brand-dark-text-secondary text-center mt-1">
                     {displayEpisode.book?.title}
                 </Text>
             </View>
@@ -329,7 +329,7 @@ export default function EpisodePlayScreen() {
                         style={{ width: 20, height: 20 }}
                         resizeMode="contain"
                     />
-                    <Text className="font-jakarta text-brand-black">
+                    <Text className="font-jakarta text-brand-black dark:text-brand-dark-text">
                         {displayEpisode.averageRating > 0 ? displayEpisode.averageRating.toFixed(1) : 'Rate'}
                     </Text>
                 </TouchableOpacity>
@@ -339,7 +339,7 @@ export default function EpisodePlayScreen() {
                         style={{ width: 20, height: 20 }}
                         resizeMode="contain"
                     />
-                    <Text className="font-jakarta text-brand-black">English</Text>
+                    <Text className="font-jakarta text-brand-black dark:text-brand-dark-text">English</Text>
                 </View>
                 <View className="flex-row items-center gap-1">
                     <Image
@@ -347,7 +347,7 @@ export default function EpisodePlayScreen() {
                         style={{ width: 20, height: 20 }}
                         resizeMode="contain"
                     />
-                    <Text className="font-jakarta text-brand-black">
+                    <Text className="font-jakarta text-brand-black dark:text-brand-dark-text">
                         {displayEpisode.duration
                             ? `${Math.floor(displayEpisode.duration / 60)} min`
                             : '--'}
@@ -367,10 +367,10 @@ export default function EpisodePlayScreen() {
                     onSlidingComplete={handleSliderComplete}
                 />
                 <View className="flex-row justify-between mt-1">
-                    <Text className="font-inter text-xs text-[#858585]">
+                    <Text className="font-inter text-xs text-[#858585] dark:text-brand-dark-text-secondary">
                         {formatTime(sliderValue * 1000)}
                     </Text>
-                    <Text className="font-inter text-xs text-[#858585]">
+                    <Text className="font-inter text-xs text-[#858585] dark:text-brand-dark-text-secondary">
                         {formatTime(duration)}
                     </Text>
                 </View>
@@ -380,7 +380,7 @@ export default function EpisodePlayScreen() {
             {displayEpisode.scriptContent && (
                 <TouchableOpacity
                     onPress={() => router.push(`/episodes/${episodeId}/transcript`)}
-                    className="mx-6 mt-4 mb-28 bg-[#F5F5F0] rounded-2xl p-4 items-center justify-center shadow-md"
+                    className="mx-6 mt-4 mb-28 bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-2xl p-4 items-center justify-center shadow-md"
                     style={{
                         shadowColor: '#000',
                         shadowOffset: { width: 0, height: 2 },
@@ -392,7 +392,7 @@ export default function EpisodePlayScreen() {
                     <Text className="font-inter-medium self-start text-brand-red text-base mb-2">
                         Transcripts
                     </Text>
-                    <Text className="font-jakarta text-[#858585] text-sm leading-5" numberOfLines={4}>
+                    <Text className="font-jakarta text-[#858585] dark:text-brand-dark-text-secondary text-sm leading-5" numberOfLines={4}>
                         {transcriptPreview || displayEpisode.scriptContent.substring(0, 150)}
                     </Text>
                 </TouchableOpacity>
@@ -411,7 +411,7 @@ export default function EpisodePlayScreen() {
                     className="flex-1 bg-black/50 justify-end"
                 >
                     <View
-                        className="bg-[#F5F0E8] rounded-t-3xl px-6 pt-6 pb-10"
+                        className="bg-[#F5F0E8] dark:bg-brand-dark-surface rounded-t-3xl px-6 pt-6 pb-10"
                         onStartShouldSetResponder={() => true}
                     >
                         {/* Handle indicator */}
@@ -422,7 +422,7 @@ export default function EpisodePlayScreen() {
                             className="flex-row items-center py-4"
                         >
                             <Ionicons name="information-circle-outline" size={22} color="#1A1C1E" />
-                            <Text className="font-inter-medium text-brand-black text-base ml-4">Episode Details</Text>
+                            <Text className="font-inter-medium text-brand-black dark:text-brand-dark-text text-base ml-4">Episode Details</Text>
                         </TouchableOpacity>
 
                         {displayEpisode?.scriptContent && (
@@ -431,7 +431,7 @@ export default function EpisodePlayScreen() {
                                 className="flex-row items-center py-4"
                             >
                                 <Ionicons name="document-text-outline" size={22} color="#1A1C1E" />
-                                <Text className="font-inter-medium text-brand-black text-base ml-4">View Transcript</Text>
+                                <Text className="font-inter-medium text-brand-black dark:text-brand-dark-text text-base ml-4">View Transcript</Text>
                             </TouchableOpacity>
                         )}
 
@@ -441,7 +441,7 @@ export default function EpisodePlayScreen() {
                                 className="flex-row items-center py-4"
                             >
                                 <Image source={icons.books} style={{ width: 22, height: 22, tintColor: '#1A1C1E' }} />
-                                <Text className="font-inter-medium text-brand-black text-base ml-4">View Book</Text>
+                                <Text className="font-inter-medium text-brand-black dark:text-brand-dark-text text-base ml-4">View Book</Text>
                             </TouchableOpacity>
                         )}
 
@@ -451,7 +451,7 @@ export default function EpisodePlayScreen() {
                             className="flex-row items-center py-4"
                         >
                             <Ionicons name="share-outline" size={22} color="#1A1C1E" />
-                            <Text className="font-inter-medium text-brand-black text-base ml-4">Share Episode</Text>
+                            <Text className="font-inter-medium text-brand-black dark:text-brand-dark-text text-base ml-4">Share Episode</Text>
                         </TouchableOpacity> */}
 
                         {user && displayEpisode?.userId === user.id && (
@@ -480,13 +480,13 @@ export default function EpisodePlayScreen() {
                     className="flex-1 bg-black/50 items-center justify-center"
                 >
                     <View
-                        className="bg-[#F5F0E8] rounded-3xl p-6 mx-8 w-[85%]"
+                        className="bg-[#F5F0E8] dark:bg-brand-dark-surface rounded-3xl p-6 mx-8 w-[85%]"
                         onStartShouldSetResponder={() => true}
                     >
-                        <Text className="font-inter-bold text-xl text-brand-black text-center mb-2">
+                        <Text className="font-inter-bold text-xl text-brand-black dark:text-brand-dark-text text-center mb-2">
                             Rate this Episode
                         </Text>
-                        <Text className="font-inter text-gray-500 text-center text-sm mb-6" numberOfLines={2}>
+                        <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted text-center text-sm mb-6" numberOfLines={2}>
                             {displayEpisode?.title}
                         </Text>
 

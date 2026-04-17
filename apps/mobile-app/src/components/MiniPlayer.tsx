@@ -294,7 +294,7 @@ export const MiniPlayer: React.FC = () => {
                                 {episode.title}
                             </Text>
                             <Text
-                                className="font-inter text-[#858585] text-xs mt-0.5"
+                                className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-xs mt-0.5"
                                 numberOfLines={1}
                             >
                                 {episode.book?.title || 'Unknown book'}

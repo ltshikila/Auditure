@@ -232,7 +232,7 @@ const Create = () => {
 
 
     return (
-        <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-brand-beige">
+        <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
             <KeyboardAwareScrollView
                 contentContainerStyle={{ padding: 24 }}
                 keyboardShouldPersistTaps="handled"
@@ -241,10 +241,10 @@ const Create = () => {
             >
                 {/* Title */}
                 <View className="mb-6">
-                    <Text className="font-jakarta-bold text-2xl text-[#1A1C1E] mb-1">
+                    <Text className="font-jakarta-bold text-2xl text-[#1A1C1E] dark:text-brand-dark-text mb-1">
                         Create
                     </Text>
-                    <Text className="font-jakarta text-[#1A1C1E] text-sm">
+                    <Text className="font-jakarta text-[#1A1C1E] dark:text-brand-dark-text text-sm">
                         Design your own virtual podcaster personality
                     </Text>
                 </View>
@@ -255,18 +255,18 @@ const Create = () => {
                 {/* Step 1: Core Identity */}
                 {currentStep === 1 && (
                     <>
-                        <Text className="font-inter-bold text-2xl text-[#1A1C1E] mb-4">
+                        <Text className="font-inter-bold text-2xl text-[#1A1C1E] dark:text-brand-dark-text mb-4">
                             Core Identity
                         </Text>
 
                         {/* Virtual Podcast Name */}
                         <View className="mb-6">
-                            <Text className="text-[#1A1C1E] font-inter-medium text-lg mb-2">
+                            <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-lg mb-2">
                                 Virtual Podcaster Name
                             </Text>
-                            <View className="flex-row items-center bg-brand-input rounded-xl px-4 py-3">
+                            <View className="flex-row items-center bg-brand-input dark:bg-brand-dark-input rounded-xl px-4 py-3">
                                 <TextInput
-                                    className="flex-1 font-inter text-[#1A1C1E]"
+                                    className="flex-1 font-inter text-[#1A1C1E] dark:text-brand-dark-text"
                                     value={podcastName}
                                     onChangeText={setPodcastName}
                                     placeholder="Enter a name for your podcaster"
@@ -286,7 +286,7 @@ const Create = () => {
 
                         {/* Voice Model */}
                         <View className="mb-6">
-                            <Text className="text-[#1A1C1E] font-inter-medium text-lg mb-3">
+                            <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-lg mb-3">
                                 Voice Model Template
                             </Text>
 
@@ -303,7 +303,7 @@ const Create = () => {
                             </View>
 
                             {/* Gender Selection */}
-                            <View className="flex-row border-b border-[#E8E3D6] mt-4">
+                            <View className="flex-row border-b border-[#E8E3D6] dark:border-brand-dark-border mt-4">
                                 <TouchableOpacity
                                     onPress={() => setSelectedGender('male')}
                                     className={`flex-1 pb-2 items-center ${
@@ -315,7 +315,7 @@ const Create = () => {
                                         className={`font-jakarta ${
                                             selectedGender === 'male'
                                                 ? 'text-brand-gold'
-                                                : 'text-[#1A1C1E]'
+                                                : 'text-[#1A1C1E] dark:text-brand-dark-text'
                                         }`}>
                                         Male
                                     </Text>
@@ -331,7 +331,7 @@ const Create = () => {
                                         className={`font-jakarta ${
                                             selectedGender === 'female'
                                                 ? 'text-brand-gold'
-                                                : 'text-[#1A1C1E]'
+                                                : 'text-[#1A1C1E] dark:text-brand-dark-text'
                                         }`}>
                                         Female
                                     </Text>
@@ -399,10 +399,10 @@ const Create = () => {
                 {currentStep === 2 && (
                     <>
                         <View className="mb-4">
-                            <Text className="font-jakarta-bold text-xl text-[#1A1C1E]">
+                            <Text className="font-jakarta-bold text-xl text-[#1A1C1E] dark:text-brand-dark-text">
                                 Core Personality Model
                             </Text>
-                            <Text className="font-inter text-[#1A1C1E] text-sm mt-1">
+                            <Text className="font-inter text-[#1A1C1E] dark:text-brand-dark-text text-sm mt-1">
                                 Defines persona consistency across all episodes
                             </Text>
                         </View>
@@ -458,10 +458,10 @@ const Create = () => {
                 {currentStep === 3 && (
                     <>
                         <View className="mb-4">
-                            <Text className="font-inter-bold text-2xl text-[#1A1C1E]">
+                            <Text className="font-inter-bold text-2xl text-[#1A1C1E] dark:text-brand-dark-text">
                                 Knowledge & Worldview
                             </Text>
-                            <Text className="font-jakarta text-[#1A1C1E] text-sm mt-1">
+                            <Text className="font-jakarta text-[#1A1C1E] dark:text-brand-dark-text text-sm mt-1">
                                 Governs interpretation style across all{' '}
                                 <Text className="font-inter-bold">books</Text> covered.
                             </Text>
@@ -469,10 +469,10 @@ const Create = () => {
 
                         {/* Expertise Tags */}
                         <View className="mb-6">
-                            <Text className="text-[#1A1C1E] font-inter-medium text-lg mb-2">
+                            <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-lg mb-2">
                                 Expertise Tags
                             </Text>
-                            <Text className="font-jakarta text-[#1A1C1E] text-sm mb-3">
+                            <Text className="font-jakarta text-[#1A1C1E] dark:text-brand-dark-text text-sm mb-3">
                                 Choose 1-3
                             </Text>
                             <View className="flex-row flex-wrap gap-2">
@@ -486,7 +486,7 @@ const Create = () => {
                                                 isSelected ? 'bg-brand-red' : 'bg-[#E8E3D6]'
                                             }`}>
                                             <Text
-                                                className={`font-inter text-sm ${isSelected ? 'text-white' : 'text-[#1A1C1E]'}`}>
+                                                className={`font-inter text-sm ${isSelected ? 'text-white' : 'text-[#1A1C1E] dark:text-brand-dark-text'}`}>
                                                 {tag}
                                             </Text>
                                         </TouchableOpacity>
@@ -497,10 +497,10 @@ const Create = () => {
 
                         {/* Intellectual Angle */}
                         <View className="mb-3">
-                            <Text className="text-[#1A1C1E] font-inter-medium text-lg mb-1">
+                            <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-lg mb-1">
                                 Intellectual Angle
                             </Text>
-                            <Text className="font-inter text-[#858585] text-sm mb-2">
+                            <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-sm mb-2">
                                 The angle in which the podcaster approaches a books idea
                             </Text>
                             <CustomDropdown
@@ -514,14 +514,14 @@ const Create = () => {
                         {/* Viewpoint Behavior */}
                         <View className="mb-3">
                             <View className="flex-row justify-between items-center mb-1">
-                                <Text className="text-[#1A1C1E] font-inter-medium text-lg">
+                                <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-lg">
                                     Viewpoint Behavior
                                 </Text>
                                 <View className="bg-brand-gold rounded-full px-4 py-1.5">
                                     <Text className="text-white font-inter-medium text-base">{viewpointBehavior}</Text>
                                 </View>
                             </View>
-                            <Text className="font-inter text-[#858585] text-sm mb-2">
+                            <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-sm mb-2">
                                 Defines debate and critique tendencies
                             </Text>
                             <CustomSlider
@@ -539,7 +539,7 @@ const Create = () => {
 
             {/* Navigation Buttons - Fixed at bottom */}
             <View
-                className="flex-row justify-between items-center px-6 py-5 bg-brand-beige"
+                className="flex-row justify-between items-center px-6 py-5 bg-brand-beige dark:bg-brand-dark-bg"
                 style={{ paddingBottom: Math.max(insets.bottom, 36) + (isMiniPlayerVisible ? MINI_PLAYER_HEIGHT + 16 : 0) }}>
                 {/* Back Button */}
                 <TouchableOpacity
@@ -552,7 +552,7 @@ const Create = () => {
                     }}
                     className="flex-row items-center px-4 py-3">
                     <Image source={require('../../assets/icons/back.png')} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
-                    <Text className="text-[#1A1C1E] font-inter text-base ml-1">
+                    <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter text-base ml-1">
                         {currentStep > 1 ? 'Back' : 'Cancel'}
                     </Text>
                 </TouchableOpacity>

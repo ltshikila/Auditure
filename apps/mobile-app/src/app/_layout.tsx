@@ -34,19 +34,43 @@ import {
   DMSerifDisplay_400Regular
 } from '@expo-google-fonts/dm-serif-display';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AlertProvider } from '@/contexts/AlertContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { PlaybackProvider } from '@/contexts/PlaybackContext';
 import { NotificationsProvider } from '@/contexts/NotificationsContext';
+import { ThemeProvider as AppThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { MiniPlayer } from '@/components/MiniPlayer';
 
 SplashScreen.preventAutoHideAsync();
 
-function RootLayout() {
-  const colorScheme = useColorScheme();
+function ThemedNavigation() {
+  const { resolved } = useTheme();
+  return (
+    <ThemeProvider value={resolved === 'dark' ? DarkTheme : DefaultTheme}>
+      <View style={{ flex: 1 }}>
+        <Stack>
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
+          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="podcasts" options={{ headerShown: false }} />
+          <Stack.Screen name="episodes" options={{ headerShown: false }} />
+          <Stack.Screen name="feed" options={{ headerShown: false }} />
+          <Stack.Screen name="notifications" options={{ headerShown: false }} />
+          <Stack.Screen name="search" options={{ headerShown: false }} />
+          <Stack.Screen name="subscription" options={{ headerShown: false }} />
+          <Stack.Screen name="legal" options={{ headerShown: false }} />
+          <Stack.Screen name="[book]" options={{ headerShown: false }} />
+          <Stack.Screen name="+not-found" />
+        </Stack>
+        <MiniPlayer />
+      </View>
+      <StatusBar style={resolved === 'dark' ? 'light' : 'dark'} />
+    </ThemeProvider>
+  );
+}
 
-  // 2. Load the fonts
+function RootLayout() {
   const [loaded] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -69,35 +93,17 @@ function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AlertProvider>
-      <AuthProvider>
-        <NotificationsProvider>
-          <PlaybackProvider>
-            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-              <View style={{ flex: 1 }}>
-                <Stack>
-                  <Stack.Screen name="index" options={{ headerShown: false }} />
-                  <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
-                  <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                  <Stack.Screen name="podcasts" options={{ headerShown: false }} />
-                  <Stack.Screen name="episodes" options={{ headerShown: false }} />
-                  <Stack.Screen name="feed" options={{ headerShown: false }} />
-                  <Stack.Screen name="notifications" options={{ headerShown: false }} />
-                  <Stack.Screen name="search" options={{ headerShown: false }} />
-                  <Stack.Screen name="subscription" options={{ headerShown: false }} />
-                  <Stack.Screen name="legal" options={{ headerShown: false }} />
-                  <Stack.Screen name="[book]" options={{ headerShown: false }} />
-                  <Stack.Screen name="+not-found" />
-                </Stack>
-                <MiniPlayer />
-              </View>
-              <StatusBar style="auto" />
-            </ThemeProvider>
-          </PlaybackProvider>
-        </NotificationsProvider>
-      </AuthProvider>
-      </AlertProvider>
+      <AppThemeProvider>
+        <AlertProvider>
+          <AuthProvider>
+            <NotificationsProvider>
+              <PlaybackProvider>
+                <ThemedNavigation />
+              </PlaybackProvider>
+            </NotificationsProvider>
+          </AuthProvider>
+        </AlertProvider>
+      </AppThemeProvider>
     </GestureHandlerRootView>
   );
 }

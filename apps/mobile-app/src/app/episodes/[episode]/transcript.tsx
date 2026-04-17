@@ -303,7 +303,7 @@ export default function TranscriptScreen() {
 
     if (loading) {
         return (
-            <SafeAreaView className="flex-1 bg-brand-beige">
+            <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
                 <TranscriptSkeleton />
             </SafeAreaView>
         );
@@ -311,7 +311,7 @@ export default function TranscriptScreen() {
 
     if (error || !displayEpisode) {
         return (
-            <SafeAreaView className="flex-1 bg-brand-beige items-center justify-center px-6">
+            <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg items-center justify-center px-6">
                 <Ionicons name="alert-circle-outline" size={48} color={COLORS.error} />
                 <Text className="font-inter text-[#920002] text-center mt-4">
                     {error || 'Episode not found'}
@@ -328,17 +328,17 @@ export default function TranscriptScreen() {
 
     if (!displayEpisode.scriptContent || transcriptLines.length === 0) {
         return (
-            <SafeAreaView className="flex-1 bg-brand-beige">
-                <View className="px-6 pt-4 pb-4 flex-row items-center justify-between border-b border-[#E8E3D6]">
+            <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
+                <View className="px-6 pt-4 pb-4 flex-row items-center justify-between border-b border-[#E8E3D6] dark:border-brand-dark-border">
                     <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center">
                         <Image source={backIcon} style={{ width: 24, height: 24, tintColor: COLORS.icon }} />
                     </TouchableOpacity>
-                    <Text className="font-jakarta-bold text-lg text-[#1A1C1E]">Transcript</Text>
+                    <Text className="font-jakarta-bold text-lg text-[#1A1C1E] dark:text-brand-dark-text">Transcript</Text>
                     <View className="w-10 h-10" />
                 </View>
                 <View className="flex-1 items-center justify-center px-6">
                     <Ionicons name="document-text-outline" size={64} color="#858585" />
-                    <Text className="font-inter text-[#858585] text-center mt-4 text-lg">
+                    <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-center mt-4 text-lg">
                         No transcript available
                     </Text>
                 </View>
@@ -350,9 +350,9 @@ export default function TranscriptScreen() {
     const headerHeight = SCREEN_HEIGHT * 0.3;
 
     return (
-        <SafeAreaView edges={['top']} className="flex-1 bg-brand-beige">
+        <SafeAreaView edges={['top']} className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
             {/* Header with book cover */}
-            <View className="px-6 pt-2 pb-3 flex-row items-center border-b border-[#E8E3D6]">
+            <View className="px-6 pt-2 pb-3 flex-row items-center border-b border-[#E8E3D6] dark:border-brand-dark-border">
                 <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center">
                     <Image source={backIcon} style={{ width: 24, height: 24, tintColor: COLORS.icon }} />
                 </TouchableOpacity>
@@ -373,7 +373,7 @@ export default function TranscriptScreen() {
                 </View>
 
                 <View className="flex-1 mr-2">
-                    <Text className="font-jakarta-bold text-sm text-[#1A1C1E]" numberOfLines={1}>
+                    <Text className="font-jakarta-bold text-sm text-[#1A1C1E] dark:text-brand-dark-text" numberOfLines={1}>
                         {displayEpisode.title}
                     </Text>
                     {isPlaybackEpisode && (

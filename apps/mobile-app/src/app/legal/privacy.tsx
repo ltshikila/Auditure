@@ -6,31 +6,31 @@ import { Ionicons } from '@expo/vector-icons';
 
 export default function PrivacyPolicy() {
     return (
-        <SafeAreaView className="flex-1 bg-brand-beige">
+        <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
             {/* Header */}
-            <View className="flex-row items-center px-5 py-4 border-b border-gray-200">
+            <View className="flex-row items-center px-5 py-4 border-b border-gray-200 dark:border-brand-dark-border">
                 <TouchableOpacity onPress={() => router.back()} className="mr-4">
                     <Ionicons name="arrow-back" size={24} color="#2F2F2F" />
                 </TouchableOpacity>
-                <Text className="font-inter-bold text-xl text-brand-black">Privacy Policy</Text>
+                <Text className="font-inter-bold text-xl text-brand-black dark:text-brand-dark-text">Privacy Policy</Text>
             </View>
 
             <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
-                <Text className="font-inter text-gray-500 text-sm mb-6">
+                <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted text-sm mb-6">
                     Last updated: February 2026
                 </Text>
 
                 <Section title="1. Information We Collect">
-                    <Text className="font-inter-medium text-sm text-brand-black mb-1">Account Information</Text>
+                    <Text className="font-inter-medium text-sm text-brand-black dark:text-brand-dark-text mb-1">Account Information</Text>
                     {'\n'}When you create an account, we collect your name, email address, date of birth (optional), and password (stored securely using encryption).
 
-                    {'\n\n'}<Text className="font-inter-medium text-sm text-brand-black mb-1">Usage Data</Text>
+                    {'\n\n'}<Text className="font-inter-medium text-sm text-brand-black dark:text-brand-dark-text mb-1">Usage Data</Text>
                     {'\n'}We collect information about how you use the app, including episodes generated, playback activity, AI podcaster configurations, social interactions (comments, likes, ratings), and feature usage to improve our service.
 
-                    {'\n\n'}<Text className="font-inter-medium text-sm text-brand-black mb-1">Device Information</Text>
+                    {'\n\n'}<Text className="font-inter-medium text-sm text-brand-black dark:text-brand-dark-text mb-1">Device Information</Text>
                     {'\n'}We may collect device type, operating system, and push notification tokens to deliver notifications and optimise the app experience.
 
-                    {'\n\n'}<Text className="font-inter-medium text-sm text-brand-black mb-1">User-Generated Content</Text>
+                    {'\n\n'}<Text className="font-inter-medium text-sm text-brand-black dark:text-brand-dark-text mb-1">User-Generated Content</Text>
                     {'\n'}We collect and store content you create on the platform, including AI podcaster configurations, comments, ratings, and other social interactions.
                 </Section>
 
@@ -135,8 +135,8 @@ export default function PrivacyPolicy() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
     return (
         <View className="mb-6">
-            <Text className="font-inter-bold text-base text-brand-black mb-2">{title}</Text>
-            <Text className="font-inter text-sm text-gray-700 leading-5">{children}</Text>
+            <Text className="font-inter-bold text-base text-brand-black dark:text-brand-dark-text mb-2">{title}</Text>
+            <Text className="font-inter text-sm text-gray-700 dark:text-brand-dark-text-secondary leading-5">{children}</Text>
         </View>
     );
 }

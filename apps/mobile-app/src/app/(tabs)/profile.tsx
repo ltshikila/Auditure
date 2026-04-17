@@ -32,7 +32,7 @@ import {
     UpdateSettingsData,
 } from '@/services/user.service';
 import { resolveCoverUrl } from '@/services/api';
-import { TopBar } from '@/components';
+import { TopBar, ThemeToggle } from '@/components';
 import { ProfileSkeleton } from '@/components/skeleton';
 import { notificationService } from '@/services/notification.service';
 
@@ -46,12 +46,12 @@ type SettingItemProps = {
 
 function SettingItem({ icon, label, value, onValueChange, disabled }: SettingItemProps) {
     return (
-        <View className="flex-row items-center justify-between py-4 border-b border-gray-100">
+        <View className="flex-row items-center justify-between py-4 border-b border-gray-100 dark:border-brand-dark-border">
             <View className="flex-row items-center flex-1">
                 <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                     <Ionicons name={icon} size={16} color="#BF9A54" />
                 </View>
-                <Text className="font-inter text-gray-900 flex-1">{label}</Text>
+                <Text className="font-inter text-gray-900 dark:text-brand-dark-text flex-1">{label}</Text>
             </View>
             <Switch
                 value={value}
@@ -329,7 +329,7 @@ export default function Profile() {
 
     if (loading) {
         return (
-            <SafeAreaView className="flex-1 bg-brand-beige" edges={['top', 'left', 'right']}>
+            <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg" edges={['top', 'left', 'right']}>
                 <TopBar />
                 <ProfileSkeleton />
             </SafeAreaView>
@@ -337,7 +337,7 @@ export default function Profile() {
     }
 
     return (
-        <SafeAreaView className="flex-1 bg-brand-beige" edges={['top', 'left', 'right']}>
+        <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg" edges={['top', 'left', 'right']}>
             <TopBar />
             <KeyboardAwareScrollView
                 contentContainerStyle={{ padding: 20, paddingBottom: 25 }}
@@ -353,8 +353,8 @@ export default function Profile() {
                 extraScrollHeight={20}>
                 {/* Header */}
                 <View className='pb-6'>
-                    <Text className="font-inter-bold text-2xl text-brand-black">Profile</Text>
-                    <Text className="font-jakarta text-brand-black text-sm">
+                    <Text className="font-inter-bold text-2xl text-brand-black dark:text-brand-dark-text">Profile</Text>
+                    <Text className="font-jakarta text-brand-black dark:text-brand-dark-text text-sm">
                         Manage your account and preferences
                     </Text>
                 </View>
@@ -371,7 +371,7 @@ export default function Profile() {
 
                 {/* Profile Section */}
                 <View
-                    className="bg-[#F5F5F0] rounded-2xl p-5 mb-6"
+                    className="bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-2xl p-5 mb-6"
                     style={{
                         shadowColor: '#000',
                         shadowOffset: { width: 0, height: 2 },
@@ -380,7 +380,7 @@ export default function Profile() {
                         elevation: 8,
                     }}>
                     <View className="flex-row justify-between items-center mb-4">
-                        <Text className="font-inter-bold text-lg text-gray-900">
+                        <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text">
                             Personal Information
                         </Text>
                         {!isEditing ? (
@@ -404,7 +404,7 @@ export default function Profile() {
                                         );
                                     }}
                                     className="mr-4">
-                                    <Text className="font-inter-medium text-gray-500">Cancel</Text>
+                                    <Text className="font-inter-medium text-gray-500 dark:text-brand-dark-text-muted">Cancel</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity onPress={handleUpdateProfile} disabled={saving}>
                                     <Text className="font-inter-medium text-brand-gold">
@@ -440,7 +440,7 @@ export default function Profile() {
                                 <Ionicons name="camera" size={13} color="#FFFFFF" />
                             </View>
                         </TouchableOpacity>
-                        <Text className="font-inter text-gray-500">{profile?.email}</Text>
+                        <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted">{profile?.email}</Text>
                         {profile?.isEmailVerified && (
                             <View className="flex-row items-center mt-1">
                                 <Ionicons name="checkmark-circle" size={14} color="#22C55E" />
@@ -455,38 +455,38 @@ export default function Profile() {
                     {isEditing ? (
                         <View>
                             <View className="mb-4">
-                                <Text className="font-jakarta text-gray-700 mb-1 ml-1">
+                                <Text className="font-jakarta text-gray-700 dark:text-brand-dark-text-secondary mb-1 ml-1">
                                     First Name
                                 </Text>
                                 <TextInput
                                     value={editFirstName}
                                     onChangeText={setEditFirstName}
-                                    className="bg-[#F1EEE3] rounded-xl py-4 px-4 font-inter text-gray-900"
+                                    className="bg-[#F1EEE3] dark:bg-brand-dark-input rounded-xl py-4 px-4 font-inter text-gray-900 dark:text-brand-dark-text"
                                     placeholder="First name"
                                     placeholderTextColor="#858585"
                                 />
                             </View>
                             <View className="mb-4">
-                                <Text className="font-jakarta text-gray-700 mb-1 ml-1">
+                                <Text className="font-jakarta text-gray-700 dark:text-brand-dark-text-secondary mb-1 ml-1">
                                     Last Name
                                 </Text>
                                 <TextInput
                                     value={editLastName}
                                     onChangeText={setEditLastName}
-                                    className="bg-[#F1EEE3] rounded-xl py-4 px-4 font-inter text-gray-900"
+                                    className="bg-[#F1EEE3] dark:bg-brand-dark-input rounded-xl py-4 px-4 font-inter text-gray-900 dark:text-brand-dark-text"
                                     placeholder="Last name"
                                     placeholderTextColor="#858585"
                                 />
                             </View>
                             <View className="mb-2">
-                                <Text className="font-jakarta text-gray-700 mb-1 ml-1">
+                                <Text className="font-jakarta text-gray-700 dark:text-brand-dark-text-secondary mb-1 ml-1">
                                     Date of Birth
                                 </Text>
                                 <TouchableOpacity
                                     onPress={() => setShowDatePicker(true)}
-                                    className="bg-[#F1EEE3] rounded-xl py-4 px-4 flex-row items-center justify-between">
+                                    className="bg-[#F1EEE3] dark:bg-brand-dark-input rounded-xl py-4 px-4 flex-row items-center justify-between">
                                     <Text
-                                        className={`font-inter ${editDateOfBirth ? 'text-gray-900' : 'text-gray-400'}`}>
+                                        className={`font-inter ${editDateOfBirth ? 'text-gray-900 dark:text-brand-dark-text' : 'text-gray-400 dark:text-brand-dark-text-muted'}`}>
                                         {editDateOfBirth
                                             ? formatDate(editDateOfBirth.toISOString())
                                             : 'Select date'}
@@ -508,21 +508,21 @@ export default function Profile() {
                         </View>
                     ) : (
                         <View>
-                            <View className="flex-row justify-between py-3 border-b border-gray-100">
-                                <Text className="font-inter text-gray-500">Name</Text>
-                                <Text className="font-inter-medium text-gray-900">
+                            <View className="flex-row justify-between py-3 border-b border-gray-100 dark:border-brand-dark-border">
+                                <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted">Name</Text>
+                                <Text className="font-inter-medium text-gray-900 dark:text-brand-dark-text">
                                     {profile?.firstName} {profile?.lastName}
                                 </Text>
                             </View>
-                            <View className="flex-row justify-between py-3 border-b border-gray-100">
-                                <Text className="font-inter text-gray-500">Email</Text>
-                                <Text className="font-inter-medium text-gray-900">
+                            <View className="flex-row justify-between py-3 border-b border-gray-100 dark:border-brand-dark-border">
+                                <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted">Email</Text>
+                                <Text className="font-inter-medium text-gray-900 dark:text-brand-dark-text">
                                     {profile?.email}
                                 </Text>
                             </View>
                             <View className="flex-row justify-between py-3">
-                                <Text className="font-inter text-gray-500">Date of Birth</Text>
-                                <Text className="font-inter-medium text-gray-900">
+                                <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted">Date of Birth</Text>
+                                <Text className="font-inter-medium text-gray-900 dark:text-brand-dark-text">
                                     {formatDate(profile?.dateOfBirth || null)}
                                 </Text>
                             </View>
@@ -533,7 +533,7 @@ export default function Profile() {
                 {/* Subscription Section */}
                 {subscription && (
                     <View
-                        className="bg-[#F5F5F0] rounded-2xl p-5 mb-6"
+                        className="bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-2xl p-5 mb-6"
                         style={{
                             shadowColor: '#000',
                             shadowOffset: { width: 0, height: 2 },
@@ -541,7 +541,7 @@ export default function Profile() {
                             shadowRadius: 10,
                             elevation: 8,
                         }}>
-                        <Text className="font-inter-bold text-lg text-gray-900 mb-4">
+                        <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text mb-4">
                             Subscription
                         </Text>
 
@@ -563,16 +563,16 @@ export default function Profile() {
                                     </Text>
                                 </View>
                             ) : (
-                                <View className="px-3 py-1 rounded-full bg-gray-200">
-                                    <Text className="font-inter-bold text-sm text-gray-700">
+                                <View className="px-3 py-1 rounded-full bg-gray-200 dark:bg-brand-dark-border">
+                                    <Text className="font-inter-bold text-sm text-gray-700 dark:text-brand-dark-text-secondary">
                                         {subscription.tier}
                                     </Text>
                                 </View>
                             )}
                         </View>
 
-                        <View className="bg-[#F5F5F0] rounded-xl p-4">
-                            <Text className="font-inter-medium text-gray-700 mb-3">
+                        <View className="bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-xl p-4">
+                            <Text className="font-inter-medium text-gray-700 dark:text-brand-dark-text-secondary mb-3">
                                 Monthly Usage
                             </Text>
 
@@ -588,10 +588,10 @@ export default function Profile() {
                                     return (
                                         <View>
                                             <View className="flex-row justify-between mb-1">
-                                                <Text className="font-inter text-gray-600 text-sm">
+                                                <Text className="font-inter text-gray-600 dark:text-brand-dark-text-secondary text-sm">
                                                     Episodes
                                                 </Text>
-                                                <Text className="font-inter text-gray-900 text-sm">
+                                                <Text className="font-inter text-gray-900 dark:text-brand-dark-text text-sm">
                                                     {totalUsed}
                                                     {totalLimit !== null
                                                         ? ` / ${totalLimit}`
@@ -599,7 +599,7 @@ export default function Profile() {
                                                 </Text>
                                             </View>
                                             {totalLimit !== null && (
-                                                <View className="bg-gray-200 rounded-full h-2">
+                                                <View className="bg-gray-200 dark:bg-brand-dark-border rounded-full h-2">
                                                     <View
                                                         className="bg-brand-gold rounded-full h-2"
                                                         style={{
@@ -621,14 +621,14 @@ export default function Profile() {
                                     return (
                                         <View>
                                             <View className="flex-row justify-between mb-1">
-                                                <Text className="font-inter text-gray-600 text-sm">
+                                                <Text className="font-inter text-gray-600 dark:text-brand-dark-text-secondary text-sm">
                                                     Pro Episodes
                                                 </Text>
-                                                <Text className="font-inter text-gray-900 text-sm">
+                                                <Text className="font-inter text-gray-900 dark:text-brand-dark-text text-sm">
                                                     {gemini.used} / {gemini.limit}
                                                 </Text>
                                             </View>
-                                            <View className="bg-gray-200 rounded-full h-2 mb-3">
+                                            <View className="bg-gray-200 dark:bg-brand-dark-border rounded-full h-2 mb-3">
                                                 <View
                                                     className="bg-brand-gold rounded-full h-2"
                                                     style={{
@@ -640,14 +640,14 @@ export default function Profile() {
                                                 />
                                             </View>
                                             <View className="flex-row justify-between mb-1">
-                                                <Text className="font-inter text-gray-600 text-sm">
+                                                <Text className="font-inter text-gray-600 dark:text-brand-dark-text-secondary text-sm">
                                                     Standard Episodes
                                                 </Text>
-                                                <Text className="font-inter text-gray-900 text-sm">
+                                                <Text className="font-inter text-gray-900 dark:text-brand-dark-text text-sm">
                                                     {standard.used} / {standard.limit}
                                                 </Text>
                                             </View>
-                                            <View className="bg-gray-200 rounded-full h-2">
+                                            <View className="bg-gray-200 dark:bg-brand-dark-border rounded-full h-2">
                                                 <View
                                                     className="bg-brand-gold rounded-full h-2"
                                                     style={{
@@ -665,7 +665,7 @@ export default function Profile() {
 
                             {/* Reset/Expires info - only show for paid tiers */}
                             {subscription.isPaid && subscription.premiumExpiresAt && (
-                                <Text className="font-inter text-gray-500 text-xs mt-3">
+                                <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted text-xs mt-3">
                                     {(() => {
                                         const daysUntilReset = Math.ceil(
                                             (new Date(subscription.premiumExpiresAt).getTime() - Date.now()) /
@@ -688,10 +688,26 @@ export default function Profile() {
                     </View>
                 )}
 
+                {/* Appearance */}
+                <View
+                    className="bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-2xl p-5 mb-6"
+                    style={{
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 10,
+                        elevation: 8,
+                    }}>
+                    <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text mb-2">
+                        Appearance
+                    </Text>
+                    <ThemeToggle />
+                </View>
+
                 {/* Notification Settings */}
                 {settings && (
                     <View
-                        className="bg-[#F5F5F0] rounded-2xl p-5 mb-6"
+                        className="bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-2xl p-5 mb-6"
                         style={{
                             shadowColor: '#000',
                             shadowOffset: { width: 0, height: 2 },
@@ -699,7 +715,7 @@ export default function Profile() {
                             shadowRadius: 10,
                             elevation: 8,
                         }}>
-                        <Text className="font-inter-bold text-lg text-gray-900 mb-2">
+                        <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text mb-2">
                             Notifications
                         </Text>
 
@@ -717,7 +733,7 @@ export default function Profile() {
                 {/* Playback Settings */}
                 {settings && (
                     <View
-                        className="bg-[#F5F5F0] rounded-2xl p-5 mb-6"
+                        className="bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-2xl p-5 mb-6"
                         style={{
                             shadowColor: '#000',
                             shadowOffset: { width: 0, height: 2 },
@@ -725,7 +741,7 @@ export default function Profile() {
                             shadowRadius: 10,
                             elevation: 8,
                         }}>
-                        <Text className="font-inter-bold text-lg text-gray-900 mb-2">Playback</Text>
+                        <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text mb-2">Playback</Text>
 
                         <SettingItem
                             icon="play-circle"
@@ -734,12 +750,12 @@ export default function Profile() {
                             onValueChange={value => handleUpdateSetting('autoPlayEnabled', value)}
                         />
                         {/* Playback Speed */}
-                        <View className="py-4 border-b border-gray-100">
+                        <View className="py-4 border-b border-gray-100 dark:border-brand-dark-border">
                             <View className="flex-row items-center mb-3">
                                 <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                                     <Ionicons name="speedometer" size={16} color="#BF9A54" />
                                 </View>
-                                <Text className="font-inter text-gray-900">
+                                <Text className="font-inter text-gray-900 dark:text-brand-dark-text">
                                     Default Playback Speed
                                 </Text>
                             </View>
@@ -751,13 +767,13 @@ export default function Profile() {
                                         className={`px-4 py-2 rounded-full ${
                                             settings.playbackSpeed === speed
                                                 ? 'bg-brand-gold'
-                                                : 'bg-gray-100'
+                                                : 'bg-gray-100 dark:bg-brand-dark-input'
                                         }`}>
                                         <Text
                                             className={`font-inter-medium text-sm ${
                                                 settings.playbackSpeed === speed
                                                     ? 'text-white'
-                                                    : 'text-gray-700'
+                                                    : 'text-gray-700 dark:text-brand-dark-text-secondary'
                                             }`}>
                                             {speed}x
                                         </Text>
@@ -770,7 +786,7 @@ export default function Profile() {
 
                 {/* Account Actions */}
                 <View
-                    className="bg-[#F5F5F0] rounded-2xl p-5 mb-6"
+                    className="bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-2xl p-5 mb-6"
                     style={{
                         shadowColor: '#000',
                         shadowOffset: { width: 0, height: 2 },
@@ -778,15 +794,15 @@ export default function Profile() {
                         shadowRadius: 10,
                         elevation: 8,
                     }}>
-                    <Text className="font-inter-bold text-lg text-gray-900 mb-4">Account</Text>
+                    <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text mb-4">Account</Text>
 
                     <TouchableOpacity
                         onPress={handleLogout}
-                        className="flex-row items-center py-4 border-b border-gray-100">
+                        className="flex-row items-center py-4 border-b border-gray-100 dark:border-brand-dark-border">
                         <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                             <Ionicons name="log-out" size={16} color="#BF9A54" />
                         </View>
-                        <Text className="font-inter text-gray-900">Logout</Text>
+                        <Text className="font-inter text-gray-900 dark:text-brand-dark-text">Logout</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -801,7 +817,7 @@ export default function Profile() {
 
                 {/* Legal */}
                 <View
-                    className="bg-[#F5F5F0] rounded-2xl p-5 mb-6"
+                    className="bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-2xl p-5 mb-6"
                     style={{
                         shadowColor: '#000',
                         shadowOffset: { width: 0, height: 2 },
@@ -809,16 +825,16 @@ export default function Profile() {
                         shadowRadius: 10,
                         elevation: 8,
                     }}>
-                    <Text className="font-inter-bold text-lg text-gray-900 mb-4">Legal</Text>
+                    <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text mb-4">Legal</Text>
 
                     <TouchableOpacity
                         onPress={() => Linking.openURL('https://auditure.app/terms')}
-                        className="flex-row items-center justify-between py-4 border-b border-gray-100">
+                        className="flex-row items-center justify-between py-4 border-b border-gray-100 dark:border-brand-dark-border">
                         <View className="flex-row items-center">
                             <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                                 <Ionicons name="document-text" size={16} color="#BF9A54" />
                             </View>
-                            <Text className="font-inter text-gray-900">Terms of Service</Text>
+                            <Text className="font-inter text-gray-900 dark:text-brand-dark-text">Terms of Service</Text>
                         </View>
                         <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
                     </TouchableOpacity>
@@ -830,7 +846,7 @@ export default function Profile() {
                             <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                                 <Ionicons name="shield-checkmark" size={16} color="#BF9A54" />
                             </View>
-                            <Text className="font-inter text-gray-900">Privacy Policy</Text>
+                            <Text className="font-inter text-gray-900 dark:text-brand-dark-text">Privacy Policy</Text>
                         </View>
                         <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
                     </TouchableOpacity>
@@ -838,8 +854,8 @@ export default function Profile() {
 
                 {/* App Info */}
                 <View className="items-center py-4">
-                    <Text className="font-inter text-gray-400 text-sm">Auditure v1.0.0</Text>
-                    <Text className="font-inter text-gray-400 text-xs mt-1">
+                    <Text className="font-inter text-gray-400 dark:text-brand-dark-text-muted text-sm">Auditure v1.0.0</Text>
+                    <Text className="font-inter text-gray-400 dark:text-brand-dark-text-muted text-xs mt-1">
                         Member since{' '}
                         {profile?.createdAt
                             ? new Date(profile.createdAt).toLocaleDateString('en-US', {
@@ -863,29 +879,29 @@ export default function Profile() {
                     enableOnAndroid={true}
                     extraScrollHeight={20}>
                     <View className="flex-1 bg-black/50 items-center justify-center px-6">
-                        <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
+                        <View className="bg-white dark:bg-brand-dark-surface rounded-2xl p-6 w-full max-w-sm">
                             <View className="items-center mb-4">
                                 <View className="w-16 h-16 bg-red-100 rounded-full items-center justify-center mb-4">
                                     <Ionicons name="warning" size={32} color="#EF4444" />
                                 </View>
-                                <Text className="font-inter-bold text-xl text-gray-900 text-center">
+                                <Text className="font-inter-bold text-xl text-gray-900 dark:text-brand-dark-text text-center">
                                     Delete Account
                                 </Text>
-                                <Text className="font-inter text-gray-500 text-center mt-2">
+                                <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted text-center mt-2">
                                     This action is permanent and cannot be undone. All your data
                                     will be deleted.
                                 </Text>
                             </View>
 
                             <View className="mb-4">
-                                <Text className="font-jakarta text-gray-700 mb-1 ml-1">
+                                <Text className="font-jakarta text-gray-700 dark:text-brand-dark-text-secondary mb-1 ml-1">
                                     Enter your password to confirm
                                 </Text>
                                 <TextInput
                                     value={deletePassword}
                                     onChangeText={setDeletePassword}
                                     secureTextEntry
-                                    className="bg-[#F1EEE3] rounded-xl py-4 px-4 font-inter text-gray-900"
+                                    className="bg-[#F1EEE3] dark:bg-brand-dark-input rounded-xl py-4 px-4 font-inter text-gray-900 dark:text-brand-dark-text"
                                     placeholder="Password"
                                     placeholderTextColor="#858585"
                                 />
@@ -897,8 +913,8 @@ export default function Profile() {
                                         setShowDeleteModal(false);
                                         setDeletePassword('');
                                     }}
-                                    className="flex-1 py-4 rounded-xl bg-gray-100">
-                                    <Text className="font-inter-medium text-gray-700 text-center">
+                                    className="flex-1 py-4 rounded-xl bg-gray-100 dark:bg-brand-dark-input">
+                                    <Text className="font-inter-medium text-gray-700 dark:text-brand-dark-text-secondary text-center">
                                         Cancel
                                     </Text>
                                 </TouchableOpacity>

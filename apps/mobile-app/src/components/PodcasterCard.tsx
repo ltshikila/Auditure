@@ -20,7 +20,7 @@ export const PodcasterCard: React.FC<PodcasterCardProps> = ({ podcaster, onPress
             style={{ width: 80 }}
         >
             {/* Profile Picture */}
-            <View className="w-[80px] h-[80px] rounded-full overflow-hidden bg-brand-input mb-2 shadow-sm items-center justify-center">
+            <View className="w-[80px] h-[80px] rounded-full overflow-hidden bg-brand-input dark:bg-brand-dark-input mb-2 shadow-sm items-center justify-center">
                 {resolveCoverUrl(podcaster.profilePictureUrl) ? (
                     <Image
                         source={{ uri: resolveCoverUrl(podcaster.profilePictureUrl)! }}
@@ -35,7 +35,7 @@ export const PodcasterCard: React.FC<PodcasterCardProps> = ({ podcaster, onPress
             </View>
 
             {/* Podcaster Name */}
-            <Text className="font-inter-medium text-[#1A1C1E] text-xs text-center" numberOfLines={1}>
+            <Text className="font-inter-medium text-[#1A1C1E] dark:text-brand-dark-text text-xs text-center" numberOfLines={1}>
                 {podcaster.name}
             </Text>
 
@@ -44,14 +44,14 @@ export const PodcasterCard: React.FC<PodcasterCardProps> = ({ podcaster, onPress
                 {podcaster.averageRating > 0 ? (
                     <>
                         <Ionicons name="star" size={12} color="#BF9A54" />
-                        <Text className="font-inter text-[#858585] text-xs ml-1">
+                        <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-xs ml-1">
                             {podcaster.averageRating.toFixed(1)}
                         </Text>
                     </>
                 ) : (
                     <>
                         <Ionicons name="play-circle-outline" size={12} color="#858585" />
-                        <Text className="font-inter text-[#858585] text-xs ml-1">
+                        <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-xs ml-1">
                             {formatCount(podcaster.playCount)}
                         </Text>
                     </>

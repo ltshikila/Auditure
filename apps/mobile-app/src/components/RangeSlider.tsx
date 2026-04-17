@@ -105,7 +105,7 @@ export const RangeSlider: React.FC<RangeSliderProps> = ({
     return (
         <View className="mb-6">
             {/* Label */}
-            <Text className="text-[#1A1C1E] font-inter-medium text-lg mb-3">{label}</Text>
+            <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-lg mb-3">{label}</Text>
 
             {/* Value badges */}
             <View className="flex-row justify-between mb-2">
@@ -132,7 +132,7 @@ export const RangeSlider: React.FC<RangeSliderProps> = ({
                 {/* Min Thumb */}
                 <GestureDetector gesture={minGesture}>
                     <Animated.View
-                        className="absolute w-6 h-6 bg-white rounded-full border-2 border-brand-gold shadow-sm"
+                        className="absolute w-6 h-6 bg-white dark:bg-brand-dark-surface rounded-full border-2 border-brand-gold shadow-sm"
                         style={[
                             { top: -9, marginLeft: -THUMB_SIZE / 2 },
                             minThumbStyle,
@@ -143,7 +143,7 @@ export const RangeSlider: React.FC<RangeSliderProps> = ({
                 {/* Max Thumb */}
                 <GestureDetector gesture={maxGesture}>
                     <Animated.View
-                        className="absolute w-6 h-6 bg-white rounded-full border-2 border-brand-gold shadow-sm"
+                        className="absolute w-6 h-6 bg-white dark:bg-brand-dark-surface rounded-full border-2 border-brand-gold shadow-sm"
                         style={[
                             { top: -9, marginLeft: -THUMB_SIZE / 2 },
                             maxThumbStyle,
@@ -157,7 +157,7 @@ export const RangeSlider: React.FC<RangeSliderProps> = ({
                 {ticks.map((tick) => (
                     <View key={tick} className="items-center">
                         <View className="w-px h-2 bg-[#858585]" />
-                        <Text className="text-[#858585] font-inter text-xs mt-1">
+                        <Text className="text-[#858585] dark:text-brand-dark-text-secondary font-inter text-xs mt-1">
                             {formatLabel(tick)}
                         </Text>
                     </View>

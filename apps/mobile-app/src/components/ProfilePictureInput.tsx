@@ -63,7 +63,7 @@ export const ProfilePictureInput: React.FC<ProfilePictureInputProps> = ({
 
     return (
         <View className="mb-6">
-            {/* <Text className="font-inter-medium text-lg text-[#1A1C1E] mb-4">
+            {/* <Text className="font-inter-medium text-lg text-[#1A1C1E] dark:text-brand-dark-text mb-4">
                 Profile Picture
             </Text> */}
             <View className="items-center">

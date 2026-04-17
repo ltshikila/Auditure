@@ -151,8 +151,8 @@ export default function HomeScreen() {
     // Render Discover header
     const renderDiscoverHeader = () => (
         <View className="px-6 pt-4 pb-2">
-            <Text className="font-jakarta-bold text-2xl text-brand-black">Discover</Text>
-            <Text className="font-inter text-sm text-[#858585] mt-1">Podcast feed catered to you.</Text>
+            <Text className="font-jakarta-bold text-2xl text-brand-black dark:text-brand-dark-text">Discover</Text>
+            <Text className="font-inter text-sm text-[#858585] dark:text-brand-dark-text-secondary mt-1">Podcast feed catered to you.</Text>
         </View>
     );
 
@@ -175,7 +175,7 @@ export default function HomeScreen() {
                 >
                     <Text
                         className={`font-inter-medium text-sm ${
-                            activeTab === tab.key ? 'text-white' : 'text-brand-black'
+                            activeTab === tab.key ? 'text-white' : 'text-brand-black dark:text-brand-dark-text'
                         }`}
                     >
                         {tab.label}
@@ -363,7 +363,7 @@ export default function HomeScreen() {
     // Render empty state
     const renderEmptyState = () => (
         <View className="flex-1 items-center justify-center py-20">
-            <Text className="font-inter-medium text-lg text-[#858585]">
+            <Text className="font-inter-medium text-lg text-[#858585] dark:text-brand-dark-text-secondary">
                 No content available
             </Text>
             <Text className="font-inter text-sm text-[#A0A0A0] mt-2 text-center px-10">
@@ -378,7 +378,7 @@ export default function HomeScreen() {
             <Text className="font-inter-medium text-lg text-brand-red">
                 Something went wrong
             </Text>
-            <Text className="font-inter text-sm text-[#858585] mt-2 text-center px-10">
+            <Text className="font-inter text-sm text-[#858585] dark:text-brand-dark-text-secondary mt-2 text-center px-10">
                 {error}
             </Text>
             <TouchableOpacity
@@ -403,7 +403,7 @@ export default function HomeScreen() {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-brand-beige" edges={['top', 'left', 'right']}>
+        <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg" edges={['top', 'left', 'right']}>
             <TopBar />
 
             {/* Discover Header */}

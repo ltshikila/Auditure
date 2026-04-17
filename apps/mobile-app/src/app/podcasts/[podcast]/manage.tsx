@@ -222,7 +222,7 @@ export default function ManagePodcaster() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-brand-beige">
+      <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
         <PodcastManageSkeleton />
       </SafeAreaView>
     );
@@ -230,14 +230,14 @@ export default function ManagePodcaster() {
 
   if (!podcaster) {
     return (
-      <SafeAreaView className="flex-1 bg-brand-beige items-center justify-center">
-        <Text className="font-inter text-gray-500">Podcaster not found</Text>
+      <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg items-center justify-center">
+        <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted">Podcaster not found</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-brand-beige">
+    <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
       <KeyboardAwareScrollView
         contentContainerStyle={{ padding: 24, paddingBottom: 24 + (isMiniPlayerVisible ? MINI_PLAYER_HEIGHT + 16 : 0) }}
         keyboardShouldPersistTaps="handled"
@@ -252,7 +252,7 @@ export default function ManagePodcaster() {
           >
             <Image source={require('../../../assets/icons/back.png')} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
           </TouchableOpacity>
-          <Text className="font-jakarta-bold text-xl text-gray-900">Manage Podcaster</Text>
+          <Text className="font-jakarta-bold text-xl text-gray-900 dark:text-brand-dark-text">Manage Podcaster</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -265,10 +265,10 @@ export default function ManagePodcaster() {
 
         {/* Name */}
         <View className="mb-6">
-          <Text className="text-[#1A1C1E] font-inter-medium text-lg mb-2">Podcaster Name</Text>
-          <View className="flex-row items-center bg-brand-input rounded-xl px-4 py-2">
+          <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-lg mb-2">Podcaster Name</Text>
+          <View className="flex-row items-center bg-brand-input dark:bg-brand-dark-input rounded-xl px-4 py-2">
             <TextInput
-              className="flex-1 font-inter text-[#1A1C1E]"
+              className="flex-1 font-inter text-[#1A1C1E] dark:text-brand-dark-text"
               value={name}
               onChangeText={setName}
               placeholder="Enter podcaster name"
@@ -280,10 +280,10 @@ export default function ManagePodcaster() {
 
         {/* Description */}
         <View className="mb-6">
-          <Text className="text-[#1A1C1E] font-inter-medium text-lg mb-2">Description (Optional)</Text>
-          <View className="bg-brand-input rounded-xl px-4 py-3">
+          <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-lg mb-2">Description (Optional)</Text>
+          <View className="bg-brand-input dark:bg-brand-dark-input rounded-xl px-4 py-3">
             <TextInput
-              className="font-inter text-[#1A1C1E]"
+              className="font-inter text-[#1A1C1E] dark:text-brand-dark-text"
               value={description}
               onChangeText={setDescription}
               placeholder="Enter description"
@@ -298,10 +298,10 @@ export default function ManagePodcaster() {
 
         {/* Public Toggle */}
         <View className="mb-6">
-          <View className="flex-row justify-between items-center bg-brand-input rounded-xl px-4 py-4">
+          <View className="flex-row justify-between items-center bg-brand-input dark:bg-brand-dark-input rounded-xl px-4 py-4">
             <View className="flex-1">
-              <Text className="font-inter-medium text-[#1A1C1E]">Public Podcaster</Text>
-              <Text className="font-inter text-xs text-gray-500 mt-1">
+              <Text className="font-inter-medium text-[#1A1C1E] dark:text-brand-dark-text">Public Podcaster</Text>
+              <Text className="font-inter text-xs text-gray-500 dark:text-brand-dark-text-muted mt-1">
                 Allow others to discover and use this podcaster
               </Text>
             </View>
@@ -312,7 +312,7 @@ export default function ManagePodcaster() {
               }`}
             >
               <View
-                className={`w-6 h-6 rounded-full bg-white ${
+                className={`w-6 h-6 rounded-full bg-white dark:bg-brand-dark-surface ${
                   isPublic ? 'self-end' : 'self-start'
                 }`}
               />
@@ -322,7 +322,7 @@ export default function ManagePodcaster() {
 
         {/* Voice Configuration Section */}
         <View
-          className="mb-6 bg-[#F5F5F0] rounded-2xl p-4"
+          className="mb-6 bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-2xl p-4"
           style={{
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 2 },
@@ -331,25 +331,25 @@ export default function ManagePodcaster() {
             elevation: 14,
           }}
         >
-          <Text className="font-inter-bold text-lg text-gray-900 mb-2">Voice Configuration</Text>
-          <Text className="font-inter text-sm text-gray-600 mb-3">
+          <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text mb-2">Voice Configuration</Text>
+          <Text className="font-inter text-sm text-gray-600 dark:text-brand-dark-text-secondary mb-3">
             Voice Model: {podcaster.voiceModel}
           </Text>
-          <Text className="font-inter text-sm text-gray-600 mb-3">
+          <Text className="font-inter text-sm text-gray-600 dark:text-brand-dark-text-secondary mb-3">
             Gender: {podcaster.gender}
           </Text>
-          <Text className="font-inter text-sm text-gray-600 mb-3">
+          <Text className="font-inter text-sm text-gray-600 dark:text-brand-dark-text-secondary mb-3">
             Accent: {podcaster.accent}
           </Text>
-          <Text className="font-inter text-xs text-gray-500 italic">
+          <Text className="font-inter text-xs text-gray-500 dark:text-brand-dark-text-muted italic">
             Voice settings can only be changed during podcaster creation
           </Text>
         </View>
 
         {/* Core Personality Model */}
         <View className="mb-6">
-          <Text className="font-inter-bold text-lg text-gray-900 mb-1">Core Personality Model</Text>
-          <Text className="font-inter text-sm text-gray-500 mb-4">
+          <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text mb-1">Core Personality Model</Text>
+          <Text className="font-inter text-sm text-gray-500 dark:text-brand-dark-text-muted mb-4">
             Defines persona consistency across all episodes
           </Text>
 
@@ -396,15 +396,15 @@ export default function ManagePodcaster() {
 
         {/* Knowledge & Worldview */}
         <View className="mb-6">
-          <Text className="font-inter-bold text-lg text-gray-900 mb-1">Knowledge & Worldview</Text>
-          <Text className="font-inter text-sm text-gray-500 mb-4">
+          <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text mb-1">Knowledge & Worldview</Text>
+          <Text className="font-inter text-sm text-gray-500 dark:text-brand-dark-text-muted mb-4">
             Governs interpretation style across all books covered
           </Text>
 
           {/* Expertise Tags */}
           <View className="mb-6">
-            <Text className="text-[#1A1C1E] font-inter-medium text-base mb-1">Expertise Tags</Text>
-            <Text className="font-inter text-sm text-gray-500 mb-3">Choose 1-3</Text>
+            <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-base mb-1">Expertise Tags</Text>
+            <Text className="font-inter text-sm text-gray-500 dark:text-brand-dark-text-muted mb-3">Choose 1-3</Text>
             <View className="flex-row flex-wrap gap-2">
               {expertiseTags.map(tag => {
                 const isSelected = selectedExpertiseTags.includes(tag);
@@ -414,7 +414,7 @@ export default function ManagePodcaster() {
                     onPress={() => toggleExpertiseTag(tag)}
                     className={`px-4 py-2 rounded-full ${isSelected ? 'bg-brand-red' : 'bg-[#E8E3D6]'}`}
                   >
-                    <Text className={`font-inter text-sm ${isSelected ? 'text-white' : 'text-[#1A1C1E]'}`}>
+                    <Text className={`font-inter text-sm ${isSelected ? 'text-white' : 'text-[#1A1C1E] dark:text-brand-dark-text'}`}>
                       {tag}
                     </Text>
                   </TouchableOpacity>
@@ -425,8 +425,8 @@ export default function ManagePodcaster() {
 
           {/* Intellectual Angle */}
           <View className="mb-4">
-            <Text className="text-[#1A1C1E] font-inter-medium text-base mb-1">Intellectual Angle</Text>
-            <Text className="font-inter text-sm text-gray-500 mb-2">
+            <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-base mb-1">Intellectual Angle</Text>
+            <Text className="font-inter text-sm text-gray-500 dark:text-brand-dark-text-muted mb-2">
               The angle in which the podcaster approaches a book's ideas
             </Text>
             <CustomDropdown
@@ -440,12 +440,12 @@ export default function ManagePodcaster() {
           {/* Viewpoint Behavior */}
           <View className="mb-3">
             <View className="flex-row justify-between items-center mb-1">
-              <Text className="text-[#1A1C1E] font-inter-medium text-base">Viewpoint Behavior</Text>
+              <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-base">Viewpoint Behavior</Text>
               <View className="bg-brand-gold rounded-full px-4 py-1.5">
                 <Text className="text-white font-inter-medium text-base">{viewpointBehavior}</Text>
               </View>
             </View>
-            <Text className="font-inter text-sm text-gray-500 mb-2">
+            <Text className="font-inter text-sm text-gray-500 dark:text-brand-dark-text-muted mb-2">
               Defines debate and critique tendencies
             </Text>
             <CustomSlider

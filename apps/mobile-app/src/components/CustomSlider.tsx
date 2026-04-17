@@ -146,7 +146,7 @@ export const CustomSlider: React.FC<CustomSliderProps> = ({
             {/* Label and Value */}
             {label ? (
                 <View className="flex-row justify-between items-center mb-3">
-                    <Text className="text-[#1A1C1E] font-inter-medium text-lg">{label}</Text>
+                    <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-lg">{label}</Text>
                     {showValue && (
                         <View className="bg-brand-gold rounded-full px-4 py-1.5">
                             <Text className="text-white font-inter-medium text-base">{value}</Text>
@@ -167,8 +167,8 @@ export const CustomSlider: React.FC<CustomSliderProps> = ({
 
             {/* Left and Right Labels */}
             <View className="flex-row justify-between px-2 mt-1">
-                <Text className="text-[#858585] font-inter text-sm">{leftLabel}</Text>
-                <Text className="text-[#858585] font-inter text-sm">{rightLabel}</Text>
+                <Text className="text-[#858585] dark:text-brand-dark-text-secondary font-inter text-sm">{leftLabel}</Text>
+                <Text className="text-[#858585] dark:text-brand-dark-text-secondary font-inter text-sm">{rightLabel}</Text>
             </View>
         </View>
     );

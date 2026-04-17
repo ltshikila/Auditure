@@ -50,6 +50,7 @@ export const Colors = {
         primary: BrandColors.red,
         secondary: BrandColors.gold,
         card: NeutralColors.gray100,
+        cardElevated: '#FFFFFF',
         border: NeutralColors.gray200,
         input: BrandColors.input,
 
@@ -73,6 +74,7 @@ export const Colors = {
         primary: BrandColors.red,
         secondary: BrandColors.gold,
         card: '#1E2022',
+        cardElevated: '#2A2C2E',
         border: '#2E3235',
         input: '#252729',
 

@@ -109,7 +109,7 @@ export default function BookDetailScreen() {
 
     if (loading) {
         return (
-            <SafeAreaView className="flex-1 bg-brand-beige">
+            <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
                 <TopBar showBackButton />
                 <BookDetailSkeleton />
             </SafeAreaView>
@@ -118,10 +118,10 @@ export default function BookDetailScreen() {
 
     if (error || !data) {
         return (
-            <SafeAreaView className="flex-1 bg-brand-beige">
+            <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
                 <TopBar showBackButton />
                 <View className="flex-1 items-center justify-center px-6">
-                    <Text className="font-inter-bold text-xl text-gray-900 mb-2">
+                    <Text className="font-inter-bold text-xl text-gray-900 dark:text-brand-dark-text mb-2">
                         {error || 'Book not found'}
                     </Text>
                     <TouchableOpacity onPress={() => fetchBookDetail()}>
@@ -137,7 +137,7 @@ export default function BookDetailScreen() {
     const hasEpisodes = sections.top.length > 0 || sections.recent.length > 0 || sections.trending.length > 0;
 
     return (
-        <SafeAreaView className="flex-1 bg-brand-beige">
+        <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
             <TopBar showBackButton />
             <ScrollView
                 showsVerticalScrollIndicator={false}
@@ -168,9 +168,9 @@ export default function BookDetailScreen() {
 
                 {/* Title & Author */}
                 <View className="px-6">
-                    <Text className="font-jakarta-bold text-2xl text-gray-900 mb-1">{book.title}</Text>
+                    <Text className="font-jakarta-bold text-2xl text-gray-900 dark:text-brand-dark-text mb-1">{book.title}</Text>
                     {book.author && (
-                        <Text className="font-inter text-gray-500 mb-4">{book.author}</Text>
+                        <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted mb-4">{book.author}</Text>
                     )}
                 </View>
 
@@ -179,33 +179,33 @@ export default function BookDetailScreen() {
                     <View className="items-center">
                         <View className="flex-row items-center gap-1">
                             <Image source={bookIcons.microphone} style={{ width: 16, height: 16, tintColor: '#E8847C' }} />
-                            <Text className="font-jakarta-bold text-lg text-gray-900">{book.episodeCount}</Text>
+                            <Text className="font-jakarta-bold text-lg text-gray-900 dark:text-brand-dark-text">{book.episodeCount}</Text>
                         </View>
-                        <Text className="font-inter text-xs text-gray-500">Episodes</Text>
+                        <Text className="font-inter text-xs text-gray-500 dark:text-brand-dark-text-muted">Episodes</Text>
                     </View>
                     <View className="items-center">
                         <View className="flex-row items-center gap-1">
                             <Ionicons name="play-circle" size={18} color="#E8847C" />
-                            <Text className="font-jakarta-bold text-lg text-gray-900">{book.totalPlayCount}</Text>
+                            <Text className="font-jakarta-bold text-lg text-gray-900 dark:text-brand-dark-text">{book.totalPlayCount}</Text>
                         </View>
-                        <Text className="font-inter text-xs text-gray-500">Plays</Text>
+                        <Text className="font-inter text-xs text-gray-500 dark:text-brand-dark-text-muted">Plays</Text>
                     </View>
                     {book.pageCount && (
                         <View className="items-center">
                             <View className="flex-row items-center gap-1">
                                 <Image source={bookIcons.books} style={{ width: 16, height: 16, tintColor: '#E8847C' }} />
-                                <Text className="font-jakarta-bold text-lg text-gray-900">{book.pageCount}</Text>
+                                <Text className="font-jakarta-bold text-lg text-gray-900 dark:text-brand-dark-text">{book.pageCount}</Text>
                             </View>
-                            <Text className="font-inter text-xs text-gray-500">Pages</Text>
+                            <Text className="font-inter text-xs text-gray-500 dark:text-brand-dark-text-muted">Pages</Text>
                         </View>
                     )}
                     {book.language && (
                         <View className="items-center">
                             <View className="flex-row items-center gap-1">
                                 <Image source={bookIcons.language} style={{ width: 16, height: 16, tintColor: '#E8847C' }} />
-                                <Text className="font-jakarta-bold text-lg text-gray-900">{book.language.toUpperCase()}</Text>
+                                <Text className="font-jakarta-bold text-lg text-gray-900 dark:text-brand-dark-text">{book.language.toUpperCase()}</Text>
                             </View>
-                            <Text className="font-inter text-xs text-gray-500">Language</Text>
+                            <Text className="font-inter text-xs text-gray-500 dark:text-brand-dark-text-muted">Language</Text>
                         </View>
                     )}
                 </View>
@@ -234,8 +234,8 @@ export default function BookDetailScreen() {
                         <View className="w-16 h-16 bg-brand-gold/20 rounded-full items-center justify-center mb-3">
                             <Ionicons name="headset" size={32} color="#BF9A54" />
                         </View>
-                        <Text className="font-inter-bold text-gray-900 mb-2">No episodes yet</Text>
-                        <Text className="font-inter text-gray-500 text-center text-sm">
+                        <Text className="font-inter-bold text-gray-900 dark:text-brand-dark-text mb-2">No episodes yet</Text>
+                        <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted text-center text-sm">
                             Be the first to create an episode from this book
                         </Text>
                     </View>

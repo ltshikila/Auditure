@@ -33,11 +33,11 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({
 
     return (
         <View className="mb-6">
-            {label && <Text className="text-[#1A1C1E] font-inter-medium text-lg mb-2">{label}</Text>}
+            {label && <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-lg mb-2">{label}</Text>}
             <TouchableOpacity
                 onPress={() => setIsOpen(!isOpen)}
                 className="flex-row items-center justify-between bg-transparent border border-brand-gold rounded-2xl px-4 py-3.5">
-                <Text className="font-inter text-[#1A1C1E]">
+                <Text className="font-inter text-[#1A1C1E] dark:text-brand-dark-text">
                     {selectedOption?.label || placeholder}
                 </Text>
                 <Ionicons
@@ -48,7 +48,7 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({
             </TouchableOpacity>
 
             {isOpen && (
-                <View className="bg-white rounded-2xl mt-2 overflow-hidden" style={{
+                <View className="bg-white dark:bg-brand-dark-surface rounded-2xl mt-2 overflow-hidden" style={{
                     shadowColor: '#000',
                     shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.1,
@@ -63,10 +63,10 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({
                                 onPress={() => handleSelect(option.value)}
                                 className={`px-5 py-3.5 ${
                                     index < options.length - 1 ? 'border-b border-[#F0F0F0]' : ''
-                                } ${isSelected ? 'bg-[#FDFBF7]' : ''}`}>
+                                } ${isSelected ? 'bg-[#FDFBF7] dark:bg-brand-dark-surface' : ''}`}>
                                 <Text
                                     className={`font-inter text-base ${
-                                        isSelected ? 'text-brand-gold font-inter-medium' : 'text-[#1A1C1E]'
+                                        isSelected ? 'text-brand-gold font-inter-medium' : 'text-[#1A1C1E] dark:text-brand-dark-text'
                                     }`}>
                                     {option.label}
                                 </Text>

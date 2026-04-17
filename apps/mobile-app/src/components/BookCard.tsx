@@ -16,7 +16,7 @@ export const BookCard: React.FC<BookCardProps> = ({ book, onPress }) => {
             style={{ width: 110 }}
         >
             {/* Book Cover */}
-            <View className="w-[110px] h-[160px] rounded-lg overflow-hidden bg-brand-input mb-2 shadow-sm items-center justify-center">
+            <View className="w-[110px] h-[160px] rounded-lg overflow-hidden bg-brand-input dark:bg-brand-dark-input mb-2 shadow-sm items-center justify-center">
                 {resolveCoverUrl(book.coverImageUrl) ? (
                     <Image
                         source={{ uri: resolveCoverUrl(book.coverImageUrl)! }}
@@ -33,12 +33,12 @@ export const BookCard: React.FC<BookCardProps> = ({ book, onPress }) => {
             </View>
 
             {/* Book Title */}
-            <Text className="font-inter-medium text-[#1A1C1E] text-sm" numberOfLines={1}>
+            <Text className="font-inter-medium text-[#1A1C1E] dark:text-brand-dark-text text-sm" numberOfLines={1}>
                 {book.title}
             </Text>
 
             {/* Author */}
-            <Text className="font-inter text-[#858585] text-xs" numberOfLines={1}>
+            <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-xs" numberOfLines={1}>
                 {book.author || 'Unknown Author'}
             </Text>
 

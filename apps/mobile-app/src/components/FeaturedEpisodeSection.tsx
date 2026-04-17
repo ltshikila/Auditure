@@ -26,7 +26,7 @@ export const FeaturedEpisodeSection: React.FC<FeaturedEpisodeSectionProps> = ({
         <View className="mb-6">
             {/* Section Header */}
             <View className="flex-row items-center justify-between mb-3 px-6">
-                <Text className="font-inter-medium text-lg text-brand-black">{title}</Text>
+                <Text className="font-inter-medium text-lg text-brand-black dark:text-brand-dark-text">{title}</Text>
                 {showSeeAll && onSeeAll && (
                     <TouchableOpacity onPress={onSeeAll}>
                         <Text className="font-inter text-sm text-brand-red">View all</Text>

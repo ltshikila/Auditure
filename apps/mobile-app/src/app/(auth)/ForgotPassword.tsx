@@ -55,7 +55,7 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-brand-beige">
+    <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
       <KeyboardAwareScrollView
         contentContainerStyle={{ padding: 24, flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
@@ -67,8 +67,8 @@ export default function ForgotPasswordScreen() {
           <Image source={backIcon} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
         </TouchableOpacity>
 
-        <Text className="font-inter-medium text-4xl text-gray-900 mb-4">Forgot Password</Text>
-        <Text className="text-gray-600 font-inter text-lg mb-8">
+        <Text className="font-inter-medium text-4xl text-gray-900 dark:text-brand-dark-text mb-4">Forgot Password</Text>
+        <Text className="text-gray-600 dark:text-brand-dark-text-secondary font-inter text-lg mb-8">
           Enter your email address and we'll send you a code to reset your password.
         </Text>
 

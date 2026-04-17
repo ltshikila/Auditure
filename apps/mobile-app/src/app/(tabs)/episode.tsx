@@ -151,13 +151,13 @@ export default function EpisodesScreen() {
 
     if (loading) {
         return (
-            <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-brand-beige">
+            <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
                 <TopBar />
                 <View className="px-6 pt-6 pb-6">
                     <View className="flex-row items-center justify-between">
                         <View>
-                            <Text className="font-inter-bold text-2xl text-brand-black">Episodes</Text>
-                            <Text className="font-jakarta text-brand-black text-sm">
+                            <Text className="font-inter-bold text-2xl text-brand-black dark:text-brand-dark-text">Episodes</Text>
+                            <Text className="font-jakarta text-brand-black dark:text-brand-dark-text text-sm">
                                 Manage and view your saved and generated episodes
                             </Text>
                         </View>
@@ -171,7 +171,7 @@ export default function EpisodesScreen() {
     const hasAnyEpisodes = episodes.length > 0;
 
     return (
-        <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-brand-beige">
+        <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
             <TopBar />
             <ScrollView
                 refreshControl={
@@ -182,8 +182,8 @@ export default function EpisodesScreen() {
                 <View className="px-6 pt-6 pb-6">
                     <View className="flex-row items-center justify-between">
                         <View>
-                            <Text className="font-inter-bold text-2xl text-brand-black">Episodes</Text>
-                            <Text className="font-jakarta text-brand-black text-sm">
+                            <Text className="font-inter-bold text-2xl text-brand-black dark:text-brand-dark-text">Episodes</Text>
+                            <Text className="font-jakarta text-brand-black dark:text-brand-dark-text text-sm">
                                 Manage and view your saved and generated episodes
                             </Text>
                         </View>
@@ -212,8 +212,8 @@ export default function EpisodesScreen() {
                         <View className="w-24 h-24 bg-brand-gold/20 rounded-full items-center justify-center mb-4">
                             <Ionicons name="headset" size={48} color="#BF9A54" />
                         </View>
-                        <Text className="font-inter-bold text-xl text-brand-black mb-2">No episodes yet</Text>
-                        <Text className="font-inter text-[#858585] text-center mb-6">
+                        <Text className="font-inter-bold text-xl text-brand-black dark:text-brand-dark-text mb-2">No episodes yet</Text>
+                        <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-center mb-6">
                             Create your first episode to start listening to AI-generated podcasts from your books
                         </Text>
                         <TouchableOpacity
@@ -231,7 +231,7 @@ export default function EpisodesScreen() {
                         <View className="flex-row items-center justify-between mb-3 px-6">
                             <View className="flex-row items-center">
                                 <Ionicons name="sync" size={18} color="#BF9A54" />
-                                <Text className="font-inter-medium text-lg text-brand-black ml-2">
+                                <Text className="font-inter-medium text-lg text-brand-black dark:text-brand-dark-text ml-2">
                                     Generating ({generatingEpisodes.length})
                                 </Text>
                             </View>

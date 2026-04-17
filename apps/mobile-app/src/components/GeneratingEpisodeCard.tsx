@@ -100,7 +100,7 @@ export const GeneratingEpisodeCard: React.FC<GeneratingEpisodeCardProps> = ({
     return (
         <TouchableOpacity
             onPress={onPress}
-            className="bg-[#F5F5F0] rounded-2xl p-4 mb-3 shadow-md mr-3"
+            className="bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-2xl p-4 mb-3 shadow-md mr-3"
             style={{
                 width: CARD_WIDTH,
                 shadowColor: '#000',
@@ -111,7 +111,7 @@ export const GeneratingEpisodeCard: React.FC<GeneratingEpisodeCardProps> = ({
             }}>
             <View className="flex-row">
                 {/* Book Cover Thumbnail */}
-                <View className="w-14 h-20 rounded-lg overflow-hidden bg-brand-input mr-3 items-center justify-center">
+                <View className="w-14 h-20 rounded-lg overflow-hidden bg-brand-input dark:bg-brand-dark-input mr-3 items-center justify-center">
                     {resolveCoverUrl(episode.book?.coverImageUrl) ? (
                         <Image
                             source={{ uri: resolveCoverUrl(episode.book?.coverImageUrl)! }}
@@ -127,14 +127,14 @@ export const GeneratingEpisodeCard: React.FC<GeneratingEpisodeCardProps> = ({
 
                 {/* Info */}
                 <View className="flex-1 justify-start ">
-                    <Text className="font-inter-medium text-[#1A1C1E] text-lg" numberOfLines={2}>
+                    <Text className="font-inter-medium text-[#1A1C1E] dark:text-brand-dark-text text-lg" numberOfLines={2}>
                         {episode.title}
                     </Text>
-                    <Text className="font-inter text-[#858585] text-xs mt-1" numberOfLines={1}>
+                    <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-xs mt-1" numberOfLines={1}>
                         {episode.book?.title}
                     </Text>
                     {episode.podcaster?.name && (
-                        <Text className="font-inter text-[#858585] text-xs mt-0.5" numberOfLines={1}>
+                        <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-xs mt-0.5" numberOfLines={1}>
                             by {episode.podcaster.name}
                         </Text>
                     )}
@@ -166,7 +166,7 @@ export const GeneratingEpisodeCard: React.FC<GeneratingEpisodeCardProps> = ({
                             {statusMessages[episode.generationStatus]}
                         </Text>
                     </View>
-                    <Text className="font-inter text-xs text-[#858585]">{progress}%</Text>
+                    <Text className="font-inter text-xs text-[#858585] dark:text-brand-dark-text-secondary">{progress}%</Text>
                 </View>
 
                 {/* Progress Bar */}
@@ -200,9 +200,9 @@ export const GeneratingEpisodeCard: React.FC<GeneratingEpisodeCardProps> = ({
                             </TouchableOpacity>
                             <TouchableOpacity
                                 onPress={onCancel}
-                                className="flex-1 flex-row items-center justify-center bg-gray-100 rounded-lg py-1.5">
+                                className="flex-1 flex-row items-center justify-center bg-gray-100 dark:bg-brand-dark-input rounded-lg py-1.5">
                                 <Ionicons name="close" size={12} color="#6B7280" />
-                                <Text className="font-inter-medium text-xs text-gray-500 ml-1">Cancel</Text>
+                                <Text className="font-inter-medium text-xs text-gray-500 dark:text-brand-dark-text-muted ml-1">Cancel</Text>
                             </TouchableOpacity>
                         </View>
                     </>

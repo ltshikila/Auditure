@@ -16,7 +16,7 @@ export const EpisodeCard: React.FC<EpisodeCardProps> = ({ episode, onPress }) =>
             style={{ width: 110 }}
         >
             {/* Book Cover */}
-            <View className="w-[110px] h-[160px] rounded-lg overflow-hidden bg-brand-input mb-2 shadow-sm items-center justify-center">
+            <View className="w-[110px] h-[160px] rounded-lg overflow-hidden bg-brand-input dark:bg-brand-dark-input mb-2 shadow-sm items-center justify-center">
                 {resolveCoverUrl(episode.book?.coverImageUrl) ? (
                     <Image
                         source={{ uri: resolveCoverUrl(episode.book?.coverImageUrl)! }}
@@ -33,12 +33,12 @@ export const EpisodeCard: React.FC<EpisodeCardProps> = ({ episode, onPress }) =>
             </View>
 
             {/* Episode Name */}
-            <Text className="font-inter-medium text-[#1A1C1E] text-sm" numberOfLines={1}>
+            <Text className="font-inter-medium text-[#1A1C1E] dark:text-brand-dark-text text-sm" numberOfLines={1}>
                 {episode.title}
             </Text>
 
             {/* Book Name */}
-            <Text className="font-inter text-[#858585] text-xs" numberOfLines={1}>
+            <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-xs" numberOfLines={1}>
                 {episode.book?.title || 'Unknown Book'}
             </Text>
         </TouchableOpacity>

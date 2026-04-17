@@ -86,7 +86,7 @@ export default function VerificationScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-brand-beige">
+    <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
       <KeyboardAwareScrollView
         contentContainerStyle={{ padding: 24, flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
@@ -98,11 +98,11 @@ export default function VerificationScreen() {
           <Image source={backIcon} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
         </TouchableOpacity>
 
-        <Text className="font-inter-medium text-4xl text-gray-900 mb-4">Verification</Text>
-        <Text className="text-gray-600 font-inter text-lg mb-4">We just sent a 6-digit code to:</Text>
-        <Text className="text-gray-900 font-inter-bold text-xl mb-8">{email}</Text>
+        <Text className="font-inter-medium text-4xl text-gray-900 dark:text-brand-dark-text mb-4">Verification</Text>
+        <Text className="text-gray-600 dark:text-brand-dark-text-secondary font-inter text-lg mb-4">We just sent a 6-digit code to:</Text>
+        <Text className="text-gray-900 dark:text-brand-dark-text font-inter-bold text-xl mb-8">{email}</Text>
 
-        <Text className="text-gray-600 font-inter mb-4">Enter the code to continue:</Text>
+        <Text className="text-gray-600 dark:text-brand-dark-text-secondary font-inter mb-4">Enter the code to continue:</Text>
 
         {/* Code Input Boxes */}
         <View className="flex-row justify-between mb-12">
@@ -112,7 +112,7 @@ export default function VerificationScreen() {
               ref={(ref) => {
                 inputRefs.current[i] = ref;
               }}
-              className="w-14 h-20 border border-[#BFA054] rounded-xl text-center text-xl font-jakarta-medium bg-[#F1EEE3] focus:border-[#C5A065]"
+              className="w-14 h-20 border border-[#BFA054] rounded-xl text-center text-xl font-jakarta-medium bg-[#F1EEE3] dark:bg-brand-dark-input focus:border-[#C5A065]"
               keyboardType="numeric"
               maxLength={1}
               value={code[i]}

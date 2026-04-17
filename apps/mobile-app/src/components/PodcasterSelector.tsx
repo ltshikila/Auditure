@@ -24,10 +24,10 @@ export const PodcasterSelector: React.FC<PodcasterSelectorProps> = ({
             {/* Header */}
             <View className="flex-row items-center justify-between mb-2">
                 <View>
-                    <Text className="text-[#1A1C1E] font-inter-medium text-lg">
+                    <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-lg">
                         Virtual Podcaster
                     </Text>
-                    <Text className="text-[#858585] font-inter text-sm">
+                    <Text className="text-[#858585] dark:text-brand-dark-text-secondary font-inter text-sm">
                         Select your virtual podcaster for this episode
                     </Text>
                 </View>
@@ -48,7 +48,7 @@ export const PodcasterSelector: React.FC<PodcasterSelectorProps> = ({
                             key={podcaster.id}
                             onPress={() => onSelect(podcaster.id)}
                             className={`w-[30%] rounded-2xl p-4 py-5 items-center mb-3 justify-start ${
-                                isSelected ? 'bg-[#F5F5F0] border-2 border-brand-gold/40' : 'bg-[#F5F5F0]'
+                                isSelected ? 'bg-[#F5F5F0] dark:bg-brand-dark-surface border-2 border-brand-gold/40' : 'bg-[#F5F5F0] dark:bg-brand-dark-surface'
                             }`}
                             style={
                                 isSelected
@@ -59,7 +59,7 @@ export const PodcasterSelector: React.FC<PodcasterSelectorProps> = ({
                             {/* Avatar */}
                             <View
                                 className={`w-14 h-14 rounded-full overflow-hidden mb-2 ${
-                                    isSelected ? 'border-2 border-brand-gold' : 'border border-[#E8E3D6]'
+                                    isSelected ? 'border-2 border-brand-gold' : 'border border-[#E8E3D6] dark:border-brand-dark-border'
                                 }`}
                             >
                                 {resolveCoverUrl(podcaster.profilePictureUrl) ? (
@@ -78,7 +78,7 @@ export const PodcasterSelector: React.FC<PodcasterSelectorProps> = ({
                             {/* Name */}
                             <Text
                                 className={`font-inter text-center ${
-                                    isSelected ? 'text-brand-gold font-inter-medium' : 'text-[#1A1C1E]'
+                                    isSelected ? 'text-brand-gold font-inter-medium' : 'text-[#1A1C1E] dark:text-brand-dark-text'
                                 }`}
                                 numberOfLines={2}
                             >
@@ -97,7 +97,7 @@ export const PodcasterSelector: React.FC<PodcasterSelectorProps> = ({
                         <View className="w-14 h-14 rounded-full bg-[#E8E3D6] items-center justify-center mb-2 border border-dashed border-brand-gold">
                             <Ionicons name="add" size={24} color="#BF9A54" />
                         </View>
-                        <Text className="font-inter text-xs text-center text-[#858585]">
+                        <Text className="font-inter text-xs text-center text-[#858585] dark:text-brand-dark-text-secondary">
                             Create Podcaster
                         </Text>
                     </TouchableOpacity>

@@ -7,30 +7,38 @@ module.exports = {
     "./index.{js,ts,tsx}"
   ],
   presets: [require("nativewind/preset")],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
         brand: {
-          red: '#920002',      // Deep Red Button
-          gold: '#BF9A54',     // Gold/Tan Toggle & Accents
-          beige: '#FBF8F2',    // Beige Background
-          input: '#F1EEE3',    // Input Background
-          black: '#2F2F2F'
+          red: '#920002',
+          gold: '#BF9A54',
+          beige: '#FBF8F2',
+          input: '#F1EEE3',
+          black: '#2F2F2F',
+
+          // Dark mode palette
+          'dark-bg': '#151718',
+          'dark-surface': '#1E2022',
+          'dark-surface-elevated': '#2A2C2E',
+          'dark-input': '#252729',
+          'dark-border': '#2E3235',
+          'dark-text': '#ECEDEE',
+          'dark-text-secondary': '#9BA1A6',
+          'dark-text-muted': '#687076',
         }
       },
       fontFamily: {
-        // Inter (Body)
-        inter: ["Inter_400Regular"],        // Default: className="font-inter"
-        "inter-medium": ["Inter_500Medium"], // Medium: className="font-inter-medium"
-        "inter-bold": ["Inter_700Bold"],     // Bold: className="font-inter-bold"
+        inter: ["Inter_400Regular"],
+        "inter-medium": ["Inter_500Medium"],
+        "inter-bold": ["Inter_700Bold"],
 
-        // Plus Jakarta Sans (Headings)
-        jakarta: ["PlusJakartaSans_400Regular"],         // Default: className="font-jakarta"
-        "jakarta-medium": ["PlusJakartaSans_500Medium"], // Medium: className="font-jakarta-medium"
-        "jakarta-bold": ["PlusJakartaSans_700Bold"],     // Bold: className="font-jakarta-bold"
+        jakarta: ["PlusJakartaSans_400Regular"],
+        "jakarta-medium": ["PlusJakartaSans_500Medium"],
+        "jakarta-bold": ["PlusJakartaSans_700Bold"],
 
-        // DM Serif Display (Brand/Logo)
-        "dm-serif": ["DMSerifDisplay_400Regular"],       // Brand: className="font-dm-serif"
+        "dm-serif": ["DMSerifDisplay_400Regular"],
       }
     },
   },

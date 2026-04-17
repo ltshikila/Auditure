@@ -86,12 +86,12 @@ export default function OnboardingScreen() {
             />
 
             {/* Headline */}
-            <Text className="font-jakarta-bold text-3xl text-brand-black text-center mb-4">
+            <Text className="font-jakarta-bold text-3xl text-brand-black dark:text-brand-dark-text text-center mb-4">
                 {item.headline}
             </Text>
 
             {/* Description */}
-            <Text className="font-inter text-base text-[#6C7278] text-center leading-6 px-4">
+            <Text className="font-inter text-base text-[#6C7278] dark:text-brand-dark-text-secondary text-center leading-6 px-4">
                 {item.description}
             </Text>
         </View>
@@ -100,7 +100,7 @@ export default function OnboardingScreen() {
     const isLastSlide = currentIndex === slides.length - 1;
 
     return (
-        <SafeAreaView className="flex-1 bg-brand-beige">
+        <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
             {/* Top area: Logo + Skip button */}
             <View className="flex-row items-center justify-between px-6 pt-2">
                 <Image

@@ -74,18 +74,18 @@ function PricingCard({
             </View>
 
             {/* Title */}
-            <Text className="font-inter-bold text-lg text-gray-900">{title}</Text>
+            <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text">{title}</Text>
 
             {/* Price */}
             <View className="flex-row items-baseline mt-1">
                 <Text className="font-inter-bold text-2xl text-brand-gold">{price}</Text>
-                <Text className="font-inter text-gray-500 text-sm ml-1">/mo</Text>
+                <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted text-sm ml-1">/mo</Text>
             </View>
 
             {/* Episodes */}
             <View className="flex-row items-center mt-2">
                 <Ionicons name="mic-outline" size={14} color="#6B7280" />
-                <Text className="font-inter text-gray-600 text-sm ml-1.5">
+                <Text className="font-inter text-gray-600 dark:text-brand-dark-text-secondary text-sm ml-1.5">
                     {episodesPerMonth} episodes
                 </Text>
             </View>
@@ -93,7 +93,7 @@ function PricingCard({
             {/* Selection indicator */}
             <View
                 className={`w-5 h-5 rounded-full border-2 mt-3 items-center justify-center ${
-                    isSelected ? 'border-brand-gold bg-brand-gold' : 'border-gray-300'
+                    isSelected ? 'border-brand-gold bg-brand-gold' : 'border-gray-300 dark:border-brand-dark-border'
                 }`}>
                 {isSelected && <Ionicons name="checkmark" size={12} color="white" />}
             </View>
@@ -108,12 +108,12 @@ function UsageBar({ used, limit, label }: { used: number; limit: number; label: 
     return (
         <View className="mb-4 last:mb-0">
             <View className="flex-row justify-between mb-2">
-                <Text className="font-inter text-gray-600">{label}</Text>
-                <Text className={`font-inter-medium ${isLow ? 'text-orange-500' : 'text-gray-900'}`}>
+                <Text className="font-inter text-gray-600 dark:text-brand-dark-text-secondary">{label}</Text>
+                <Text className={`font-inter-medium ${isLow ? 'text-orange-500' : 'text-gray-900 dark:text-brand-dark-text'}`}>
                     {used} / {limit}
                 </Text>
             </View>
-            <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
+            <View className="h-2 bg-gray-200 dark:bg-brand-dark-border rounded-full overflow-hidden">
                 <View
                     className={`h-full rounded-full ${isLow ? 'bg-orange-400' : 'bg-brand-gold'}`}
                     style={{ width: `${percentage}%` }}
@@ -434,7 +434,7 @@ export default function SubscriptionScreen() {
 
     if (loading) {
         return (
-            <SafeAreaView className="flex-1 bg-brand-beige" edges={['top', 'left', 'right']}>
+            <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg" edges={['top', 'left', 'right']}>
                 <TopBar showBackButton title="Subscription" />
                 <SubscriptionSkeleton />
             </SafeAreaView>
@@ -446,7 +446,7 @@ export default function SubscriptionScreen() {
     const paystackStatus = subscription?.paystackSubscription;
 
     return (
-        <SafeAreaView className="flex-1 bg-brand-beige" edges={['top', 'left', 'right']}>
+        <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg" edges={['top', 'left', 'right']}>
             <TopBar showBackButton title="Subscription" />
 
             <ScrollView
@@ -456,10 +456,10 @@ export default function SubscriptionScreen() {
                 }>
                 {/* Header */}
                 <View className="mb-6">
-                    <Text className="font-inter-bold text-2xl text-brand-black">
+                    <Text className="font-inter-bold text-2xl text-brand-black dark:text-brand-dark-text">
                         {isPaid ? 'Your Subscription' : 'Unlock Premium'}
                     </Text>
-                    <Text className="font-jakarta text-gray-600 mt-1">
+                    <Text className="font-jakarta text-gray-600 dark:text-brand-dark-text-secondary mt-1">
                         {isPaid
                             ? 'Manage your premium subscription'
                             : 'Create more podcast episodes from your books'}
@@ -481,7 +481,7 @@ export default function SubscriptionScreen() {
 
                 {/* Current Status Card */}
                 <View
-                    className="bg-[#F5F5F0] rounded-2xl p-5 mb-6"
+                    className="bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-2xl p-5 mb-6"
                     style={{
                         shadowColor: '#000',
                         shadowOffset: { width: 0, height: 2 },
@@ -490,7 +490,7 @@ export default function SubscriptionScreen() {
                         elevation: 8,
                     }}>
                     <View className="flex-row items-center justify-between mb-4">
-                        <Text className="font-inter-bold text-lg text-gray-900">Current Plan</Text>
+                        <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text">Current Plan</Text>
                         {isPaid ? (
                             <LinearGradient
                                 colors={['#BF9A54', '#D4AF37']}
@@ -502,8 +502,8 @@ export default function SubscriptionScreen() {
                                 </Text>
                             </LinearGradient>
                         ) : (
-                            <View className="px-3 py-1 rounded-full bg-gray-200">
-                                <Text className="font-inter-bold text-sm text-gray-600">
+                            <View className="px-3 py-1 rounded-full bg-gray-200 dark:bg-brand-dark-border">
+                                <Text className="font-inter-bold text-sm text-gray-600 dark:text-brand-dark-text-secondary">
                                     {subscription?.tier || 'FREE'}
                                 </Text>
                             </View>
@@ -526,7 +526,7 @@ export default function SubscriptionScreen() {
                             {subscription?.premiumExpiresAt && (
                                 <Text
                                     className={`font-inter ml-auto text-sm ${
-                                        isCancelled ? 'text-orange-600' : 'text-gray-500'
+                                        isCancelled ? 'text-orange-600' : 'text-gray-500 dark:text-brand-dark-text-muted'
                                     }`}>
                                     {isCancelled ? 'Expires' : 'Renews'}{' '}
                                     {formatDate(subscription.premiumExpiresAt)}
@@ -596,7 +596,7 @@ export default function SubscriptionScreen() {
                 {/* Pricing Selection - Show if not paid OR cancelled without ability to reactivate */}
                 {(!isPaid || (isPaid && isCancelled && !paystackStatus)) && (
                     <>
-                        <Text className="font-inter-bold text-lg text-gray-900 mb-4">
+                        <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text mb-4">
                             {isCancelled ? 'Subscribe Again' : 'Choose Your Plan'}
                         </Text>
 
@@ -625,7 +625,7 @@ export default function SubscriptionScreen() {
 
                         {/* Features List */}
                         <View
-                            className="bg-[#F5F5F0] rounded-2xl p-5 mb-6"
+                            className="bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-2xl p-5 mb-6"
                             style={{
                                 shadowColor: '#000',
                                 shadowOffset: { width: 0, height: 2 },
@@ -633,7 +633,7 @@ export default function SubscriptionScreen() {
                                 shadowRadius: 10,
                                 elevation: 8,
                             }}>
-                            <Text className="font-inter-bold text-lg text-gray-900 mb-4">
+                            <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text mb-4">
                                 {selectedTier === 'pro' ? 'Pro' : 'Starter'} Features
                             </Text>
 
@@ -642,7 +642,7 @@ export default function SubscriptionScreen() {
                                     <View className="w-6 h-6 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                                         <Ionicons name="checkmark" size={14} color="#BF9A54" />
                                     </View>
-                                    <Text className="font-inter text-gray-700 flex-1">{feature}</Text>
+                                    <Text className="font-inter text-gray-700 dark:text-brand-dark-text-secondary flex-1">{feature}</Text>
                                 </View>
                             ))}
                         </View>
@@ -683,11 +683,11 @@ export default function SubscriptionScreen() {
                 {/* Upgrade Option - Show for STARTER subscribers (active or cancelled) but not when PRO is selected in Subscribe Again */}
                 {isPaid && subscription?.tier === 'STARTER' && !(isCancelled && !paystackStatus && selectedTier === 'pro') && (
                     <View className="mb-6">
-                        <Text className="font-inter-bold text-lg text-gray-900 mb-4">
+                        <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text mb-4">
                             Upgrade Your Plan
                         </Text>
                         <View
-                            className="bg-[#F5F5F0] rounded-2xl p-5"
+                            className="bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-2xl p-5"
                             style={{
                                 shadowColor: '#000',
                                 shadowOffset: { width: 0, height: 2 },
@@ -700,27 +700,27 @@ export default function SubscriptionScreen() {
                                     <Ionicons name="flash" size={20} color="#BF9A54" />
                                 </View>
                                 <View className="flex-1">
-                                    <Text className="font-inter-bold text-lg text-gray-900">
+                                    <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text">
                                         Upgrade to Pro
                                     </Text>
-                                    <Text className="font-inter text-gray-500 text-sm">
+                                    <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted text-sm">
                                         {pricing.pro.episodesPerMonth} episodes/month
                                     </Text>
                                 </View>
                                 <Text className="font-inter-bold text-xl text-brand-gold">
                                     {subscriptionService.formatPrice(pricing.pro.price)}
-                                    <Text className="text-sm text-gray-500">/mo</Text>
+                                    <Text className="text-sm text-gray-500 dark:text-brand-dark-text-muted">/mo</Text>
                                 </Text>
                             </View>
 
                             {/* Pro Features */}
-                            <View className="border-t border-gray-200 pt-4 mb-4">
+                            <View className="border-t border-gray-200 dark:border-brand-dark-border pt-4 mb-4">
                                 {pricing.pro.features.map((feature, index) => (
                                     <View key={index} className="flex-row items-center py-2">
                                         <View className="w-5 h-5 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                                             <Ionicons name="checkmark" size={12} color="#BF9A54" />
                                         </View>
-                                        <Text className="font-inter text-gray-700 flex-1 text-sm">{feature}</Text>
+                                        <Text className="font-inter text-gray-700 dark:text-brand-dark-text-secondary flex-1 text-sm">{feature}</Text>
                                     </View>
                                 ))}
                             </View>
@@ -754,11 +754,11 @@ export default function SubscriptionScreen() {
                 {/* Downgrade Option - Show for PRO subscribers (active, or cancelled with reactivate option) */}
                 {isPaid && subscription?.tier === 'PRO' && (!isCancelled || paystackStatus) && (
                     <View className="mb-6">
-                        <Text className="font-inter-bold text-lg text-gray-900 mb-4">
+                        <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text mb-4">
                             Change Plan
                         </Text>
                         <View
-                            className="bg-[#F5F5F0] rounded-2xl p-5"
+                            className="bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-2xl p-5"
                             style={{
                                 shadowColor: '#000',
                                 shadowOffset: { width: 0, height: 2 },
@@ -771,16 +771,16 @@ export default function SubscriptionScreen() {
                                     <Ionicons name="rocket-outline" size={20} color="#BF9A54" />
                                 </View>
                                 <View className="flex-1">
-                                    <Text className="font-inter-bold text-lg text-gray-900">
+                                    <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text">
                                         Starter Plan
                                     </Text>
-                                    <Text className="font-inter text-gray-500 text-sm">
+                                    <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted text-sm">
                                         {pricing.starter.episodesPerMonth} episodes/month
                                     </Text>
                                 </View>
                                 <Text className="font-inter-bold text-xl text-brand-gold">
                                     {subscriptionService.formatPrice(pricing.starter.price)}
-                                    <Text className="text-sm text-gray-500">/mo</Text>
+                                    <Text className="text-sm text-gray-500 dark:text-brand-dark-text-muted">/mo</Text>
                                 </Text>
                             </View>
 
@@ -813,7 +813,7 @@ export default function SubscriptionScreen() {
                     <TouchableOpacity
                         onPress={handleCancelSubscription}
                         disabled={purchasing}
-                        className={`bg-[#F5F5F0] py-4 rounded-2xl items-center mb-4 flex-row justify-center ${
+                        className={`bg-[#F5F5F0] dark:bg-brand-dark-surface py-4 rounded-2xl items-center mb-4 flex-row justify-center ${
                             purchasing ? 'opacity-70' : ''
                         }`}>
                         {purchasing ? (
@@ -821,7 +821,7 @@ export default function SubscriptionScreen() {
                         ) : (
                             <>
                                 <Ionicons name="close-circle-outline" size={18} color="#6B7280" />
-                                <Text className="font-inter-medium text-gray-600 text-sm ml-2">
+                                <Text className="font-inter-medium text-gray-600 dark:text-brand-dark-text-secondary text-sm ml-2">
                                     Cancel Subscription
                                 </Text>
                             </>
@@ -832,13 +832,13 @@ export default function SubscriptionScreen() {
                 {/* Footer Security Badge */}
                 <View className="flex-row items-center justify-center mt-6 mb-4">
                     <Ionicons name="shield-checkmark" size={16} color="#9CA3AF" />
-                    <Text className="font-inter-medium text-gray-400 text-sm ml-1.5">
+                    <Text className="font-inter-medium text-gray-400 dark:text-brand-dark-text-muted text-sm ml-1.5">
                         Secured by Paystack
                     </Text>
                 </View>
 
                 {/* Terms */}
-                <Text className="font-inter text-gray-400 text-xs text-center px-4 leading-5">
+                <Text className="font-inter text-gray-400 dark:text-brand-dark-text-muted text-xs text-center px-4 leading-5">
                     {isPaid
                         ? isCancelled
                             ? 'Your subscription is cancelled but you still have access until the end of your billing period. Reactivate anytime to continue your subscription.'

@@ -69,12 +69,12 @@ export default function Studio() {
 
     if (loading) {
         return (
-            <SafeAreaView className="flex-1 bg-brand-beige" edges={['top', 'left', 'right']}>
+            <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg" edges={['top', 'left', 'right']}>
                 <TopBar />
                 <View style={{ padding: 20 }}>
                     <View className="pb-6">
-                        <Text className="font-inter-bold text-2xl text-brand-black">Studio</Text>
-                        <Text className="font-jakarta text-brand-black text-sm">
+                        <Text className="font-inter-bold text-2xl text-brand-black dark:text-brand-dark-text">Studio</Text>
+                        <Text className="font-jakarta text-brand-black dark:text-brand-dark-text text-sm">
                             Manage your Virtual Podcasters here!
                         </Text>
                     </View>
@@ -84,7 +84,7 @@ export default function Studio() {
         );
     }
     return (
-        <SafeAreaView className="flex-1 bg-brand-beige" edges={['top', 'left', 'right']}>
+        <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg" edges={['top', 'left', 'right']}>
             <TopBar />
             <ScrollView
                 contentContainerStyle={{ padding: 20 }}
@@ -97,8 +97,8 @@ export default function Studio() {
                 }>
                 {/* Header */}
                 <View className='pb-6'>
-                    <Text className="font-inter-bold text-2xl text-brand-black">Studio</Text>
-                    <Text className="font-jakarta text-brand-black text-sm">
+                    <Text className="font-inter-bold text-2xl text-brand-black dark:text-brand-dark-text">Studio</Text>
+                    <Text className="font-jakarta text-brand-black dark:text-brand-dark-text text-sm">
                         Manage your Virtual Podcasters here!
                     </Text>
                 </View>
@@ -115,7 +115,7 @@ export default function Studio() {
 
                 {/* Section Header */}
                 <View className="flex-row justify-between items-center mb-6">
-                    <Text className="font-inter-medium text-xl text-gray-900">
+                    <Text className="font-inter-medium text-xl text-gray-900 dark:text-brand-dark-text">
                         {podcasters.length > 0 ? 'Your Podcasters' : 'Create your first podcaster'}
                     </Text>
                     <TouchableOpacity
@@ -131,10 +131,10 @@ export default function Studio() {
                         <View className="w-24 h-24 bg-brand-gold/20 rounded-full items-center justify-center mb-4">
                             <Ionicons name="mic" size={48} color="#BF9A54" />
                         </View>
-                        <Text className="font-inter-bold text-xl text-gray-900 mb-2">
+                        <Text className="font-inter-bold text-xl text-gray-900 dark:text-brand-dark-text mb-2">
                             No podcasters yet
                         </Text>
-                        <Text className="font-inter text-gray-500 text-center mb-6 px-8">
+                        <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted text-center mb-6 px-8">
                             Create your first virtual podcaster to bring your books to life
                         </Text>
                         <TouchableOpacity
@@ -154,7 +154,7 @@ export default function Studio() {
                             <TouchableOpacity
                                 key={podcaster.id}
                                 onPress={() => router.push(`/podcasts/${podcaster.id}`)}
-                                className="w-[30%] bg-[#F5F5F0] rounded-2xl p-4 py-6 items-center mb-3 aspect-[0.9] justify-start shadow-md"
+                                className="w-[30%] bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-2xl p-4 py-6 items-center mb-3 aspect-[0.9] justify-start shadow-md"
                                 style={{
                                     shadowColor: '#000',
                                     shadowOffset: { width: 0, height: 2 },
@@ -184,7 +184,7 @@ export default function Studio() {
                                 {/* Stats */}
                                 <View className="flex-row items-center mt-2">
                                     <Ionicons name="play" size={10} color="#8C8577" />
-                                    <Text className="font-inter text-[10px] text-gray-500 ml-1">
+                                    <Text className="font-inter text-[10px] text-gray-500 dark:text-brand-dark-text-muted ml-1">
                                         {formatCount(podcaster.playCount ?? 0)}
                                     </Text>
                                 </View>

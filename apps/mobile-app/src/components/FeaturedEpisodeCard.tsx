@@ -115,7 +115,7 @@ export const FeaturedEpisodeCard: React.FC<FeaturedEpisodeCardProps> = ({
                         {episode.progressPercent !== undefined && episode.progressPercent > 0 && (
                             <View className="mt-2 h-1 bg-white/30 rounded-full overflow-hidden">
                                 <View
-                                    className="h-full bg-white rounded-full"
+                                    className="h-full bg-white dark:bg-brand-dark-surface rounded-full"
                                     style={{ width: `${Math.min(episode.progressPercent, 100)}%` }}
                                 />
                             </View>

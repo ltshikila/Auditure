@@ -316,7 +316,7 @@ const Create = () => {
         selected: T,
         onSelect: (value: T) => void
     ) => (
-        <View className="flex-row border-b border-[#E8E3D6]">
+        <View className="flex-row border-b border-[#E8E3D6] dark:border-brand-dark-border">
             {options.map((option) => (
                 <TouchableOpacity
                     key={option.value}
@@ -327,7 +327,7 @@ const Create = () => {
                 >
                     <Text
                         className={`font-inter text-sm ${
-                            selected === option.value ? 'text-brand-gold font-inter-medium' : 'text-[#1A1C1E]'
+                            selected === option.value ? 'text-brand-gold font-inter-medium' : 'text-[#1A1C1E] dark:text-brand-dark-text'
                         }`}
                     >
                         {option.label}
@@ -475,14 +475,14 @@ const Create = () => {
 
     if (isLoading) {
         return (
-            <SafeAreaView className="flex-1 bg-brand-beige items-center justify-center">
+            <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg items-center justify-center">
                 <ActivityIndicator size="large" color="#BF9A54" />
             </SafeAreaView>
         );
     }
 
     return (
-        <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-brand-beige">
+        <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
             <KeyboardAwareScrollView
                 contentContainerStyle={{ padding: 24, paddingBottom: 50 + (isMiniPlayerVisible ? MINI_PLAYER_HEIGHT + 16 : 0) }}
                 keyboardShouldPersistTaps="handled"
@@ -498,21 +498,21 @@ const Create = () => {
                         >
                             <Ionicons name="arrow-back" size={24} color="#1A1C1E" />
                         </TouchableOpacity>
-                        <Text className="font-jakarta-bold text-2xl text-[#1A1C1E]">
+                        <Text className="font-jakarta-bold text-2xl text-[#1A1C1E] dark:text-brand-dark-text">
                             Create
                         </Text>
                     </View>
-                    <Text className="font-jakarta text-[#1A1C1E] text-sm mt-1">
+                    <Text className="font-jakarta text-[#1A1C1E] dark:text-brand-dark-text text-sm mt-1">
                         Create a podcast episode or your own virtual podcaster
                     </Text>
                 </View>
 
                 {/* Book Source Selection */}
                 <View className="mb-6">
-                    <Text className="text-[#1A1C1E] font-inter-medium text-lg mb-3">Book Source</Text>
+                    <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-lg mb-3">Book Source</Text>
 
                     {/* Mode Toggle */}
-                    <View className="flex-row border-b border-[#E8E3D6] mb-4">
+                    <View className="flex-row border-b border-[#E8E3D6] dark:border-brand-dark-border mb-4">
                         <TouchableOpacity
                             onPress={() => {
                                 setBookSourceMode('upload');
@@ -526,7 +526,7 @@ const Create = () => {
                         >
                             <Text
                                 className={`font-inter text-sm ${
-                                    bookSourceMode === 'upload' ? 'text-brand-gold font-inter-medium' : 'text-[#1A1C1E]'
+                                    bookSourceMode === 'upload' ? 'text-brand-gold font-inter-medium' : 'text-[#1A1C1E] dark:text-brand-dark-text'
                                 }`}
                             >
                                 Upload File
@@ -544,7 +544,7 @@ const Create = () => {
                         >
                             <Text
                                 className={`font-inter text-sm ${
-                                    bookSourceMode === 'search' ? 'text-brand-gold font-inter-medium' : 'text-[#1A1C1E]'
+                                    bookSourceMode === 'search' ? 'text-brand-gold font-inter-medium' : 'text-[#1A1C1E] dark:text-brand-dark-text'
                                 }`}
                             >
                                 Search Library
@@ -562,22 +562,22 @@ const Create = () => {
                                 animationType="fade"
                             >
                                 <View className="flex-1 bg-black/50 items-center justify-center px-8">
-                                    <View className="bg-brand-beige rounded-2xl p-6 w-full max-w-sm">
+                                    <View className="bg-brand-beige dark:bg-brand-dark-bg rounded-2xl p-6 w-full max-w-sm">
                                         <View className="items-center mb-4">
                                             <View className="bg-brand-gold/20 rounded-full p-4 mb-3">
                                                 <Ionicons name="information-circle-outline" size={32} color="#BF9A54" />
                                             </View>
-                                            <Text className="font-jakarta-bold text-lg text-[#1A1C1E] text-center">
+                                            <Text className="font-jakarta-bold text-lg text-[#1A1C1E] dark:text-brand-dark-text text-center">
                                                 Before You Upload
                                             </Text>
                                         </View>
 
-                                        <Text className="font-inter text-[#1A1C1E] text-sm text-center leading-5 mb-2">
+                                        <Text className="font-inter text-[#1A1C1E] dark:text-brand-dark-text text-sm text-center leading-5 mb-2">
                                             For the best experience, we recommend uploading a{' '}
                                             <Text className="font-inter-medium">clean, official copy</Text>{' '}
                                             of the book.
                                         </Text>
-                                        <Text className="font-inter text-[#858585] text-xs text-center leading-4 mb-5">
+                                        <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-xs text-center leading-4 mb-5">
                                             Unofficial or low-quality files can cause issues like wrong book details, missing covers, or chapters not being picked up correctly.
                                         </Text>
 
@@ -594,14 +594,14 @@ const Create = () => {
                                             onPress={() => setShowUploadDisclaimer(false)}
                                             className="py-3 items-center"
                                         >
-                                            <Text className="text-[#858585] font-inter text-sm">Cancel</Text>
+                                            <Text className="text-[#858585] dark:text-brand-dark-text-secondary font-inter text-sm">Cancel</Text>
                                         </TouchableOpacity>
                                     </View>
                                 </View>
                             </Modal>
 
                             {selectedFile ? (
-                                <View className="bg-brand-input rounded-xl px-4 py-4">
+                                <View className="bg-brand-input dark:bg-brand-dark-input rounded-xl px-4 py-4">
                                     <View className="flex-row items-center">
                                         <View className="bg-brand-gold/20 rounded-lg p-2 mr-3">
                                             <Ionicons
@@ -611,10 +611,10 @@ const Create = () => {
                                             />
                                         </View>
                                         <View className="flex-1">
-                                            <Text className="font-inter-medium text-[#1A1C1E] text-sm" numberOfLines={1}>
+                                            <Text className="font-inter-medium text-[#1A1C1E] dark:text-brand-dark-text text-sm" numberOfLines={1}>
                                                 {selectedFile.name}
                                             </Text>
-                                            <Text className="font-inter text-[#858585] text-xs mt-0.5">
+                                            <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-xs mt-0.5">
                                                 {selectedFile.type.includes('pdf') ? 'PDF Document' : 'EPUB Book'}
                                             </Text>
                                         </View>
@@ -627,7 +627,7 @@ const Create = () => {
                                 <TouchableOpacity
                                     onPress={() => setShowUploadDisclaimer(true)}
                                     activeOpacity={0.7}
-                                    className="rounded-2xl px-4 py-6 items-center bg-[#F5F5F0]"
+                                    className="rounded-2xl px-4 py-6 items-center bg-[#F5F5F0] dark:bg-brand-dark-surface"
                                     style={{
                                         shadowColor: '#000',
                                         shadowOffset: { width: 0, height: 2 },
@@ -639,10 +639,10 @@ const Create = () => {
                                     <View className="bg-brand-gold/20 rounded-full p-3 mb-3">
                                         <Ionicons name="cloud-upload-outline" size={28} color="#BF9A54" />
                                     </View>
-                                    <Text className="font-inter-medium text-[#1A1C1E] text-sm mb-1">
+                                    <Text className="font-inter-medium text-[#1A1C1E] dark:text-brand-dark-text text-sm mb-1">
                                         Tap to upload a book
                                     </Text>
-                                    <Text className="font-inter text-[#858585] text-xs">
+                                    <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-xs">
                                         PDF or EPUB files up to 32MB
                                     </Text>
                                 </TouchableOpacity>
@@ -654,10 +654,10 @@ const Create = () => {
                     {bookSourceMode === 'search' && (
                         <View>
                             {/* Search input */}
-                            <View className="flex-row items-center bg-brand-input rounded-xl px-4 py-3 mb-3">
+                            <View className="flex-row items-center bg-brand-input dark:bg-brand-dark-input rounded-xl px-4 py-3 mb-3">
                                 <Ionicons name="search" size={20} color="#858585" style={{ marginRight: 8 }} />
                                 <TextInput
-                                    className="flex-1 font-inter text-[#1A1C1E]"
+                                    className="flex-1 font-inter text-[#1A1C1E] dark:text-brand-dark-text"
                                     value={bookSearch}
                                     onChangeText={setBookSearch}
                                     placeholder="Search your books..."
@@ -675,11 +675,11 @@ const Create = () => {
                                 <View className="bg-brand-gold/10 rounded-xl px-4 py-3 mb-3 border border-brand-gold">
                                     <View className="flex-row items-center justify-between">
                                         <View className="flex-1">
-                                            <Text className="font-inter-medium text-[#1A1C1E]" numberOfLines={1}>
+                                            <Text className="font-inter-medium text-[#1A1C1E] dark:text-brand-dark-text" numberOfLines={1}>
                                                 {selectedBook.title}
                                             </Text>
                                             {selectedBook.author && (
-                                                <Text className="font-inter text-[#858585] text-xs">
+                                                <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-xs">
                                                     by {selectedBook.author}
                                                 </Text>
                                             )}
@@ -705,7 +705,7 @@ const Create = () => {
                                     {isLoadingBooks ? (
                                         <SkeletonProvider>
                                             {[0, 1, 2].map((i) => (
-                                                <View key={i} className="bg-brand-input rounded-xl px-4 py-3 mb-2">
+                                                <View key={i} className="bg-brand-input dark:bg-brand-dark-input rounded-xl px-4 py-3 mb-2">
                                                     <View className="flex-row items-center">
                                                         <SkeletonBox width={36} height={36} borderRadius={8} style={{ marginRight: 12 }} />
                                                         <View className="flex-1">
@@ -719,7 +719,7 @@ const Create = () => {
                                     ) : filteredBooks.length === 0 ? (
                                         <View className="py-6 items-center">
                                             <Ionicons name="book-outline" size={32} color="#858585" />
-                                            <Text className="font-inter text-[#858585] text-sm mt-2">
+                                            <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-sm mt-2">
                                                 {userBooks.length === 0
                                                     ? 'No books in your library yet'
                                                     : 'No books match your search'}
@@ -735,7 +735,7 @@ const Create = () => {
                                                 <TouchableOpacity
                                                     key={book.id}
                                                     onPress={() => handleSelectBook(book)}
-                                                    className="bg-brand-input rounded-xl px-4 py-3 mb-2"
+                                                    className="bg-brand-input dark:bg-brand-dark-input rounded-xl px-4 py-3 mb-2"
                                                 >
                                                     <View className="flex-row items-center">
                                                         <View className="bg-brand-gold/20 rounded-lg p-2 mr-3">
@@ -746,11 +746,11 @@ const Create = () => {
                                                             />
                                                         </View>
                                                         <View className="flex-1">
-                                                            <Text className="font-inter-medium text-[#1A1C1E] text-sm" numberOfLines={1}>
+                                                            <Text className="font-inter-medium text-[#1A1C1E] dark:text-brand-dark-text text-sm" numberOfLines={1}>
                                                                 {book.title}
                                                             </Text>
                                                             {book.author && (
-                                                                <Text className="font-inter text-[#858585] text-xs mt-0.5">
+                                                                <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-xs mt-0.5">
                                                                     {book.author}
                                                                 </Text>
                                                             )}
@@ -777,10 +777,10 @@ const Create = () => {
 
                 {/* Episode Title */}
                 <View className="mb-6">
-                    <Text className="text-[#1A1C1E] font-inter-medium text-lg mb-2">Episode Title</Text>
-                    <View className="bg-brand-input rounded-xl px-4 py-3">
+                    <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-lg mb-2">Episode Title</Text>
+                    <View className="bg-brand-input dark:bg-brand-dark-input rounded-xl px-4 py-3">
                         <TextInput
-                            className="font-inter text-[#1A1C1E]"
+                            className="font-inter text-[#1A1C1E] dark:text-brand-dark-text"
                             value={episodeTitle}
                             onChangeText={setEpisodeTitle}
                             placeholder="Enter title of this episode"
@@ -792,7 +792,7 @@ const Create = () => {
 
                 {/* Content Coverage */}
                 <View className="mb-6">
-                    <Text className="text-[#1A1C1E] font-inter-medium text-lg mb-3">Content Coverage</Text>
+                    <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-lg mb-3">Content Coverage</Text>
                     {renderTabSelector(contentCoverageOptions, contentCoverage, setContentCoverage)}
 
                     {/* Chapter selection (shown when not ENTIRE_BOOK) */}
@@ -801,9 +801,9 @@ const Create = () => {
                             {/* For upload mode or when no chapters loaded: show text input */}
                             {(bookSourceMode === 'upload' || bookChapters.length === 0) && (
                                 <View>
-                                    <View className="bg-brand-input rounded-xl px-4 py-3">
+                                    <View className="bg-brand-input dark:bg-brand-dark-input rounded-xl px-4 py-3">
                                         <TextInput
-                                            className="font-inter text-[#1A1C1E]"
+                                            className="font-inter text-[#1A1C1E] dark:text-brand-dark-text"
                                             value={chapters}
                                             onChangeText={setChapters}
                                             placeholder={
@@ -815,7 +815,7 @@ const Create = () => {
                                             keyboardType="default"
                                         />
                                     </View>
-                                    <Text className="font-inter text-[#858585] text-xs mt-1 ml-1">
+                                    <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-xs mt-1 ml-1">
                                         Use commas to separate and hyphens for ranges (e.g., 1-5, 13, 20-22)
                                     </Text>
                                 </View>
@@ -827,13 +827,13 @@ const Create = () => {
                                     {isLoadingChapters ? (
                                         <View className="py-4 items-center">
                                             <ActivityIndicator size="small" color="#BF9A54" />
-                                            <Text className="font-inter text-[#858585] text-sm mt-2">
+                                            <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-sm mt-2">
                                                 Loading chapters...
                                             </Text>
                                         </View>
                                     ) : bookChapters.length === 0 ? (
-                                        <View className="bg-brand-input rounded-xl px-4 py-3">
-                                            <Text className="font-inter text-[#858585] text-sm">
+                                        <View className="bg-brand-input dark:bg-brand-dark-input rounded-xl px-4 py-3">
+                                            <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-sm">
                                                 No chapters detected in this book. The entire book will be used.
                                             </Text>
                                         </View>
@@ -856,7 +856,7 @@ const Create = () => {
                                                                 handleToggleChapter(chapter.chapterNumber);
                                                             }
                                                         }}
-                                                        className="flex-row items-center bg-brand-input rounded-lg px-3 py-2.5 mb-1.5"
+                                                        className="flex-row items-center bg-brand-input dark:bg-brand-dark-input rounded-lg px-3 py-2.5 mb-1.5"
                                                     >
                                                         <View
                                                             className={`w-5 h-5 rounded ${
@@ -872,12 +872,12 @@ const Create = () => {
                                                             )}
                                                         </View>
                                                         <View className="flex-1">
-                                                            <Text className="font-inter text-[#1A1C1E] text-sm">
+                                                            <Text className="font-inter text-[#1A1C1E] dark:text-brand-dark-text text-sm">
                                                                 Chapter {chapter.chapterNumber}
                                                                 {chapter.title ? `: ${chapter.title}` : ''}
                                                             </Text>
                                                             {(chapter.startPage || chapter.textLength) && (
-                                                                <Text className="font-inter text-[#858585] text-xs">
+                                                                <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-xs">
                                                                     {chapter.startPage && chapter.endPage
                                                                         ? `Pages ${chapter.startPage}-${chapter.endPage}`
                                                                         : ''}
@@ -908,21 +908,21 @@ const Create = () => {
 
                 {/* Episode Type */}
                 <View className="mb-6">
-                    <Text className="text-[#1A1C1E] font-inter-medium text-lg mb-3">Episode Type</Text>
+                    <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-lg mb-3">Episode Type</Text>
                     <InfoTooltip text={episodeTypeDescriptions[episodeType]} />
                     {renderTabSelector(episodeTypeOptions, episodeType, setEpisodeType)}
                 </View>
 
                 {/* Episode Theme */}
                 <View className="mb-6">
-                    <Text className="text-[#1A1C1E] font-inter-medium text-lg mb-3">Episode Theme</Text>
+                    <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-lg mb-3">Episode Theme</Text>
                     <InfoTooltip text={episodeThemeDescriptions[episodeTheme]} />
                     {renderTabSelector(episodeThemeOptions, episodeTheme, setEpisodeTheme)}
                 </View>
 
                 {/* Episode Length Range */}
                 <View className="mb-6">
-                    <Text className="text-[#1A1C1E] font-inter-medium text-lg mb-3">Episode Length</Text>
+                    <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-lg mb-3">Episode Length</Text>
 
                     {/* Value badges */}
                     <View className="flex-row justify-between mb-2">
@@ -963,14 +963,14 @@ const Create = () => {
                     {/* Tick marks */}
                     <View className="flex-row justify-between px-2 mt-1">
                         {Array.from({ length: (maxDuration - 5) / 5 + 1 }, (_, i) => 5 + i * 5).map(v => (
-                            <Text key={v} className="text-[#858585] font-inter text-xs">{v}min</Text>
+                            <Text key={v} className="text-[#858585] dark:text-brand-dark-text-secondary font-inter text-xs">{v}min</Text>
                         ))}
                     </View>
                 </View>
 
                 {/* Voice Quality */}
                 <View className="mb-6">
-                    <Text className="text-[#1A1C1E] font-inter-medium text-lg mb-3">Voice Quality</Text>
+                    <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-lg mb-3">Voice Quality</Text>
                     <InfoTooltip text={voiceTierDescriptions[voiceTier]} />
                     {renderTabSelector(voiceTierOptions, voiceTier, setVoiceTier)}
                 </View>
@@ -996,15 +996,15 @@ const Create = () => {
                 animationType="fade"
             >
                 <View className="flex-1 bg-black/50 items-center justify-center px-8">
-                    <View className="bg-brand-beige rounded-2xl p-6 w-full max-w-sm">
+                    <View className="bg-brand-beige dark:bg-brand-dark-bg rounded-2xl p-6 w-full max-w-sm">
                         <View className="items-center mb-4">
                             <View className="bg-brand-gold/20 rounded-full p-4 mb-3">
                                 <Ionicons name="cloud-upload" size={32} color="#BF9A54" />
                             </View>
-                            <Text className="font-jakarta-bold text-lg text-[#1A1C1E]">
+                            <Text className="font-jakarta-bold text-lg text-[#1A1C1E] dark:text-brand-dark-text">
                                 Uploading Book
                             </Text>
-                            <Text className="font-inter text-[#858585] text-sm text-center mt-1">
+                            <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-sm text-center mt-1">
                                 {selectedFile?.name}
                             </Text>
                         </View>
@@ -1023,7 +1023,7 @@ const Create = () => {
                                         </View>
                                     </View>
 
-                                    <Text className="font-inter text-[#858585] text-xs">
+                                    <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-xs">
                                         {displayProgress}% uploaded
                                     </Text>
                                 </>

@@ -178,7 +178,7 @@ export default function PodcastDetailsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-brand-beige">
+      <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
         <TopBar showBackButton />
         <PodcastDetailSkeleton />
       </SafeAreaView>
@@ -187,10 +187,10 @@ export default function PodcastDetailsScreen() {
 
   if (error || !podcaster) {
     return (
-      <SafeAreaView className="flex-1 bg-brand-beige">
+      <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
         <TopBar showBackButton />
         <View className="flex-1 items-center justify-center px-6">
-          <Text className="font-inter-bold text-xl text-gray-900 mb-2">
+          <Text className="font-inter-bold text-xl text-gray-900 dark:text-brand-dark-text mb-2">
             {error || 'Podcaster not found'}
           </Text>
           <TouchableOpacity onPress={fetchPodcaster} className="mt-4">
@@ -202,13 +202,13 @@ export default function PodcastDetailsScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-brand-beige">
+    <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
       <TopBar showBackButton />
       <ScrollView>
         {/* Header Section */}
         <View className="px-6 pt-2">
-          <Text className="font-jakarta-bold text-2xl text-gray-900 mb-1">{podcaster.name}</Text>
-          <Text className="font-inter text-gray-500 mb-8">
+          <Text className="font-jakarta-bold text-2xl text-gray-900 dark:text-brand-dark-text mb-1">{podcaster.name}</Text>
+          <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted mb-8">
             {podcaster.description || 'No description provided'}
           </Text>
 
@@ -238,32 +238,32 @@ export default function PodcastDetailsScreen() {
               <View className="items-center">
                 <View className="flex-row items-center gap-1">
                   <Image source={statIcons.microphone} style={{ width: 18, height: 18, tintColor: '#E8847C' }} resizeMode="contain" />
-                  <Text className="font-jakarta-bold text-lg text-gray-900">{formatCount(completedEpisodes.length)}</Text>
+                  <Text className="font-jakarta-bold text-lg text-gray-900 dark:text-brand-dark-text">{formatCount(completedEpisodes.length)}</Text>
                 </View>
-                <Text className="font-inter text-xs text-gray-500">Episodes</Text>
+                <Text className="font-inter text-xs text-gray-500 dark:text-brand-dark-text-muted">Episodes</Text>
               </View>
               <View className="items-center">
                 <View className="flex-row items-center gap-1">
                   <Ionicons name="heart" size={18} color="#E8847C" />
-                  <Text className="font-jakarta-bold text-lg text-gray-900">{formatCount(episodes.reduce((sum, ep) => sum + (ep.likeCount || 0), 0))}</Text>
+                  <Text className="font-jakarta-bold text-lg text-gray-900 dark:text-brand-dark-text">{formatCount(episodes.reduce((sum, ep) => sum + (ep.likeCount || 0), 0))}</Text>
                 </View>
-                <Text className="font-inter text-xs text-gray-500">Likes</Text>
+                <Text className="font-inter text-xs text-gray-500 dark:text-brand-dark-text-muted">Likes</Text>
               </View>
               <View className="items-center">
                 <View className="flex-row items-center gap-1">
                   <Ionicons name="play-circle" size={18} color="#E8847C" />
-                  <Text className="font-jakarta-bold text-lg text-gray-900">{formatCount(episodes.reduce((sum, ep) => sum + (ep.playCount || 0), 0))}</Text>
+                  <Text className="font-jakarta-bold text-lg text-gray-900 dark:text-brand-dark-text">{formatCount(episodes.reduce((sum, ep) => sum + (ep.playCount || 0), 0))}</Text>
                 </View>
-                <Text className="font-inter text-xs text-gray-500">Plays</Text>
+                <Text className="font-inter text-xs text-gray-500 dark:text-brand-dark-text-muted">Plays</Text>
               </View>
               <TouchableOpacity onPress={openRatingModal} className="items-center">
                 <View className="flex-row items-center gap-1">
                   <Image source={statIcons.star} style={{ width: 18, height: 18, tintColor: '#E8847C' }} resizeMode="contain" />
-                  <Text className="font-jakarta-bold text-lg text-gray-900">
+                  <Text className="font-jakarta-bold text-lg text-gray-900 dark:text-brand-dark-text">
                     {podcaster.averageRating > 0 ? podcaster.averageRating.toFixed(1) : '-'}
                   </Text>
                 </View>
-                <Text className="font-inter text-xs text-gray-500">
+                <Text className="font-inter text-xs text-gray-500 dark:text-brand-dark-text-muted">
                   {podcaster.ratingCount > 0 ? `${podcaster.ratingCount} ratings` : 'Rating'}
                 </Text>
               </TouchableOpacity>
@@ -284,7 +284,7 @@ export default function PodcastDetailsScreen() {
         {/* Episodes Section */}
         <View className="mb-24 px-6">
           <View className="flex-row justify-between items-center mb-4">
-            <Text className="font-jakarta-bold text-xl text-gray-900">Episodes</Text>
+            <Text className="font-jakarta-bold text-xl text-gray-900 dark:text-brand-dark-text">Episodes</Text>
             {isOwner && (
               <TouchableOpacity
                 onPress={() => router.push('/episodes/create')}
@@ -300,17 +300,17 @@ export default function PodcastDetailsScreen() {
             <View className="flex-row mb-4">
               <TouchableOpacity
                 onPress={() => setSortBy('recent')}
-                className={`px-4 py-2 rounded-full mr-2 ${sortBy === 'recent' ? 'bg-[#1A1C1E]' : 'bg-[#F5F0E8] border border-[#E0D9CC]'}`}
+                className={`px-4 py-2 rounded-full mr-2 ${sortBy === 'recent' ? 'bg-[#1A1C1E]' : 'bg-[#F5F0E8] dark:bg-brand-dark-surface border border-[#E0D9CC] dark:border-brand-dark-border'}`}
               >
-                <Text className={`font-inter-medium text-xs ${sortBy === 'recent' ? 'text-white' : 'text-gray-600'}`}>
+                <Text className={`font-inter-medium text-xs ${sortBy === 'recent' ? 'text-white' : 'text-gray-600 dark:text-brand-dark-text-secondary'}`}>
                   Most recent
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => setSortBy('popular')}
-                className={`px-4 py-2 rounded-full ${sortBy === 'popular' ? 'bg-[#1A1C1E]' : 'bg-[#F5F0E8] border border-[#E0D9CC]'}`}
+                className={`px-4 py-2 rounded-full ${sortBy === 'popular' ? 'bg-[#1A1C1E]' : 'bg-[#F5F0E8] dark:bg-brand-dark-surface border border-[#E0D9CC] dark:border-brand-dark-border'}`}
               >
-                <Text className={`font-inter-medium text-xs ${sortBy === 'popular' ? 'text-white' : 'text-gray-600'}`}>
+                <Text className={`font-inter-medium text-xs ${sortBy === 'popular' ? 'text-white' : 'text-gray-600 dark:text-brand-dark-text-secondary'}`}>
                   Most popular
                 </Text>
               </TouchableOpacity>
@@ -354,7 +354,7 @@ export default function PodcastDetailsScreen() {
                   <Text className="font-inter text-sm text-[#B0A898] w-6">{index + 1}</Text>
 
                   {/* Book Cover */}
-                  <View className="w-[50px] h-[72px] rounded-lg overflow-hidden bg-brand-input mr-3 items-center justify-center"
+                  <View className="w-[50px] h-[72px] rounded-lg overflow-hidden bg-brand-input dark:bg-brand-dark-input mr-3 items-center justify-center"
                     style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2 }}
                   >
                     {resolveCoverUrl(episode.book?.coverImageUrl) ? (
@@ -372,19 +372,19 @@ export default function PodcastDetailsScreen() {
 
                   {/* Info */}
                   <View className="flex-1 mr-3">
-                    <Text className="font-inter-medium text-[15px] text-[#1A1C1E]" numberOfLines={1}>
+                    <Text className="font-inter-medium text-[15px] text-[#1A1C1E] dark:text-brand-dark-text" numberOfLines={1}>
                       {episode.title}
                     </Text>
-                    <Text className="font-inter text-xs text-[#858585] mt-1" numberOfLines={1}>
+                    <Text className="font-inter text-xs text-[#858585] dark:text-brand-dark-text-secondary mt-1" numberOfLines={1}>
                       {episode.book?.title || 'Unknown Book'}
                     </Text>
                     <View className="flex-row items-center mt-1.5">
-                      <View className="flex-row items-center bg-[#EDE8DE] rounded-full px-2 py-0.5 mr-2">
+                      <View className="flex-row items-center bg-[#EDE8DE] dark:bg-brand-dark-input rounded-full px-2 py-0.5 mr-2">
                         <Ionicons name="play" size={9} color="#BF9A54" />
                         <Text className="font-inter-medium text-[10px] text-[#9A8C6E] ml-1">{formatCount(episode.playCount)}</Text>
                       </View>
                       {episode.duration ? (
-                        <View className="flex-row items-center bg-[#EDE8DE] rounded-full px-2 py-0.5">
+                        <View className="flex-row items-center bg-[#EDE8DE] dark:bg-brand-dark-input rounded-full px-2 py-0.5">
                           <Ionicons name="time-outline" size={9} color="#BF9A54" />
                           <Text className="font-inter-medium text-[10px] text-[#9A8C6E] ml-1">
                             {Math.round(episode.duration / 60)} min
@@ -395,7 +395,7 @@ export default function PodcastDetailsScreen() {
                   </View>
 
                   {/* Play Button */}
-                  <View className="w-9 h-9 rounded-full bg-[#EDE8DE] items-center justify-center">
+                  <View className="w-9 h-9 rounded-full bg-[#EDE8DE] dark:bg-brand-dark-input items-center justify-center">
                     <Ionicons name="play" size={16} color="#BF9A54" />
                   </View>
                 </TouchableOpacity>
@@ -405,8 +405,8 @@ export default function PodcastDetailsScreen() {
               <View className="w-16 h-16 bg-brand-gold/20 rounded-full items-center justify-center mb-3">
                 <Ionicons name="headset" size={32} color="#BF9A54" />
               </View>
-              <Text className="font-inter-bold text-gray-900 mb-2">No episodes yet</Text>
-              <Text className="font-inter text-gray-500 text-center text-sm">
+              <Text className="font-inter-bold text-gray-900 dark:text-brand-dark-text mb-2">No episodes yet</Text>
+              <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted text-center text-sm">
                 Create your first episode with this podcaster
               </Text>
             </View>
@@ -423,10 +423,10 @@ export default function PodcastDetailsScreen() {
         onRequestClose={() => setShowRatingModal(false)}
       >
         <View className="flex-1 bg-black/60 items-center justify-center px-8">
-          <View className="bg-[#F5F0E8] rounded-3xl w-full max-w-sm p-6">
+          <View className="bg-[#F5F0E8] dark:bg-brand-dark-surface rounded-3xl w-full max-w-sm p-6">
             {/* Header */}
             <View className="flex-row justify-between items-center mb-6">
-              <Text className="font-jakarta-bold text-xl text-gray-900">Rate podcaster</Text>
+              <Text className="font-jakarta-bold text-xl text-gray-900 dark:text-brand-dark-text">Rate podcaster</Text>
               <TouchableOpacity onPress={() => setShowRatingModal(false)}>
                 <Ionicons name="close" size={24} color="#1A1C1E" />
               </TouchableOpacity>
@@ -476,7 +476,7 @@ export default function PodcastDetailsScreen() {
                 <ActivityIndicator size="small" color="white" />
               ) : (
                 <Text className={`font-jakarta-bold text-base ${
-                  selectedRating > 0 ? 'text-white' : 'text-gray-500'
+                  selectedRating > 0 ? 'text-white' : 'text-gray-500 dark:text-brand-dark-text-muted'
                 }`}>
                   Submit
                 </Text>

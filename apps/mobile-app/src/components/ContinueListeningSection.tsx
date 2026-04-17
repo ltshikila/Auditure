@@ -27,7 +27,7 @@ export const ContinueListeningSection: React.FC<ContinueListeningSectionProps> =
         <View className="mb-6">
             {/* Section Header */}
             <View className="flex-row items-center justify-between mb-3 px-6">
-                <Text className="font-inter-medium text-lg text-brand-black">{title}</Text>
+                <Text className="font-inter-medium text-lg text-brand-black dark:text-brand-dark-text">{title}</Text>
                 {showSeeAll && onSeeAll && (
                     <TouchableOpacity onPress={onSeeAll} className="flex-row items-center">
                         <Text className="font-inter text-sm text-brand-gold mr-1">See all</Text>

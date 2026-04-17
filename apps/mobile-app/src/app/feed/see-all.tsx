@@ -180,10 +180,10 @@ export default function SeeAllScreen() {
     const renderEpisodeItem = ({ item }: { item: EpisodeFeedItem }) => (
         <TouchableOpacity
             onPress={() => handleItemPress(item)}
-            className="flex-row bg-[#F5F5F0] rounded-xl p-3 mb-3 mx-6 shadow-sm"
+            className="flex-row bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-xl p-3 mb-3 mx-6 shadow-sm"
         >
             {/* Cover */}
-            <View className="w-[70px] h-[90px] rounded-lg overflow-hidden bg-brand-input mr-3">
+            <View className="w-[70px] h-[90px] rounded-lg overflow-hidden bg-brand-input dark:bg-brand-dark-input mr-3">
                 {resolveCoverUrl(item.book?.coverImageUrl) ? (
                     <Image
                         source={{ uri: resolveCoverUrl(item.book?.coverImageUrl)! }}
@@ -199,23 +199,23 @@ export default function SeeAllScreen() {
 
             {/* Info */}
             <View className="flex-1 justify-center">
-                <Text className="font-inter-medium text-[#1A1C1E] text-base" numberOfLines={2}>
+                <Text className="font-inter-medium text-[#1A1C1E] dark:text-brand-dark-text text-base" numberOfLines={2}>
                     {item.title}
                 </Text>
-                <Text className="font-inter text-[#858585] text-sm mt-1" numberOfLines={1}>
+                <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-sm mt-1" numberOfLines={1}>
                     {item.book?.title || 'Unknown Book'}
                 </Text>
                 <View className="flex-row items-center mt-2">
                     {item.duration && (
                         <>
                             <Ionicons name="time-outline" size={14} color="#858585" />
-                            <Text className="font-inter text-[#858585] text-xs ml-1 mr-3">
+                            <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-xs ml-1 mr-3">
                                 {formatDuration(item.duration)}
                             </Text>
                         </>
                     )}
                     <Ionicons name="play-circle-outline" size={14} color="#858585" />
-                    <Text className="font-inter text-[#858585] text-xs ml-1">
+                    <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-xs ml-1">
                         {formatCount(item.playCount)}
                     </Text>
                 </View>
@@ -223,7 +223,7 @@ export default function SeeAllScreen() {
 
             {/* Progress indicator for continue listening */}
             {item.progressPercent !== undefined && item.progressPercent > 0 && (
-                <View className="absolute bottom-0 left-3 right-3 h-1 bg-gray-200 rounded-full overflow-hidden">
+                <View className="absolute bottom-0 left-3 right-3 h-1 bg-gray-200 dark:bg-brand-dark-border rounded-full overflow-hidden">
                     <View
                         className="h-full bg-brand-red"
                         style={{ width: `${item.progressPercent}%` }}
@@ -237,10 +237,10 @@ export default function SeeAllScreen() {
     const renderBookItem = ({ item }: { item: BookFeedItem }) => (
         <TouchableOpacity
             onPress={() => handleItemPress(item)}
-            className="flex-row bg-[#F5F5F0] rounded-xl p-3 mb-3 mx-6 shadow-sm"
+            className="flex-row bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-xl p-3 mb-3 mx-6 shadow-sm"
         >
             {/* Cover */}
-            <View className="w-[70px] h-[100px] rounded-lg overflow-hidden bg-brand-input mr-3">
+            <View className="w-[70px] h-[100px] rounded-lg overflow-hidden bg-brand-input dark:bg-brand-dark-input mr-3">
                 {resolveCoverUrl(item.coverImageUrl) ? (
                     <Image
                         source={{ uri: resolveCoverUrl(item.coverImageUrl)! }}
@@ -256,10 +256,10 @@ export default function SeeAllScreen() {
 
             {/* Info */}
             <View className="flex-1 justify-center">
-                <Text className="font-inter-medium text-[#1A1C1E] text-base" numberOfLines={2}>
+                <Text className="font-inter-medium text-[#1A1C1E] dark:text-brand-dark-text text-base" numberOfLines={2}>
                     {item.title}
                 </Text>
-                <Text className="font-inter text-[#858585] text-sm mt-1" numberOfLines={1}>
+                <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-sm mt-1" numberOfLines={1}>
                     {item.author || 'Unknown Author'}
                 </Text>
                 <View className="flex-row items-center mt-2">
@@ -280,10 +280,10 @@ export default function SeeAllScreen() {
     const renderPodcasterItem = ({ item }: { item: PodcasterFeedItem }) => (
         <TouchableOpacity
             onPress={() => handleItemPress(item)}
-            className="flex-row bg-[#F5F5F0] rounded-xl p-3 mb-3 mx-6 shadow-sm"
+            className="flex-row bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-xl p-3 mb-3 mx-6 shadow-sm"
         >
             {/* Profile Picture */}
-            <View className="w-[70px] h-[70px] rounded-full overflow-hidden bg-brand-input mr-3">
+            <View className="w-[70px] h-[70px] rounded-full overflow-hidden bg-brand-input dark:bg-brand-dark-input mr-3">
                 {resolveCoverUrl(item.profilePictureUrl) ? (
                     <Image
                         source={{ uri: resolveCoverUrl(item.profilePictureUrl)! }}
@@ -299,11 +299,11 @@ export default function SeeAllScreen() {
 
             {/* Info */}
             <View className="flex-1 justify-center">
-                <Text className="font-inter-medium text-[#1A1C1E] text-base" numberOfLines={1}>
+                <Text className="font-inter-medium text-[#1A1C1E] dark:text-brand-dark-text text-base" numberOfLines={1}>
                     {item.name}
                 </Text>
                 {item.bio && (
-                    <Text className="font-inter text-[#858585] text-sm mt-1" numberOfLines={2}>
+                    <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-sm mt-1" numberOfLines={2}>
                         {item.bio}
                     </Text>
                 )}
@@ -311,13 +311,13 @@ export default function SeeAllScreen() {
                     {item.averageRating > 0 && (
                         <>
                             <Ionicons name="star" size={14} color="#BF9A54" />
-                            <Text className="font-inter text-[#858585] text-xs ml-1 mr-3">
+                            <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-xs ml-1 mr-3">
                                 {item.averageRating.toFixed(1)}
                             </Text>
                         </>
                     )}
                     <Ionicons name="play-circle-outline" size={14} color="#858585" />
-                    <Text className="font-inter text-[#858585] text-xs ml-1">
+                    <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-xs ml-1">
                         {formatCount(item.playCount)}
                     </Text>
                 </View>
@@ -358,7 +358,7 @@ export default function SeeAllScreen() {
     // Render empty state
     const renderEmptyState = () => (
         <View className="flex-1 items-center justify-center py-20">
-            <Text className="font-inter-medium text-lg text-[#858585]">No items found</Text>
+            <Text className="font-inter-medium text-lg text-[#858585] dark:text-brand-dark-text-secondary">No items found</Text>
         </View>
     );
 
@@ -366,7 +366,7 @@ export default function SeeAllScreen() {
     const renderErrorState = () => (
         <View className="flex-1 items-center justify-center py-20">
             <Text className="font-inter-medium text-lg text-brand-red">Something went wrong</Text>
-            <Text className="font-inter text-sm text-[#858585] mt-2 text-center px-10">{error}</Text>
+            <Text className="font-inter text-sm text-[#858585] dark:text-brand-dark-text-secondary mt-2 text-center px-10">{error}</Text>
             <TouchableOpacity
                 onPress={() => fetchData(1)}
                 className="mt-4 px-6 py-2 bg-brand-red rounded-full"
@@ -377,16 +377,16 @@ export default function SeeAllScreen() {
     );
 
     return (
-        <SafeAreaView className="flex-1 bg-brand-beige" edges={['top', 'left', 'right']}>
+        <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg" edges={['top', 'left', 'right']}>
             {/* Header */}
-            <View className="flex-row items-center px-6 py-4 border-b border-gray-200">
+            <View className="flex-row items-center px-6 py-4 border-b border-gray-200 dark:border-brand-dark-border">
                 <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center -ml-2 mr-2">
                     <Image source={require('../../assets/icons/back.png')} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
                 </TouchableOpacity>
                 <View className="flex-1">
-                    <Text className="font-jakarta-bold text-xl text-brand-black">{title}</Text>
+                    <Text className="font-jakarta-bold text-xl text-brand-black dark:text-brand-dark-text">{title}</Text>
                     {totalCount > 0 && (
-                        <Text className="font-inter text-sm text-[#858585]">
+                        <Text className="font-inter text-sm text-[#858585] dark:text-brand-dark-text-secondary">
                             {totalCount} {itemType}{totalCount !== 1 ? 's' : ''}
                         </Text>
                     )}

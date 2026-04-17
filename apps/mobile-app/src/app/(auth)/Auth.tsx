@@ -179,7 +179,7 @@ export default function AuthScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-brand-beige">
+    <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
       <KeyboardAwareScrollView
         contentContainerStyle={{ padding: 24 }}
         keyboardShouldPersistTaps="handled"
@@ -190,13 +190,13 @@ export default function AuthScreen() {
         {/* Header Logo */}
         <View className="flex-row items-center justify-center mt-8 mb-6">
           <Image source={require('../../assets/icons/logo_1_hd.png')} className="w-32 h-32" resizeMode="contain" />
-          {/* <Text className="font-dm-serif text-4xl text-brand-black">Auditure</Text> */}
+          {/* <Text className="font-dm-serif text-4xl text-brand-black dark:text-brand-dark-text">Auditure</Text> */}
         </View>
 
-        <Text className="font-inter-medium text-4xl text-center text-gray-900 mb-2">
+        <Text className="font-inter-medium text-4xl text-center text-gray-900 dark:text-brand-dark-text mb-2">
           {isLogin ? 'Welcome Back' : 'Get Started now'}
         </Text>
-        <Text className="font-jakarta text-center text-[#6C7278] my-5 px-8">
+        <Text className="font-jakarta text-center text-[#6C7278] dark:text-brand-dark-text-secondary my-5 px-8">
           Create an account or log in to explore about our app
         </Text>
 
@@ -205,12 +205,12 @@ export default function AuthScreen() {
           <TouchableOpacity
             onPress={() => setIsLogin(true)}
             className={`flex-1 p-3 rounded-lg items-center ${isLogin ? 'bg-brand-gold' : 'bg-transparent'}`}>
-            <Text className={`font-jakarta-medium ${isLogin ? 'text-white' : 'text-gray-500'}`}>Log In</Text>
+            <Text className={`font-jakarta-medium ${isLogin ? 'text-white' : 'text-gray-500 dark:text-brand-dark-text-muted'}`}>Log In</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setIsLogin(false)}
             className={`flex-1 p-3 rounded-lg items-center ${!isLogin ? 'bg-brand-gold' : 'bg-transparent'}`}>
-            <Text className={`font-jakarta-medium ${!isLogin ? 'text-white' : 'text-gray-500'}`}>Sign Up</Text>
+            <Text className={`font-jakarta-medium ${!isLogin ? 'text-white' : 'text-gray-500 dark:text-brand-dark-text-muted'}`}>Sign Up</Text>
           </TouchableOpacity>
         </View>
 
@@ -311,7 +311,7 @@ export default function AuthScreen() {
 
         {/* Terms & Privacy */}
         {!isLogin && (
-          <Text className="font-inter text-xs text-center text-[#6C7278] mb-8 px-4">
+          <Text className="font-inter text-xs text-center text-[#6C7278] dark:text-brand-dark-text-secondary mb-8 px-4">
             By signing up, you agree to our{' '}
             <Text
               className="text-brand-gold font-inter-medium"
