@@ -155,7 +155,7 @@ export default function EpisodesSeeAllScreen() {
     return (
         <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg" edges={['top', 'left', 'right']}>
             {/* Header */}
-            <View className="flex-row items-center px-6 py-4 border-b border-gray-200 dark:border-brand-dark-border">
+            <View className="flex-row items-center px-6 py-4 border-b border-black/10 dark:border-white/10">
                 <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center -ml-2 mr-2">
                     <Image source={backIcon} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
                 </TouchableOpacity>

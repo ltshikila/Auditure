@@ -4,7 +4,7 @@ import { SkeletonProvider } from './SkeletonProvider';
 import { SkeletonBox } from './SkeletonBox';
 
 const SettingRowSkeleton = () => (
-    <View className="flex-row items-center justify-between py-4 border-b border-gray-100 dark:border-brand-dark-border">
+    <View className="flex-row items-center justify-between py-4 border-b border-black/5 dark:border-white/10">
         <View className="flex-row items-center flex-1">
             <SkeletonBox width={32} height={32} circle style={{ marginRight: 12 }} />
             <SkeletonBox width={140} height={14} />

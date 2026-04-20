@@ -256,7 +256,7 @@ export default function NotificationsScreen() {
     return (
         <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg" edges={['top', 'left', 'right']}>
             {/* Header */}
-            <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-brand-dark-border">
+            <View className="flex-row items-center justify-between px-4 py-3 border-b border-black/5 dark:border-white/10">
                 <View className="flex-row items-center">
                     <TouchableOpacity
                         onPress={() => router.back()}
@@ -319,7 +319,7 @@ export default function NotificationsScreen() {
                         />
                     }
                     contentContainerStyle={
-                        notifications.length === 0 ? { flex: 1 } : undefined
+                        notifications.length === 0 ? { flex: 1 } : { paddingTop: 12 }
                     }
                 />
             )}

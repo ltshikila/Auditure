@@ -714,7 +714,7 @@ export default function SubscriptionScreen() {
                             </View>
 
                             {/* Pro Features */}
-                            <View className="border-t border-gray-200 dark:border-brand-dark-border pt-4 mb-4">
+                            <View className="border-t border-black/10 dark:border-white/10 pt-4 mb-4">
                                 {pricing.pro.features.map((feature, index) => (
                                     <View key={index} className="flex-row items-center py-2">
                                         <View className="w-5 h-5 bg-brand-gold/20 rounded-full items-center justify-center mr-3">

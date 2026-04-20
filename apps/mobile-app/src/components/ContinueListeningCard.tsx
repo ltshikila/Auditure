@@ -79,9 +79,9 @@ export const ContinueListeningCard: React.FC<ContinueListeningCardProps> = ({ ep
             </View>
 
             {/* Progress Bar */}
-            <View className="h-1 bg-gray-200 dark:bg-brand-dark-border">
+            <View className="h-1 bg-black/10 dark:bg-white/10">
                 <View
-                    className="h-full bg-brand-red"
+                    className="h-full bg-brand-gold"
                     style={{ width: `${progressPercent}%` }}
                 />
             </View>

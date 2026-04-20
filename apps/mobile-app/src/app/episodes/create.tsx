@@ -316,7 +316,7 @@ const Create = () => {
         selected: T,
         onSelect: (value: T) => void
     ) => (
-        <View className="flex-row border-b border-[#E8E3D6] dark:border-brand-dark-border">
+        <View className="flex-row border-b border-black/10 dark:border-white/10">
             {options.map((option) => (
                 <TouchableOpacity
                     key={option.value}
@@ -512,7 +512,7 @@ const Create = () => {
                     <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-lg mb-3">Book Source</Text>
 
                     {/* Mode Toggle */}
-                    <View className="flex-row border-b border-[#E8E3D6] dark:border-brand-dark-border mb-4">
+                    <View className="flex-row border-b border-black/10 dark:border-white/10 mb-4">
                         <TouchableOpacity
                             onPress={() => {
                                 setBookSourceMode('upload');

@@ -300,7 +300,7 @@ export default function PodcastDetailsScreen() {
             <View className="flex-row mb-4">
               <TouchableOpacity
                 onPress={() => setSortBy('recent')}
-                className={`px-4 py-2 rounded-full mr-2 ${sortBy === 'recent' ? 'bg-[#1A1C1E]' : 'bg-[#F5F0E8] dark:bg-brand-dark-surface border border-[#E0D9CC] dark:border-brand-dark-border'}`}
+                className={`px-4 py-2 rounded-full mr-2 ${sortBy === 'recent' ? 'bg-brand-gold dark:bg-brand-gold' : 'bg-[#F5F0E8] dark:bg-brand-dark-surface border border-[#E0D9CC] dark:border-brand-dark-border'}`}
               >
                 <Text className={`font-inter-medium text-xs ${sortBy === 'recent' ? 'text-white' : 'text-gray-600 dark:text-brand-dark-text-secondary'}`}>
                   Most recent
@@ -308,7 +308,7 @@ export default function PodcastDetailsScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => setSortBy('popular')}
-                className={`px-4 py-2 rounded-full ${sortBy === 'popular' ? 'bg-[#1A1C1E]' : 'bg-[#F5F0E8] dark:bg-brand-dark-surface border border-[#E0D9CC] dark:border-brand-dark-border'}`}
+                className={`px-4 py-2 rounded-full ${sortBy === 'popular' ? 'bg-brand-gold dark:bg-brand-gold' : 'bg-[#F5F0E8] dark:bg-brand-dark-surface border border-[#E0D9CC] dark:border-brand-dark-border'}`}
               >
                 <Text className={`font-inter-medium text-xs ${sortBy === 'popular' ? 'text-white' : 'text-gray-600 dark:text-brand-dark-text-secondary'}`}>
                   Most popular

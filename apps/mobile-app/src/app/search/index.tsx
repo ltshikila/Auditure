@@ -15,6 +15,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/contexts/AuthContext';
+import { useColors } from '@/hooks/use-colors';
 import {
     searchService,
     SearchAllResponse,
@@ -47,18 +48,21 @@ const booksIcon = require('../../assets/icons/books_fill.png');
 
 // Helper to render star ratings
 const StarRating = ({ rating, count }: { rating: number; count?: number }) => {
+    const colors = useColors();
     const fullStars = Math.floor(rating);
     const hasHalfStar = rating % 1 >= 0.5;
     const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+    const filledTint = colors.text;
+    const emptyTint = colors.border;
 
     return (
         <View className="flex-row items-center">
             {[...Array(fullStars)].map((_, i) => (
-                <Image key={`full-${i}`} source={starIcon} style={{ width: 12, height: 12, tintColor: '#1A1C1E' }} />
+                <Image key={`full-${i}`} source={starIcon} style={{ width: 12, height: 12, tintColor: filledTint }} />
             ))}
-            {hasHalfStar && <Image source={starIcon} style={{ width: 12, height: 12, tintColor: '#1A1C1E', opacity: 0.5 }} />}
+            {hasHalfStar && <Image source={starIcon} style={{ width: 12, height: 12, tintColor: filledTint, opacity: 0.5 }} />}
             {[...Array(emptyStars)].map((_, i) => (
-                <Image key={`empty-${i}`} source={starIcon} style={{ width: 12, height: 12, tintColor: '#D1D5DB' }} />
+                <Image key={`empty-${i}`} source={starIcon} style={{ width: 12, height: 12, tintColor: emptyTint }} />
             ))}
             {count !== undefined && (
                 <Text className="font-inter text-xs text-gray-500 dark:text-brand-dark-text-muted ml-1">{count} Ratings</Text>

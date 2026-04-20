@@ -490,7 +490,7 @@ export default function EpisodeInfoScreen() {
                         }
                     }}
                     disabled={!episode.podcaster?.id}
-                    className="flex-row items-center py-3 border-b border-gray-200 dark:border-brand-dark-border"
+                    className="flex-row items-center py-3 border-b border-black/10 dark:border-white/10"
                 >
                     <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                         <Ionicons name="mic-outline" size={16} color="#BF9A54" />
@@ -510,7 +510,7 @@ export default function EpisodeInfoScreen() {
                 {episode.book && (
                     <TouchableOpacity
                         onPress={() => router.push(`/${episode.book!.id}`)}
-                        className="flex-row items-center py-3 border-b border-gray-200 dark:border-brand-dark-border"
+                        className="flex-row items-center py-3 border-b border-black/10 dark:border-white/10"
                     >
                         <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                             <Image source={icons.books} style={{ width: 16, height: 16, tintColor: '#BF9A54' }} />
@@ -526,7 +526,7 @@ export default function EpisodeInfoScreen() {
                 )}
 
                 {/* Episode Type */}
-                <View className="flex-row items-center py-3 border-b border-gray-200 dark:border-brand-dark-border">
+                <View className="flex-row items-center py-3 border-b border-black/10 dark:border-white/10">
                     <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                         <Ionicons name="people-outline" size={16} color="#BF9A54" />
                     </View>
@@ -539,7 +539,7 @@ export default function EpisodeInfoScreen() {
                 </View>
 
                 {/* Duration */}
-                <View className="flex-row items-center py-3 border-b border-gray-200 dark:border-brand-dark-border">
+                <View className="flex-row items-center py-3 border-b border-black/10 dark:border-white/10">
                     <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                         <Ionicons name="time-outline" size={16} color="#BF9A54" />
                     </View>
@@ -552,7 +552,7 @@ export default function EpisodeInfoScreen() {
                 </View>
 
                 {/* Format */}
-                <View className="flex-row items-center py-3 border-b border-gray-200 dark:border-brand-dark-border">
+                <View className="flex-row items-center py-3 border-b border-black/10 dark:border-white/10">
                     <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                         <Ionicons name="musical-note-outline" size={16} color="#BF9A54" />
                     </View>
@@ -565,7 +565,7 @@ export default function EpisodeInfoScreen() {
                 </View>
 
                 {/* Plays */}
-                <View className="flex-row items-center py-3 border-b border-gray-200 dark:border-brand-dark-border">
+                <View className="flex-row items-center py-3 border-b border-black/10 dark:border-white/10">
                     <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                         <Ionicons name="play-circle-outline" size={16} color="#BF9A54" />
                     </View>
@@ -578,7 +578,7 @@ export default function EpisodeInfoScreen() {
                 </View>
 
                 {/* Likes */}
-                <View className="flex-row items-center py-3 border-b border-gray-200 dark:border-brand-dark-border">
+                <View className="flex-row items-center py-3 border-b border-black/10 dark:border-white/10">
                     <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                         <Ionicons name="heart-outline" size={16} color="#BF9A54" />
                     </View>
@@ -1026,7 +1026,7 @@ export default function EpisodeInfoScreen() {
                     )}
 
                     {/* Tabs */}
-                    <View className="flex-row justify-between mx-6 mt-6 border-b border-[#D7D7D7]">
+                    <View className="flex-row justify-between mx-6 mt-6 border-b border-black/10 dark:border-white/10">
                         <TouchableOpacity
                             onPress={() => setActiveTab('summary')}
                             className={`pb-3 mr-8 ${activeTab === 'summary' ? 'border-b-2 border-[#E06065]' : ''}`}>

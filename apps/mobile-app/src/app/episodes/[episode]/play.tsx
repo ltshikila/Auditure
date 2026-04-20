@@ -389,7 +389,7 @@ export default function EpisodePlayScreen() {
                         elevation: 8,
                     }}
                     activeOpacity={0.9}>
-                    <Text className="font-inter-medium self-start text-brand-red text-base mb-2">
+                    <Text className="font-inter-medium self-start text-brand-gold text-base mb-2">
                         Transcripts
                     </Text>
                     <Text className="font-jakarta text-[#858585] dark:text-brand-dark-text-secondary text-sm leading-5" numberOfLines={4}>

@@ -8,7 +8,7 @@ export default function TermsOfService() {
     return (
         <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
             {/* Header */}
-            <View className="flex-row items-center px-5 py-4 border-b border-gray-200 dark:border-brand-dark-border">
+            <View className="flex-row items-center px-5 py-4 border-b border-black/10 dark:border-white/10">
                 <TouchableOpacity onPress={() => router.back()} className="mr-4">
                     <Ionicons name="arrow-back" size={24} color="#2F2F2F" />
                 </TouchableOpacity>

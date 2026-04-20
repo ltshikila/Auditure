@@ -303,7 +303,7 @@ const Create = () => {
                             </View>
 
                             {/* Gender Selection */}
-                            <View className="flex-row border-b border-[#E8E3D6] dark:border-brand-dark-border mt-4">
+                            <View className="flex-row border-b border-black/10 dark:border-white/10 mt-4">
                                 <TouchableOpacity
                                     onPress={() => setSelectedGender('male')}
                                     className={`flex-1 pb-2 items-center ${

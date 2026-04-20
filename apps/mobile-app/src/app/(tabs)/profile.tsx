@@ -46,7 +46,7 @@ type SettingItemProps = {
 
 function SettingItem({ icon, label, value, onValueChange, disabled }: SettingItemProps) {
     return (
-        <View className="flex-row items-center justify-between py-4 border-b border-gray-100 dark:border-brand-dark-border">
+        <View className="flex-row items-center justify-between py-4 border-b border-black/5 dark:border-white/10">
             <View className="flex-row items-center flex-1">
                 <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                     <Ionicons name={icon} size={16} color="#BF9A54" />
@@ -508,13 +508,13 @@ export default function Profile() {
                         </View>
                     ) : (
                         <View>
-                            <View className="flex-row justify-between py-3 border-b border-gray-100 dark:border-brand-dark-border">
+                            <View className="flex-row justify-between py-3 border-b border-black/5 dark:border-white/10">
                                 <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted">Name</Text>
                                 <Text className="font-inter-medium text-gray-900 dark:text-brand-dark-text">
                                     {profile?.firstName} {profile?.lastName}
                                 </Text>
                             </View>
-                            <View className="flex-row justify-between py-3 border-b border-gray-100 dark:border-brand-dark-border">
+                            <View className="flex-row justify-between py-3 border-b border-black/5 dark:border-white/10">
                                 <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted">Email</Text>
                                 <Text className="font-inter-medium text-gray-900 dark:text-brand-dark-text">
                                     {profile?.email}
@@ -750,7 +750,7 @@ export default function Profile() {
                             onValueChange={value => handleUpdateSetting('autoPlayEnabled', value)}
                         />
                         {/* Playback Speed */}
-                        <View className="py-4 border-b border-gray-100 dark:border-brand-dark-border">
+                        <View className="py-4 border-b border-black/5 dark:border-white/10">
                             <View className="flex-row items-center mb-3">
                                 <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                                     <Ionicons name="speedometer" size={16} color="#BF9A54" />
@@ -798,7 +798,7 @@ export default function Profile() {
 
                     <TouchableOpacity
                         onPress={handleLogout}
-                        className="flex-row items-center py-4 border-b border-gray-100 dark:border-brand-dark-border">
+                        className="flex-row items-center py-4 border-b border-black/5 dark:border-white/10">
                         <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                             <Ionicons name="log-out" size={16} color="#BF9A54" />
                         </View>
@@ -829,7 +829,7 @@ export default function Profile() {
 
                     <TouchableOpacity
                         onPress={() => Linking.openURL('https://auditure.app/terms')}
-                        className="flex-row items-center justify-between py-4 border-b border-gray-100 dark:border-brand-dark-border">
+                        className="flex-row items-center justify-between py-4 border-b border-black/5 dark:border-white/10">
                         <View className="flex-row items-center">
                             <View className="w-8 h-8 bg-brand-gold/20 rounded-full items-center justify-center mr-3">
                                 <Ionicons name="document-text" size={16} color="#BF9A54" />

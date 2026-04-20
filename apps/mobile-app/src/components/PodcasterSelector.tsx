@@ -59,7 +59,7 @@ export const PodcasterSelector: React.FC<PodcasterSelectorProps> = ({
                             {/* Avatar */}
                             <View
                                 className={`w-14 h-14 rounded-full overflow-hidden mb-2 ${
-                                    isSelected ? 'border-2 border-brand-gold' : 'border border-[#E8E3D6] dark:border-brand-dark-border'
+                                    isSelected ? 'border-2 border-brand-gold' : 'border border-black/10 dark:border-white/10'
                                 }`}
                             >
                                 {resolveCoverUrl(podcaster.profilePictureUrl) ? (

@@ -19,6 +19,7 @@ import { usePlayback } from '@/contexts/PlaybackContext';
 import { MINI_PLAYER_HEIGHT } from '@/components/MiniPlayer';
 import { resolveCoverUrl } from '@/services/api';
 import { TranscriptSkeleton } from '@/components/skeleton';
+import { useIsDark } from '@/hooks/use-colors';
 
 const booksIcon = require('@/assets/icons/books_fill.png');
 const backIcon = require('@/assets/icons/back.png');
@@ -31,7 +32,7 @@ const LINE_HEIGHT = 64;
 // to generate timestamps using speech recognition (e.g., Whisper) after TTS.
 const SYNC_ENABLED = false;
 
-const COLORS = {
+const LIGHT_COLORS = {
     background: '#FBF8F2',
     backgroundRgb: '251, 248, 242',
     textCurrent: '#1A1C1E',
@@ -41,6 +42,19 @@ const COLORS = {
     accentBg: 'rgba(191, 154, 84, 0.12)',
     border: '#E8E3D6',
     icon: '#1A1C1E',
+    error: '#920002',
+};
+
+const DARK_COLORS = {
+    background: '#151718',
+    backgroundRgb: '21, 23, 24',
+    textCurrent: '#ECEDEE',
+    textPast: '#4A4E52',
+    textFuture: '#687076',
+    accent: '#BF9A54',
+    accentBg: 'rgba(191, 154, 84, 0.18)',
+    border: '#2E3235',
+    icon: '#ECEDEE',
     error: '#920002',
 };
 
@@ -124,12 +138,14 @@ const TranscriptLineItem = React.memo(({
     item,
     index,
     currentIndex,
-    onPress
+    onPress,
+    palette,
 }: {
     item: TranscriptLine;
     index: number;
     currentIndex: number;
     onPress: (index: number) => void;
+    palette: typeof LIGHT_COLORS;
 }) => {
     // When sync is disabled (currentIndex = -1), show all lines uniformly
     const syncDisabled = currentIndex < 0;
@@ -145,7 +161,7 @@ const TranscriptLineItem = React.memo(({
                 justifyContent: 'center',
                 paddingHorizontal: 24,
                 paddingVertical: 12,
-                backgroundColor: isCurrent ? COLORS.accentBg : 'transparent',
+                backgroundColor: isCurrent ? palette.accentBg : 'transparent',
                 borderRadius: isCurrent ? 12 : 0,
                 marginHorizontal: isCurrent ? 12 : 0,
             }}
@@ -154,7 +170,7 @@ const TranscriptLineItem = React.memo(({
                 style={{
                     fontSize: isCurrent ? 24 : 17,
                     fontWeight: isCurrent ? '700' : '400',
-                    color: syncDisabled ? COLORS.textCurrent : (isCurrent ? COLORS.textCurrent : isPast ? COLORS.textPast : COLORS.textFuture),
+                    color: syncDisabled ? palette.textCurrent : (isCurrent ? palette.textCurrent : isPast ? palette.textPast : palette.textFuture),
                     textAlign: 'center',
                     lineHeight: isCurrent ? 32 : 24,
                 }}
@@ -164,9 +180,10 @@ const TranscriptLineItem = React.memo(({
         </TouchableOpacity>
     );
 }, (prev, next) => {
-    // Simplified memo - only re-render if item changes or current state changes
+    // Simplified memo - only re-render if item changes, current state changes, or palette switches
     return prev.item.id === next.item.id &&
-           (prev.index === prev.currentIndex) === (next.index === next.currentIndex);
+           (prev.index === prev.currentIndex) === (next.index === next.currentIndex) &&
+           prev.palette === next.palette;
 });
 
 TranscriptLineItem.displayName = 'TranscriptLineItem';
@@ -174,6 +191,8 @@ TranscriptLineItem.displayName = 'TranscriptLineItem';
 export default function TranscriptScreen() {
     const { episode: episodeId } = useLocalSearchParams<{ episode: string }>();
     const insets = useSafeAreaInsets();
+    const isDark = useIsDark();
+    const COLORS = isDark ? DARK_COLORS : LIGHT_COLORS;
     const [episode, setEpisode] = useState<Episode | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -289,8 +308,9 @@ export default function TranscriptScreen() {
             index={index}
             currentIndex={currentLineIndex}
             onPress={handleLineTap}
+            palette={COLORS}
         />
-    ), [currentLineIndex, handleLineTap]);
+    ), [currentLineIndex, handleLineTap, COLORS]);
 
     const onScrollToIndexFailed = useCallback((info: { index: number }) => {
         setTimeout(() => {
@@ -329,7 +349,7 @@ export default function TranscriptScreen() {
     if (!displayEpisode.scriptContent || transcriptLines.length === 0) {
         return (
             <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
-                <View className="px-6 pt-4 pb-4 flex-row items-center justify-between border-b border-[#E8E3D6] dark:border-brand-dark-border">
+                <View className="px-6 pt-4 pb-4 flex-row items-center justify-between border-b border-black/10 dark:border-white/10">
                     <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center">
                         <Image source={backIcon} style={{ width: 24, height: 24, tintColor: COLORS.icon }} />
                     </TouchableOpacity>
@@ -352,7 +372,7 @@ export default function TranscriptScreen() {
     return (
         <SafeAreaView edges={['top']} className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
             {/* Header with book cover */}
-            <View className="px-6 pt-2 pb-3 flex-row items-center border-b border-[#E8E3D6] dark:border-brand-dark-border">
+            <View className="px-6 pt-2 pb-3 flex-row items-center border-b border-black/10 dark:border-white/10">
                 <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center">
                     <Image source={backIcon} style={{ width: 24, height: 24, tintColor: COLORS.icon }} />
                 </TouchableOpacity>

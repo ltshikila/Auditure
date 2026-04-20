@@ -62,7 +62,7 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({
                                 key={option.value}
                                 onPress={() => handleSelect(option.value)}
                                 className={`px-5 py-3.5 ${
-                                    index < options.length - 1 ? 'border-b border-[#F0F0F0]' : ''
+                                    index < options.length - 1 ? 'border-b border-black/5 dark:border-white/10' : ''
                                 } ${isSelected ? 'bg-[#FDFBF7] dark:bg-brand-dark-surface' : ''}`}>
                                 <Text
                                     className={`font-inter text-base ${
