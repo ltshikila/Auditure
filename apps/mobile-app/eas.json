@@ -28,10 +28,16 @@
     }
   },
   "submit": {
-    "production": {
+    "alpha": {
       "android": {
         "serviceAccountKeyPath": "./google-services-key.json",
         "track": "alpha"
+      }
+    },
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./google-services-key.json",
+        "track": "production"
       }
     }
   }
