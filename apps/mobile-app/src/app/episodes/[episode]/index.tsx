@@ -20,6 +20,7 @@ import { playbackService, GenerationProgress } from '@/services/playback.service
 import { resolveCoverUrl } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAlert } from '@/contexts/AlertContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { EpisodeDetailSkeleton } from '@/components/skeleton';
 import { formatCount } from '@/utils/formatCount';
 
@@ -38,6 +39,8 @@ export default function EpisodeInfoScreen() {
     const { episode: episodeId } = useLocalSearchParams<{ episode: string }>();
     const { user } = useAuth();
     const { showAlert } = useAlert();
+    const { resolved } = useTheme();
+    const iconTint = resolved === 'dark' ? '#ECEDEE' : '#1A1C1E';
     const [episode, setEpisode] = useState<Episode | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -739,8 +742,8 @@ export default function EpisodeInfoScreen() {
                         <TouchableOpacity
                             onPress={handleAddComment}
                             disabled={!newComment.trim() || submittingComment}
-                            className={`w-8 h-8 rounded-full items-center justify-center ${
-                                newComment.trim() ? 'bg-brand-gold' : 'bg-gray-300'
+                            className={`w-8 h-8 rounded-full items-center justify-center bg-brand-gold ${
+                                newComment.trim() ? '' : 'opacity-50'
                             }`}>
                             {submittingComment ? (
                                 <ActivityIndicator size="small" color="white" />
@@ -841,7 +844,7 @@ export default function EpisodeInfoScreen() {
                         <TouchableOpacity
                             onPress={() => router.back()}
                             className="w-10 h-10 items-center justify-center -ml-2">
-                            <Image source={icons.back} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
+                            <Image source={icons.back} style={{ width: 24, height: 24, tintColor: iconTint }} />
                         </TouchableOpacity>
                         <Text className="font-jakarta-medium text-lg text-brand-black dark:text-brand-dark-text">About</Text>
                         <TouchableOpacity
@@ -1000,7 +1003,7 @@ export default function EpisodeInfoScreen() {
                                         {generationProgress?.progress ?? 0}%
                                     </Text>
                                 </View>
-                                <View className="w-full h-2 bg-[#E8E3D6] rounded-full overflow-hidden">
+                                <View className="w-full h-2 bg-[#E8E3D6] dark:bg-brand-dark-border rounded-full overflow-hidden">
                                     <View
                                         className="h-full bg-brand-gold rounded-full"
                                         style={{ width: `${generationProgress?.progress ?? 0}%` }}

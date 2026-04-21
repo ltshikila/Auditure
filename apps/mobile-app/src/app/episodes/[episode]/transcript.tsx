@@ -378,7 +378,7 @@ export default function TranscriptScreen() {
                 </TouchableOpacity>
 
                 {/* Book cover thumbnail */}
-                <View className="w-10 h-10 rounded-lg overflow-hidden bg-[#E8E3D6] mx-3 items-center justify-center">
+                <View className="w-10 h-10 rounded-lg overflow-hidden bg-[#E8E3D6] dark:bg-brand-dark-input mx-3 items-center justify-center">
                     {resolveCoverUrl(displayEpisode.book?.coverImageUrl) ? (
                         <Image
                             source={{ uri: resolveCoverUrl(displayEpisode.book?.coverImageUrl)! }}

@@ -7,6 +7,7 @@ import { router } from 'expo-router';
 import AuthInput from '../../components/AuthInput';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAlert } from '../../contexts/AlertContext';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const backIcon = require('../../assets/icons/back.png');
 
@@ -15,6 +16,8 @@ export default function ForgotPasswordScreen() {
   const [loading, setLoading] = useState(false);
   const { forgotPassword } = useAuth();
   const { showAlert } = useAlert();
+  const { resolved } = useTheme();
+  const iconTint = resolved === 'dark' ? '#ECEDEE' : '#1A1C1E';
 
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -64,7 +67,7 @@ export default function ForgotPasswordScreen() {
       >
         {/* Back Button */}
         <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 justify-center items-center -ml-2 mt-4 mb-4">
-          <Image source={backIcon} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
+          <Image source={backIcon} style={{ width: 24, height: 24, tintColor: iconTint }} />
         </TouchableOpacity>
 
         <Text className="font-inter-medium text-4xl text-gray-900 dark:text-brand-dark-text mb-4">Forgot Password</Text>

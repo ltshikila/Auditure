@@ -1015,7 +1015,7 @@ const Create = () => {
                             return (
                                 <>
                                     <View className="mb-2">
-                                        <View className="h-3 bg-[#E8E3D6] rounded-full overflow-hidden">
+                                        <View className="h-3 bg-[#E8E3D6] dark:bg-brand-dark-border rounded-full overflow-hidden">
                                             <View
                                                 className="h-full bg-brand-gold rounded-full"
                                                 style={{ width: `${displayProgress}%` }}

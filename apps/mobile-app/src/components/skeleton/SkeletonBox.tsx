@@ -3,11 +3,14 @@ import { ViewStyle, LayoutChangeEvent } from 'react-native';
 import Animated, { useAnimatedStyle, interpolate } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSkeletonAnimation } from './SkeletonProvider';
+import { useIsDark } from '@/hooks/use-colors';
 
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 
-const BASE_COLOR = '#E8E3D6';
-const HIGHLIGHT_COLOR = '#F5F0E5';
+const LIGHT_BASE = '#E5E7EB';
+const LIGHT_HIGHLIGHT = '#F3F4F6';
+const DARK_BASE = '#2A2C2E';
+const DARK_HIGHLIGHT = '#3A3D40';
 
 interface SkeletonBoxProps {
     width: number | `${number}%`;
@@ -26,6 +29,9 @@ export const SkeletonBox: React.FC<SkeletonBoxProps> = ({
 }) => {
     const progress = useSkeletonAnimation();
     const [layoutWidth, setLayoutWidth] = useState(0);
+    const isDark = useIsDark();
+    const BASE_COLOR = isDark ? DARK_BASE : LIGHT_BASE;
+    const HIGHLIGHT_COLOR = isDark ? DARK_HIGHLIGHT : LIGHT_HIGHLIGHT;
 
     const resolvedBorderRadius = circle ? height / 2 : borderRadius;
 

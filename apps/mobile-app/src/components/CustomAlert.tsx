@@ -6,6 +6,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import type { AlertConfig, AlertButton } from '@/contexts/AlertContext';
+import { useIsDark } from '@/hooks/use-colors';
 
 interface CustomAlertProps {
   config: AlertConfig;
@@ -18,6 +19,10 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 export const CustomAlert: React.FC<CustomAlertProps> = ({ config, visible, onDismiss }) => {
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.85);
+  const isDark = useIsDark();
+  const cardBg = isDark ? '#1E2022' : '#FFFFFF';
+  const titleColor = isDark ? '#ECEDEE' : '#2F2F2F';
+  const messageColor = isDark ? '#9BA1A6' : '#6C7278';
 
   useEffect(() => {
     if (visible) {
@@ -56,7 +61,7 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({ config, visible, onDis
   const getButtonStyle = (style?: AlertButton['style']) => {
     switch (style) {
       case 'cancel':
-        return 'bg-[#F5F5F0]';
+        return isDark ? 'bg-brand-dark-surface-elevated' : 'bg-[#F5F5F0]';
       case 'destructive':
         return 'bg-[#920002]';
       default:
@@ -67,7 +72,7 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({ config, visible, onDis
   const getButtonTextStyle = (style?: AlertButton['style']) => {
     switch (style) {
       case 'cancel':
-        return 'text-[#2F2F2F]';
+        return isDark ? 'text-brand-dark-text' : 'text-[#2F2F2F]';
       default:
         return 'text-white';
     }
@@ -82,7 +87,7 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({ config, visible, onDis
         <Animated.View
           style={[
             {
-              backgroundColor: '#FFFFFF',
+              backgroundColor: cardBg,
               borderRadius: 20,
               padding: 24,
               width: '100%',
@@ -100,14 +105,14 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({ config, visible, onDis
           onTouchEnd={(e) => e.stopPropagation()}
         >
           <Text
-            style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: '#2F2F2F', textAlign: 'center', marginBottom: config.message ? 8 : 20 }}
+            style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: titleColor, textAlign: 'center', marginBottom: config.message ? 8 : 20 }}
           >
             {config.title}
           </Text>
 
           {config.message ? (
             <Text
-              style={{ fontFamily: 'Inter_400Regular', fontSize: 14, color: '#6C7278', textAlign: 'center', marginBottom: 20, lineHeight: 20 }}
+              style={{ fontFamily: 'Inter_400Regular', fontSize: 14, color: messageColor, textAlign: 'center', marginBottom: 20, lineHeight: 20 }}
             >
               {config.message}
             </Text>

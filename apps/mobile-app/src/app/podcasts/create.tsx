@@ -20,6 +20,7 @@ import { storageService } from '@/services/storage.service';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { MINI_PLAYER_HEIGHT } from '@/components/MiniPlayer';
 import { useAlert } from '@/contexts/AlertContext';
+import { useTheme } from '@/contexts/ThemeContext';
 
 type VoiceModel = 'custom' | 'conversational' | 'energetic' | 'calm' | 'sarcastic' | 'academic';
 type Gender = 'male' | 'female';
@@ -29,6 +30,8 @@ const Create = () => {
     const insets = useSafeAreaInsets();
     const { episode } = usePlayback();
     const { showAlert } = useAlert();
+    const { resolved } = useTheme();
+    const iconTint = resolved === 'dark' ? '#ECEDEE' : '#1A1C1E';
     const isMiniPlayerVisible = !!episode;
     const [currentStep, setCurrentStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -483,7 +486,7 @@ const Create = () => {
                                             key={tag}
                                             onPress={() => toggleExpertiseTag(tag)}
                                             className={`px-4 py-2 rounded-full ${
-                                                isSelected ? 'bg-brand-red' : 'bg-[#E8E3D6]'
+                                                isSelected ? 'bg-brand-red' : 'bg-[#E5E7EB] dark:bg-brand-dark-surface-elevated'
                                             }`}>
                                             <Text
                                                 className={`font-inter text-sm ${isSelected ? 'text-white' : 'text-[#1A1C1E] dark:text-brand-dark-text'}`}>
@@ -551,7 +554,7 @@ const Create = () => {
                         }
                     }}
                     className="flex-row items-center px-4 py-3">
-                    <Image source={require('../../assets/icons/back.png')} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
+                    <Image source={require('../../assets/icons/back.png')} style={{ width: 24, height: 24, tintColor: iconTint }} />
                     <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter text-base ml-1">
                         {currentStep > 1 ? 'Back' : 'Cancel'}
                     </Text>

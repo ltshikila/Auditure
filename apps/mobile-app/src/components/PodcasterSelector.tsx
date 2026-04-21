@@ -69,7 +69,7 @@ export const PodcasterSelector: React.FC<PodcasterSelectorProps> = ({
                                         resizeMode="cover"
                                     />
                                 ) : (
-                                    <View className="w-full h-full bg-[#E8E3D6] items-center justify-center">
+                                    <View className="w-full h-full bg-[#E8E3D6] dark:bg-brand-dark-input items-center justify-center">
                                         <Image source={podcastIcon} style={{ width: 24, height: 24, tintColor: '#BF9A54' }} />
                                     </View>
                                 )}
@@ -94,7 +94,7 @@ export const PodcasterSelector: React.FC<PodcasterSelectorProps> = ({
                         onPress={onAddNew}
                         className="w-[30%] rounded-2xl p-4 py-5 items-center mb-3 justify-start"
                     >
-                        <View className="w-14 h-14 rounded-full bg-[#E8E3D6] items-center justify-center mb-2 border border-dashed border-brand-gold">
+                        <View className="w-14 h-14 rounded-full bg-[#E8E3D6] dark:bg-brand-dark-input items-center justify-center mb-2 border border-dashed border-brand-gold">
                             <Ionicons name="add" size={24} color="#BF9A54" />
                         </View>
                         <Text className="font-inter text-xs text-center text-[#858585] dark:text-brand-dark-text-secondary">

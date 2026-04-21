@@ -9,6 +9,7 @@ import { storageService } from '@/services/storage.service';
 import { resolveCoverUrl } from '@/services/api';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { GeneratingEpisodeCard } from '@/components/GeneratingEpisodeCard';
 import { TopBar } from '@/components/TopBar';
 import { PodcastDetailSkeleton } from '@/components/skeleton';
@@ -37,6 +38,7 @@ export default function PodcastDetailsScreen() {
 
   const { setQueue } = usePlayback();
   const { user } = useAuth();
+  const { resolved } = useTheme();
   const isOwner = podcaster?.userId === user?.id;
 
   useEffect(() => {
@@ -221,7 +223,7 @@ export default function PodcastDetailsScreen() {
                 className="w-32 h-32 rounded-full mb-4"
               />
             ) : (
-              <View className="w-32 h-32 bg-[#E8E3D6] rounded-full mb-4 items-center justify-center">
+              <View className="w-32 h-32 bg-[#E8E3D6] dark:bg-brand-dark-input rounded-full mb-4 items-center justify-center">
                 <Image source={podcastIcon} style={{ width: 56, height: 56, tintColor: '#BF9A54' }} />
               </View>
             )}
@@ -348,7 +350,7 @@ export default function PodcastDetailsScreen() {
                   }}
                   className="flex-row items-center py-4"
                   activeOpacity={0.6}
-                  style={index > 0 ? { borderTopWidth: 1, borderTopColor: '#E8E3D6' } : undefined}
+                  style={index > 0 ? { borderTopWidth: 1, borderTopColor: resolved === 'dark' ? '#2E3235' : '#E5E7EB' } : undefined}
                 >
                   {/* Index Number */}
                   <Text className="font-inter text-sm text-[#B0A898] w-6">{index + 1}</Text>
@@ -364,7 +366,7 @@ export default function PodcastDetailsScreen() {
                         resizeMode="contain"
                       />
                     ) : (
-                      <View className="w-full h-full bg-[#E8E3D6] items-center justify-center">
+                      <View className="w-full h-full bg-[#E8E3D6] dark:bg-brand-dark-input items-center justify-center">
                         <Ionicons name="book-outline" size={22} color="#BF9A54" />
                       </View>
                     )}
@@ -441,7 +443,7 @@ export default function PodcastDetailsScreen() {
                   resizeMode="cover"
                 />
               ) : (
-                <View className="w-28 h-28 bg-[#E8E3D6] rounded-2xl items-center justify-center">
+                <View className="w-28 h-28 bg-[#E8E3D6] dark:bg-brand-dark-input rounded-2xl items-center justify-center">
                   <Image source={podcastIcon} style={{ width: 48, height: 48, tintColor: '#BF9A54' }} />
                 </View>
               )}

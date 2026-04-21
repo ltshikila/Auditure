@@ -170,7 +170,7 @@ export const GeneratingEpisodeCard: React.FC<GeneratingEpisodeCardProps> = ({
                 </View>
 
                 {/* Progress Bar */}
-                <View className="w-full h-1.5 bg-[#E8E3D6] rounded-full overflow-hidden">
+                <View className="w-full h-1.5 bg-[#E8E3D6] dark:bg-brand-dark-border rounded-full overflow-hidden">
                     <Animated.View
                         className={`h-full rounded-full ${
                             isFailed

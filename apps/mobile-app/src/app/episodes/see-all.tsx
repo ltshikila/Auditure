@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Episode, episodeService } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
 import { usePlayback } from '@/contexts/PlaybackContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { resolveCoverUrl } from '@/services/api';
 import { formatCount } from '@/utils/formatCount';
 import { FeedListSkeleton } from '@/components/skeleton';
@@ -33,6 +34,8 @@ export default function EpisodesSeeAllScreen() {
     const { type } = useLocalSearchParams<{ type: string }>();
     const listType = (type as EpisodeListType) || 'my';
     const { setQueue } = usePlayback();
+    const { resolved } = useTheme();
+    const iconTint = resolved === 'dark' ? '#ECEDEE' : '#1A1C1E';
 
     const [episodes, setEpisodes] = useState<Episode[]>([]);
     const [loading, setLoading] = useState(true);
@@ -157,7 +160,7 @@ export default function EpisodesSeeAllScreen() {
             {/* Header */}
             <View className="flex-row items-center px-6 py-4 border-b border-black/10 dark:border-white/10">
                 <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center -ml-2 mr-2">
-                    <Image source={backIcon} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
+                    <Image source={backIcon} style={{ width: 24, height: 24, tintColor: iconTint }} />
                 </TouchableOpacity>
                 <View className="flex-1">
                     <Text className="font-jakarta-bold text-xl text-brand-black dark:text-brand-dark-text">{title}</Text>

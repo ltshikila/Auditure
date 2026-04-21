@@ -10,6 +10,7 @@ import { storageService } from '@/services/storage.service';
 import { resolveCoverUrl } from '@/services/api';
 import { useAlert } from '@/contexts/AlertContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 
 const icons = {
     star: require('@/assets/icons/star.png'),
@@ -47,6 +48,8 @@ export default function EpisodePlayScreen() {
     const { episode, position, duration, play, seekTo, stop } = usePlayback();
     const { showAlert } = useAlert();
     const { user } = useAuth();
+    const { resolved } = useTheme();
+    const iconTint = resolved === 'dark' ? '#ECEDEE' : '#1A1C1E';
 
     const [localEpisode, setLocalEpisode] = useState<Episode | null>(null);
     const [sliderValue, setSliderValue] = useState(0);
@@ -440,7 +443,7 @@ export default function EpisodePlayScreen() {
                                 onPress={handleViewBook}
                                 className="flex-row items-center py-4"
                             >
-                                <Image source={icons.books} style={{ width: 22, height: 22, tintColor: '#1A1C1E' }} />
+                                <Image source={icons.books} style={{ width: 22, height: 22, tintColor: iconTint }} />
                                 <Text className="font-inter-medium text-brand-black dark:text-brand-dark-text text-base ml-4">View Book</Text>
                             </TouchableOpacity>
                         )}
