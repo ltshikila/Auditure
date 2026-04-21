@@ -5,7 +5,7 @@ from typing import Any
 
 from src.config import get_settings
 from src.database import EpisodeRepository, EpisodeStatus, get_database_client
-from src.generators import DurationMismatchError, ScriptGenerator
+from src.generators import BookContentUnavailableError, DurationMismatchError, ScriptGenerator
 from src.redis import get_redis_client
 from src.storage import get_storage
 from src.tts import PodcasterVoice, TTSEngine
@@ -121,7 +121,10 @@ class EpisodeConsumer(BaseConsumer):
 
             book_content = content_result["content"]
             if not book_content or not book_content.strip():
-                raise ValueError("No book content available for script generation")
+                raise BookContentUnavailableError(
+                    "The chapters you selected aren't available in this book's extracted content. "
+                    "Re-upload the book with a clearer table of contents, or use full-book coverage."
+                )
 
             # Log truncation warning and notify user if content was truncated
             if content_result["truncated"]:
@@ -371,6 +374,31 @@ class EpisodeConsumer(BaseConsumer):
 
             # Don't re-raise - this is not a retryable error
             # The user needs to select more content or adjust duration expectations
+
+        except BookContentUnavailableError as e:
+            # Missing extracted content for the requested chapters.
+            # Retrying won't help — the chapter data isn't in the DB. Fail fast.
+            logger.warning("=" * 50)
+            logger.warning(f"[EPISODE] CONTENT UNAVAILABLE: {episode_id}")
+            logger.warning(f"[EPISODE] {e}")
+            logger.warning("=" * 50)
+
+            self._update_status(
+                episode_id,
+                EpisodeStatus.FAILED,
+                generation_error=str(e),
+            )
+            self._update_progress(episode_id, 0, "CONTENT_UNAVAILABLE")
+
+            self._send_notification(
+                user_id=message["userId"],
+                episode_id=episode_id,
+                episode_title=message.get("title", "your episode"),
+                is_ready=False,
+                error_message=str(e),
+            )
+
+            # Don't re-raise — not retryable.
 
         except Exception as e:
             is_final_attempt = self._current_retry_count >= self.max_retries

@@ -38,6 +38,14 @@ class DurationMismatchError(Exception):
         self.word_count = word_count
 
 
+class BookContentUnavailableError(Exception):
+    """Raised when the requested book content cannot be found for generation.
+
+    Non-retryable: extraction quality is a data-state issue, retrying the
+    script generation won't create missing chapters.
+    """
+
+
 @dataclass
 class ScriptResult:
     """Result of script generation."""

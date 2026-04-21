@@ -158,6 +158,58 @@ export class EpisodesService {
                 );
             }
 
+            // Verify requested chapter numbers actually exist in the extracted content.
+            // Prevents the user from waiting through 4 retry attempts on an unrecoverable
+            // failure when regex-based extraction produced fewer/different chapter numbers.
+            if (
+                createEpisodeDto.contentCoverage !== ContentCoverage.ENTIRE_BOOK &&
+                createEpisodeDto.chapters.length > 0
+            ) {
+                const availableChapters = await this.databaseService.chapter.findMany({
+                    where: { bookId: createEpisodeDto.bookId },
+                    select: { chapterNumber: true, textLength: true },
+                    orderBy: { chapterNumber: 'asc' },
+                });
+
+                const availableNumbers = new Set(availableChapters.map((c) => c.chapterNumber));
+                const missingNumbers = createEpisodeDto.chapters.filter(
+                    (n) => !availableNumbers.has(n),
+                );
+
+                if (missingNumbers.length > 0) {
+                    const availableList = availableChapters
+                        .map((c) => c.chapterNumber)
+                        .join(', ');
+                    const missingLabel =
+                        missingNumbers.length === 1
+                            ? `Chapter ${missingNumbers[0]}`
+                            : `Chapters ${missingNumbers.join(', ')}`;
+                    this.logger.error(
+                        `Book ${createEpisodeDto.bookId} missing requested chapters: ${missingNumbers.join(', ')}. Available: ${availableList || 'none'}`,
+                    );
+                    throw new BadRequestException(
+                        availableList
+                            ? `${missingLabel} not available in this book's extracted content. Available chapters: ${availableList}. Use full-book coverage or re-upload with a clearer table of contents.`
+                            : `No chapters were extracted from this book. Re-upload with a clearer table of contents or use full-book coverage.`,
+                    );
+                }
+
+                // Warn if any requested chapter has minimal extracted text.
+                // Extraction sometimes finds a chapter heading but fails to capture the body.
+                const emptyChapters = availableChapters.filter(
+                    (c) =>
+                        createEpisodeDto.chapters.includes(c.chapterNumber) &&
+                        (c.textLength ?? 0) < 200,
+                );
+                if (emptyChapters.length > 0) {
+                    this.logger.warn(
+                        `Book ${createEpisodeDto.bookId} has low-content chapters requested: ${emptyChapters
+                            .map((c) => c.chapterNumber)
+                            .join(', ')}`,
+                    );
+                }
+            }
+
             // Validate target length range
             if (createEpisodeDto.targetLengthMin > createEpisodeDto.targetLengthMax) {
                 this.logger.error(
