@@ -16,6 +16,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useNotifications } from '@/contexts/NotificationsContext';
 import { useAlert } from '@/contexts/AlertContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { NotificationsSkeleton } from '@/components/skeleton';
 import { Notification, NotificationType } from '@/services/notification.service';
 
@@ -165,6 +166,8 @@ export default function NotificationsScreen() {
         deleteAllNotifications,
     } = useNotifications();
     const { showAlert } = useAlert();
+    const { resolved } = useTheme();
+    const iconTint = resolved === 'dark' ? '#ECEDEE' : '#1A1C1E';
     const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
 
     useEffect(() => {
@@ -262,7 +265,7 @@ export default function NotificationsScreen() {
                         onPress={() => router.back()}
                         className="w-10 h-10 items-center justify-center -ml-2"
                     >
-                        <Image source={require('../../assets/icons/back.png')} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
+                        <Image source={require('../../assets/icons/back.png')} style={{ width: 24, height: 24, tintColor: iconTint }} />
                     </TouchableOpacity>
                     <Text className="font-jakarta-bold text-xl text-gray-900 dark:text-brand-dark-text ml-2">
                         Notifications

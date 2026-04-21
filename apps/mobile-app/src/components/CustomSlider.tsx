@@ -1,5 +1,6 @@
 import React, { useRef, useState, useMemo } from 'react';
 import { View, Text, PanResponder } from 'react-native';
+import { useIsDark } from '@/hooks/use-colors';
 
 const THUMB_SIZE = 18;
 const TRACK_PADDING = THUMB_SIZE / 2;
@@ -25,6 +26,8 @@ export const SliderTrack: React.FC<SliderTrackProps> = ({
 }) => {
     const [trackWidth, setTrackWidth] = useState(0);
     const trackRef = useRef<View>(null);
+    const isDark = useIsDark();
+    const trackBg = isDark ? '#2E3235' : '#E5E7EB';
     const trackPageX = useRef(0);
     const trackWidthRef = useRef(0);
 
@@ -79,7 +82,7 @@ export const SliderTrack: React.FC<SliderTrackProps> = ({
         >
             <View
                 ref={trackRef}
-                style={{ height: 4, backgroundColor: '#E8E3D6', borderRadius: 2 }}
+                style={{ height: 4, backgroundColor: trackBg, borderRadius: 2 }}
                 onLayout={() => {
                     trackRef.current?.measureInWindow((x, _y, width) => {
                         trackPageX.current = x;

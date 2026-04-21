@@ -68,7 +68,7 @@ export const ProfilePictureInput: React.FC<ProfilePictureInputProps> = ({
             </Text> */}
             <View className="items-center">
                 <TouchableOpacity onPress={handlePress} activeOpacity={0.7}>
-                    <View className="w-24 h-24 rounded-full items-center justify-center overflow-hidden bg-[#E8E3D6] mb-2">
+                    <View className="w-24 h-24 rounded-full items-center justify-center overflow-hidden bg-[#E8E3D6] dark:bg-brand-dark-input mb-2">
                         {resolvedUri ? (
                             <Image
                                 key={resolvedUri}

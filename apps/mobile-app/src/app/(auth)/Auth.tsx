@@ -201,7 +201,7 @@ export default function AuthScreen() {
         </Text>
 
         {/* Toggle Switch */}
-        <View className="bg-[#E7E0CB] rounded-lg p-1 flex-row mb-8">
+        <View className="bg-[#E7E0CB] dark:bg-brand-dark-surface-elevated rounded-lg p-1 flex-row mb-8">
           <TouchableOpacity
             onPress={() => setIsLogin(true)}
             className={`flex-1 p-3 rounded-lg items-center ${isLogin ? 'bg-brand-gold' : 'bg-transparent'}`}>

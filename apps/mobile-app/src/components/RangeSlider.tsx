@@ -119,7 +119,7 @@ export const RangeSlider: React.FC<RangeSliderProps> = ({
 
             {/* Slider track */}
             <View
-                className="h-1.5 bg-[#E8E3D6] rounded-full relative"
+                className="h-1.5 bg-[#E5E7EB] dark:bg-brand-dark-border rounded-full relative"
                 onLayout={onLayout}
                 style={{ marginHorizontal: THUMB_SIZE / 2 }}
             >

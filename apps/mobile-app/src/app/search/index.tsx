@@ -73,6 +73,7 @@ const StarRating = ({ rating, count }: { rating: number; count?: number }) => {
 
 export default function SearchScreen() {
     const { getAccessToken } = useAuth();
+    const colors = useColors();
     const [query, setQuery] = useState('');
     const [activeTab, setActiveTab] = useState<TabType>('all');
     const [loading, setLoading] = useState(false);
@@ -348,11 +349,11 @@ export default function SearchScreen() {
                 {resolveCoverUrl(podcaster.profilePictureUrl) ? (
                     <Image
                         source={{ uri: resolveCoverUrl(podcaster.profilePictureUrl)! }}
-                        className="w-14 h-14 rounded-full bg-[#E8E3D6]"
+                        className="w-14 h-14 rounded-full bg-[#E8E3D6] dark:bg-brand-dark-input"
                         resizeMode="cover"
                     />
                 ) : (
-                    <View className="w-14 h-14 rounded-full bg-[#E8E3D6] items-center justify-center">
+                    <View className="w-14 h-14 rounded-full bg-[#E8E3D6] dark:bg-brand-dark-input items-center justify-center">
                         <Image source={podcastIcon} style={{ width: 24, height: 24, tintColor: '#BF9A54' }} />
                     </View>
                 )}
@@ -533,15 +534,15 @@ export default function SearchScreen() {
                     onPress={() => router.back()}
                     className="absolute left-2 w-10 h-10 items-center justify-center"
                 >
-                    <Image source={require('../../assets/icons/back.png')} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
+                    <Image source={require('../../assets/icons/back.png')} style={{ width: 24, height: 24, tintColor: colors.text }} />
                 </TouchableOpacity>
                 <Text className="font-jakarta text-lg text-gray-900 dark:text-brand-dark-text">Search</Text>
             </View>
 
             {/* Search Bar */}
             <View className="px-4 pb-4">
-                <View className="flex-row items-center bg-[#E7E0CB] rounded-full px-4 py-1">
-                    <Image source={searchIcon} style={{ width: 20, height: 20, tintColor: '#2F2F2F' }} />
+                <View className="flex-row items-center bg-[#E7E0CB] dark:bg-brand-dark-surface-elevated rounded-full px-4 py-1">
+                    <Image source={searchIcon} style={{ width: 20, height: 20, tintColor: colors.text }} />
                     <TextInput
                         ref={searchInputRef}
                         className="flex-1 font-jakarta text-base text-gray-900 dark:text-brand-dark-text ml-3"
@@ -579,7 +580,7 @@ export default function SearchScreen() {
                                 key={tab.key}
                                 onPress={() => setActiveTab(tab.key)}
                                 className={`px-4 py-2 rounded-full mr-2 ${
-                                    activeTab === tab.key ? 'bg-brand-red' : 'bg-[#E7E0CB]'
+                                    activeTab === tab.key ? 'bg-brand-red' : 'bg-[#E7E0CB] dark:bg-brand-dark-surface-elevated'
                                 }`}
                             >
                                 <Text

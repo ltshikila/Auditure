@@ -13,6 +13,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePlayback } from '@/contexts/PlaybackContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Episode } from '@/services/episode.service';
 import { FeedListSkeleton } from '@/components/skeleton';
 import { formatCount } from '@/utils/formatCount';
@@ -77,6 +78,8 @@ export default function SeeAllScreen() {
     const { section } = useLocalSearchParams<{ section: string }>();
     const { getAccessToken } = useAuth();
     const { setQueue } = usePlayback();
+    const { resolved } = useTheme();
+    const iconTint = resolved === 'dark' ? '#ECEDEE' : '#1A1C1E';
 
     const [items, setItems] = useState<(EpisodeFeedItem | BookFeedItem | PodcasterFeedItem)[]>([]);
     const [loading, setLoading] = useState(true);
@@ -291,7 +294,7 @@ export default function SeeAllScreen() {
                         resizeMode="cover"
                     />
                 ) : (
-                    <View className="w-full h-full bg-[#E8E3D6] items-center justify-center">
+                    <View className="w-full h-full bg-[#E8E3D6] dark:bg-brand-dark-input items-center justify-center">
                         <Image source={podcastIcon} style={{ width: 28, height: 28, tintColor: '#BF9A54' }} />
                     </View>
                 )}
@@ -381,7 +384,7 @@ export default function SeeAllScreen() {
             {/* Header */}
             <View className="flex-row items-center px-6 py-4 border-b border-black/10 dark:border-white/10">
                 <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center -ml-2 mr-2">
-                    <Image source={require('../../assets/icons/back.png')} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
+                    <Image source={require('../../assets/icons/back.png')} style={{ width: 24, height: 24, tintColor: iconTint }} />
                 </TouchableOpacity>
                 <View className="flex-1">
                     <Text className="font-jakarta-bold text-xl text-brand-black dark:text-brand-dark-text">{title}</Text>

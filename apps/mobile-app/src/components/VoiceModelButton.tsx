@@ -35,7 +35,7 @@ export const VoiceModelButton: React.FC<VoiceModelButtonProps> = ({
             }>
             <View
                 className={`w-14 h-14 rounded-full mb-2 items-center justify-center ${
-                    isSelected ? 'bg-brand-gold' : 'bg-[#E7E0CB]'
+                    isSelected ? 'bg-brand-gold' : 'bg-[#E7E0CB] dark:bg-brand-dark-input'
                 }`}
             >
                 <Ionicons

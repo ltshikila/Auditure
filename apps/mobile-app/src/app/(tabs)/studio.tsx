@@ -169,7 +169,7 @@ export default function Studio() {
                                         className="w-16 h-16 rounded-full mb-3"
                                     />
                                 ) : (
-                                    <View className="w-16 h-16 bg-[#E8E3D6] rounded-full mb-3 items-center justify-center">
+                                    <View className="w-16 h-16 bg-[#E8E3D6] dark:bg-brand-dark-input rounded-full mb-3 items-center justify-center">
                                         <Image source={podcastIcon} style={{ width: 28, height: 28, tintColor: '#BF9A54' }} />
                                     </View>
                                 )}

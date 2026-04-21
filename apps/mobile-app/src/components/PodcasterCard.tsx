@@ -28,7 +28,7 @@ export const PodcasterCard: React.FC<PodcasterCardProps> = ({ podcaster, onPress
                         resizeMode="cover"
                     />
                 ) : (
-                    <View className="w-full h-full bg-[#E8E3D6] items-center justify-center">
+                    <View className="w-full h-full bg-[#E8E3D6] dark:bg-brand-dark-input items-center justify-center">
                         <Image source={podcastIcon} style={{ width: 30, height: 30, tintColor: '#BF9A54' }} />
                     </View>
                 )}

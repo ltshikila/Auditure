@@ -20,11 +20,14 @@ import { useAlert } from '@/contexts/AlertContext';
 import { PodcastManageSkeleton } from '@/components/skeleton';
 import { MINI_PLAYER_HEIGHT } from '@/components/MiniPlayer';
 import { usePlayback } from '@/contexts/PlaybackContext';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function ManagePodcaster() {
   const { podcast: podcastId } = useLocalSearchParams();
   const { showAlert } = useAlert();
   const { episode } = usePlayback();
+  const { resolved } = useTheme();
+  const iconTint = resolved === 'dark' ? '#ECEDEE' : '#1A1C1E';
   const isMiniPlayerVisible = !!episode;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -250,7 +253,7 @@ export default function ManagePodcaster() {
             onPress={() => router.back()}
             className="w-10 h-10 items-center justify-center -ml-2"
           >
-            <Image source={require('../../../assets/icons/back.png')} style={{ width: 24, height: 24, tintColor: '#1A1C1E' }} />
+            <Image source={require('../../../assets/icons/back.png')} style={{ width: 24, height: 24, tintColor: iconTint }} />
           </TouchableOpacity>
           <Text className="font-jakarta-bold text-xl text-gray-900 dark:text-brand-dark-text">Manage Podcaster</Text>
           <View style={{ width: 40 }} />
@@ -412,7 +415,7 @@ export default function ManagePodcaster() {
                   <TouchableOpacity
                     key={tag}
                     onPress={() => toggleExpertiseTag(tag)}
-                    className={`px-4 py-2 rounded-full ${isSelected ? 'bg-brand-red' : 'bg-[#E8E3D6]'}`}
+                    className={`px-4 py-2 rounded-full ${isSelected ? 'bg-brand-red' : 'bg-[#E5E7EB] dark:bg-brand-dark-surface-elevated'}`}
                   >
                     <Text className={`font-inter text-sm ${isSelected ? 'text-white' : 'text-[#1A1C1E] dark:text-brand-dark-text'}`}>
                       {tag}
