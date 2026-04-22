@@ -392,7 +392,7 @@ export default function SearchScreen() {
                     <Text className="font-jakarta-bold text-lg text-gray-900 dark:text-brand-dark-text">{title}</Text>
                     {hasMore && (
                         <TouchableOpacity onPress={() => setActiveTab(scope as TabType)}>
-                            <Text className="font-inter-medium text-sm text-red-500">View all</Text>
+                            <Text className="font-inter-medium text-sm text-brand-red dark:text-red-400">View all</Text>
                         </TouchableOpacity>
                     )}
                 </View>
@@ -409,7 +409,7 @@ export default function SearchScreen() {
                 <View className="flex-row items-center justify-between mb-3">
                     <Text className="font-inter-medium text-lg text-gray-900 dark:text-brand-dark-text">Recent Searches</Text>
                     <TouchableOpacity onPress={clearRecentSearches}>
-                        <Text className="font-inter-medium text-sm text-brand-red">Clear</Text>
+                        <Text className="font-inter-medium text-sm text-brand-red dark:text-red-400">Clear</Text>
                     </TouchableOpacity>
                 </View>
                 {recentSearches.map((search, index) => (
@@ -547,7 +547,7 @@ export default function SearchScreen() {
                         ref={searchInputRef}
                         className="flex-1 font-jakarta text-base text-gray-900 dark:text-brand-dark-text ml-3"
                         placeholder="Search episodes, books, podcasters..."
-                        placeholderTextColor="#2F2F2F"
+                        placeholderTextColor={colors.placeholder}
                         value={query}
                         onChangeText={setQuery}
                         autoFocus

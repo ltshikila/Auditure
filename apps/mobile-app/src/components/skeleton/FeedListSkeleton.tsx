@@ -2,9 +2,12 @@ import React from 'react';
 import { View } from 'react-native';
 import { SkeletonProvider } from './SkeletonProvider';
 import { SkeletonBox } from './SkeletonBox';
+import { useIsDark } from '@/hooks/use-colors';
 
-const FeedListItemSkeleton = () => (
-    <View style={{ flexDirection: 'row', padding: 12, marginHorizontal: 24, marginBottom: 12, backgroundColor: '#fff', borderRadius: 12 }}>
+const FeedListItemSkeleton = () => {
+    const isDark = useIsDark();
+    return (
+    <View style={{ flexDirection: 'row', padding: 12, marginHorizontal: 24, marginBottom: 12, backgroundColor: isDark ? '#1E2022' : '#F5F5F0', borderRadius: 12 }}>
         <SkeletonBox width={70} height={90} borderRadius={8} />
         <View style={{ flex: 1, marginLeft: 12 }}>
             <SkeletonBox width="80%" height={14} style={{ marginBottom: 6 }} />
@@ -15,7 +18,8 @@ const FeedListItemSkeleton = () => (
             </View>
         </View>
     </View>
-);
+    );
+};
 
 export const FeedListSkeleton: React.FC = () => {
     return (

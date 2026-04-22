@@ -29,7 +29,7 @@ export const PodcasterSection: React.FC<PodcasterSectionProps> = ({
                 <Text className="font-inter-medium text-lg text-brand-black dark:text-brand-dark-text">{title}</Text>
                 {showSeeAll && onSeeAll && (
                     <TouchableOpacity onPress={onSeeAll}>
-                        <Text className="font-inter text-sm text-brand-red">View all</Text>
+                        <Text className="font-inter text-sm text-brand-red dark:text-red-400">View all</Text>
                     </TouchableOpacity>
                 )}
             </View>

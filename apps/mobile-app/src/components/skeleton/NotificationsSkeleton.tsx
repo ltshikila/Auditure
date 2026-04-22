@@ -2,9 +2,12 @@ import React from 'react';
 import { View } from 'react-native';
 import { SkeletonProvider } from './SkeletonProvider';
 import { SkeletonBox } from './SkeletonBox';
+import { useIsDark } from '@/hooks/use-colors';
 
-const NotificationItemSkeleton = () => (
-    <View style={{ flexDirection: 'row', padding: 16, marginHorizontal: 16, marginBottom: 12, backgroundColor: '#fff', borderRadius: 16 }}>
+const NotificationItemSkeleton = () => {
+    const isDark = useIsDark();
+    return (
+    <View style={{ flexDirection: 'row', padding: 16, marginHorizontal: 16, marginBottom: 12, backgroundColor: isDark ? '#1E2022' : '#F5F5F0', borderRadius: 16 }}>
         <SkeletonBox width={48} height={48} borderRadius={12} />
         <View style={{ flex: 1, marginLeft: 16 }}>
             <SkeletonBox width="70%" height={14} style={{ marginBottom: 6 }} />
@@ -12,7 +15,8 @@ const NotificationItemSkeleton = () => (
             <SkeletonBox width="50%" height={12} />
         </View>
     </View>
-);
+    );
+};
 
 export const NotificationsSkeleton: React.FC = () => {
     return (
