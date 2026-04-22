@@ -6,6 +6,7 @@ import { TopBar, EpisodeSection, BookSection, PodcasterSection, FeaturedEpisodeS
 import { HomeSkeleton } from '@/components/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePlayback } from '@/contexts/PlaybackContext';
+import { useIsDark } from '@/hooks/use-colors';
 import { Episode } from '@/services/episode.service';
 import {
     feedService,
@@ -48,6 +49,7 @@ const adaptFeedItemToEpisode = (item: EpisodeFeedItem): Episode => ({
 export default function HomeScreen() {
     const { getAccessToken, isAuthenticated } = useAuth();
     const { setQueue } = usePlayback();
+    const isDark = useIsDark();
 
     // Tab state
     const [activeTab, setActiveTab] = useState<TabType>('episodes');
@@ -168,9 +170,9 @@ export default function HomeScreen() {
                         paddingHorizontal: 14,
                         paddingVertical: 8,
                         borderRadius: 18,
-                        backgroundColor: activeTab === tab.key ? '#920002' : '#E7E0CB',
+                        backgroundColor: activeTab === tab.key ? '#920002' : (isDark ? '#2A2C2E' : '#E7E0CB'),
                         borderWidth: activeTab === tab.key ? 0 : 1,
-                        borderColor: '#E7E0CB',
+                        borderColor: isDark ? '#2A2C2E' : '#E7E0CB',
                     }}
                 >
                     <Text
