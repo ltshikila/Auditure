@@ -62,8 +62,8 @@ export function WaitlistForm({
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-md mx-auto">
-      <div
-        className={`flex flex-col sm:flex-row gap-2 p-1.5 rounded-[15px] ${
+      <label
+        className={`flex flex-col sm:flex-row gap-2 p-1.5 rounded-[15px] cursor-text ${
           isDark
             ? 'bg-white/10 border border-white/20'
             : 'bg-white border border-[#2f2f2f]/15 shadow-sm'
@@ -76,7 +76,7 @@ export function WaitlistForm({
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@email.com"
           disabled={status === 'loading'}
-          className={`flex-1 px-4 py-3 bg-transparent outline-none font-['Plus_Jakarta_Sans',sans-serif] ${
+          className={`flex-1 min-w-0 px-4 py-3 bg-transparent outline-none font-['Plus_Jakarta_Sans',sans-serif] ${
             isDark
               ? 'text-white placeholder:text-white/50'
               : 'text-[#2f2f2f] placeholder:text-[#5a5a5a]'
@@ -85,11 +85,11 @@ export function WaitlistForm({
         <button
           type="submit"
           disabled={status === 'loading'}
-          className="bg-[#920002] hover:bg-[#920002]/90 disabled:opacity-60 text-white px-6 py-3 rounded-[12px] font-['Plus_Jakarta_Sans',sans-serif] transition-colors whitespace-nowrap"
+          className="bg-[#920002] hover:bg-[#920002]/90 disabled:opacity-60 text-white px-6 py-3 rounded-[12px] font-['Plus_Jakarta_Sans',sans-serif] transition-colors whitespace-nowrap cursor-pointer"
         >
           {status === 'loading' ? 'Joining...' : label}
         </button>
-      </div>
+      </label>
       {status === 'error' && (
         <p
           className={`mt-2 text-sm font-['Plus_Jakarta_Sans',sans-serif] text-center ${
