@@ -76,7 +76,7 @@ export const NotificationsProvider: React.FC<NotificationsProviderProps> = ({ ch
     const notificationListener = useRef<ExpoNotifications.EventSubscription | null>(null);
     const responseListener = useRef<ExpoNotifications.EventSubscription | null>(null);
     const appState = useRef(AppState.currentState);
-    const fetchNotificationsRef = useRef<(refresh?: boolean) => Promise<void>>();
+    const fetchNotificationsRef = useRef<(refresh?: boolean) => Promise<void>>(undefined);
 
     // Register for push notifications (with retry)
     const registerForPushNotifications = useCallback(async (attempt: number = 1) => {

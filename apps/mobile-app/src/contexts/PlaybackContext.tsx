@@ -137,7 +137,7 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
     const autoPlayEnabledRef = useRef<boolean>(false);
     const defaultPlaybackRateRef = useRef<number>(1.0);
     const preserveQueueRef = useRef<boolean>(false);
-    const playRef = useRef<(ep: Episode) => Promise<void>>();
+    const playRef = useRef<(ep: Episode) => Promise<void>>(undefined);
 
     // Keep refs in sync with state
     useEffect(() => {
@@ -201,12 +201,9 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
 
     // Handle playback state changes for loading indicator
     useEffect(() => {
-        const state = playbackState.state;
-        setIsLoading(
-            state === State.Loading ||
-            state === State.Buffering ||
-            state === State.Connecting
-        );
+        const state = playbackState.state as State | undefined;
+        // State.Connecting is deprecated and shares a string value with State.Loading
+        setIsLoading(state === State.Loading || state === State.Buffering);
     }, [playbackState.state]);
 
     // Handle playback errors (e.g. stream failures, missing audio files)
