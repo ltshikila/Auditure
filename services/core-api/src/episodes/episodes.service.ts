@@ -18,6 +18,7 @@ import { BookExtractionDispatcher } from '../books/services/book-extraction-disp
 import { UsersService } from '../users/users.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PodcastersService } from '../podcasters/podcasters.service';
+import { trackEvent } from '../common/analytics';
 import {
     CreateEpisodeDto,
     CreateEpisodeWithFileDto,
@@ -270,6 +271,16 @@ export class EpisodesService {
             });
             this.logger.log(`Episode created with ID: ${episode.id}`);
 
+            trackEvent(userId, 'episode_created', {
+                episodeId: episode.id,
+                podcasterId: createEpisodeDto.podcasterId,
+                bookId: createEpisodeDto.bookId,
+                episodeType: createEpisodeDto.episodeType,
+                voiceTier: createEpisodeDto.voiceTier || 'STANDARD',
+                targetLengthMax: createEpisodeDto.targetLengthMax,
+                source: 'existing_book',
+            });
+
             // Queue the episode for generation
             this.logger.log('Publishing episode generation job to RabbitMQ');
             await this.rabbitMQService.publishEpisodeGenerationJob({
@@ -439,6 +450,17 @@ export class EpisodesService {
                 this.logger.error(`Database error stack: ${dbError.stack}`);
                 throw new BadRequestException(`Failed to create episode: ${dbError.message}`);
             }
+
+            trackEvent(userId, 'episode_created', {
+                episodeId: episode.id,
+                podcasterId: createEpisodeDto.podcasterId,
+                bookId: book.id,
+                episodeType: createEpisodeDto.episodeType,
+                voiceTier: createEpisodeDto.voiceTier || 'STANDARD',
+                targetLengthMax: createEpisodeDto.targetLengthMax,
+                source: 'file_upload',
+                sourceType,
+            });
 
             // If book extraction is already complete (unlikely but possible for small files),
             // queue the episode immediately

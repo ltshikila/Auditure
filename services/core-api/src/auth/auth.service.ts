@@ -10,6 +10,7 @@ import * as bcrypt from 'bcrypt';
 import { DatabaseService } from '../database/database.service';
 import { EmailService } from '../common/email.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { identifyUser, trackEvent } from '../common/analytics';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { VerifyDto } from './dto/verify.dto';
@@ -93,6 +94,11 @@ export class AuthService {
             });
 
             this.logger.log(`User created with ID: ${user.id}`);
+
+            trackEvent(user.id, 'signup_started', {
+                email: user.email,
+                tier: 'FREE',
+            });
 
             try {
                 await this.emailService.sendOTP(user.email, otp);
@@ -244,6 +250,18 @@ export class AuthService {
             });
 
             this.logger.log(`Email verified successfully for user: ${user.id}`);
+
+            identifyUser(user.id, {
+                email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                tier: 'FREE',
+                signupDate: user.createdAt,
+            });
+            trackEvent(user.id, 'signup', {
+                email: user.email,
+                tier: 'FREE',
+            });
 
             // Send welcome notification for new users
             try {

@@ -2,6 +2,7 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { PaystackService, PaystackSubscription } from './paystack.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { trackEvent } from '../common/analytics';
 
 @Injectable()
 export class SubscriptionsService {
@@ -586,6 +587,16 @@ export class SubscriptionsService {
                 this.logger.log(
                     `Subscription activated for user ${targetUserId}: ${subscriptionTier}, code: ${paystackSubscriptionCode}`,
                 );
+
+                trackEvent(targetUserId, 'subscription_activated', {
+                    tier: subscriptionTier,
+                    isUpgrade,
+                    amount: transaction.amount,
+                    currency: transaction.currency,
+                    paystackReference: transaction.reference,
+                    paystackSubscriptionCode,
+                    source: 'payment_callback',
+                });
             }
         }
 
@@ -912,6 +923,14 @@ export class SubscriptionsService {
             });
 
             this.logger.log(`User ${userId} payment successful, tier: ${subscriptionTier}, usage reset`);
+
+            trackEvent(userId, 'subscription_activated', {
+                tier: subscriptionTier,
+                amount: data.amount,
+                currency: data.currency,
+                paystackReference: data.reference,
+                source: 'webhook_charge_success',
+            });
 
             const tierName = subscriptionTier === 'PRO' ? 'Pro' : 'Starter';
             await this.notificationsService.notifySystem(
