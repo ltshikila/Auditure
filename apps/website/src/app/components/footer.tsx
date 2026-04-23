@@ -58,7 +58,7 @@ export function Footer() {
             <ul className="space-y-2">
               {[
                 { label: 'X (Twitter)', href: 'https://x.com/auditurestudios' },
-                { label: 'Reddit', href: 'https://www.reddit.com/user/Grouchy_Slice_1379/' },
+                { label: 'Reddit', href: 'https://www.reddit.com/user/auditure_studios/' },
                 { label: 'Contact Us', href: 'mailto:support@auditure.app' },
               ].map((item) => (
                 <li key={item.label}>
