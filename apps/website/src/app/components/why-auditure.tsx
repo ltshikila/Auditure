@@ -62,13 +62,18 @@ export function WhyAuditure() {
             That bookshelf of unread books? Turn them into podcast episodes you can listen to while commuting, working out, or relaxing. No more excuses — just press play.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button className="bg-white/90 text-[#920002] px-8 py-4 rounded-[15px] shadow-lg font-['Plus_Jakarta_Sans',sans-serif] flex items-center justify-center gap-3 cursor-default">
+            <a
+              href="https://play.google.com/store/apps/details?id=com.auditure.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-white hover:bg-white/95 text-[#920002] px-8 py-4 rounded-[15px] shadow-lg font-['Plus_Jakarta_Sans',sans-serif] flex items-center justify-center gap-3 transition-colors"
+            >
               <img src={googlePlayIcon} alt="" width="24" height="24" />
-              Android Coming Soon
-            </button>
+              Download on Android
+            </a>
           </div>
           <p className="font-['Plus_Jakarta_Sans',sans-serif] text-white/70 text-sm mt-6">
-            Android &amp; iOS launching soon
+            Live on Android. iOS coming soon.
           </p>
         </div>
       </div>
