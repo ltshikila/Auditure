@@ -1,4 +1,5 @@
 import googlePlayIcon from '@/assets/google-play-icon.svg';
+import { WaitlistForm } from './waitlist-form';
 
 export function CTA() {
   return (
@@ -26,6 +27,13 @@ export function CTA() {
             </svg>
             iOS Coming Soon
           </button>
+        </div>
+
+        <div className="flex flex-col items-center gap-3 mb-12">
+          <p className="font-['Plus_Jakarta_Sans',sans-serif] text-white/70 text-sm">
+            On iOS? Get notified the moment we launch.
+          </p>
+          <WaitlistForm variant="dark" platform="ios" />
         </div>
 
         {/* Key stats */}

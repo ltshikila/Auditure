@@ -1,5 +1,6 @@
 import appLogo from 'figma:asset/9d4b5c5fc52fec774c788c231ec86fca8166a560.png';
 import googlePlayIcon from '@/assets/google-play-icon.svg';
+import { WaitlistForm } from './waitlist-form';
 
 export function Hero() {
   return (
@@ -31,6 +32,13 @@ export function Hero() {
               </svg>
               iOS Coming Soon
             </button>
+          </div>
+
+          <div className="flex flex-col items-center gap-3 w-full">
+            <p className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a] text-sm">
+              On iOS? Get notified the moment we launch.
+            </p>
+            <WaitlistForm variant="light" platform="ios" />
           </div>
         </div>
       </div>
