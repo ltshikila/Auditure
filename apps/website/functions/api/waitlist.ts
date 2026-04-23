@@ -4,18 +4,41 @@ interface Env {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const VERSION = 'v3-diagnostic';
+const VERSION = 'v4-diagnostic';
 
 export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
   const apiKey = (env.RESEND_API_KEY || '').trim();
   const audienceId = (env.RESEND_AUDIENCE_ID || '').trim();
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10_000);
+
+  let resendStatus: number | string = 'not-attempted';
+  let resendBody = '';
+  try {
+    const res = await fetch(`https://api.resend.com/audiences/${audienceId}`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: controller.signal,
+    });
+    resendStatus = res.status;
+    resendBody = (await res.text()).slice(0, 300);
+  } catch (err) {
+    resendStatus = 'fetch-threw';
+    resendBody = err instanceof Error ? err.message : String(err);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
   return json({
     version: VERSION,
     hasApiKey: apiKey.length > 0,
     apiKeyLength: apiKey.length,
+    apiKeyStartsWithRe: apiKey.startsWith('re_'),
     hasAudienceId: audienceId.length > 0,
     audienceIdLength: audienceId.length,
     audienceIdLooksLikeUuid: /^[0-9a-f-]{36}$/i.test(audienceId),
+    resendStatus,
+    resendBody,
   });
 };
 
