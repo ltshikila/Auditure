@@ -444,6 +444,8 @@ export default function SubscriptionScreen() {
     const isPaid = subscription?.isPaid ?? false;
     const isCancelled = subscription?.isCancelled ?? false;
     const paystackStatus = subscription?.paystackSubscription;
+    const comp = subscription?.comp ?? null;
+    const isComped = comp !== null;
 
     return (
         <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg" edges={['top', 'left', 'right']}>
@@ -457,12 +459,14 @@ export default function SubscriptionScreen() {
                 {/* Header */}
                 <View className="mb-6">
                     <Text className="font-inter-bold text-2xl text-brand-black dark:text-brand-dark-text">
-                        {isPaid ? 'Your Subscription' : 'Unlock Premium'}
+                        {isComped ? 'Your Complimentary Access' : isPaid ? 'Your Subscription' : 'Unlock Premium'}
                     </Text>
                     <Text className="font-jakarta text-gray-600 dark:text-brand-dark-text-secondary mt-1">
-                        {isPaid
-                            ? 'Manage your premium subscription'
-                            : 'Create more podcast episodes from your books'}
+                        {isComped
+                            ? 'Enjoy PRO on us — subscribe before it ends to keep going'
+                            : isPaid
+                              ? 'Manage your premium subscription'
+                              : 'Create more podcast episodes from your books'}
                     </Text>
                 </View>
 
@@ -491,7 +495,7 @@ export default function SubscriptionScreen() {
                     }}>
                     <View className="flex-row items-center justify-between mb-4">
                         <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text">Current Plan</Text>
-                        {isPaid ? (
+                        {isPaid || isComped ? (
                             <LinearGradient
                                 colors={['#BF9A54', '#D4AF37']}
                                 start={{ x: 0, y: 0 }}
@@ -509,6 +513,18 @@ export default function SubscriptionScreen() {
                             </View>
                         )}
                     </View>
+
+                    {isComped && comp && (
+                        <View className="rounded-xl p-3 mb-4 flex-row items-center">
+                            <Ionicons name="gift-outline" size={18} color="#BF9A54" />
+                            <Text className="font-inter-medium ml-2 text-brand-gold">
+                                Complimentary access
+                            </Text>
+                            <Text className="font-inter ml-auto text-sm text-gray-500 dark:text-brand-dark-text-muted">
+                                Ends {formatDate(comp.expiresAt)}
+                            </Text>
+                        </View>
+                    )}
 
                     {isPaid && (
                         <View className="rounded-xl p-3 mb-4 flex-row items-center">
@@ -536,7 +552,7 @@ export default function SubscriptionScreen() {
                     )}
 
                     {/* Usage Stats */}
-                    {isPaid ? (
+                    {isPaid || isComped ? (
                         /* Paid tiers: unified episode counter */
                         <UsageBar
                             label="Episodes"
@@ -562,7 +578,7 @@ export default function SubscriptionScreen() {
                 </View>
 
                 {/* Reactivate Button - Show below Current Plan card if cancelled AND we have Paystack status */}
-                {isPaid && isCancelled && paystackStatus && (
+                {isPaid && !isComped && isCancelled && paystackStatus && (
                     <TouchableOpacity
                         onPress={handleReactivate}
                         disabled={purchasing}
@@ -593,11 +609,11 @@ export default function SubscriptionScreen() {
                     </TouchableOpacity>
                 )}
 
-                {/* Pricing Selection - Show if not paid OR cancelled without ability to reactivate */}
-                {(!isPaid || (isPaid && isCancelled && !paystackStatus)) && (
+                {/* Pricing Selection - Show if not paid OR cancelled without ability to reactivate OR comped (so they can subscribe to keep access) */}
+                {(!isPaid || (isPaid && isCancelled && !paystackStatus) || isComped) && (
                     <>
                         <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text mb-4">
-                            {isCancelled ? 'Subscribe Again' : 'Choose Your Plan'}
+                            {isComped ? 'Keep Your Access' : isCancelled ? 'Subscribe Again' : 'Choose Your Plan'}
                         </Text>
 
                         {/* Pricing Cards */}
@@ -681,7 +697,7 @@ export default function SubscriptionScreen() {
                 )}
 
                 {/* Upgrade Option - Show for STARTER subscribers (active or cancelled) but not when PRO is selected in Subscribe Again */}
-                {isPaid && subscription?.tier === 'STARTER' && !(isCancelled && !paystackStatus && selectedTier === 'pro') && (
+                {isPaid && !isComped && subscription?.tier === 'STARTER' && !(isCancelled && !paystackStatus && selectedTier === 'pro') && (
                     <View className="mb-6">
                         <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text mb-4">
                             Upgrade Your Plan
@@ -752,7 +768,7 @@ export default function SubscriptionScreen() {
                 )}
 
                 {/* Downgrade Option - Show for PRO subscribers (active, or cancelled with reactivate option) */}
-                {isPaid && subscription?.tier === 'PRO' && (!isCancelled || paystackStatus) && (
+                {isPaid && !isComped && subscription?.tier === 'PRO' && (!isCancelled || paystackStatus) && (
                     <View className="mb-6">
                         <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text mb-4">
                             Change Plan
@@ -809,7 +825,7 @@ export default function SubscriptionScreen() {
                     </View>
                 )}
 
-                {isPaid && !isCancelled && (
+                {isPaid && !isComped && !isCancelled && (
                     <TouchableOpacity
                         onPress={handleCancelSubscription}
                         disabled={purchasing}
@@ -839,11 +855,13 @@ export default function SubscriptionScreen() {
 
                 {/* Terms */}
                 <Text className="font-inter text-gray-400 dark:text-brand-dark-text-muted text-xs text-center px-4 leading-5">
-                    {isPaid
-                        ? isCancelled
-                            ? 'Your subscription is cancelled but you still have access until the end of your billing period. Reactivate anytime to continue your subscription.'
-                            : 'Your subscription renews automatically. You can cancel anytime from this screen.'
-                        : 'By subscribing, you agree to our Terms of Service. Subscription automatically renews unless cancelled.'}
+                    {isComped
+                        ? `Your complimentary PRO access ends on ${comp ? formatDate(comp.expiresAt) : 'the expiry date'}. Subscribe anytime to keep your access uninterrupted.`
+                        : isPaid
+                          ? isCancelled
+                              ? 'Your subscription is cancelled but you still have access until the end of your billing period. Reactivate anytime to continue your subscription.'
+                              : 'Your subscription renews automatically. You can cancel anytime from this screen.'
+                          : 'By subscribing, you agree to our Terms of Service. Subscription automatically renews unless cancelled.'}
                 </Text>
             </ScrollView>
         </SafeAreaView>

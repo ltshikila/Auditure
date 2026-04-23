@@ -15,6 +15,11 @@ export interface PaystackSubscriptionDetails {
     nextPaymentDate: string | null;
 }
 
+export interface CompDetails {
+    expiresAt: string;
+    reason: string | null;
+}
+
 export interface SubscriptionStatus {
     tier: 'FREE' | 'STARTER' | 'PRO';
     isPaid: boolean;
@@ -22,6 +27,7 @@ export interface SubscriptionStatus {
     premiumStartedAt: string | null;
     premiumExpiresAt: string | null;
     paystackSubscription: PaystackSubscriptionDetails | null;
+    comp: CompDetails | null;
     usage: {
         geminiEpisodesUsed: number;
         standardEpisodesUsed: number;

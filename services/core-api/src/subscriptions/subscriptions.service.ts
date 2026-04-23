@@ -3,6 +3,7 @@ import { DatabaseService } from '../database/database.service';
 import { PaystackService, PaystackSubscription } from './paystack.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { trackEvent } from '../common/analytics';
+import { resolveEffectiveTier } from './tier-resolution';
 
 @Injectable()
 export class SubscriptionsService {
@@ -28,6 +29,7 @@ export class SubscriptionsService {
                 isPaid: false,
                 isCancelled: false,
                 paystackSubscription: null,
+                comp: null,
                 usage: {
                     geminiEpisodesUsed: 0,
                     standardEpisodesUsed: 0,
@@ -37,17 +39,38 @@ export class SubscriptionsService {
             };
         }
 
-        // Fetch latest from Paystack if we have a subscription code
-        let paystackSubscription: {
-            status: string;
-            nextPaymentDate: Date | null;
-        } | null = null;
-        let isCancelled = false;
+        const resolution = resolveEffectiveTier(subscription);
 
-        const isPaid = subscription.tier === 'STARTER' || subscription.tier === 'PRO';
+        // Comp-only access: skip all Paystack logic. Comped users have no Paystack
+        // codes, so the paid-but-no-code grace period must never run for them.
+        if (resolution.source === 'comp') {
+            return {
+                tier: resolution.tier,
+                isPaid: false,
+                isCancelled: false,
+                premiumStartedAt: subscription.premiumStartedAt,
+                premiumExpiresAt: subscription.premiumExpiresAt,
+                paystackSubscription: null,
+                comp: {
+                    expiresAt: resolution.expiresAt,
+                    reason: resolution.reason,
+                },
+                usage: {
+                    geminiEpisodesUsed: subscription.geminiEpisodesUsed,
+                    standardEpisodesUsed: subscription.standardEpisodesUsed,
+                    geminiEpisodeLimit: subscription.geminiEpisodeLimit,
+                    standardEpisodeLimit: subscription.standardEpisodeLimit,
+                },
+            };
+        }
 
-        // Enforce expiry: if premium has expired, downgrade to FREE immediately
-        if (isPaid && subscription.premiumExpiresAt && subscription.premiumExpiresAt < new Date()) {
+        // Both paid access and comp (if any) are expired or absent — downgrade to FREE.
+        // We only downgrade when the DB still reflects a paid tier; a FREE sub with
+        // expired comp is already correct.
+        if (
+            resolution.source === 'none' &&
+            (subscription.tier === 'STARTER' || subscription.tier === 'PRO')
+        ) {
             this.logger.log(
                 `Premium expired for user ${userId} (expired: ${subscription.premiumExpiresAt?.toISOString()}) — downgrading to FREE`,
             );
@@ -74,6 +97,7 @@ export class SubscriptionsService {
                 premiumStartedAt: subscription.premiumStartedAt,
                 premiumExpiresAt: subscription.premiumExpiresAt,
                 paystackSubscription: null,
+                comp: null,
                 usage: {
                     geminiEpisodesUsed: 0,
                     standardEpisodesUsed: 0,
@@ -82,6 +106,14 @@ export class SubscriptionsService {
                 },
             };
         }
+
+        // Paid (or plain FREE) — existing Paystack sync logic applies.
+        let paystackSubscription: {
+            status: string;
+            nextPaymentDate: Date | null;
+        } | null = null;
+        let isCancelled = false;
+        const isPaid = resolution.source === 'paid';
 
         if (subscription.paystackSubscriptionCode && this.paystackService.isConfigured()) {
             try {
@@ -143,6 +175,7 @@ export class SubscriptionsService {
             premiumStartedAt: subscription.premiumStartedAt,
             premiumExpiresAt: subscription.premiumExpiresAt,
             paystackSubscription,
+            comp: null,
             usage: {
                 geminiEpisodesUsed: subscription.geminiEpisodesUsed,
                 standardEpisodesUsed: subscription.standardEpisodesUsed,
@@ -581,8 +614,21 @@ export class SubscriptionsService {
                             subscription.paystackCustomerCode,
                         paystackSubscriptionCode,
                         paystackEmailToken,
+                        // Paid conversion consumes any outstanding comp.
+                        compGrantedAt: null,
+                        compExpiresAt: null,
+                        compReason: null,
                     },
                 });
+
+                if (subscription.compExpiresAt) {
+                    this.logger.log(
+                        `Comp cleared for user ${targetUserId} on paid conversion (was: ${subscription.compExpiresAt.toISOString()})`,
+                    );
+                    trackEvent(targetUserId, 'comp_converted_to_paid', {
+                        tier: subscriptionTier,
+                    });
+                }
 
                 this.logger.log(
                     `Subscription activated for user ${targetUserId}: ${subscriptionTier}, code: ${paystackSubscriptionCode}`,
@@ -642,6 +688,20 @@ export class SubscriptionsService {
 
         if (!subscription || subscription.tier === 'FREE') {
             throw new BadRequestException('No active subscription found.');
+        }
+
+        // Comped users have no Paystack sub to cancel. Reject cleanly so UI can
+        // show the comp expiry message instead of "Failed to cancel".
+        const resolution = resolveEffectiveTier(subscription);
+        if (resolution.source === 'comp') {
+            const expiresAt = resolution.expiresAt.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+            });
+            throw new BadRequestException(
+                `Your complimentary access can't be cancelled — it ends automatically on ${expiresAt}.`,
+            );
         }
 
         // Try to cancel on Paystack if we have the subscription code
@@ -919,8 +979,19 @@ export class SubscriptionsService {
                     standardEpisodesUsed: 0,
                     paystackCustomerCode:
                         data.customer?.customer_code || subscription.paystackCustomerCode,
+                    // Paid conversion consumes any outstanding comp.
+                    compGrantedAt: null,
+                    compExpiresAt: null,
+                    compReason: null,
                 },
             });
+
+            if (subscription.compExpiresAt) {
+                trackEvent(userId, 'comp_converted_to_paid', {
+                    tier: subscriptionTier,
+                    source: 'webhook_charge_success',
+                });
+            }
 
             this.logger.log(`User ${userId} payment successful, tier: ${subscriptionTier}, usage reset`);
 
@@ -993,8 +1064,19 @@ export class SubscriptionsService {
                 standardEpisodeLimit: limits.standardEpisodeLimit,
                 geminiEpisodesUsed: 0,
                 standardEpisodesUsed: 0,
+                // Paid conversion consumes any outstanding comp.
+                compGrantedAt: null,
+                compExpiresAt: null,
+                compReason: null,
             },
         });
+
+        if (subscription.compExpiresAt) {
+            trackEvent(subscription.userId, 'comp_converted_to_paid', {
+                tier,
+                source: 'webhook_subscription_create',
+            });
+        }
 
         this.logger.log(`User ${subscription.userId} subscribed to ${tier}, usage reset`);
 
@@ -1089,6 +1171,129 @@ export class SubscriptionsService {
             'Payment Failed',
             "We couldn't process your subscription payment. Please update your payment method.",
         );
+    }
+
+    // Comped subscriptions (influencer outreach, press, etc.)
+
+    /**
+     * Grant PRO access for a fixed duration, independent of Paystack.
+     * Idempotent: re-granting extends compExpiresAt to the later of (current, new).
+     * Refuses if the user already has an active paid subscription — they're paying,
+     * so a comp would be either redundant or silently replace their billing state.
+     */
+    async grantCompSubscription(
+        userId: string,
+        options: { durationDays: number; reason?: string | null },
+    ): Promise<{ expiresAt: Date; extended: boolean }> {
+        const { durationDays, reason = null } = options;
+
+        if (durationDays <= 0) {
+            throw new BadRequestException('durationDays must be positive');
+        }
+
+        const subscription = await this.getOrCreateSubscription(userId);
+        const resolution = resolveEffectiveTier(subscription);
+
+        if (resolution.source === 'paid') {
+            throw new BadRequestException(
+                `User has an active paid subscription (expires ${resolution.expiresAt.toISOString()}). Refusing to grant comp.`,
+            );
+        }
+
+        const now = new Date();
+        const newExpiry = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
+
+        // Idempotent: if already comped, extend to whichever is later.
+        const existing = subscription.compExpiresAt;
+        const expiresAt =
+            existing && existing > newExpiry ? existing : newExpiry;
+        const extended = existing !== null && existing > now;
+
+        const limits = this.getLimitsForTier('PRO');
+
+        await this.databaseService.subscription.update({
+            where: { userId },
+            data: {
+                tier: 'PRO',
+                compGrantedAt: subscription.compGrantedAt ?? now,
+                compExpiresAt: expiresAt,
+                compReason: reason,
+                geminiEpisodeLimit: limits.geminiEpisodeLimit,
+                standardEpisodeLimit: limits.standardEpisodeLimit,
+                // Reset usage on a fresh grant; keep it on an extension.
+                ...(extended
+                    ? {}
+                    : {
+                          geminiEpisodesUsed: 0,
+                          standardEpisodesUsed: 0,
+                          usagePeriodStart: now,
+                      }),
+            },
+        });
+
+        this.logger.log(
+            `Comp ${extended ? 'extended' : 'granted'} for user ${userId} until ${expiresAt.toISOString()}${reason ? ` (${reason})` : ''}`,
+        );
+
+        trackEvent(userId, extended ? 'comp_extended' : 'comp_granted', {
+            durationDays,
+            reason,
+            expiresAt: expiresAt.toISOString(),
+        });
+
+        return { expiresAt, extended };
+    }
+
+    /**
+     * Clear comp access. Leaves paid state untouched (they may still have a real sub).
+     * If the user has no active paid access after revocation, downgrade to FREE.
+     */
+    async revokeCompSubscription(userId: string): Promise<void> {
+        const subscription = await this.databaseService.subscription.findUnique({
+            where: { userId },
+        });
+
+        if (!subscription || !subscription.compExpiresAt) {
+            throw new BadRequestException('No comp to revoke.');
+        }
+
+        // Does the user still have an active paid sub? If so, keep tier as-is.
+        const hasActivePaid =
+            (subscription.tier === 'STARTER' || subscription.tier === 'PRO') &&
+            subscription.premiumExpiresAt !== null &&
+            subscription.premiumExpiresAt > new Date() &&
+            subscription.paystackSubscriptionCode !== null;
+
+        if (hasActivePaid) {
+            await this.databaseService.subscription.update({
+                where: { userId },
+                data: {
+                    compGrantedAt: null,
+                    compExpiresAt: null,
+                    compReason: null,
+                },
+            });
+            this.logger.log(`Comp revoked for user ${userId} (paid sub remains)`);
+        } else {
+            const freeLimits = this.getLimitsForTier('FREE');
+            await this.databaseService.subscription.update({
+                where: { userId },
+                data: {
+                    tier: 'FREE',
+                    compGrantedAt: null,
+                    compExpiresAt: null,
+                    compReason: null,
+                    geminiEpisodeLimit: freeLimits.geminiEpisodeLimit,
+                    standardEpisodeLimit: freeLimits.standardEpisodeLimit,
+                    geminiEpisodesUsed: 0,
+                    standardEpisodesUsed: 0,
+                    usagePeriodStart: new Date(),
+                },
+            });
+            this.logger.log(`Comp revoked for user ${userId} — downgraded to FREE`);
+        }
+
+        trackEvent(userId, 'comp_revoked', {});
     }
 
     // Helper methods
