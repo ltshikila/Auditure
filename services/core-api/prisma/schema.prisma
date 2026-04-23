@@ -456,6 +456,11 @@ model Subscription {
   premiumStartedAt          DateTime?
   premiumExpiresAt          DateTime?
 
+  // Comped subscriptions (influencer outreach, press, etc.) — independent of Paystack
+  compGrantedAt             DateTime?
+  compExpiresAt             DateTime?
+  compReason                String?          // e.g. "influencer:@jane", "press"
+
   // Timestamps
   createdAt                 DateTime         @default(now())
   updatedAt                 DateTime         @updatedAt
@@ -467,6 +472,7 @@ model Subscription {
   @@index([usagePeriodStart])
   @@index([paystackCustomerCode])
   @@index([paystackSubscriptionCode])                 // Subscription lookup by Paystack code
+  @@index([compExpiresAt])                            // Find expiring comps for reminder jobs
   @@map("subscriptions")
 }
 
