@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
+import { shutdownAnalytics } from './common/analytics';
 
 async function bootstrap() {
     const logger = new Logger('Bootstrap');
@@ -54,6 +55,17 @@ async function bootstrap() {
 
     // Global request logging
     app.useGlobalInterceptors(new LoggingInterceptor());
+
+    app.enableShutdownHooks();
+    const flushOnExit = async () => {
+        try {
+            await shutdownAnalytics();
+        } catch (err) {
+            logger.error(`Analytics shutdown error: ${err}`);
+        }
+    };
+    process.on('SIGTERM', flushOnExit);
+    process.on('SIGINT', flushOnExit);
 
     await app.listen(process.env.PORT ?? 3000);
 
