@@ -64,8 +64,8 @@ async function bootstrap() {
             logger.error(`Analytics shutdown error: ${err}`);
         }
     };
-    process.on('SIGTERM', flushOnExit);
-    process.on('SIGINT', flushOnExit);
+    process.on('SIGTERM', () => void flushOnExit());
+    process.on('SIGINT', () => void flushOnExit());
 
     await app.listen(process.env.PORT ?? 3000);
 
