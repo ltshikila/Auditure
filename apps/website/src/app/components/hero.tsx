@@ -44,8 +44,8 @@ export function Hero() {
       </div>
 
       {/* Background decoration */}
-      <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-[#920002] opacity-5 blur-[100px] rounded-full"></div>
-      <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-[#2f2f2f] opacity-5 blur-[120px] rounded-full"></div>
+      <div className="pointer-events-none absolute top-0 right-0 w-1/3 h-1/3 bg-[#920002] opacity-5 blur-[100px] rounded-full"></div>
+      <div className="pointer-events-none absolute bottom-0 left-0 w-1/2 h-1/2 bg-[#2f2f2f] opacity-5 blur-[120px] rounded-full"></div>
     </section>
   );
 }
