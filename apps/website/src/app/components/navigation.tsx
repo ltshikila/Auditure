@@ -31,10 +31,15 @@ export function Navigation() {
 
           {/* CTA Button */}
           <div className="flex items-center gap-4">
-            <button className="hidden sm:flex items-center gap-2 bg-[#920002]/80 text-white px-6 py-3 rounded-[12px] font-['Plus_Jakarta_Sans',sans-serif] cursor-default">
+            <a
+              href="https://play.google.com/store/apps/details?id=com.auditure.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden sm:flex items-center gap-2 bg-[#920002] hover:bg-[#760002] text-white px-6 py-3 rounded-[12px] font-['Plus_Jakarta_Sans',sans-serif] transition-colors"
+            >
               <img src={googlePlayIcon} alt="" width="20" height="20" />
-              Coming Soon
-            </button>
+              Get on Android
+            </a>
 
             {/* Mobile Menu Button */}
             <button className="md:hidden p-2">
