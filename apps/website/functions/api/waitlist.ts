@@ -4,43 +4,6 @@ interface Env {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const VERSION = 'v4-diagnostic';
-
-export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
-  const apiKey = (env.RESEND_API_KEY || '').trim();
-  const audienceId = (env.RESEND_AUDIENCE_ID || '').trim();
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10_000);
-
-  let resendStatus: number | string = 'not-attempted';
-  let resendBody = '';
-  try {
-    const res = await fetch(`https://api.resend.com/audiences/${audienceId}`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-      signal: controller.signal,
-    });
-    resendStatus = res.status;
-    resendBody = (await res.text()).slice(0, 300);
-  } catch (err) {
-    resendStatus = 'fetch-threw';
-    resendBody = err instanceof Error ? err.message : String(err);
-  } finally {
-    clearTimeout(timeoutId);
-  }
-
-  return json({
-    version: VERSION,
-    hasApiKey: apiKey.length > 0,
-    apiKeyLength: apiKey.length,
-    apiKeyStartsWithRe: apiKey.startsWith('re_'),
-    hasAudienceId: audienceId.length > 0,
-    audienceIdLength: audienceId.length,
-    audienceIdLooksLikeUuid: /^[0-9a-f-]{36}$/i.test(audienceId),
-    resendStatus,
-    resendBody,
-  });
-};
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
@@ -48,7 +11,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const audienceId = (env.RESEND_AUDIENCE_ID || '').trim();
 
     if (!apiKey || !audienceId) {
-      return json({ error: 'Waitlist not configured', version: VERSION }, 500);
+      return json({ error: 'Waitlist not configured' }, 500);
     }
 
     let body: { email?: unknown; platform?: unknown };
@@ -88,25 +51,23 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       );
     } catch (fetchErr) {
       clearTimeout(timeoutId);
-      const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
-      console.error('Resend fetch failed', msg);
-      return json({ error: 'Upstream fetch failed', detail: msg, version: VERSION }, 502);
+      console.error('Resend fetch failed', fetchErr);
+      return json({ error: 'Upstream unreachable. Try again.' }, 500);
     }
     clearTimeout(timeoutId);
 
-    if (res.ok) return json({ ok: true, version: VERSION });
+    if (res.ok) return json({ ok: true });
 
     const text = await res.text();
     if (res.status === 409 || /already exists/i.test(text)) {
-      return json({ ok: true, duplicate: true, version: VERSION });
+      return json({ ok: true, duplicate: true });
     }
 
     console.error('Resend API error', res.status, text);
-    return json({ error: 'Signup failed', status: res.status, detail: text.slice(0, 200), version: VERSION }, 502);
+    return json({ error: 'Signup failed. Try again.' }, 500);
   } catch (err) {
-    const msg = err instanceof Error ? `${err.message}\n${err.stack}` : String(err);
-    console.error('Waitlist function crashed', msg);
-    return json({ error: 'Server error', detail: msg, version: VERSION }, 500);
+    console.error('Waitlist function crashed', err);
+    return json({ error: 'Server error. Try again.' }, 500);
   }
 };
 
