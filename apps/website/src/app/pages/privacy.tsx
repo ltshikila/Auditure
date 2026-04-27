@@ -16,7 +16,7 @@ export function PrivacyPolicy() {
 
       {/* Content */}
       <main className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-12">
-        <h1 className="font-['DM_Serif_Display',serif] text-[#2f2f2f] text-4xl md:text-5xl mb-2">
+        <h1 className="font-['Plus_Jakarta_Sans',sans-serif] font-bold text-[#2f2f2f] text-4xl md:text-5xl mb-2">
           Privacy Policy
         </h1>
         <p className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a] text-sm mb-10">
@@ -78,11 +78,11 @@ export function PrivacyPolicy() {
         <Section title="7. Data Sharing">
           <p className="mb-3">We do not sell your personal information. We may share limited data with:</p>
           <ul className="list-disc pl-5 space-y-1 mb-3">
-            <li><strong>Paystack</strong> — for payment processing</li>
-            <li><strong>Google Cloud</strong> — for AI processing, audio generation, and hosting</li>
-            <li><strong>OpenAI</strong> — for AI script generation (text content is sent for processing; we do not opt in to training)</li>
-            <li><strong>Sentry</strong> — for error tracking and app stability</li>
-            <li><strong>Firebase</strong> — for push notifications</li>
+            <li><strong>Paystack</strong> - for payment processing</li>
+            <li><strong>Google Cloud</strong> - for AI processing, audio generation, and hosting</li>
+            <li><strong>OpenAI</strong> - for AI script generation (text content is sent for processing; we do not opt in to training)</li>
+            <li><strong>Sentry</strong> - for error tracking and app stability</li>
+            <li><strong>Firebase</strong> - for push notifications</li>
           </ul>
           <p className="mb-3">These providers are bound by their own privacy policies and data protection obligations.</p>
           <p>We may also disclose information if required by law, legal process, or to respond to valid copyright takedown requests.</p>
@@ -167,7 +167,7 @@ export function PrivacyPolicy() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mb-10">
-      <h2 className="font-['DM_Serif_Display',serif] text-[#2f2f2f] text-2xl mb-4">{title}</h2>
+      <h2 className="font-['Plus_Jakarta_Sans',sans-serif] font-semibold text-[#2f2f2f] text-2xl mb-4">{title}</h2>
       <div className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a] leading-relaxed">
         {children}
       </div>

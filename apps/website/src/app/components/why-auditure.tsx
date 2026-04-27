@@ -36,7 +36,7 @@ export function WhyAuditure() {
               Upload a Book
             </h3>
             <p className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a] leading-relaxed">
-              Upload any book you own. Your AI podcaster transforms it into engaging audio episodes — lectures, debates, discussions, and more.
+              Upload any book you own. Your AI podcaster transforms it into engaging audio episodes - lectures, debates, discussions, and more.
             </p>
           </div>
 
@@ -59,7 +59,7 @@ export function WhyAuditure() {
             Your Books Deserve to Be Heard
           </h3>
           <p className="font-['Plus_Jakarta_Sans',sans-serif] text-white/90 text-lg mb-8 max-w-2xl mx-auto">
-            That bookshelf of unread books? Turn them into podcast episodes you can listen to while commuting, working out, or relaxing. No more excuses — just press play.
+            That bookshelf of unread books? Turn them into podcast episodes you can listen to while commuting, working out, or relaxing. No more excuses - just press play.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a

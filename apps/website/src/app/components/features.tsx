@@ -10,7 +10,7 @@ export function Features() {
       ),
       bg: "bg-[#920002]",
       title: "AI Podcaster Creation",
-      description: "Design a virtual podcaster with a custom name, voice, and personality. It's your show — you decide how it sounds."
+      description: "Design a virtual podcaster with a custom name, voice, and personality. It's your show - you decide how it sounds."
     },
     {
       icon: (
@@ -33,7 +33,7 @@ export function Features() {
       ),
       bg: "bg-[#920002]",
       title: "Multiple Episode Styles",
-      description: "Choose how your book is presented — lectures, roundtable debates, deep-dive discussions. Every style brings a fresh perspective."
+      description: "Choose how your book is presented - lectures, roundtable debates, deep-dive discussions. Every style brings a fresh perspective."
     },
     {
       icon: (
@@ -70,7 +70,7 @@ export function Features() {
       ),
       bg: "bg-[#2f2f2f]",
       title: "Listen Anytime",
-      description: "Episodes are generated and ready to play. Listen on your commute, at the gym, while cooking — wherever life takes you."
+      description: "Episodes are generated and ready to play. Listen on your commute, at the gym, while cooking - wherever life takes you."
     }
   ];
 

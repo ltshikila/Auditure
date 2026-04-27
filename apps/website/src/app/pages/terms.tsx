@@ -16,7 +16,7 @@ export function TermsOfService() {
 
       {/* Content */}
       <main className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-12">
-        <h1 className="font-['DM_Serif_Display',serif] text-[#2f2f2f] text-4xl md:text-5xl mb-2">
+        <h1 className="font-['Plus_Jakarta_Sans',sans-serif] font-bold text-[#2f2f2f] text-4xl md:text-5xl mb-2">
           Terms of Service
         </h1>
         <p className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a] text-sm mb-10">
@@ -36,7 +36,7 @@ export function TermsOfService() {
         </Section>
 
         <Section title="4. Subscriptions & Payments">
-          <p>Auditure offers free and paid subscription tiers. Paid subscriptions are billed monthly through Paystack. Subscriptions automatically renew unless cancelled before the end of the current billing period. Cancellation takes effect at the end of your current billing cycle — you retain access until then.</p>
+          <p>Auditure offers free and paid subscription tiers. Paid subscriptions are billed monthly through Paystack. Subscriptions automatically renew unless cancelled before the end of the current billing period. Cancellation takes effect at the end of your current billing cycle - you retain access until then.</p>
         </Section>
 
         <Section title="5. User-Uploaded Content & Copyright">
@@ -63,7 +63,7 @@ export function TermsOfService() {
         </Section>
 
         <Section title="7. AI-Generated Content">
-          <p className="mb-3">Auditure uses AI to generate audio episodes based on user-uploaded content. AI-generated episodes are transformative works that may include lectures, discussions, summaries, and commentary derived from the source material — they are not verbatim reproductions.</p>
+          <p className="mb-3">Auditure uses AI to generate audio episodes based on user-uploaded content. AI-generated episodes are transformative works that may include lectures, discussions, summaries, and commentary derived from the source material - they are not verbatim reproductions.</p>
           <p>AI-generated audio may contain inaccuracies, interpretive differences, or imperfections. Auditure does not guarantee the accuracy or completeness of AI-generated content. Generated episodes are provided for your personal, non-commercial use. You may not redistribute, resell, or publicly broadcast generated content without prior written consent.</p>
         </Section>
 
@@ -149,7 +149,7 @@ export function TermsOfService() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mb-10">
-      <h2 className="font-['DM_Serif_Display',serif] text-[#2f2f2f] text-2xl mb-4">{title}</h2>
+      <h2 className="font-['Plus_Jakarta_Sans',sans-serif] font-semibold text-[#2f2f2f] text-2xl mb-4">{title}</h2>
       <div className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a] leading-relaxed">
         {children}
       </div>

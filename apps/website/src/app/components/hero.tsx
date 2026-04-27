@@ -18,7 +18,7 @@ export function Hero() {
           </h2>
 
           <p className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a] text-lg md:text-xl leading-relaxed max-w-2xl">
-            Design an AI podcaster with its own voice and personality. Upload any book and turn it into engaging podcast episodes — lectures, debates, discussions, and more.
+            Design an AI podcaster with its own voice and personality. Upload any book and turn it into engaging podcast episodes - lectures, debates, discussions, and more.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4">
