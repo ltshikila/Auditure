@@ -56,11 +56,12 @@ Quote tweet of the Stilgar reply (779 likes, 26K impressions):
 |------|------|-------|
 | **Wed Mar 25** | The Psychology of Money — Morgan Housel | A janitor died with $8 million. A Harvard-educated executive went bankrupt. Morgan Housel's entire book is built on one idea: wealth has nothing to do with intelligence and everything to do with behavior. |
 | **Thu Mar 26** | The Seven Husbands of Evelyn Hugo — Taylor Jenkins Reid | Evelyn Hugo married seven times. The love of her life was none of them. Taylor Jenkins Reid wrote a book about Hollywood's biggest star and hid a completely different story inside it. |
-| **Fri Mar 27** | The Magic Faraway Tree — Enid Blyton | Andrew Garfield is climbing the Faraway Tree. The childhood book you forgot about is about to become the movie everyone's talking about. Most people don't even remember the plot — just the feeling of reading it. |
-| **Sat Mar 28** | The 48 Laws of Power — Robert Greene | "Let others do the work for you, but always take the credit." Robert Greene didn't write a self-help book. He wrote a manual for every boss you've ever hated and then explained why it works. |
-| **Sun Mar 29** | It Ends With Us — Colleen Hoover | It Ends With Us is the most divisive book on the internet. Half the readers call it a love story. The other half call it a warning. Hoover wrote something that refuses to tell you how to feel about it — and that's why people can't stop arguing about it. |
-| **Mon Mar 30** | Sapiens — Yuval Noah Harari | Harari says the thing that made humans the dominant species on Earth isn't intelligence. It's our ability to believe in fiction — money, religion, nations, laws. None of it is real. All of it runs the world. |
-| **Tue Mar 31** | The Testaments — Margaret Atwood | Atwood waited 34 years to write a sequel to The Handmaid's Tale. Then she wrote something that might be better than the original. Three women, three stories, one regime about to crack. |
+| **Fri Mar 27** | The Enchanted Wood (Faraway Tree) — Enid Blyton | The Magic Faraway Tree hits cinemas today with Andrew Garfield and Claire Foy. the childhood book you forgot about is about to become the movie everyone's talking about. most people don't remember the plot — just the feeling of reading it. that's the kind of book that deserves a film. |
+| ~~**Sat Mar 28**~~ | ~~The 48 Laws of Power — Robert Greene~~ | ~~MOVED~~ |
+| **Sun Mar 29 (3pm SAST)** | The 48 Laws of Power — Robert Greene | Greene didn't write a self-help book. He wrote a villain's playbook. Law 1: Never outshine the master. Every law after that gets darker. |
+| **Sun Mar 29 (7pm SAST)** | It Ends With Us — Colleen Hoover | He shoved her so hard she blacked out. Then he told her the worst thing that ever happened to him. And she forgave him. Chapter 20 of It Ends With Us is the reason the internet can't stop arguing about this book. |
+| **Mon Mar 30** | The Testaments — Margaret Atwood | Before she became the most powerful woman in Gilead, Aunt Lydia was a family court judge. Then they put her in a stadium with 500 other women and started killing them one by one. The Testaments hits Hulu April 8. The book is darker. |
+| **Tue Mar 31** | Sapiens — Yuval Noah Harari | You think humans invented farming? Harari says farming invented us. We traded freedom, health, and leisure for wheat fields we couldn't escape. 10,000 years later, we're still falling for the same trap. It's called your smartphone. |
 
 ---
 

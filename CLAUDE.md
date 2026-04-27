@@ -5,10 +5,21 @@
 - **Always research book structure before adding to the calendar.** Verify chapter count, part/book divisions, and how the content is organized before specifying chapter ranges. Use web search to confirm — do not guess.
 - When a book is adapted into a movie/show, verify which parts of the book correspond to which adaptation entries.
 - **Always research and verify episode captions against actual book content.** Before writing a caption, confirm that the plot details, character arcs, and events referenced are accurate to the specific chapters covered. The caption must link clearly to the episode title — do not guess or assume plot points.
+- **Never default to "Ch 1-5" for content coverage.** Research the full book first, then choose the most compelling section. The best episode content is often NOT the beginning. Consider:
+  - **The turn**: where the book shifts genre, tone, or expectations (e.g., a romance becoming a DV story)
+  - **The most divisive moment**: the scene readers argue about online
+  - **The climax or payoff**: the emotional peak that delivers the most satisfying standalone listen
+  - **A self-contained arc**: chapters that work as a complete story beat with setup, tension, and resolution
+  - Coverage can be a single chapter, a specific range, or the full book. Pick what makes the best podcast episode, not what's easiest.
+
+## Writing Style Rules
+
+- **NEVER use em dashes (—) in any written content.** Use periods, commas, or restructure the sentence instead.
 
 ## Twitter Reply Rules
 
-- **When asked to reply to a tweet, consider replying as the brand Auditure Studios** unless explicitly told otherwise. Keep the tone casual, genuine, and knowledgeable — not geeky or overly promotional.
+- **When asked to reply to a tweet, consider replying as the brand Auditure Studios** unless explicitly told otherwise. Keep the tone casual, genuine, and knowledgeable, not geeky or overly promotional.
+- **Always provide 3 reply options** when asked to reply to a tweet. Vary the angle across the three (e.g., one focused on craft/director, one on book/character, one on cultural reaction) so the user can pick the angle that best fits the moment. Keep all three on-brand and free of em dashes.
 
 ## Pre-Viral Detection (When User Shares a Tweet Screenshot)
 
