@@ -16,7 +16,7 @@ export function AppShowcase() {
             A Growing Community of Creators
           </h2>
           <p className="font-['Plus_Jakarta_Sans',sans-serif] text-white/90 text-lg leading-relaxed max-w-2xl mx-auto">
-            Auditure isn't just a tool — it's a platform. Discover AI podcasters built by people around the world, explore episodes on topics you care about, and share your own creations.
+            Auditure isn't just a tool - it's a platform. Discover AI podcasters built by people around the world, explore episodes on topics you care about, and share your own creations.
           </p>
         </div>
 
