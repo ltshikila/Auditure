@@ -32,24 +32,39 @@ class TestPromptBuilder:
 
     # Trait description tests
     def test_get_trait_description_low(self, builder):
-        """Test low value trait description."""
+        """Low tone values describe calm energy."""
         desc = builder._get_trait_description(2, builder.TONE_MAP)
-        assert desc == "calm, measured, and thoughtful"
+        assert "calm" in desc.lower()
 
     def test_get_trait_description_mid(self, builder):
-        """Test mid value trait description."""
+        """Mid tone values describe balanced energy."""
         desc = builder._get_trait_description(5, builder.TONE_MAP)
-        assert desc == "balanced and conversational"
+        assert "balanced" in desc.lower()
 
     def test_get_trait_description_high(self, builder):
-        """Test high value trait description."""
+        """High tone values describe energetic delivery."""
         desc = builder._get_trait_description(8, builder.TONE_MAP)
-        assert desc == "energetic, enthusiastic, and dynamic"
+        assert "enthusiastic" in desc.lower() or "energetic" in desc.lower()
 
     def test_get_trait_description_extreme(self, builder):
-        """Test extreme value trait description (9-10 tier)."""
+        """Extreme tone value (9) describes peak energy."""
         desc = builder._get_trait_description(9, builder.TONE_MAP)
         assert "ELECTRIC" in desc
+
+    def test_trait_descriptions_distinct_per_value(self, builder):
+        """Every slider value 1-10 produces a distinct description."""
+        for trait_map in (
+            builder.TONE_MAP, builder.COMMUNICATION_MAP, builder.HUMOR_MAP,
+            builder.DEPTH_MAP, builder.CHAOS_MAP, builder.SENTENCE_STRUCTURE_MAP,
+            builder.EMOTIONAL_EXPRESSION_MAP, builder.VIEWPOINT_BEHAVIOR_MAP,
+        ):
+            descs = [builder._get_trait_description(v, trait_map) for v in range(1, 11)]
+            assert len(set(descs)) == 10
+
+    def test_trait_description_clamps_out_of_range(self, builder):
+        """Out-of-range values clamp to nearest endpoint without error."""
+        assert builder._get_trait_description(0, builder.TONE_MAP) == builder.TONE_MAP[1]
+        assert builder._get_trait_description(11, builder.TONE_MAP) == builder.TONE_MAP[10]
 
     # Personality description tests
     def test_build_personality_description(self, builder, sample_personality):
@@ -61,6 +76,9 @@ class TestPromptBuilder:
         assert "Humor:" in desc
         assert "Depth:" in desc
         assert "Flow:" in desc
+        assert "Sentence shape:" in desc
+        assert "Emotional delivery:" in desc
+        assert "Stance toward the book:" in desc
         assert "Skeptical" in desc
         # Expertise tags are now handled by build_genre_and_expertise_instructions()
         assert "Areas of expertise" not in desc

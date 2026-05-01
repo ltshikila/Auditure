@@ -105,6 +105,9 @@ class ScriptGenerator:
             chaos_factor=podcaster_personality.get("chaos_factor", 5),
             intellectual_angle=podcaster_personality.get("intellectual_angle"),
             expertise_tags=podcaster_personality.get("expertise_tags"),
+            sentence_structure=podcaster_personality.get("sentence_structure", 5),
+            emotional_expression=podcaster_personality.get("emotional_expression", 5),
+            viewpoint_behavior=podcaster_personality.get("viewpoint_behavior", 5),
         )
 
         script = None

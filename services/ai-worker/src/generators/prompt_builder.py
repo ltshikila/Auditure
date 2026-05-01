@@ -251,13 +251,16 @@ class DebateConfig:
 class PodcasterPersonality:
     """Podcaster personality configuration."""
 
-    tone: int  # 1-10
-    communication_style: int  # 1-10
-    humor_level: int  # 1-10
-    conversational_depth: int  # 1-10
-    chaos_factor: int  # 1-10
+    tone: int  # 1-10, Calm to Energetic
+    communication_style: int  # 1-10, Storytelling to Analytical
+    humor_level: int  # 1-10, Dry to Comedic
+    conversational_depth: int  # 1-10, Surface-Level to Deep Thinking
+    chaos_factor: int  # 1-10, Steady to Volatile
     intellectual_angle: Optional[str] = None
     expertise_tags: Optional[list[str]] = None
+    sentence_structure: int = 5  # 1-10, Concise to Elaborate
+    emotional_expression: int = 5  # 1-10, Monotone to Expressive
+    viewpoint_behavior: int = 5  # 1-10, Agreeable to Challenging
 
 
 @dataclass
@@ -305,52 +308,122 @@ class ScriptRequest:
 class PromptBuilder:
     """Build prompts for LLM script generation."""
 
-    # Personality trait mappings
+    # Personality trait mappings.
+    # Each slider maps every value 1-10 to a distinct description so adjacent
+    # values produce subtly different prompts (gradient, not buckets).
+
     TONE_MAP = {
-        (1, 3): "calm, measured, and thoughtful",
-        (4, 6): "balanced and conversational",
-        (7, 8): "energetic, enthusiastic, and dynamic",
-        (9, 10): "ELECTRIC — bursting with energy, infectious excitement, voice dripping with passion, practically jumping out of their seat",
+        1: "utterly serene, near-meditative, voice barely above a whisper",
+        2: "deeply calm, hushed and unhurried, comfortable with silence",
+        3: "thoughtful and measured, composed, lets ideas breathe",
+        4: "relaxed and conversational, easygoing warmth, mild interest",
+        5: "balanced and present, steady conversational energy, neither sleepy nor hyped",
+        6: "warmly engaged, visibly interested, animated when something clicks",
+        7: "energetic and dynamic, riding momentum, voice climbs with excitement",
+        8: "enthusiastic and charged, exclamatory bursts, can't sit still",
+        9: "ELECTRIC: voice dripping with passion, rapid-fire excitement, contagious energy",
+        10: "INCANDESCENT: practically vibrating, every sentence near-shouted, runs on pure adrenaline",
     }
 
     COMMUNICATION_MAP = {
-        (1, 3): "storytelling and narrative-focused",
-        (4, 6): "balanced between stories and analysis",
-        (7, 8): "analytical and fact-driven",
-        (9, 10): "rapid-fire analysis — rattles off facts, connects dots at lightning speed, builds argument chains like a courtroom lawyer on espresso",
+        1: "pure storyteller, everything is a scene with characters and beats, no abstract analysis",
+        2: "deeply narrative-driven, leads with vignettes and direct quotes, only briefly steps back",
+        3: "heavily story-focused, most points arrive as anecdotes with light analytical glue",
+        4: "story-led with analysis, anchors in scenes then connects them to ideas",
+        5: "balanced, moves naturally between stories and breakdowns, neither dominates",
+        6: "analysis-led with stories, frames the idea first then uses scenes as evidence",
+        7: "analytical and fact-driven, leads with claims and structure, stories illustrate",
+        8: "heavily analytical, argument-shaped, builds frameworks, treats narrative as supporting evidence",
+        9: "rapid-fire analysis, connects dots at lightning speed, courtroom-lawyer cadence",
+        10: "pure analytical machine: thesis-evidence-conclusion only, dense logic chains, zero narrative",
     }
 
     HUMOR_MAP = {
-        (1, 3): "serious and professional",
-        (4, 6): "occasional light humor",
-        (7, 8): "comedic and entertaining",
-        (9, 10): "relentlessly funny — roasts everything, drops one-liners constantly, turns serious points into comedy bits, makes the other speaker crack up",
+        1: "stone serious, zero jokes, treats everything with gravity",
+        2: "very dry, only the rarest deadpan observation, never breaks frame",
+        3: "subtly dry, occasional understated wit, easy to miss",
+        4: "lightly amused, small smiles in the voice, mild observational humor",
+        5: "occasional humor, punctuates serious moments with the odd quip",
+        6: "regularly funny, steady stream of light jokes alongside the substance",
+        7: "comedic and entertaining, actively reaching for laughs, tags points with bits",
+        8: "bit-heavy, turns most observations into setups, builds running gags",
+        9: "RELENTLESSLY funny: roasts everything, drops one-liners constantly, can't help themselves",
+        10: "FULL stand-up mode: every line is a bit, breaks the other speaker, the book is mostly a prop",
     }
 
     DEPTH_MAP = {
-        (1, 3): "accessible and surface-level",
-        (4, 6): "moderately detailed",
-        (7, 8): "deep philosophical exploration",
-        (9, 10): "obsessively deep — goes down rabbit holes, pulls in obscure references, won't let a single point go unexamined, 'but wait, there's ANOTHER layer to this'",
+        1: "TL;DR mode, gives the headline, moves on, never digs",
+        2: "very surface-level, covers the gist, treats nuance as optional",
+        3: "accessible and breezy, explains the main idea cleanly, light on layers",
+        4: "moderately accessible, adds one layer of context per point",
+        5: "moderately detailed, explores implications without going down rabbit holes",
+        6: "thoughtfully layered, pulls on threads but knows when to stop",
+        7: "deep philosophical exploration, takes ideas to their roots, asks 'what does this really mean'",
+        8: "deeply analytical, multi-layer unpacking, considers second-order effects",
+        9: "OBSESSIVELY deep: goes down rabbit holes, pulls in obscure references, won't let a single point go",
+        10: "BOTTOMLESS: every point spawns three more, 'but wait, there's ANOTHER layer to this', cannot let go",
     }
 
     CHAOS_MAP = {
-        (1, 3): "structured and organized",
-        (4, 6): "semi-structured with tangents",
-        (7, 8): "spontaneous and free-flowing",
-        (9, 10): "UNHINGED — chaotic, provocative, wildly unpredictable, goes on rants, picks fights, says things that make the other speaker go 'did you really just say that?!'",
+        1: "ironclad structure, sticks to the outline, no detours, methodical pacing",
+        2: "highly structured, clear sections, brief tangents only when essential",
+        3: "structured and organized, follows a plan with the occasional aside",
+        4: "organized but flexible, main thread clear, willing to detour briefly",
+        5: "semi-structured with tangents, has a plan but doesn't worship it, follows interest",
+        6: "loose and flowing, outline is a suggestion, lets the conversation lead",
+        7: "spontaneous and free-flowing, leans into tangents, finds the structure later",
+        8: "improvisational, mostly riffing, returns to the topic eventually",
+        9: "barely contained, provocative, interrupts themselves, jumps tracks mid-sentence",
+        10: "UNHINGED: chaotic, goes on rants, picks fights, says things that make the other speaker go 'did you really just say that?!'",
+    }
+
+    SENTENCE_STRUCTURE_MAP = {
+        1: "machine-gun terse, 3-6 word sentences, fragments allowed, zero filler",
+        2: "very concise, short punchy lines, one idea per sentence",
+        3: "concise and direct, clean simple sentences, no flourishes",
+        4: "tight but natural, mostly short sentences with the occasional medium one",
+        5: "balanced mix of short and medium sentences, some compound structure",
+        6: "moderately elaborate, compound sentences, occasional subordinate clauses",
+        7: "elaborate, flowing complex sentences with embedded asides",
+        8: "rich and layered, long sentences with multiple clauses and parenthetical depth",
+        9: "highly elaborate, sweeping sentences, nested subordinations, lyrical rhythm",
+        10: "baroquely complex, sprawling sentences, cascading clauses, near-Faulknerian density",
+    }
+
+    EMOTIONAL_EXPRESSION_MAP = {
+        1: "flat affect, perfectly even register, no emotional coloring at all",
+        2: "nearly monotone, minimal inflection, words carry weight without delivery",
+        3: "subdued, controlled tone, restrained emotional cues",
+        4: "composed, small emotional beats but always reined in",
+        5: "naturally expressive, lets emotion show when warranted, never performative",
+        6: "visibly engaged, clear shifts in tone with the material, warmth and concern come through",
+        7: "highly expressive, rides the emotional contour of every point, voice rises and falls",
+        8: "animated, laughs, gasps, audible shock, real-time reactions",
+        9: "theatrical, leans into every emotional beat, voice cracks, bursts of feeling",
+        10: "OPERATIC: every sentence carries a feeling, gasps, near-tears, near-shouts, full emotional rollercoaster",
+    }
+
+    VIEWPOINT_BEHAVIOR_MAP = {
+        1: "fully agreeable, endorses the book's claims as given, no pushback",
+        2: "warmly agreeable, accepts the premises and adds supporting examples",
+        3: "receptive, generally agrees, asks softening questions for clarity",
+        4: "open but probing, agrees in principle, asks 'is that always true' on small points",
+        5: "balanced, takes claims seriously, raises mild objections where natural",
+        6: "skeptical-leaning, agrees with much but actively names the weaker parts",
+        7: "challenging, pushes back on premises, demands evidence, plays devil's advocate",
+        8: "contrarian, assumes the book is wrong until proven, hunts for flaws",
+        9: "openly oppositional, picks fights with the text, calls out logical leaps directly",
+        10: "COMBATIVE: dismantles claims line by line, treats the book as something to be defeated",
     }
 
     def _get_trait_description(
         self,
         value: int,
-        trait_map: dict[tuple, str],
+        trait_map: dict[int, str],
     ) -> str:
-        """Get description for a trait value."""
-        for (low, high), description in trait_map.items():
-            if low <= value <= high:
-                return description
-        return list(trait_map.values())[1]  # Default to middle
+        """Get description for a trait value, clamped to 1-10."""
+        clamped = max(1, min(10, value))
+        return trait_map[clamped]
 
     def build_personality_description(
         self,
@@ -373,6 +446,15 @@ class PromptBuilder:
         )
         descriptions.append(
             f"Flow: {self._get_trait_description(personality.chaos_factor, self.CHAOS_MAP)}"
+        )
+        descriptions.append(
+            f"Sentence shape: {self._get_trait_description(personality.sentence_structure, self.SENTENCE_STRUCTURE_MAP)}"
+        )
+        descriptions.append(
+            f"Emotional delivery: {self._get_trait_description(personality.emotional_expression, self.EMOTIONAL_EXPRESSION_MAP)}"
+        )
+        descriptions.append(
+            f"Stance toward the book: {self._get_trait_description(personality.viewpoint_behavior, self.VIEWPOINT_BEHAVIOR_MAP)}"
         )
 
         if personality.intellectual_angle:
