@@ -679,7 +679,7 @@ export default function Profile() {
 
                         {/* Manage Subscription Button */}
                         <TouchableOpacity
-                            onPress={() => router.push('/subscription')}
+                            onPress={() => router.push('/subscription?source=profile')}
                             className="mt-4 bg-brand-gold py-3 rounded-xl items-center">
                             <Text className="font-inter-medium text-white">
                                 {subscription.isPaid ? 'Manage Subscription' : 'View Plans'}

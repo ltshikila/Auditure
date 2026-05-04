@@ -21,7 +21,21 @@ import { playbackService } from '@/services/playback.service';
 import { storageService } from '@/services/storage.service';
 import { resolveCoverUrl } from '@/services/api';
 import { userService } from '@/services/user.service';
+import { track } from '@/lib/posthog';
 import { useAuth } from './AuthContext';
+
+type ProgressMilestone = 25 | 50 | 75;
+const PROGRESS_MILESTONES: ProgressMilestone[] = [25, 50, 75];
+
+function episodeProperties(ep: Episode | null) {
+    if (!ep) return {};
+    return {
+        episodeId: ep.id,
+        bookId: ep.book?.id,
+        podcasterId: ep.podcaster?.id,
+        durationSec: ep.duration,
+    };
+}
 
 interface PlaybackState {
     episode: Episode | null;
@@ -122,6 +136,7 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
     const hasIncrementedPlayCount = useRef<boolean>(false);
     const wasAuthenticatedRef = useRef<boolean>(isAuthenticated);
     const episodeRef = useRef<Episode | null>(null);
+    const firedMilestonesRef = useRef<Set<ProgressMilestone>>(new Set());
 
     const [episode, setEpisode] = useState<Episode | null>(null);
     const [playbackRate, setPlaybackRateState] = useState(1.0);
@@ -206,6 +221,23 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
         setIsLoading(state === State.Loading || state === State.Buffering);
     }, [playbackState.state]);
 
+    // Fire 25/50/75% progress milestones once per episode
+    useEffect(() => {
+        if (!episodeRef.current) return;
+        if (progress.duration <= 0) return;
+        const pct = (progress.position / progress.duration) * 100;
+        for (const milestone of PROGRESS_MILESTONES) {
+            if (pct >= milestone && !firedMilestonesRef.current.has(milestone)) {
+                firedMilestonesRef.current.add(milestone);
+                track('episode_progress', {
+                    ...episodeProperties(episodeRef.current),
+                    milestone,
+                    positionSec: Math.round(progress.position),
+                });
+            }
+        }
+    }, [progress.position, progress.duration]);
+
     // Handle playback errors (e.g. stream failures, missing audio files)
     useTrackPlayerEvents(
         [Event.PlaybackError],
@@ -221,6 +253,7 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
         [Event.PlaybackQueueEnded],
         async (event) => {
             if (event.track !== undefined) {
+                track('episode_completed', episodeProperties(episodeRef.current));
                 await saveProgress();
 
                 const currentQueue = queueRef.current;
@@ -334,6 +367,7 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
     const play = useCallback(async (ep: Episode) => {
         setIsLoading(true);
         hasIncrementedPlayCount.current = false;
+        firedMilestonesRef.current = new Set();
 
         // Save progress for previous track BEFORE updating episode ref
         stopProgressSaving();
@@ -417,11 +451,18 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
                 await playbackService.incrementPlayCount(ep.id);
                 hasIncrementedPlayCount.current = true;
             }
+
+            track('episode_play_started', {
+                ...episodeProperties(ep),
+                resumePositionSec: Math.round(initialPositionSec),
+                playbackRate,
+            });
         } catch (error) {
             console.error('Error playing episode:', error);
             setIsLoading(false);
             setEpisode(null);
             episodeRef.current = null;
+            track('episode_play_failed', { episodeId: ep.id, message: (error as Error)?.message });
         }
     }, [playbackRate, saveProgress, startProgressSaving, stopProgressSaving]);
 
@@ -434,6 +475,7 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
         if (queueIndexRef.current >= 0 && queueIndexRef.current < queueRef.current.length - 1) {
             const nextIndex = queueIndexRef.current + 1;
             const nextEpisode = queueRef.current[nextIndex];
+            track('episode_skipped', { ...episodeProperties(episodeRef.current), direction: 'next' });
             setQueueIndex(nextIndex);
             queueIndexRef.current = nextIndex;
             preserveQueueRef.current = true;
@@ -455,6 +497,7 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
         if (queueIndexRef.current > 0) {
             const prevIndex = queueIndexRef.current - 1;
             const prevEpisode = queueRef.current[prevIndex];
+            track('episode_skipped', { ...episodeProperties(episodeRef.current), direction: 'previous' });
             setQueueIndex(prevIndex);
             queueIndexRef.current = prevIndex;
             preserveQueueRef.current = true;
@@ -468,6 +511,11 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
     const pause = useCallback(async () => {
         try {
             await TrackPlayer.pause();
+            const currentProgress = await TrackPlayer.getProgress();
+            track('episode_paused', {
+                ...episodeProperties(episodeRef.current),
+                positionSec: Math.round(currentProgress.position),
+            });
             await saveProgress();
         } catch (error) {
             console.error('Error pausing:', error);
@@ -485,6 +533,10 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
     const seekTo = useCallback(async (posMs: number) => {
         try {
             await TrackPlayer.seekTo(posMs / 1000);
+            track('episode_seek', {
+                ...episodeProperties(episodeRef.current),
+                positionSec: Math.round(posMs / 1000),
+            });
         } catch (error) {
             console.error('Error seeking:', error);
         }

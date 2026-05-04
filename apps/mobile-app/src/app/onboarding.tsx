@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { storageService } from '@/services/storage.service';
+import { track } from '@/lib/posthog';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -49,6 +50,17 @@ export default function OnboardingScreen() {
     const [currentIndex, setCurrentIndex] = useState(0);
     const flatListRef = useRef<FlatList>(null);
 
+    React.useEffect(() => {
+        track('onboarding_opened');
+    }, []);
+
+    React.useEffect(() => {
+        track('onboarding_step_viewed', {
+            step: currentIndex + 1,
+            slideId: slides[currentIndex]?.id,
+        });
+    }, [currentIndex]);
+
     const onViewableItemsChanged = useRef(
         ({ viewableItems }: { viewableItems: ViewToken[] }) => {
             if (viewableItems.length > 0 && viewableItems[0].index !== null) {
@@ -61,10 +73,13 @@ export default function OnboardingScreen() {
         itemVisiblePercentThreshold: 50,
     }).current;
 
-    const handleComplete = useCallback(async () => {
+    const handleComplete = useCallback(async (event: 'completed' | 'skipped') => {
+        track(event === 'completed' ? 'onboarding_completed' : 'onboarding_skipped', {
+            step: currentIndex + 1,
+        });
         await storageService.setHasSeenOnboarding();
         router.replace('/(auth)/Auth');
-    }, []);
+    }, [currentIndex]);
 
     const handleNext = useCallback(() => {
         if (currentIndex < slides.length - 1) {
@@ -109,7 +124,7 @@ export default function OnboardingScreen() {
                     resizeMode="contain"
                 />
                 {!isLastSlide ? (
-                    <TouchableOpacity onPress={handleComplete} className="py-2 px-4">
+                    <TouchableOpacity onPress={() => handleComplete('skipped')} className="py-2 px-4">
                         <Text className="font-jakarta-medium text-base text-brand-gold">
                             Skip
                         </Text>
@@ -156,7 +171,7 @@ export default function OnboardingScreen() {
 
                 {/* Action button */}
                 <TouchableOpacity
-                    onPress={isLastSlide ? handleComplete : handleNext}
+                    onPress={isLastSlide ? () => handleComplete('completed') : handleNext}
                     className="bg-brand-red w-full py-4 rounded-xl items-center"
                 >
                     <Text className="text-white font-inter-medium text-base">

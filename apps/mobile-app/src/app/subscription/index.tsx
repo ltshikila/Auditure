@@ -21,6 +21,7 @@ import {
 import { TopBar } from '@/components';
 import { SubscriptionSkeleton } from '@/components/skeleton';
 import { useAlert } from '@/contexts/AlertContext';
+import { track } from '@/lib/posthog';
 
 type PricingCardProps = {
     title: string;
@@ -132,17 +133,24 @@ export default function SubscriptionScreen() {
     const [error, setError] = useState<string | null>(null);
     const [selectedTier, setSelectedTier] = useState<SubscriptionTier>('pro');
 
-    const { status, reason } = useLocalSearchParams<{ status?: string; reason?: string }>();
+    const { status, reason, source } = useLocalSearchParams<{ status?: string; reason?: string; source?: string }>();
     const pricing: Pricing = subscriptionService.getPricing();
+    const paywallSource = source || 'direct';
+
+    useEffect(() => {
+        track('paywall_viewed', { source: paywallSource });
+    }, [paywallSource]);
 
     useEffect(() => {
         if (status === 'success') {
+            track('checkout_returned', { outcome: 'success', tier: selectedTier, source: paywallSource });
             showAlert({
                 title: 'Payment Successful!',
                 message: 'Your subscription is now active. Enjoy your premium features!',
             });
             router.setParams({ status: undefined, reason: undefined });
         } else if (status === 'failed') {
+            track('checkout_returned', { outcome: 'failed', tier: selectedTier, reason, source: paywallSource });
             showAlert({
                 title: 'Payment Failed',
                 message: reason
@@ -151,9 +159,11 @@ export default function SubscriptionScreen() {
             });
             router.setParams({ status: undefined, reason: undefined });
         } else if (status === 'error') {
+            track('checkout_returned', { outcome: 'error', tier: selectedTier, source: paywallSource });
             showAlert({ title: 'Error', message: 'Something went wrong. Please try again or contact support.' });
             router.setParams({ status: undefined, reason: undefined });
         } else if (status === 'cancelled') {
+            track('checkout_returned', { outcome: 'cancelled', tier: selectedTier, source: paywallSource });
             router.setParams({ status: undefined, reason: undefined });
         }
     }, [status, reason]);
@@ -199,6 +209,7 @@ export default function SubscriptionScreen() {
     };
 
     const handleSubscribe = async () => {
+        track('paywall_cta_tapped', { tier: selectedTier, action: 'subscribe', source: paywallSource });
         try {
             setPurchasing(true);
             setError(null);
@@ -209,6 +220,7 @@ export default function SubscriptionScreen() {
                 return;
             }
 
+            track('checkout_started', { tier: selectedTier, action: 'subscribe', source: paywallSource });
             const result = await subscriptionService.startCheckout(token, selectedTier);
 
             // Always refresh subscription status after checkout returns
@@ -242,6 +254,7 @@ export default function SubscriptionScreen() {
     };
 
     const handleUpgrade = async () => {
+        track('paywall_cta_tapped', { tier: 'pro', action: 'upgrade', source: paywallSource });
         try {
             setPurchasing(true);
             setError(null);
@@ -252,8 +265,7 @@ export default function SubscriptionScreen() {
                 return;
             }
 
-            // Start checkout for Pro with isUpgrade flag
-            // The old subscription will be cancelled AFTER successful payment (server-side)
+            track('checkout_started', { tier: 'pro', action: 'upgrade', source: paywallSource });
             const result = await subscriptionService.startCheckout(token, 'pro', { isUpgrade: true });
 
             await fetchSubscription();
@@ -277,6 +289,7 @@ export default function SubscriptionScreen() {
     };
 
     const handleDowngrade = async () => {
+        track('paywall_cta_tapped', { tier: 'starter', action: 'downgrade', source: paywallSource });
         try {
             setPurchasing(true);
             setError(null);
@@ -287,7 +300,7 @@ export default function SubscriptionScreen() {
                 return;
             }
 
-            // Start checkout for Starter - old PRO subscription will be cancelled after successful payment
+            track('checkout_started', { tier: 'starter', action: 'downgrade', source: paywallSource });
             const result = await subscriptionService.startCheckout(token, 'starter', { isUpgrade: true });
 
             await fetchSubscription();
@@ -311,7 +324,7 @@ export default function SubscriptionScreen() {
     };
 
     const handleCancelSubscription = () => {
-        // Step 1: Ask why they want to cancel
+        track('subscription_cancel_started', { tier: subscription?.tier });
         showAlert({
             title: "We're sorry to see you go",
             message: 'Before you cancel, could you tell us why?',
@@ -381,9 +394,11 @@ export default function SubscriptionScreen() {
             if (!token) return;
 
             const result = await subscriptionService.cancelSubscription(token);
+            track('subscription_cancel_completed', { tier: subscription?.tier });
             showAlert({ title: 'Subscription Cancelled', message: result.message });
             await fetchSubscription();
         } catch (err: any) {
+            track('subscription_cancel_failed', { tier: subscription?.tier, message: err?.message });
             showAlert({ title: 'Error', message: err.message || 'Failed to cancel subscription' });
         } finally {
             setPurchasing(false);
@@ -391,15 +406,18 @@ export default function SubscriptionScreen() {
     };
 
     const handleReactivate = async () => {
+        track('subscription_reactivate_started', { tier: subscription?.tier });
         try {
             setPurchasing(true);
             const token = await storageService.getAccessToken();
             if (!token) return;
 
             const result = await subscriptionService.reactivateSubscription(token);
+            track('subscription_reactivate_completed', { tier: subscription?.tier });
             showAlert({ title: 'Subscription Reactivated!', message: result.message });
             await fetchSubscription();
         } catch (err: any) {
+            track('subscription_reactivate_failed', { tier: subscription?.tier, message: err?.message });
             showAlert({ title: 'Error', message: err.message || 'Failed to reactivate subscription' });
             await fetchSubscription();
         } finally {
@@ -623,7 +641,10 @@ export default function SubscriptionScreen() {
                                 price={subscriptionService.formatPrice(pricing.starter.price)}
                                 episodesPerMonth={pricing.starter.episodesPerMonth}
                                 isSelected={selectedTier === 'starter'}
-                                onSelect={() => setSelectedTier('starter')}
+                                onSelect={() => {
+                                    setSelectedTier('starter');
+                                    track('paywall_plan_selected', { tier: 'starter', source: paywallSource });
+                                }}
                                 disabled={purchasing}
                                 icon="rocket-outline"
                             />
@@ -632,7 +653,10 @@ export default function SubscriptionScreen() {
                                 price={subscriptionService.formatPrice(pricing.pro.price)}
                                 episodesPerMonth={pricing.pro.episodesPerMonth}
                                 isSelected={selectedTier === 'pro'}
-                                onSelect={() => setSelectedTier('pro')}
+                                onSelect={() => {
+                                    setSelectedTier('pro');
+                                    track('paywall_plan_selected', { tier: 'pro', source: paywallSource });
+                                }}
                                 disabled={purchasing}
                                 isPopular
                                 icon="flash"

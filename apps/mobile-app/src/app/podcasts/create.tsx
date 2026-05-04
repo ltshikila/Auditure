@@ -21,6 +21,7 @@ import { usePlayback } from '@/contexts/PlaybackContext';
 import { MINI_PLAYER_HEIGHT } from '@/components/MiniPlayer';
 import { useAlert } from '@/contexts/AlertContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { track } from '@/lib/posthog';
 
 type VoiceModel = 'custom' | 'conversational' | 'energetic' | 'calm' | 'sarcastic' | 'academic';
 type Gender = 'male' | 'female';
@@ -35,6 +36,10 @@ const Create = () => {
     const isMiniPlayerVisible = !!episode;
     const [currentStep, setCurrentStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    React.useEffect(() => {
+        track('podcaster_create_opened');
+    }, []);
 
     // Form state - Step 1
     const [podcastName, setPodcastName] = useState('');
@@ -574,10 +579,17 @@ const Create = () => {
                                     message: 'Voice configurations (voice model, gender, accent, speaking speed, vocal pitch, age tone, sentence structure, and emotional expression) cannot be changed after your podcaster is created. Please make sure you\'re happy with these settings before continuing.',
                                     buttons: [
                                         { text: 'Go Back', style: 'cancel' },
-                                        { text: 'Continue', onPress: () => setCurrentStep(2) },
+                                        {
+                                            text: 'Continue',
+                                            onPress: () => {
+                                                track('podcaster_create_step_completed', { step: 1 });
+                                                setCurrentStep(2);
+                                            },
+                                        },
                                     ],
                                 });
                             } else {
+                                track('podcaster_create_step_completed', { step: currentStep });
                                 setCurrentStep(currentStep + 1);
                             }
                         }}
@@ -600,6 +612,15 @@ const Create = () => {
                                 showAlert({ title: 'Validation Error', message: 'Please select at least one expertise tag' });
                                 return;
                             }
+
+                            const submitProps = {
+                                voiceModel: selectedVoiceModel,
+                                gender: selectedGender,
+                                accent,
+                                expertiseTagCount: selectedExpertiseTags.length,
+                                intellectualAngle,
+                            };
+                            track('podcaster_create_submitted', submitProps);
 
                             try {
                                 setIsSubmitting(true);
@@ -646,10 +667,12 @@ const Create = () => {
                                     }
                                 }
 
+                                track('podcaster_create_succeeded', { ...submitProps, podcasterId: created.id });
                                 showAlert({ title: 'Success', message: 'Podcaster created successfully!' });
                                 router.replace('/(tabs)/studio');
                             } catch (err: any) {
                                 console.error('Error creating podcaster:', err);
+                                track('podcaster_create_failed', { ...submitProps, message: err?.message });
                                 showAlert({ title: 'Error', message: err.message || 'Failed to create podcaster' });
                             } finally {
                                 setIsSubmitting(false);
