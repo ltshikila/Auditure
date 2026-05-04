@@ -25,6 +25,7 @@ import { SliderTrack } from '@/components/CustomSlider';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { MINI_PLAYER_HEIGHT } from '@/components/MiniPlayer';
 import { useAlert } from '@/contexts/AlertContext';
+import { track } from '@/lib/posthog';
 
 type BookSourceMode = 'search' | 'upload';
 
@@ -117,6 +118,10 @@ const Create = () => {
         STANDARD: 'Clear, natural speech quality. Included with all subscription tiers — great for everyday listening.',
         GEMINI: 'Premium voice quality with natural multi-speaker synthesis. Rich, immersive listening experience.',
     };
+
+    useEffect(() => {
+        track('episode_create_opened');
+    }, []);
 
     // Load user's podcasters and subscription tier
     useEffect(() => {
@@ -388,6 +393,18 @@ const Create = () => {
             return;
         }
 
+        const trackProps = {
+            bookSource: bookSourceMode,
+            contentCoverage,
+            episodeType,
+            episodeTheme,
+            voiceTier,
+            targetLengthMin,
+            targetLengthMax,
+            chapterCount: chaptersToUse.length,
+        };
+        track('episode_create_submitted', trackProps);
+
         try {
             setIsSubmitting(true);
 
@@ -414,6 +431,10 @@ const Create = () => {
                 // Create with file upload - track progress asynchronously
                 setUploadProgress(0);
                 setShowUploadModal(true);
+                track('book_upload_started', {
+                    fileType: selectedFile.type,
+                    fileName: selectedFile.name,
+                });
                 episodeService.createWithFile(
                     selectedFile,
                     {
@@ -433,6 +454,7 @@ const Create = () => {
                     setUploadProgress(null);
                     setShowUploadModal(false);
                     setIsSubmitting(false);
+                    track('episode_create_succeeded', { ...trackProps, flow: 'upload' });
                     showAlert({ title: 'Success', message: 'Episode creation started! You\'ll be notified when it\'s ready.' });
                     router.back();
                 }).catch((err: any) => {
@@ -440,6 +462,8 @@ const Create = () => {
                     setUploadProgress(null);
                     setShowUploadModal(false);
                     setIsSubmitting(false);
+                    track('book_upload_failed', { message: err?.message });
+                    track('episode_create_failed', { ...trackProps, flow: 'upload', message: err?.message });
                     showAlert({ title: 'Error', message: err.message || 'Failed to upload book' });
                 });
                 return; // Don't continue to the finally block — async upload handles cleanup
@@ -462,10 +486,12 @@ const Create = () => {
                 );
             }
 
+            track('episode_create_succeeded', { ...trackProps, flow: 'library' });
             showAlert({ title: 'Success', message: 'Episode creation started! You\'ll be notified when it\'s ready.' });
             router.back();
         } catch (err: any) {
             console.error('Error creating episode:', err);
+            track('episode_create_failed', { ...trackProps, flow: 'library', message: err?.message });
             showAlert({ title: 'Error', message: err.message || 'Failed to create episode' });
         } finally {
             setIsSubmitting(false);

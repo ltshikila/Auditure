@@ -9,6 +9,10 @@ import { View } from 'react-native';
 import 'react-native-reanimated';
 import '../../global.css'
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { PostHogProvider } from 'posthog-react-native';
+
+const POSTHOG_KEY = process.env.EXPO_PUBLIC_POSTHOG_KEY;
+const POSTHOG_HOST = process.env.EXPO_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com';
 
 const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
 if (SENTRY_DSN) {
@@ -91,7 +95,7 @@ function RootLayout() {
     return null;
   }
 
-  return (
+  const tree = (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AppThemeProvider>
         <AlertProvider>
@@ -105,6 +109,27 @@ function RootLayout() {
         </AlertProvider>
       </AppThemeProvider>
     </GestureHandlerRootView>
+  );
+
+  if (!POSTHOG_KEY) {
+    return tree;
+  }
+
+  return (
+    <PostHogProvider
+      apiKey={POSTHOG_KEY}
+      options={{
+        host: POSTHOG_HOST,
+        enableSessionReplay: false,
+        captureNativeAppLifecycleEvents: true,
+      }}
+      autocapture={{
+        captureScreens: true,
+        captureTouches: true,
+      }}
+    >
+      {tree}
+    </PostHogProvider>
   );
 }
 

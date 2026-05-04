@@ -3,6 +3,15 @@ import { authService, User, RegisterData, LoginData, VerifyData } from '../servi
 import { notificationService } from '../services/notification.service';
 import { storageService } from '../services/storage.service';
 import { apiClient } from '../services/api';
+import { identify, resetAnalytics } from '../lib/posthog';
+
+function identifyFromUser(user: User) {
+  identify(user.id, {
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+  });
+}
 
 interface AuthContextType {
   user: User | null;
@@ -56,6 +65,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         try {
           const currentUser = await authService.getProfile(accessToken);
           setUser(currentUser);
+          identifyFromUser(currentUser);
         } catch {
           const refreshToken = await storageService.getRefreshToken();
           if (refreshToken) {
@@ -64,6 +74,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               await storageService.saveTokens(tokens.accessToken, tokens.refreshToken);
               const currentUser = await authService.getProfile(tokens.accessToken);
               setUser(currentUser);
+              identifyFromUser(currentUser);
             } catch {
               await storageService.clearAll();
               setUser(null);
@@ -98,6 +109,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       await storageService.saveTokens(response.accessToken, response.refreshToken);
       await storageService.saveUser(response.user);
       setUser(response.user);
+      identifyFromUser(response.user);
     }
     return {};
   };
@@ -107,6 +119,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     await storageService.saveTokens(response.accessToken, response.refreshToken);
     await storageService.saveUser(response.user);
     setUser(response.user);
+    identifyFromUser(response.user);
   };
 
   const logout = async () => {
@@ -121,6 +134,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
     await storageService.clearAll();
     setUser(null);
+    resetAnalytics();
   };
 
   const resendOTP = async (email: string) => {
