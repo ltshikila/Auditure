@@ -397,7 +397,12 @@ export class EpisodesController {
         @Request() req,
         @Body() createCommentDto: CreateCommentDto,
     ) {
-        return this.episodesService.addComment(id, req.user.userId, createCommentDto.content);
+        return this.episodesService.addComment(
+            id,
+            req.user.userId,
+            createCommentDto.content,
+            createCommentDto.parentCommentId,
+        );
     }
 
     /**

@@ -28,6 +28,8 @@ const getNotificationIcon = (type: NotificationType): keyof typeof Ionicons.glyp
             return 'alert-circle';
         case 'NEW_COMMENT':
             return 'chatbubble';
+        case 'NEW_REPLY':
+            return 'return-down-forward';
         case 'NEW_RATING':
             return 'star';
         case 'SUBSCRIPTION_WARNING':
@@ -45,6 +47,8 @@ const getNotificationColor = (type: NotificationType): string => {
         case 'EPISODE_FAILED':
             return '#EF4444';
         case 'NEW_COMMENT':
+            return '#BF9A54';
+        case 'NEW_REPLY':
             return '#BF9A54';
         case 'NEW_RATING':
             return '#BF9A54';
@@ -184,6 +188,25 @@ export default function NotificationsScreen() {
         if (!notification.read) {
             await markAsRead(notification.id);
         }
+
+        // Comment + reply types deep-link straight into the episode's comments tab.
+        // Reply notifications also pass the new comment's id so the screen highlights it.
+        const data = notification.data;
+        if (
+            (notification.type === 'NEW_COMMENT' || notification.type === 'NEW_REPLY') &&
+            data?.episodeId
+        ) {
+            router.push({
+                pathname: '/episodes/[episode]',
+                params: {
+                    episode: data.episodeId,
+                    tab: 'comments',
+                    ...(data.commentId ? { commentId: data.commentId } : {}),
+                },
+            });
+            return;
+        }
+
         setSelectedNotification(notification);
     };
 

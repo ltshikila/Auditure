@@ -1384,10 +1384,10 @@ export class EpisodesService {
     }
 
     /**
-     * Get comments for an episode
+     * Get comments for an episode (flat list with parentCommentId; clients group by parent).
+     * Top-level comments come back newest-first; replies oldest-first within their thread.
      */
     async getComments(episodeId: string): Promise<CommentResponseDto[]> {
-        // Verify episode exists
         const episode = await this.databaseService.episode.findUnique({
             where: { id: episodeId },
         });
@@ -1396,39 +1396,76 @@ export class EpisodesService {
             throw new NotFoundException('Episode not found');
         }
 
-        const comments = await this.databaseService.episodeComment.findMany({
-            where: { episodeId },
-            orderBy: { createdAt: 'desc' },
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        firstName: true,
-                        lastName: true,
-                        profilePictureUrl: true,
-                    },
+        const userInclude = {
+            user: {
+                select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    profilePictureUrl: true,
                 },
             },
-        });
+        };
 
-        return comments as CommentResponseDto[];
+        const [topLevel, replies] = await Promise.all([
+            this.databaseService.episodeComment.findMany({
+                where: { episodeId, parentCommentId: null },
+                orderBy: { createdAt: 'desc' },
+                include: userInclude,
+            }),
+            this.databaseService.episodeComment.findMany({
+                where: { episodeId, parentCommentId: { not: null } },
+                orderBy: { createdAt: 'asc' },
+                include: userInclude,
+            }),
+        ]);
+
+        return [...topLevel, ...replies] as CommentResponseDto[];
     }
 
     /**
-     * Add a comment to an episode
+     * Add a comment to an episode. Pass parentCommentId to make it a reply.
+     * Threading is single-level: replies to replies re-parent to the top-level comment.
      */
     async addComment(
         episodeId: string,
         userId: string,
         content: string,
+        parentCommentId?: string,
     ): Promise<CommentResponseDto> {
-        // Verify episode exists
         const episode = await this.databaseService.episode.findUnique({
             where: { id: episodeId },
         });
 
         if (!episode) {
             throw new NotFoundException('Episode not found');
+        }
+
+        let resolvedParentId: string | null = null;
+        let parentAuthorId: string | null = null;
+
+        if (parentCommentId) {
+            const parent = await this.databaseService.episodeComment.findUnique({
+                where: { id: parentCommentId },
+                select: { id: true, episodeId: true, userId: true, parentCommentId: true },
+            });
+
+            if (!parent || parent.episodeId !== episodeId) {
+                throw new NotFoundException('Parent comment not found');
+            }
+
+            // Flatten: a reply to a reply re-parents to the top-level comment.
+            if (parent.parentCommentId) {
+                const topLevel = await this.databaseService.episodeComment.findUnique({
+                    where: { id: parent.parentCommentId },
+                    select: { id: true, userId: true },
+                });
+                resolvedParentId = topLevel?.id ?? parent.id;
+                parentAuthorId = topLevel?.userId ?? parent.userId;
+            } else {
+                resolvedParentId = parent.id;
+                parentAuthorId = parent.userId;
+            }
         }
 
         const comment = await this.databaseService.episodeComment.create({
@@ -1436,6 +1473,7 @@ export class EpisodesService {
                 episodeId,
                 userId,
                 content,
+                parentCommentId: resolvedParentId,
             },
             include: {
                 user: {
@@ -1449,10 +1487,32 @@ export class EpisodesService {
             },
         });
 
-        // Notify episode owner (don't notify yourself)
-        if (episode.userId !== userId) {
+        const commenterName = `${comment.user.firstName} ${comment.user.lastName}`.trim();
+        const isReply = resolvedParentId !== null;
+        const isSelfReply = isReply && parentAuthorId === userId;
+
+        // Notification fan-out (deduped, skipping self):
+        //   - Reply: parent author -> NEW_REPLY (skip if self-reply).
+        //   - Episode owner -> NEW_COMMENT, except on a self-reply (owner already saw the parent).
+        const notified = new Set<string>();
+
+        if (isReply && parentAuthorId && parentAuthorId !== userId) {
             try {
-                const commenterName = `${comment.user.firstName} ${comment.user.lastName}`.trim();
+                await this.notificationsService.notifyNewReply(
+                    parentAuthorId,
+                    episodeId,
+                    episode.title,
+                    comment.id,
+                    commenterName,
+                );
+                notified.add(parentAuthorId);
+            } catch (error) {
+                this.logger.error(`Failed to send reply notification: ${error.message}`);
+            }
+        }
+
+        if (!isSelfReply && episode.userId !== userId && !notified.has(episode.userId)) {
+            try {
                 await this.notificationsService.notifyNewComment(
                     episode.userId,
                     episodeId,
