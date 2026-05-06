@@ -567,6 +567,40 @@ describe('NotificationsService', () => {
         });
     });
 
+    describe('notifyNewReply', () => {
+        it('creates a NEW_REPLY notification with commentId in payload', async () => {
+            mockPrismaClient.user.findUnique.mockResolvedValue({ id: mockUserId });
+            mockPrismaClient.notification.create.mockResolvedValue(
+                createMockNotification({
+                    userId: mockUserId,
+                    type: NotificationType.NEW_REPLY,
+                }),
+            );
+
+            const result = await service.notifyNewReply(
+                mockUserId,
+                'episode-123',
+                'My Episode',
+                'comment-789',
+                'Jane Doe',
+            );
+
+            expect(result.type).toBe(NotificationType.NEW_REPLY);
+            expect(mockPrismaClient.notification.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        type: NotificationType.NEW_REPLY,
+                        data: expect.objectContaining({
+                            episodeId: 'episode-123',
+                            commentId: 'comment-789',
+                            route: '/episodes/episode-123/comments',
+                        }),
+                    }),
+                }),
+            );
+        });
+    });
+
     describe('notifySubscriptionWarning', () => {
         it('should create subscription warning notification', async () => {
             mockPrismaClient.user.findUnique.mockResolvedValue({ id: mockUserId });

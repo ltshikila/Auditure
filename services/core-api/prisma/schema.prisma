@@ -352,22 +352,26 @@ model Episode {
 }
 
 model EpisodeComment {
-  id          String    @id @default(uuid())
-  episodeId   String
-  userId      String
-  content     String    @db.Text
+  id              String    @id @default(uuid())
+  episodeId       String
+  userId          String
+  content         String    @db.Text
+  parentCommentId String?
 
   // Timestamps
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   // Relations
-  episode     Episode   @relation(fields: [episodeId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  episode     Episode          @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent      EpisodeComment?  @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies     EpisodeComment[] @relation("CommentReplies")
 
   @@index([episodeId])
   @@index([userId])
   @@index([createdAt])
+  @@index([parentCommentId])
   @@map("episode_comments")
 }
 
@@ -511,6 +515,7 @@ enum NotificationType {
   EPISODE_READY
   EPISODE_FAILED
   NEW_COMMENT
+  NEW_REPLY
   NEW_RATING
   NEW_LIKE
   BOOK_READY

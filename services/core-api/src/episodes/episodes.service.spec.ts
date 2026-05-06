@@ -62,6 +62,7 @@ describe('EpisodesService', () => {
 
     const mockNotificationsService = {
         notifyNewComment: jest.fn().mockResolvedValue({}),
+        notifyNewReply: jest.fn().mockResolvedValue({}),
         notifySubscriptionWarning: jest.fn().mockResolvedValue({}),
         notifyNewLike: jest.fn().mockResolvedValue({}),
     };
@@ -528,6 +529,221 @@ describe('EpisodesService', () => {
                     generationError: 'Script generation failed',
                 }),
             });
+        });
+    });
+
+    describe('addComment', () => {
+        const userA = 'user-a';
+        const userB = 'user-b';
+        const userC = 'user-c';
+        const episodeId = 'ep-1';
+        const ownerEpisode = (ownerId: string) =>
+            ({
+                id: episodeId,
+                userId: ownerId,
+                title: 'Test Episode',
+            }) as any;
+
+        const buildCreated = (id: string, userId: string, parentId: string | null = null) => ({
+            id,
+            episodeId,
+            userId,
+            content: 'hi',
+            parentCommentId: parentId,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            user: {
+                id: userId,
+                firstName: 'F',
+                lastName: 'L',
+                profilePictureUrl: null,
+            },
+        });
+
+        beforeEach(() => {
+            mockPrismaClient.episodeComment.create.mockReset();
+            mockPrismaClient.episodeComment.findUnique.mockReset();
+            mockPrismaClient.episode.findUnique.mockReset();
+        });
+
+        it('top-level: notifies episode owner, no reply notification', async () => {
+            // User A comments on User B's episode → User B gets NEW_COMMENT
+            mockPrismaClient.episode.findUnique.mockResolvedValue(ownerEpisode(userB));
+            mockPrismaClient.episodeComment.create.mockResolvedValue(buildCreated('c1', userA));
+
+            await service.addComment(episodeId, userA, 'hi');
+
+            expect(mockNotificationsService.notifyNewComment).toHaveBeenCalledWith(
+                userB,
+                episodeId,
+                'Test Episode',
+                'F L',
+            );
+            expect(mockNotificationsService.notifyNewReply).not.toHaveBeenCalled();
+        });
+
+        it('owner replies to a commenter: notifies parent author with NEW_REPLY only', async () => {
+            // User B (episode owner) replies to User A's comment → User A gets NEW_REPLY,
+            // User B does NOT self-notify.
+            mockPrismaClient.episode.findUnique.mockResolvedValue(ownerEpisode(userB));
+            mockPrismaClient.episodeComment.findUnique.mockResolvedValueOnce({
+                id: 'c-parent',
+                episodeId,
+                userId: userA,
+                parentCommentId: null,
+            });
+            mockPrismaClient.episodeComment.create.mockResolvedValue(
+                buildCreated('c-reply', userB, 'c-parent'),
+            );
+
+            await service.addComment(episodeId, userB, 'reply', 'c-parent');
+
+            expect(mockNotificationsService.notifyNewReply).toHaveBeenCalledWith(
+                userA,
+                episodeId,
+                'Test Episode',
+                'c-reply',
+                'F L',
+            );
+            expect(mockNotificationsService.notifyNewComment).not.toHaveBeenCalled();
+        });
+
+        it('third-party reply: notifies parent author + episode owner', async () => {
+            // User C replies to User A's comment on User B's episode →
+            // User A gets NEW_REPLY, User B gets NEW_COMMENT.
+            mockPrismaClient.episode.findUnique.mockResolvedValue(ownerEpisode(userB));
+            mockPrismaClient.episodeComment.findUnique.mockResolvedValueOnce({
+                id: 'c-parent',
+                episodeId,
+                userId: userA,
+                parentCommentId: null,
+            });
+            mockPrismaClient.episodeComment.create.mockResolvedValue(
+                buildCreated('c-reply', userC, 'c-parent'),
+            );
+
+            await service.addComment(episodeId, userC, 'reply', 'c-parent');
+
+            expect(mockNotificationsService.notifyNewReply).toHaveBeenCalledWith(
+                userA,
+                episodeId,
+                'Test Episode',
+                'c-reply',
+                'F L',
+            );
+            expect(mockNotificationsService.notifyNewComment).toHaveBeenCalledWith(
+                userB,
+                episodeId,
+                'Test Episode',
+                'F L',
+            );
+        });
+
+        it('self-reply on own thread: notifies nobody', async () => {
+            // User A replies to their own comment on User B's episode → no notifications,
+            // because the owner already saw the parent and User A is the replier.
+            mockPrismaClient.episode.findUnique.mockResolvedValue(ownerEpisode(userB));
+            mockPrismaClient.episodeComment.findUnique.mockResolvedValueOnce({
+                id: 'c-parent',
+                episodeId,
+                userId: userA,
+                parentCommentId: null,
+            });
+            mockPrismaClient.episodeComment.create.mockResolvedValue(
+                buildCreated('c-reply', userA, 'c-parent'),
+            );
+
+            await service.addComment(episodeId, userA, 'self-reply', 'c-parent');
+
+            expect(mockNotificationsService.notifyNewReply).not.toHaveBeenCalled();
+            expect(mockNotificationsService.notifyNewComment).not.toHaveBeenCalled();
+        });
+
+        it('reply to a reply: re-parents to the top-level comment', async () => {
+            // Parent passed in is itself a reply; service flattens to its parent.
+            mockPrismaClient.episode.findUnique.mockResolvedValue(ownerEpisode(userB));
+            // First findUnique: the "parent" the caller passed (which is actually a reply)
+            mockPrismaClient.episodeComment.findUnique.mockResolvedValueOnce({
+                id: 'c-mid',
+                episodeId,
+                userId: userC,
+                parentCommentId: 'c-top',
+            });
+            // Second findUnique: the actual top-level
+            mockPrismaClient.episodeComment.findUnique.mockResolvedValueOnce({
+                id: 'c-top',
+                userId: userA,
+            });
+            mockPrismaClient.episodeComment.create.mockResolvedValue(
+                buildCreated('c-new', userC, 'c-top'),
+            );
+
+            await service.addComment(episodeId, userC, 'reply to reply', 'c-mid');
+
+            expect(mockPrismaClient.episodeComment.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({ parentCommentId: 'c-top' }),
+                }),
+            );
+            // Notification goes to the top-level author (User A), not the mid replier.
+            expect(mockNotificationsService.notifyNewReply).toHaveBeenCalledWith(
+                userA,
+                episodeId,
+                'Test Episode',
+                'c-new',
+                'F L',
+            );
+        });
+
+        it('rejects parent comment from a different episode', async () => {
+            mockPrismaClient.episode.findUnique.mockResolvedValue(ownerEpisode(userB));
+            mockPrismaClient.episodeComment.findUnique.mockResolvedValueOnce({
+                id: 'c-other',
+                episodeId: 'different-episode',
+                userId: userA,
+                parentCommentId: null,
+            });
+
+            await expect(
+                service.addComment(episodeId, userC, 'hi', 'c-other'),
+            ).rejects.toBeInstanceOf(NotFoundException);
+            expect(mockPrismaClient.episodeComment.create).not.toHaveBeenCalled();
+        });
+
+        it('rejects when episode does not exist', async () => {
+            mockPrismaClient.episode.findUnique.mockResolvedValue(null);
+            await expect(service.addComment(episodeId, userA, 'hi')).rejects.toBeInstanceOf(
+                NotFoundException,
+            );
+        });
+    });
+
+    describe('getComments', () => {
+        it('returns top-level (newest-first) followed by replies (oldest-first)', async () => {
+            mockPrismaClient.episode.findUnique.mockResolvedValue({ id: 'ep-1' });
+            mockPrismaClient.episodeComment.findMany
+                .mockResolvedValueOnce([{ id: 'top-1' }, { id: 'top-2' }])
+                .mockResolvedValueOnce([{ id: 'reply-1' }]);
+
+            const result = await service.getComments('ep-1');
+
+            expect(result.map((c: any) => c.id)).toEqual(['top-1', 'top-2', 'reply-1']);
+            // First call: top-level only
+            expect(mockPrismaClient.episodeComment.findMany).toHaveBeenNthCalledWith(
+                1,
+                expect.objectContaining({
+                    where: { episodeId: 'ep-1', parentCommentId: null },
+                    orderBy: { createdAt: 'desc' },
+                }),
+            );
+            // Second call: replies only
+            expect(mockPrismaClient.episodeComment.findMany).toHaveBeenNthCalledWith(
+                2,
+                expect.objectContaining({
+                    where: { episodeId: 'ep-1', parentCommentId: { not: null } },
+                    orderBy: { createdAt: 'asc' },
+                }),
+            );
         });
     });
 });

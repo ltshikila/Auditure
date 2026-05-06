@@ -58,6 +58,7 @@ export interface EpisodeComment {
     episodeId: string;
     userId: string;
     content: string;
+    parentCommentId: string | null;
     createdAt: string;
     updatedAt: string;
     user: {
@@ -322,10 +323,19 @@ class EpisodeService {
     }
 
     /**
-     * Add a comment to an episode
+     * Add a comment (or reply) to an episode. Pass parentCommentId to make it a reply.
      */
-    async addComment(id: string, content: string, token: string): Promise<EpisodeComment> {
-        return apiClient.post<EpisodeComment>(`/episodes/${id}/comments`, { content }, token);
+    async addComment(
+        id: string,
+        content: string,
+        token: string,
+        parentCommentId?: string,
+    ): Promise<EpisodeComment> {
+        return apiClient.post<EpisodeComment>(
+            `/episodes/${id}/comments`,
+            parentCommentId ? { content, parentCommentId } : { content },
+            token,
+        );
     }
 
     /**
