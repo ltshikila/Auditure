@@ -137,6 +137,7 @@ async createNotification(dto) {
 | `EPISODE_READY` | Episode generation completed | Notify user their podcast is ready |
 | `EPISODE_FAILED` | Episode generation failed | Alert user to retry or check error |
 | `NEW_COMMENT` | Someone commented on an episode | Social engagement notification |
+| `NEW_REPLY` | Someone replied to your comment | Threaded conversation notification (payload includes `commentId`) |
 | `NEW_RATING` | Someone rated a podcaster | Creator feedback notification |
 | `SUBSCRIPTION_WARNING` | Usage quota warning | Alert at 80% usage |
 | `SYSTEM` | System announcements | App updates, maintenance, etc. |

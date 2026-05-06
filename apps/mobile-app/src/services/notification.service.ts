@@ -4,6 +4,7 @@ export type NotificationType =
     | 'EPISODE_READY'
     | 'EPISODE_FAILED'
     | 'NEW_COMMENT'
+    | 'NEW_REPLY'
     | 'NEW_RATING'
     | 'SUBSCRIPTION_WARNING'
     | 'SYSTEM';

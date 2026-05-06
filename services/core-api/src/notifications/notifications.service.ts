@@ -627,6 +627,29 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     }
 
     /**
+     * Send a "new reply" notification to the parent comment author.
+     */
+    async notifyNewReply(
+        userId: string,
+        episodeId: string,
+        episodeTitle: string,
+        commentId: string,
+        replierName: string,
+    ): Promise<NotificationResponseDto> {
+        return this.create({
+            userId,
+            type: NotificationType.NEW_REPLY,
+            title: 'New Reply',
+            body: `${replierName} replied to your comment on "${episodeTitle}"`,
+            data: {
+                episodeId,
+                commentId,
+                route: `/episodes/${episodeId}/comments`,
+            },
+        });
+    }
+
+    /**
      * Send a "new rating" notification.
      */
     async notifyNewRating(

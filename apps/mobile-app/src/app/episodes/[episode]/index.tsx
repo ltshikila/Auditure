@@ -36,7 +36,8 @@ const icons = {
 type TabType = 'summary' | 'details' | 'author' | 'comments';
 
 export default function EpisodeInfoScreen() {
-    const { episode: episodeId } = useLocalSearchParams<{ episode: string }>();
+    const { episode: episodeId, tab: tabParam, commentId: highlightCommentId } =
+        useLocalSearchParams<{ episode: string; tab?: string; commentId?: string }>();
     const { user } = useAuth();
     const { showAlert } = useAlert();
     const { resolved } = useTheme();
@@ -48,8 +49,12 @@ export default function EpisodeInfoScreen() {
     const [generationProgress, setGenerationProgress] = useState<GenerationProgress | null>(null);
     const { play, episode: currentEpisode, isPlaying } = usePlayback();
 
-    // Tab state
-    const [activeTab, setActiveTab] = useState<TabType>('summary');
+    // Tab state — honor ?tab= param from deep links (e.g. NEW_COMMENT/NEW_REPLY notifications)
+    const initialTab: TabType =
+        tabParam === 'comments' || tabParam === 'details' || tabParam === 'author'
+            ? (tabParam as TabType)
+            : 'summary';
+    const [activeTab, setActiveTab] = useState<TabType>(initialTab);
 
     // Comments state
     const [comments, setComments] = useState<EpisodeComment[]>([]);
@@ -57,6 +62,18 @@ export default function EpisodeInfoScreen() {
     const [commentsError, setCommentsError] = useState<string | null>(null);
     const [newComment, setNewComment] = useState('');
     const [submittingComment, setSubmittingComment] = useState(false);
+    const [replyingTo, setReplyingTo] = useState<EpisodeComment | null>(null);
+    const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(
+        highlightCommentId ?? null,
+    );
+    const commentInputRef = useRef<TextInput>(null);
+
+    const beginReply = (comment: EpisodeComment) => {
+        setReplyingTo(comment);
+        // Focus immediately so KeyboardAwareScrollView pulls the composer above the keyboard
+        // in the same motion as the user tapping Reply.
+        commentInputRef.current?.focus();
+    };
 
     // Author state
     const [authorInfo, setAuthorInfo] = useState<AuthorInfo | null>(null);
@@ -177,6 +194,14 @@ export default function EpisodeInfoScreen() {
         }
     }, [activeTab, episodeId]);
 
+    // Auto-clear deep-link comment highlight after a brief flash. Wait until comments
+    // have loaded so the highlight is actually visible to the user.
+    useEffect(() => {
+        if (!highlightedCommentId || commentsLoading || comments.length === 0) return;
+        const t = setTimeout(() => setHighlightedCommentId(null), 3000);
+        return () => clearTimeout(t);
+    }, [highlightedCommentId, commentsLoading, comments.length]);
+
     const fetchEpisode = async () => {
         if (!episodeId) return;
 
@@ -276,9 +301,17 @@ export default function EpisodeInfoScreen() {
                 return;
             }
 
-            const comment = await episodeService.addComment(episodeId, newComment.trim(), token);
-            setComments((prev) => [comment, ...prev]);
+            const parentId = replyingTo?.parentCommentId ?? replyingTo?.id;
+            const comment = await episodeService.addComment(
+                episodeId,
+                newComment.trim(),
+                token,
+                parentId,
+            );
+            // Replies append (oldest-first within thread); top-level prepends (newest-first).
+            setComments((prev) => (comment.parentCommentId ? [...prev, comment] : [comment, ...prev]));
             setNewComment('');
+            setReplyingTo(null);
         } catch (err: any) {
             showAlert({ title: 'Error', message: err.message || 'Failed to add comment' });
         } finally {
@@ -713,9 +746,103 @@ export default function EpisodeInfoScreen() {
         );
     };
 
+    const renderCommentRow = (comment: EpisodeComment, isReply: boolean) => {
+        const isHighlighted = highlightedCommentId === comment.id;
+        return (
+            <View
+                className={`flex-row items-start rounded-lg ${isHighlighted ? 'bg-brand-gold/15 -mx-2 px-2 py-2' : ''}`}>
+                <View className={`${isReply ? 'w-8 h-8' : 'w-10 h-10'} rounded-full items-center justify-center mr-3 overflow-hidden bg-brand-gold/80`}>
+                    {resolveCoverUrl(comment.user.profilePictureUrl) ? (
+                        <Image
+                            source={{ uri: resolveCoverUrl(comment.user.profilePictureUrl)! }}
+                            style={{ width: isReply ? 32 : 40, height: isReply ? 32 : 40 }}
+                            resizeMode="cover"
+                        />
+                    ) : (
+                        <Text className={`font-jakarta-bold text-white ${isReply ? 'text-xs' : 'text-sm'}`}>
+                            {comment.user.firstName.charAt(0).toUpperCase()}
+                            {comment.user.lastName.charAt(0).toUpperCase()}
+                        </Text>
+                    )}
+                </View>
+                <View className="flex-1">
+                    <View className="flex-row items-center justify-between">
+                        <Text className="font-inter-medium text-brand-black dark:text-brand-dark-text">
+                            {comment.user.firstName} {comment.user.lastName}
+                        </Text>
+                        <Text className="font-inter text-gray-400 dark:text-brand-dark-text-muted text-xs">
+                            {formatTimeAgo(comment.createdAt)}
+                        </Text>
+                    </View>
+                    <Text className="font-inter text-[#666666] dark:text-brand-dark-text-secondary mt-1 leading-5">
+                        {comment.content}
+                    </Text>
+
+                    <View className="flex-row items-center mt-2">
+                        {/* Reply only on top-level (single-level threading) */}
+                        {!isReply && user && (
+                            <TouchableOpacity
+                                onPress={() => beginReply(comment)}
+                                className="self-start mr-4">
+                                <Text className="font-inter text-brand-gold text-xs">Reply</Text>
+                            </TouchableOpacity>
+                        )}
+                        {user && comment.userId === user.id && (
+                            <TouchableOpacity
+                                onPress={() => handleDeleteComment(comment.id)}
+                                className="self-start">
+                                <Text className="font-inter text-red-500 text-xs">Delete</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                </View>
+            </View>
+        );
+    };
+
     const renderCommentsTab = () => {
+        // Group replies under their top-level parent. The API returns top-level (newest-first)
+        // followed by replies (oldest-first); we build a Map keyed by parentCommentId so render
+        // stays a single pass.
+        const repliesByParent = new Map<string, EpisodeComment[]>();
+        const topLevel: EpisodeComment[] = [];
+        for (const c of comments) {
+            if (c.parentCommentId) {
+                const arr = repliesByParent.get(c.parentCommentId);
+                if (arr) arr.push(c);
+                else repliesByParent.set(c.parentCommentId, [c]);
+            } else {
+                topLevel.push(c);
+            }
+        }
+        const totalCount = comments.length;
+
         return (
             <View className="px-6 mt-4 mb-32">
+                {/* Replying-to chip — keeps parent context visible once the keyboard opens */}
+                {replyingTo && (
+                    <View className="bg-brand-gold/10 rounded-2xl px-3 py-2 mb-2">
+                        <View className="flex-row items-center justify-between">
+                            <View className="flex-row items-center flex-1 mr-2">
+                                <Ionicons name="return-down-forward" size={14} color="#BF9A54" />
+                                <Text
+                                    className="font-inter-medium text-xs text-brand-gold ml-1.5"
+                                    numberOfLines={1}>
+                                    Replying to {replyingTo.user.firstName} {replyingTo.user.lastName}
+                                </Text>
+                            </View>
+                            <TouchableOpacity onPress={() => setReplyingTo(null)}>
+                                <Ionicons name="close" size={14} color="#BF9A54" />
+                            </TouchableOpacity>
+                        </View>
+                        <Text
+                            className="font-inter text-xs text-gray-500 dark:text-brand-dark-text-muted mt-1 ml-5"
+                            numberOfLines={2}>
+                            {replyingTo.content}
+                        </Text>
+                    </View>
+                )}
+
                 {/* Add Comment Input */}
                 <View className="flex-row items-center mb-4">
                     <View className="w-10 h-10 rounded-full items-center justify-center mr-3 overflow-hidden bg-brand-gold">
@@ -731,9 +858,10 @@ export default function EpisodeInfoScreen() {
                     </View>
                     <View className="flex-1 flex-row bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-full items-center pr-2">
                         <TextInput
+                            ref={commentInputRef}
                             value={newComment}
                             onChangeText={setNewComment}
-                            placeholder="Add a comment..."
+                            placeholder={replyingTo ? 'Write a reply...' : 'Add a comment...'}
                             placeholderTextColor="#858585"
                             className="flex-1 font-inter text-brand-black dark:text-brand-dark-text px-4 py-3"
                             multiline={false}
@@ -783,48 +911,25 @@ export default function EpisodeInfoScreen() {
                 ) : (
                     <View>
                         <Text className="font-inter-medium text-gray-500 dark:text-brand-dark-text-muted mb-4">
-                            {comments.length} {comments.length === 1 ? 'comment' : 'comments'}
+                            {totalCount} {totalCount === 1 ? 'comment' : 'comments'}
                         </Text>
-                        {comments.map((comment) => (
-                            <View key={comment.id} className="mb-4">
-                                <View className="flex-row items-start">
-                                    <View className="w-10 h-10 rounded-full items-center justify-center mr-3 overflow-hidden bg-brand-gold/80">
-                                        {resolveCoverUrl(comment.user.profilePictureUrl) ? (
-                                            <Image source={{ uri: resolveCoverUrl(comment.user.profilePictureUrl)! }} style={{ width: 40, height: 40 }} resizeMode="cover" />
-                                        ) : (
-                                            <Text className="font-jakarta-bold text-white text-sm">
-                                                {comment.user.firstName.charAt(0).toUpperCase()}
-                                                {comment.user.lastName.charAt(0).toUpperCase()}
-                                            </Text>
-                                        )}
-                                    </View>
-                                    <View className="flex-1">
-                                        <View className="flex-row items-center justify-between">
-                                            <Text className="font-inter-medium text-brand-black dark:text-brand-dark-text">
-                                                {comment.user.firstName} {comment.user.lastName}
-                                            </Text>
-                                            <Text className="font-inter text-gray-400 dark:text-brand-dark-text-muted text-xs">
-                                                {formatTimeAgo(comment.createdAt)}
-                                            </Text>
+                        {topLevel.map((comment) => {
+                            const replies = repliesByParent.get(comment.id) ?? [];
+                            return (
+                                <View key={comment.id} className="mb-4">
+                                    {renderCommentRow(comment, false)}
+                                    {replies.length > 0 && (
+                                        <View className="ml-12 mt-3 border-l-2 border-brand-gold/20 pl-4">
+                                            {replies.map((reply) => (
+                                                <View key={reply.id} className="mb-3">
+                                                    {renderCommentRow(reply, true)}
+                                                </View>
+                                            ))}
                                         </View>
-                                        <Text className="font-inter text-[#666666] dark:text-brand-dark-text-secondary mt-1 leading-5">
-                                            {comment.content}
-                                        </Text>
-
-                                        {/* Delete button for own comments */}
-                                        {user && comment.userId === user.id && (
-                                            <TouchableOpacity
-                                                onPress={() => handleDeleteComment(comment.id)}
-                                                className="mt-2 self-start">
-                                                <Text className="font-inter text-red-500 text-xs">
-                                                    Delete
-                                                </Text>
-                                            </TouchableOpacity>
-                                        )}
-                                    </View>
+                                    )}
                                 </View>
-                            </View>
-                        ))}
+                            );
+                        })}
                     </View>
                 )}
             </View>
