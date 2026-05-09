@@ -46,6 +46,7 @@ export default function ManagePodcaster() {
   const [humorLevel, setHumorLevel] = useState(5);
   const [conversationalDepth, setConversationalDepth] = useState(5);
   const [chaosFactor, setChaosFactor] = useState(5);
+  const [sentenceStructure, setSentenceStructure] = useState(5);
 
   // Knowledge & Worldview state
   const [selectedExpertiseTags, setSelectedExpertiseTags] = useState<string[]>([]);
@@ -101,6 +102,7 @@ export default function ManagePodcaster() {
       setHumorLevel(data.humorLevel);
       setConversationalDepth(data.conversationalDepth);
       setChaosFactor(data.chaosFactor);
+      setSentenceStructure(data.sentenceStructure);
       // Knowledge & Worldview
       setSelectedExpertiseTags(data.expertiseTags || []);
       setIntellectualAngle(data.intellectualAngle || 'Skeptical');
@@ -173,6 +175,7 @@ export default function ManagePodcaster() {
           humorLevel,
           conversationalDepth,
           chaosFactor,
+          sentenceStructure,
           expertiseTags: selectedExpertiseTags,
           intellectualAngle,
           viewpointBehavior,
@@ -305,7 +308,7 @@ export default function ManagePodcaster() {
             <View className="flex-1">
               <Text className="font-inter-medium text-[#1A1C1E] dark:text-brand-dark-text">Public Podcaster</Text>
               <Text className="font-inter text-xs text-gray-500 dark:text-brand-dark-text-muted mt-1">
-                Allow others to discover and use this podcaster
+                Allow others to discover and listen to this podcaster
               </Text>
             </View>
             <TouchableOpacity
@@ -341,11 +344,8 @@ export default function ManagePodcaster() {
           <Text className="font-inter text-sm text-gray-600 dark:text-brand-dark-text-secondary mb-3">
             Gender: {podcaster.gender}
           </Text>
-          <Text className="font-inter text-sm text-gray-600 dark:text-brand-dark-text-secondary mb-3">
+          <Text className="font-inter text-sm text-gray-600 dark:text-brand-dark-text-secondary">
             Accent: {podcaster.accent}
-          </Text>
-          <Text className="font-inter text-xs text-gray-500 dark:text-brand-dark-text-muted italic">
-            Voice settings can only be changed during podcaster creation
           </Text>
         </View>
 
@@ -394,6 +394,14 @@ export default function ManagePodcaster() {
             onValueChange={setChaosFactor}
             leftLabel="Steady"
             rightLabel="Volatile"
+          />
+
+          <CustomSlider
+            label="Sentence Structure"
+            value={sentenceStructure}
+            onValueChange={setSentenceStructure}
+            leftLabel="Concise"
+            rightLabel="Elaborate"
           />
         </View>
 

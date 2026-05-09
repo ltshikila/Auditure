@@ -43,6 +43,7 @@ const Create = () => {
 
     // Form state - Step 1
     const [podcastName, setPodcastName] = useState('');
+    const [description, setDescription] = useState('');
     const [profilePicture, setProfilePicture] = useState<string | null>(null);
     const [selectedVoiceModel, setSelectedVoiceModel] = useState<VoiceModel>('custom');
     const [selectedGender, setSelectedGender] = useState<Gender>('male');
@@ -52,7 +53,6 @@ const Create = () => {
     const [speakingSpeed, setSpeakingSpeed] = useState(5);
     const [vocalPitch, setVocalPitch] = useState(5);
     const [ageTone, setAgeTone] = useState(5);
-    const [sentenceStructure, setSentenceStructure] = useState(5);
     const [emotionalExpression, setEmotionalExpression] = useState(5);
 
     // Slider values (1-10) - Step 2
@@ -61,6 +61,7 @@ const Create = () => {
     const [humorLevel, setHumorLevel] = useState(5);
     const [conversationalDepth, setConversationalDepth] = useState(5);
     const [chaosFactor, setChaosFactor] = useState(5);
+    const [sentenceStructure, setSentenceStructure] = useState(5);
 
     // Form state - Step 3
     const [selectedExpertiseTags, setSelectedExpertiseTags] = useState<string[]>([]);
@@ -292,6 +293,26 @@ const Create = () => {
                             onImageRemoved={() => setProfilePicture(null)}
                         />
 
+                        {/* Description (Optional) */}
+                        <View className="mb-6">
+                            <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-lg mb-2">
+                                Description (Optional)
+                            </Text>
+                            <View className="bg-brand-input dark:bg-brand-dark-input rounded-xl px-4 py-3">
+                                <TextInput
+                                    className="font-inter text-[#1A1C1E] dark:text-brand-dark-text"
+                                    value={description}
+                                    onChangeText={setDescription}
+                                    placeholder="Enter description"
+                                    placeholderTextColor="#858585"
+                                    multiline
+                                    numberOfLines={4}
+                                    textAlignVertical="top"
+                                    maxLength={200}
+                                />
+                            </View>
+                        </View>
+
                         {/* Voice Model */}
                         <View className="mb-6">
                             <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-lg mb-3">
@@ -384,15 +405,6 @@ const Create = () => {
                         />
 
                         <CustomSlider
-                            label="Sentence Structure"
-                            value={sentenceStructure}
-                            onValueChange={setSentenceStructure}
-                            onSlidingComplete={switchToCustomIfNeeded}
-                            leftLabel="Concise"
-                            rightLabel="Elaborate"
-                        />
-
-                        <CustomSlider
                             label="Emotional Expression"
                             value={emotionalExpression}
                             onValueChange={setEmotionalExpression}
@@ -422,6 +434,15 @@ const Create = () => {
                             onSlidingComplete={switchToCustomIfNeeded}
                             leftLabel="Calm"
                             rightLabel="Energetic"
+                        />
+
+                        <CustomSlider
+                            label="Sentence Structure"
+                            value={sentenceStructure}
+                            onValueChange={setSentenceStructure}
+                            onSlidingComplete={switchToCustomIfNeeded}
+                            leftLabel="Concise"
+                            rightLabel="Elaborate"
                         />
 
                         <CustomSlider
@@ -576,7 +597,7 @@ const Create = () => {
                                 }
                                 showAlert({
                                     title: 'Voice Settings Are Permanent',
-                                    message: 'Voice configurations (voice model, gender, accent, speaking speed, vocal pitch, age tone, sentence structure, and emotional expression) cannot be changed after your podcaster is created. Please make sure you\'re happy with these settings before continuing.',
+                                    message: 'Voice configurations (voice model, gender, accent, speaking speed, vocal pitch, age tone, and emotional expression) cannot be changed after your podcaster is created. Please make sure you\'re happy with these settings before continuing.',
                                     buttons: [
                                         { text: 'Go Back', style: 'cancel' },
                                         {
@@ -633,6 +654,7 @@ const Create = () => {
 
                                 const podcasterData = {
                                     name: podcastName.trim(),
+                                    description: description.trim() || undefined,
                                     voiceModel: selectedVoiceModel.toUpperCase() as any,
                                     gender: selectedGender.toUpperCase() as any,
                                     accent,
