@@ -283,13 +283,13 @@ export default function EpisodePlayScreen() {
                 <TouchableOpacity
                     onPress={() => router.back()}
                     className="w-10 h-10 items-center justify-center">
-                    <Ionicons name="chevron-down" size={28} color="#1A1C1E" />
+                    <Ionicons name="chevron-down" size={28} color={iconTint} />
                 </TouchableOpacity>
                 <Text className="font-inter-medium text-brand-black dark:text-brand-dark-text">Now Playing</Text>
                 <TouchableOpacity
                     onPress={() => setShowMenu(true)}
                     className="w-10 h-10 items-center justify-center">
-                    <Ionicons name="ellipsis-horizontal" size={24} color="#1A1C1E" />
+                    <Ionicons name="ellipsis-horizontal" size={24} color={iconTint} />
                 </TouchableOpacity>
             </View>
 
@@ -424,7 +424,7 @@ export default function EpisodePlayScreen() {
                             onPress={handleViewDetails}
                             className="flex-row items-center py-4"
                         >
-                            <Ionicons name="information-circle-outline" size={22} color="#1A1C1E" />
+                            <Ionicons name="information-circle-outline" size={22} color={iconTint} />
                             <Text className="font-inter-medium text-brand-black dark:text-brand-dark-text text-base ml-4">Episode Details</Text>
                         </TouchableOpacity>
 
@@ -433,7 +433,7 @@ export default function EpisodePlayScreen() {
                                 onPress={handleViewTranscript}
                                 className="flex-row items-center py-4"
                             >
-                                <Ionicons name="document-text-outline" size={22} color="#1A1C1E" />
+                                <Ionicons name="document-text-outline" size={22} color={iconTint} />
                                 <Text className="font-inter-medium text-brand-black dark:text-brand-dark-text text-base ml-4">View Transcript</Text>
                             </TouchableOpacity>
                         )}
