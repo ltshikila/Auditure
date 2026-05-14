@@ -451,7 +451,7 @@ class GeminiTTSClient:
     # ~1200-char chunk landed at 150 wpm. DUO already mitigates this via
     # _generate_batched_segments with BATCH_MAX_CHARS=6000, so DUO keeps its
     # 7500-char threshold; MONOLOGUE uses this smaller ceiling instead.
-    MAX_MONOLOGUE_CHUNK_CHARS = 5000  # ~4.5 min at ~175 wpm ≈ 800 words ≈ 5000 chars
+    MAX_MONOLOGUE_CHUNK_CHARS = 4000  # ~3.8 min at ~175 wpm ≈ 670 words ≈ 4000 chars
 
     # Batched segment generation — groups N consecutive turns into a single
     # multi-speaker API call instead of one call per turn.
