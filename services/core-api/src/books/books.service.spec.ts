@@ -121,7 +121,6 @@ describe('BooksService', () => {
             expect(result).toEqual(mockBooks);
             expect(databaseService.book.findMany).toHaveBeenCalledWith({
                 where: { userId: mockUserId },
-                include: { chapters: true },
                 orderBy: { createdAt: 'desc' },
             });
         });
