@@ -23,6 +23,7 @@ Reference: https://ai.google.dev/gemini-api/docs/speech-generation
 import base64
 import io
 import logging
+import math
 import random
 import re
 import wave
@@ -438,11 +439,16 @@ class GeminiTTSClient:
     OUTPUT_PRICE_PER_M = 10.00  # $10.00 per 1M audio tokens
     TOKENS_PER_SECOND = 25      # Audio tokens per second of output
 
-    # Chunking configuration - Gemini TTS has a hard output cap at ~655s (10.9 min)
-    # Production logs showed 12000 chars → 10.9 min at actual ~180 wpm, hitting the cap
-    # Use conservative 7 min chunks to stay safely under the limit
-    MAX_CHUNK_DURATION_SEC = 420  # 7 minutes per chunk
-    MAX_CHUNK_CHARS = 7500        # ~7 min at ~180 wpm ≈ 1250 words ≈ 7500 chars
+    # Chunking configuration. Two separate concerns share this constant:
+    #   1. Hard duration cap: Gemini TTS cuts off around 655s (10.9 min) of audio.
+    #   2. Quality drift: long-output calls progressively speed up delivery and
+    #      degrade audio quality. Empirically MONOLOGUE chunks at ~7000 chars
+    #      delivered 180-204 wpm vs the formula's expected ~175 wpm, while a
+    #      ~1200-char chunk landed at 150 wpm (stable). DUO already mitigates
+    #      this via _generate_batched_segments with BATCH_MAX_CHARS=6000.
+    # 5000 chars sits comfortably under DUO's empirically-safe ceiling.
+    MAX_CHUNK_DURATION_SEC = 420  # 7 minutes per chunk (under the 10.9 min API cap)
+    MAX_CHUNK_CHARS = 5000        # ~4.5 min at ~175 wpm ≈ 800 words ≈ 5000 chars
 
     # Batched segment generation — groups N consecutive turns into a single
     # multi-speaker API call instead of one call per turn.
@@ -450,7 +456,7 @@ class GeminiTTSClient:
     # MultiSpeakerVoiceConfig explicitly assigns voices, so voice swapping
     # is not a risk even with bigger batches.
     BATCH_MAX_TURNS = 8       # Max speaker turns per batch (was 4)
-    BATCH_MAX_CHARS = 6000    # Max chars per batch (was 4000, headroom under 7500 API limit)
+    BATCH_MAX_CHARS = 6000    # Max chars per batch (DUO empirical safe ceiling)
 
     def __init__(self, temp_dir: Optional[str] = None):
         """Initialize Gemini TTS client."""
@@ -816,10 +822,12 @@ class GeminiTTSClient:
 
     def _split_script_into_chunks(self, script: str) -> list[str]:
         """
-        Split a long script into chunks that fit within Gemini's output limit.
+        Split a long script into balanced chunks that fit within MAX_CHUNK_CHARS.
 
-        Splits at speaker turn boundaries to maintain dialogue flow.
-        Each chunk stays under MAX_CHUNK_CHARS.
+        Splits at line boundaries (which double as speaker-turn / paragraph
+        boundaries). Chunks are sized to be roughly equal rather than greedy-
+        filled, so the trailing chunk isn't a tiny stub with its own fixed API
+        overhead.
 
         Returns:
             List of script chunks
@@ -827,18 +835,23 @@ class GeminiTTSClient:
         if len(script) <= self.MAX_CHUNK_CHARS:
             return [script]
 
+        # Aim for roughly equal chunks. ceil(len/MAX) is the minimum count that
+        # keeps every chunk at or below MAX; dividing length by that count gives
+        # the balanced target. Example: 22500 chars → 5 chunks of ~4500 each,
+        # not (5000, 5000, 5000, 5000, 2500).
+        num_chunks = math.ceil(len(script) / self.MAX_CHUNK_CHARS)
+        target_size = math.ceil(len(script) / num_chunks)
+
         chunks = []
         current_chunk = []
         current_length = 0
 
-        # Split by speaker turns (lines starting with SPEAKER:)
-        lines = script.split('\n')
-
-        for line in lines:
+        for line in script.split('\n'):
             line_length = len(line) + 1  # +1 for newline
 
-            # If adding this line would exceed limit, save current chunk
-            if current_length + line_length > self.MAX_CHUNK_CHARS and current_chunk:
+            # Close the current chunk when adding this line would exceed the
+            # balanced target, not the hard MAX. This keeps chunks even.
+            if current_length + line_length > target_size and current_chunk:
                 chunks.append('\n'.join(current_chunk))
                 current_chunk = []
                 current_length = 0
@@ -846,12 +859,11 @@ class GeminiTTSClient:
             current_chunk.append(line)
             current_length += line_length
 
-        # Don't forget the last chunk
         if current_chunk:
             chunks.append('\n'.join(current_chunk))
 
         logger.info(f"[Gemini TTS] Split script into {len(chunks)} chunks "
-                   f"({len(script)} chars total)")
+                   f"({len(script)} chars total, target ~{target_size}/chunk)")
         for i, chunk in enumerate(chunks):
             logger.info(f"[Gemini TTS] Chunk {i+1}: {len(chunk)} chars")
 
