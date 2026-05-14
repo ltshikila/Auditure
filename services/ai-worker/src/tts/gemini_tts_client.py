@@ -439,16 +439,19 @@ class GeminiTTSClient:
     OUTPUT_PRICE_PER_M = 10.00  # $10.00 per 1M audio tokens
     TOKENS_PER_SECOND = 25      # Audio tokens per second of output
 
-    # Chunking configuration. Two separate concerns share this constant:
-    #   1. Hard duration cap: Gemini TTS cuts off around 655s (10.9 min) of audio.
-    #   2. Quality drift: long-output calls progressively speed up delivery and
-    #      degrade audio quality. Empirically MONOLOGUE chunks at ~7000 chars
-    #      delivered 180-204 wpm vs the formula's expected ~175 wpm, while a
-    #      ~1200-char chunk landed at 150 wpm (stable). DUO already mitigates
-    #      this via _generate_batched_segments with BATCH_MAX_CHARS=6000.
-    # 5000 chars sits comfortably under DUO's empirically-safe ceiling.
-    MAX_CHUNK_DURATION_SEC = 420  # 7 minutes per chunk (under the 10.9 min API cap)
-    MAX_CHUNK_CHARS = 5000        # ~4.5 min at ~175 wpm ≈ 800 words ≈ 5000 chars
+    # Chunking configuration - Gemini TTS has a hard output cap at ~655s (10.9 min)
+    # Production logs showed 12000 chars → 10.9 min at actual ~180 wpm, hitting the cap
+    # Use conservative 7 min chunks to stay safely under the limit
+    MAX_CHUNK_DURATION_SEC = 420  # 7 minutes per chunk
+    MAX_CHUNK_CHARS = 7500        # ~7 min at ~180 wpm ≈ 1250 words ≈ 7500 chars (DUO threshold)
+
+    # MONOLOGUE-only chunk size. The char-based chunked path (no turn batching)
+    # drifts noticeably on long single-call outputs: chunks at ~7000 chars
+    # delivered 180-204 wpm vs the formula's expected 175 wpm, while a
+    # ~1200-char chunk landed at 150 wpm. DUO already mitigates this via
+    # _generate_batched_segments with BATCH_MAX_CHARS=6000, so DUO keeps its
+    # 7500-char threshold; MONOLOGUE uses this smaller ceiling instead.
+    MAX_MONOLOGUE_CHUNK_CHARS = 5000  # ~4.5 min at ~175 wpm ≈ 800 words ≈ 5000 chars
 
     # Batched segment generation — groups N consecutive turns into a single
     # multi-speaker API call instead of one call per turn.
@@ -456,7 +459,7 @@ class GeminiTTSClient:
     # MultiSpeakerVoiceConfig explicitly assigns voices, so voice swapping
     # is not a risk even with bigger batches.
     BATCH_MAX_TURNS = 8       # Max speaker turns per batch (was 4)
-    BATCH_MAX_CHARS = 6000    # Max chars per batch (DUO empirical safe ceiling)
+    BATCH_MAX_CHARS = 6000    # Max chars per batch (was 4000, headroom under 7500 API limit)
 
     def __init__(self, temp_dir: Optional[str] = None):
         """Initialize Gemini TTS client."""
@@ -816,30 +819,41 @@ class GeminiTTSClient:
 
         return '\n'.join(formatted_lines)
 
-    def _needs_chunking(self, script: str) -> bool:
-        """Check if script needs to be split into chunks."""
-        return len(script) > self.MAX_CHUNK_CHARS
+    def _needs_chunking(self, script: str, episode_type: str = "MONOLOGUE") -> bool:
+        """Check if script needs to be split into chunks.
+
+        MONOLOGUE uses a smaller threshold (MAX_MONOLOGUE_CHUNK_CHARS) because
+        its chunked path is plain char-based concatenation; long single calls
+        drift faster + degrade audio. DUO uses the full MAX_CHUNK_CHARS because
+        its batched path internally caps batches at BATCH_MAX_CHARS=6000.
+        """
+        threshold = (
+            self.MAX_MONOLOGUE_CHUNK_CHARS
+            if episode_type == "MONOLOGUE"
+            else self.MAX_CHUNK_CHARS
+        )
+        return len(script) > threshold
 
     def _split_script_into_chunks(self, script: str) -> list[str]:
         """
-        Split a long script into balanced chunks that fit within MAX_CHUNK_CHARS.
+        Split a long MONOLOGUE script into balanced chunks.
 
-        Splits at line boundaries (which double as speaker-turn / paragraph
-        boundaries). Chunks are sized to be roughly equal rather than greedy-
-        filled, so the trailing chunk isn't a tiny stub with its own fixed API
-        overhead.
+        Called only from the MONOLOGUE chunked path; uses
+        MAX_MONOLOGUE_CHUNK_CHARS, not MAX_CHUNK_CHARS. Chunks are sized to be
+        roughly equal rather than greedy-filled, so the trailing chunk isn't a
+        tiny stub with its own fixed API overhead.
 
         Returns:
             List of script chunks
         """
-        if len(script) <= self.MAX_CHUNK_CHARS:
+        if len(script) <= self.MAX_MONOLOGUE_CHUNK_CHARS:
             return [script]
 
         # Aim for roughly equal chunks. ceil(len/MAX) is the minimum count that
         # keeps every chunk at or below MAX; dividing length by that count gives
         # the balanced target. Example: 22500 chars → 5 chunks of ~4500 each,
         # not (5000, 5000, 5000, 5000, 2500).
-        num_chunks = math.ceil(len(script) / self.MAX_CHUNK_CHARS)
+        num_chunks = math.ceil(len(script) / self.MAX_MONOLOGUE_CHUNK_CHARS)
         target_size = math.ceil(len(script) / num_chunks)
 
         chunks = []
@@ -1470,8 +1484,9 @@ class GeminiTTSClient:
         logger.info(f"[Gemini TTS] Speakers: {list(set(voice_assignments.values()))}")
 
         try:
-            # Check if script needs chunking (exceeds ~10 min output limit)
-            if self._needs_chunking(script):
+            # Check if script needs chunking. MONOLOGUE chunks at a lower
+            # threshold than DUO; see _needs_chunking docstring.
+            if self._needs_chunking(script, episode_type):
                 # For multi-speaker episodes, use batched generation to prevent
                 # voice swapping. Groups turns into small batches (5 turns each)
                 # with multi-speaker mode per batch.
@@ -1494,7 +1509,7 @@ class GeminiTTSClient:
                     return audio_data
 
                 # For MONOLOGUE, use chunked generation (single voice, no swapping issue)
-                logger.info(f"[Gemini TTS] Script exceeds {self.MAX_CHUNK_CHARS} chars, using chunked generation")
+                logger.info(f"[Gemini TTS] Script exceeds {self.MAX_MONOLOGUE_CHUNK_CHARS} chars, using chunked generation")
                 chunks = self._split_script_into_chunks(script)
 
                 # Generate audio for each chunk
