@@ -144,7 +144,21 @@ describe('BooksService', () => {
             expect(result).toEqual(mockBook);
             expect(databaseService.book.findUnique).toHaveBeenCalledWith({
                 where: { id: mockBook.id },
-                include: { chapters: true },
+                include: {
+                    chapters: {
+                        select: {
+                            id: true,
+                            chapterNumber: true,
+                            title: true,
+                            startPage: true,
+                            endPage: true,
+                            textLength: true,
+                            createdAt: true,
+                            updatedAt: true,
+                        },
+                        orderBy: { chapterNumber: 'asc' },
+                    },
+                },
             });
         });
 
