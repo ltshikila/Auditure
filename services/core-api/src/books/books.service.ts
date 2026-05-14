@@ -292,9 +292,13 @@ export class BooksService {
     }
 
     async findAll(userId: string) {
+        // Don't include chapters: each chapter row carries the full extracted
+        // text (@db.Text), and for a user with dozens of books the payload
+        // balloons into the tens of MB — long enough to time out on mobile
+        // and leave the picker stuck on "No books in your library yet".
+        // Per-book chapters are fetched separately via /books/:id/chapters.
         return this.databaseService.book.findMany({
             where: { userId },
-            include: { chapters: true },
             orderBy: { createdAt: 'desc' },
         });
     }
