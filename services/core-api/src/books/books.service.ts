@@ -304,9 +304,29 @@ export class BooksService {
     }
 
     async findOne(userId: string, id: string) {
+        // Don't pull chapter extractedText (@db.Text): the mobile client only
+        // needs chapter metadata for the picker, and the full text blows up
+        // the JSON payload for books with many chapters. Internal callers that
+        // need the text (getExtractedText) query the Chapter table separately.
+        // Episodes service has its own getBookForEpisode() that still includes
+        // full chapters by design.
         const book = await this.databaseService.book.findUnique({
             where: { id },
-            include: { chapters: true },
+            include: {
+                chapters: {
+                    select: {
+                        id: true,
+                        chapterNumber: true,
+                        title: true,
+                        startPage: true,
+                        endPage: true,
+                        textLength: true,
+                        createdAt: true,
+                        updatedAt: true,
+                    },
+                    orderBy: { chapterNumber: 'asc' },
+                },
+            },
         });
 
         if (!book) {
