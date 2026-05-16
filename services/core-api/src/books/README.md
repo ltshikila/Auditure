@@ -4,7 +4,7 @@ Complete book management system with file upload, text extraction, and async pro
 
 ## Features
 
-- PDF and EPUB file upload (up to 50MB)
+- PDF and EPUB file upload (up to 32MB, magic-byte verified)
 - Async text extraction with RabbitMQ
 - Automatic chapter detection
 - Cover image extraction (Google Books API + PDF/EPUB fallback)
@@ -1002,15 +1002,78 @@ AWS_ACCESS_KEY_ID=your-key
 AWS_SECRET_ACCESS_KEY=your-secret
 ```
 
+## Upload Security
+
+Users upload arbitrary PDF and EPUB files. Both formats can carry executable
+payloads (PDF JavaScript, EPUB scripts/HTML), and document-borne malware is
+a real attack class. The defenses below sit at the upload boundary so a
+malicious file never reaches the parser uninspected.
+
+### Defenses currently in place
+
+| Layer | Defense | Where |
+|---|---|---|
+| HTTP upload | 32 MB hard size limit | `books.controller.ts` Multer `limits.fileSize` |
+| HTTP upload | MIME allowlist (`application/pdf`, `application/epub+zip`) | `books.controller.ts` `bookFileFilter` |
+| Service | **Magic-byte verification** matching the declared MIME | `BooksService.verifyFileMagicBytes` |
+| PDF parser | **PDF JavaScript execution disabled** (`isEvalSupported: false`, `enableXfa: false`) on every `pdfjs.getDocument` call | `TextExtractionService` (all 3 call sites) |
+| Container | Extractor runs as non-root `appuser` | `Dockerfile` |
+| Network | VPC egress restricted to private ranges on the book-extractor Job | `.github/workflows/deploy.yml` |
+
+### Magic-byte verification
+
+The MIME allowlist alone is not sufficient — `file.mimetype` in a multipart
+upload is whatever the client claims, so a payload renamed `book.pdf` with
+header `Content-Type: application/pdf` passes the filter. After the file
+buffer is in memory, `BooksService.verifyFileMagicBytes` checks:
+
+- **PDF**: first 5 bytes must be `%PDF-` (ISO 32000 mandates this).
+- **EPUB**: first 4 bytes must be ZIP local-file-header signature (`PK\x03\x04`)
+  AND the string `application/epub+zip` must appear in the first 200 bytes
+  (the EPUB spec places it at offset 38 in a conforming archive).
+
+A failed check throws `BadRequestException` and the file is never written
+to GCS or dispatched for extraction.
+
+### PDF JavaScript neutralization
+
+`pdfjs-dist` will execute embedded PDF JavaScript (`@OpenAction`, form-field
+handlers, XFA scripts) at parse time by default. Every `pdfjs.getDocument`
+call in `TextExtractionService` passes:
+
+```ts
+{
+  data: uint8Array,
+  isEvalSupported: false,   // refuse JS eval inside the parser
+  enableXfa: false,         // refuse XFA forms (which can carry JS)
+}
+```
+
+This applies to the TOC-based chapter detector, the PDF.js outline reader,
+and the OCR rendering path.
+
+### Known gaps (not currently defended)
+
+The following risks are acknowledged but not yet mitigated. Each can become
+a hardening ticket if the threat model justifies the cost.
+
+| Gap | Risk | Possible mitigation |
+|---|---|---|
+| No antivirus/malware scan on upload | A file matching valid PDF/EPUB shape but carrying known malware is still stored in GCS and parsed | ClamAV sidecar, or GCP file scanner API on the bucket |
+| EPUB HTML sanitization is regex-based (`stripHtml`) | A crafted EPUB with malformed HTML can survive the strip and reach the extracted-text store | Replace with `sanitize-html` / `DOMPurify` |
+| No ZIP-bomb guard on EPUBs | A 32 MB EPUB can decompress to TB; saved by Cloud Run's 2 GB memory limit, but the Job will OOM-crash | Use `yauzl`/`unzipper` with `maxEntries` and uncompressed-size caps before handing to `@gxl/epub-parser` |
+| `pdf-parse` 1.x is unconfigured | Library bundles an old `pdfjs-dist`; smaller risk than modern pdfjs but still loads JS-bearing PDFs without explicit disable | Migrate fully to `pdfjs-dist` with the security options above, or pin to a `pdf-parse` fork that exposes config |
+| No per-user upload-rate quota | A single user can spam uploads and consume Cloud Run Job slots | Rate limit at the controller (`@Throttle`) |
+
 ## Error Handling
 
 | Exception | HTTP Status | When Used |
 |-----------|-------------|-----------|
-| `BadRequestException` | 400 | Missing file, invalid input, extraction not complete |
+| `BadRequestException` | 400 | Missing file, invalid input, extraction not complete, **failed magic-byte verification** |
 | `UnauthorizedException` | 401 | Invalid JWT token |
 | `ForbiddenException` | 403 | Accessing another user's book |
 | `NotFoundException` | 404 | Book doesn't exist |
-| `PayloadTooLargeException` | 413 | File exceeds 50MB |
+| `PayloadTooLargeException` | 413 | File exceeds 32MB |
 
 ## Usage Example (Client Side)
 
