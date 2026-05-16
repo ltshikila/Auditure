@@ -26,6 +26,56 @@ export class BooksService {
     ) {}
 
     /**
+     * Verify the uploaded file's first bytes match its declared MIME type.
+     *
+     * Multipart MIME types are client-controlled and trivially spoofed, so a
+     * malicious upload can pass the upload-filter check by claiming
+     * application/pdf while shipping an arbitrary payload. Reading the file's
+     * magic bytes catches that. Runs before the file is stored in GCS or
+     * dispatched to the extractor, so a bad upload never reaches downstream
+     * parsers.
+     */
+    private verifyFileMagicBytes(buffer: Buffer, mimetype: string): void {
+        if (mimetype === 'application/pdf') {
+            // PDF files always begin with "%PDF-" per ISO 32000.
+            if (buffer.length < 5 || buffer.slice(0, 5).toString('ascii') !== '%PDF-') {
+                throw new BadRequestException(
+                    'File does not appear to be a valid PDF (header check failed)',
+                );
+            }
+            return;
+        }
+
+        if (mimetype === 'application/epub+zip') {
+            // EPUB is a ZIP archive whose first entry must be a "mimetype"
+            // file containing the string "application/epub+zip".
+            const startsWithZip =
+                buffer.length >= 4 &&
+                buffer[0] === 0x50 && // P
+                buffer[1] === 0x4b && // K
+                buffer[2] === 0x03 &&
+                buffer[3] === 0x04;
+            if (!startsWithZip) {
+                throw new BadRequestException(
+                    'File does not appear to be a valid EPUB (not a ZIP archive)',
+                );
+            }
+            // The mimetype string sits near offset 38 in a conforming EPUB.
+            // Scan the first 200 bytes to be tolerant of minor structural
+            // variants while still rejecting non-EPUB ZIPs.
+            const header = buffer.subarray(0, Math.min(buffer.length, 200));
+            if (!header.includes(Buffer.from('application/epub+zip'))) {
+                throw new BadRequestException(
+                    'File does not appear to be a valid EPUB (mimetype declaration missing)',
+                );
+            }
+            return;
+        }
+
+        throw new BadRequestException(`Unsupported file type: ${mimetype}`);
+    }
+
+    /**
      * Clean up a book title that may be URL-encoded or from a filename.
      * Examples:
      * - "The%2048%20Laws%20Of%20Power" → "The 48 Laws Of Power"
@@ -174,6 +224,11 @@ export class BooksService {
                 this.logger.error(`File object keys: ${Object.keys(file).join(', ')}`);
                 throw new BadRequestException('File buffer is missing');
             }
+
+            // 1.25 Verify magic bytes match the declared MIME type. The
+            // controller's fileFilter checks file.mimetype only, which is
+            // client-controlled and spoofable. This is the real type check.
+            this.verifyFileMagicBytes(file.buffer, file.mimetype);
 
             // 1.5 Check for existing book with matching title (completed or in-progress)
             const cleanedTitle = this.cleanupTitle(createBookDto.title);
