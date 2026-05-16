@@ -1549,6 +1549,28 @@ export class TextExtractionService {
         }
     }
 
+    /**
+     * Normalize a value from EPUB metadata into a string.
+     *
+     * @gxl/epub-parser uses xml2js, which represents XML elements with
+     * attributes as { _: <text>, $: <attrs> }. Plain elements come through
+     * as strings, repeated elements as arrays. Without unwrapping, downstream
+     * stringification produces literal "[object Object]" titles.
+     */
+    private coerceEpubMetadata(value: unknown): string | undefined {
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            return trimmed || undefined;
+        }
+        if (Array.isArray(value) && value.length > 0) {
+            return this.coerceEpubMetadata(value[0]);
+        }
+        if (value && typeof value === 'object' && '_' in value) {
+            return this.coerceEpubMetadata((value as { _: unknown })._);
+        }
+        return undefined;
+    }
+
     async extractFromEpub(buffer: Buffer): Promise<ExtractedContent> {
         // Dynamic import for @gxl/epub-parser (supports buffer input)
         const { parseEpub } = await import('@gxl/epub-parser');
@@ -1557,8 +1579,8 @@ export class TextExtractionService {
         const epub = await parseEpub(buffer, { type: 'buffer' });
 
         const metadata = {
-            title: epub.info?.title,
-            author: epub.info?.author,
+            title: this.coerceEpubMetadata(epub.info?.title),
+            author: this.coerceEpubMetadata(epub.info?.author),
         };
 
         // Build TOC lookup: sectionId → chapter name (e.g., "Bran I", "Catelyn I")
@@ -1638,8 +1660,8 @@ export class TextExtractionService {
             const { parseEpub } = await import('@gxl/epub-parser');
             const epub = await parseEpub(buffer, { type: 'buffer' });
             return {
-                title: epub.info?.title,
-                author: epub.info?.author,
+                title: this.coerceEpubMetadata(epub.info?.title),
+                author: this.coerceEpubMetadata(epub.info?.author),
             };
         }
     }
