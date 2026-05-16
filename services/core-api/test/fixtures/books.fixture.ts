@@ -56,8 +56,11 @@ export const mockCreateBookDto = {
     language: 'en',
 };
 
+// Prefixed with the real PDF magic ("%PDF-") so BooksService.verifyFileMagicBytes
+// accepts the fixture. The content past the header is irrelevant for the tests
+// since extraction itself is mocked.
 export const mockFile = {
-    buffer: Buffer.from('mock pdf content'),
+    buffer: Buffer.from('%PDF-1.4\nmock pdf content'),
     originalname: 'test-book.pdf',
     mimetype: 'application/pdf',
     size: 1024000,
