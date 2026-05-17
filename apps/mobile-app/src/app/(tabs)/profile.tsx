@@ -17,6 +17,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import Constants from 'expo-constants';
 import DatePickerModal from '@/components/DatePickerModal';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/contexts/AuthContext';
@@ -854,7 +855,7 @@ export default function Profile() {
 
                 {/* App Info */}
                 <View className="items-center py-4">
-                    <Text className="font-inter text-gray-400 dark:text-brand-dark-text-muted text-sm">Auditure v1.0.0</Text>
+                    <Text className="font-inter text-gray-400 dark:text-brand-dark-text-muted text-sm">Auditure v{Constants.expoConfig?.version}</Text>
                     <Text className="font-inter text-gray-400 dark:text-brand-dark-text-muted text-xs mt-1">
                         Member since{' '}
                         {profile?.createdAt
