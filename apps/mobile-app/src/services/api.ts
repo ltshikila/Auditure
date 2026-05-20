@@ -101,6 +101,13 @@ const getUserFriendlyMessage = (statusCode: number, apiMessage: string, _error?:
 };
 
 class ApiClient {
+  // Generous enough to survive a Cloud Run cold start (~14s observed) plus
+  // typical request latency, but short enough that a real network failure
+  // surfaces quickly. A failed call gets one automatic retry, so the
+  // effective worst-case wait is ~2x this.
+  private static readonly REQUEST_TIMEOUT_MS = 30000;
+  private static readonly NETWORK_RETRY_DELAY_MS = 1000;
+
   private baseUrl: string;
   private refreshPromise: Promise<string | null> | null = null;
   private onAuthFailure: (() => void) | null = null;
@@ -157,20 +164,33 @@ class ApiClient {
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},
-    isRetry = false
+    isRetry = false,
+    networkRetryAttempted = false
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
+
+    // Fail-fast timeout via AbortController so a stuck/intermittent connection
+    // doesn't hang on the platform default. A fresh controller per attempt
+    // means a retry isn't poisoned by the previous attempt's abort signal.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      ApiClient.REQUEST_TIMEOUT_MS
+    );
 
     try {
       console.log(`[API] ${options.method || 'GET'} ${url}`);
 
       const response = await fetch(url, {
         ...options,
+        signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
           ...options.headers,
         },
       });
+
+      clearTimeout(timeoutId);
 
       // Handle 204 No Content responses (empty body)
       if (response.status === 204) {
@@ -223,9 +243,28 @@ class ApiClient {
       console.log(`[API Success] ${options.method || 'GET'} ${url}`);
       return data;
     } catch (error: any) {
-      // If it's already an ApiError, re-throw it
+      clearTimeout(timeoutId);
+
+      // If it's already an ApiError (server returned a non-2xx response),
+      // re-throw without retrying. The server saw the request.
       if (error.message && error.statusCode) {
         throw error;
+      }
+
+      // Transient connectivity failure: either the request never reached the
+      // server (TypeError from DNS/TCP/TLS failure) or our own timeout fired
+      // before any response arrived (AbortError). Retry once after a short
+      // backoff, since most transient mobile-network blips clear within a second.
+      const isTransient =
+        error.name === 'TypeError' || error.name === 'AbortError';
+      if (isTransient && !networkRetryAttempted) {
+        console.warn(
+          `[API Retry] ${options.method || 'GET'} ${url} - ${error.name}, retrying in ${ApiClient.NETWORK_RETRY_DELAY_MS}ms`
+        );
+        await new Promise((r) =>
+          setTimeout(r, ApiClient.NETWORK_RETRY_DELAY_MS)
+        );
+        return this.request<T>(endpoint, options, isRetry, true);
       }
 
       // Network or other errors
