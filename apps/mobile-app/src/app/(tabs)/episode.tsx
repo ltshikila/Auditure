@@ -153,7 +153,7 @@ export default function EpisodesScreen() {
         return (
             <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-brand-beige dark:bg-brand-dark-bg">
                 <TopBar />
-                <View className="px-6 pt-6 pb-6">
+                <View className="px-5 pt-5 pb-6">
                     <View className="flex-row items-center justify-between">
                         <View>
                             <Text className="font-inter-bold text-2xl text-brand-black dark:text-brand-dark-text">Episodes</Text>
@@ -179,7 +179,7 @@ export default function EpisodesScreen() {
                 }
             >
                 {/* Header */}
-                <View className="px-6 pt-6 pb-6">
+                <View className="px-5 pt-5 pb-6">
                     <View className="flex-row items-center justify-between">
                         <View>
                             <Text className="font-inter-bold text-2xl text-brand-black dark:text-brand-dark-text">Episodes</Text>
