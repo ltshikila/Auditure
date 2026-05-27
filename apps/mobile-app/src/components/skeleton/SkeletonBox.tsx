@@ -7,8 +7,8 @@ import { useIsDark } from '@/hooks/use-colors';
 
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 
-const LIGHT_BASE = '#E5E7EB';
-const LIGHT_HIGHLIGHT = '#F3F4F6';
+const LIGHT_BASE = '#E5DCC0';
+const LIGHT_HIGHLIGHT = '#F0E8D0';
 const DARK_BASE = '#2A2C2E';
 const DARK_HIGHLIGHT = '#3A3D40';
 
