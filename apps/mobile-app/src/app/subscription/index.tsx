@@ -157,22 +157,24 @@ export default function SubscriptionScreen() {
         const rcEntitlement = customerInfo?.entitlements.active['premium'] ?? null;
         const hasComp = !!backendStatus.comp;
 
-        // RC wins when it has data; backend stays authoritative for legacy
-        // Paystack subscribers until the backend gets RC webhooks.
+        // RC + comp are the only authoritative sources for entitlement state.
+        // We deliberately ignore the backend's tier/isPaid/isCancelled fields
+        // — those reflect the (now-retired) Paystack flow and can leave stale
+        // STARTER/PRO rows on users who never actually bought through Play.
         const rcTier: 'PRO' | 'STARTER' | null =
             activeProductIdentifier === PRO_PRODUCT_ID ? 'PRO'
             : activeProductIdentifier === STARTER_PRODUCT_ID ? 'STARTER'
             : null;
         const tier: 'FREE' | 'STARTER' | 'PRO' =
-            rcTier ?? (hasComp ? 'PRO' : backendStatus.tier);
+            rcTier ?? (hasComp ? 'PRO' : 'FREE');
 
         return {
             ...backendStatus,
             tier,
-            isPaid: hasPremium || hasComp || backendStatus.isPaid,
-            isCancelled: rcEntitlement ? rcEntitlement.willRenew === false : backendStatus.isCancelled,
-            premiumStartedAt: rcEntitlement?.latestPurchaseDate ?? backendStatus.premiumStartedAt,
-            premiumExpiresAt: rcEntitlement?.expirationDate ?? backendStatus.premiumExpiresAt,
+            isPaid: hasPremium || hasComp,
+            isCancelled: rcEntitlement ? rcEntitlement.willRenew === false : false,
+            premiumStartedAt: rcEntitlement?.latestPurchaseDate ?? null,
+            premiumExpiresAt: rcEntitlement?.expirationDate ?? null,
             usage: {
                 ...backendStatus.usage,
                 geminiEpisodeLimit: TIER_GEMINI_LIMITS[tier],
@@ -307,9 +309,12 @@ export default function SubscriptionScreen() {
             setPurchasing(true);
             setError(null);
             track('checkout_started', { tier: 'pro', action: 'upgrade', source: paywallSource });
-            const outcome = await purchasePackage(proPkg, {
-                oldProductIdentifier: BASE_PRODUCT_ID,
-            });
+            // Only do a product change when RC sees an active entitlement to
+            // switch from; otherwise BillingClient throws DEVELOPER_ERROR.
+            const outcome = await purchasePackage(
+                proPkg,
+                hasPremium ? { oldProductIdentifier: BASE_PRODUCT_ID } : undefined,
+            );
             await fetchSubscription();
             if (outcome.status === 'purchased') {
                 showAlert({
@@ -338,10 +343,15 @@ export default function SubscriptionScreen() {
             setPurchasing(true);
             setError(null);
             track('checkout_started', { tier: 'starter', action: 'downgrade', source: paywallSource });
-            const outcome = await purchasePackage(starterPkg, {
-                oldProductIdentifier: BASE_PRODUCT_ID,
-                prorationMode: PRORATION_MODE.DEFERRED,
-            });
+            const outcome = await purchasePackage(
+                starterPkg,
+                hasPremium
+                    ? {
+                          oldProductIdentifier: BASE_PRODUCT_ID,
+                          prorationMode: PRORATION_MODE.DEFERRED,
+                      }
+                    : undefined,
+            );
             await fetchSubscription();
             if (outcome.status === 'purchased') {
                 showAlert({
