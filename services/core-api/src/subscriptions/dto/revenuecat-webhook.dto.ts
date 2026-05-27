@@ -22,12 +22,12 @@ export interface RevenueCatEvent {
     id: string;
     app_user_id: string;
     original_app_user_id?: string;
-    product_id: string;                        // e.g. "auditure_premium:starter"
-    new_product_id?: string;                   // present on PRODUCT_CHANGE
+    product_id: string; // e.g. "auditure_premium:starter"
+    new_product_id?: string; // present on PRODUCT_CHANGE
     purchased_at_ms?: number;
     expiration_at_ms?: number | null;
     event_timestamp_ms: number;
-    store?: 'PLAY_STORE' | 'APP_STORE' | 'STRIPE' | 'PROMOTIONAL' | string;
+    store?: string; // PLAY_STORE | APP_STORE | STRIPE | PROMOTIONAL etc.
     environment?: 'SANDBOX' | 'PRODUCTION';
     entitlement_ids?: string[];
     cancel_reason?: string;

@@ -51,36 +51,46 @@ export class SubscriptionsController {
 
     @Post('checkout')
     @UseGuards(JwtAuthGuard)
-    async createCheckoutSession(@Request() req, @Body() _dto: CreateCheckoutSessionDto) {
-        this.logger.log(`[legacy] checkout hit by user ${req.user.userId} — returning update-app notice`);
+    createCheckoutSession(@Request() req, @Body() _dto: CreateCheckoutSessionDto) {
+        this.logger.log(
+            `[legacy] checkout hit by user ${req.user.userId} — returning update-app notice`,
+        );
         throw new BadRequestException(LEGACY_CLIENT_MESSAGE);
     }
 
     @Post('manage')
     @UseGuards(JwtAuthGuard)
-    async getManageSubscription(@Request() req) {
-        this.logger.log(`[legacy] manage hit by user ${req.user.userId} — returning update-app notice`);
+    getManageSubscription(@Request() req) {
+        this.logger.log(
+            `[legacy] manage hit by user ${req.user.userId} — returning update-app notice`,
+        );
         throw new BadRequestException(LEGACY_CLIENT_MESSAGE);
     }
 
     @Post('cancel')
     @UseGuards(JwtAuthGuard)
-    async cancelSubscription(@Request() req) {
-        this.logger.log(`[legacy] cancel hit by user ${req.user.userId} — returning update-app notice`);
+    cancelSubscription(@Request() req) {
+        this.logger.log(
+            `[legacy] cancel hit by user ${req.user.userId} — returning update-app notice`,
+        );
         throw new BadRequestException(LEGACY_CLIENT_MESSAGE);
     }
 
     @Post('reactivate')
     @UseGuards(JwtAuthGuard)
-    async reactivateSubscription(@Request() req) {
-        this.logger.log(`[legacy] reactivate hit by user ${req.user.userId} — returning update-app notice`);
+    reactivateSubscription(@Request() req) {
+        this.logger.log(
+            `[legacy] reactivate hit by user ${req.user.userId} — returning update-app notice`,
+        );
         throw new BadRequestException(LEGACY_CLIENT_MESSAGE);
     }
 
     @Post('cleanup-duplicates')
     @UseGuards(JwtAuthGuard)
-    async cleanupDuplicates(@Request() req) {
-        this.logger.log(`[legacy] cleanup-duplicates hit by user ${req.user.userId} — returning update-app notice`);
+    cleanupDuplicates(@Request() req) {
+        this.logger.log(
+            `[legacy] cleanup-duplicates hit by user ${req.user.userId} — returning update-app notice`,
+        );
         throw new BadRequestException(LEGACY_CLIENT_MESSAGE);
     }
 

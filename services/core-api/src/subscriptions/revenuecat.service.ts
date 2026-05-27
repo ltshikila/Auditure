@@ -58,8 +58,10 @@ export class RevenueCatService {
                 this.logger.log(`RC event ${event.type} — no-op`);
                 return;
 
-            default:
-                this.logger.warn(`Unhandled RC event type: ${(event as RevenueCatEvent).type}`);
+            default: {
+                const unknownEvent = event as { type?: string };
+                this.logger.warn(`Unhandled RC event type: ${unknownEvent.type ?? 'unknown'}`);
+            }
         }
     }
 
@@ -87,7 +89,9 @@ export class RevenueCatService {
         }
 
         const limits = TIER_LIMITS[tier];
-        const premiumStartedAt = event.purchased_at_ms ? new Date(event.purchased_at_ms) : new Date();
+        const premiumStartedAt = event.purchased_at_ms
+            ? new Date(event.purchased_at_ms)
+            : new Date();
         const premiumExpiresAt = event.expiration_at_ms ? new Date(event.expiration_at_ms) : null;
 
         await this.databaseService.subscription.update({
