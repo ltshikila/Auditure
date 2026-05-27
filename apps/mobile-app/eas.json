@@ -7,6 +7,10 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY": "test_EodoGHreMloKVUhBAEfogqTNZrf",
+        "EXPO_PUBLIC_REVENUECAT_IOS_API_KEY": "test_EodoGHreMloKVUhBAEfogqTNZrf"
+      },
       "ios": {
         "simulator": true
       }
@@ -14,10 +18,13 @@
     "preview": {
       "distribution": "internal",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleDebug"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.auditure.app"
+        "EXPO_PUBLIC_API_URL": "https://api.auditure.app",
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY": "test_EodoGHreMloKVUhBAEfogqTNZrf",
+        "EXPO_PUBLIC_REVENUECAT_IOS_API_KEY": "test_EodoGHreMloKVUhBAEfogqTNZrf"
       }
     },
     "production": {

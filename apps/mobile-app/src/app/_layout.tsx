@@ -42,6 +42,7 @@ import { AlertProvider } from '@/contexts/AlertContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { PlaybackProvider } from '@/contexts/PlaybackContext';
 import { NotificationsProvider } from '@/contexts/NotificationsContext';
+import { RevenueCatProvider } from '@/contexts/RevenueCatContext';
 import { ThemeProvider as AppThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { MiniPlayer } from '@/components/MiniPlayer';
 
@@ -100,11 +101,13 @@ function RootLayout() {
       <AppThemeProvider>
         <AlertProvider>
           <AuthProvider>
-            <NotificationsProvider>
-              <PlaybackProvider>
-                <ThemedNavigation />
-              </PlaybackProvider>
-            </NotificationsProvider>
+            <RevenueCatProvider>
+              <NotificationsProvider>
+                <PlaybackProvider>
+                  <ThemedNavigation />
+                </PlaybackProvider>
+              </NotificationsProvider>
+            </RevenueCatProvider>
           </AuthProvider>
         </AlertProvider>
       </AppThemeProvider>

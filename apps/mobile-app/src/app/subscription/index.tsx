@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     View,
     Text,
@@ -21,7 +21,17 @@ import {
 import { TopBar } from '@/components';
 import { SubscriptionSkeleton } from '@/components/skeleton';
 import { useAlert } from '@/contexts/AlertContext';
+import { PRORATION_MODE, useRevenueCat } from '@/contexts/RevenueCatContext';
 import { track } from '@/lib/posthog';
+
+const BASE_PRODUCT_ID = 'auditure_premium';
+const STARTER_PRODUCT_ID = `${BASE_PRODUCT_ID}:starter`;
+const PRO_PRODUCT_ID = `${BASE_PRODUCT_ID}:pro`;
+const TIER_GEMINI_LIMITS: Record<'FREE' | 'STARTER' | 'PRO', number> = {
+    FREE: 1,
+    STARTER: 20,
+    PRO: 50,
+};
 
 type PricingCardProps = {
     title: string;
@@ -126,12 +136,49 @@ function UsageBar({ used, limit, label }: { used: number; limit: number; label: 
 
 export default function SubscriptionScreen() {
     const { showAlert } = useAlert();
-    const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
+    const {
+        currentOffering,
+        customerInfo,
+        hasPremium,
+        activeProductIdentifier,
+        purchasePackage,
+        presentCustomerCenter,
+        refresh: refreshRC,
+    } = useRevenueCat();
+    const [backendStatus, setBackendStatus] = useState<SubscriptionStatus | null>(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [purchasing, setPurchasing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [selectedTier, setSelectedTier] = useState<SubscriptionTier>('pro');
+
+    const subscription = useMemo<SubscriptionStatus | null>(() => {
+        if (!backendStatus) return null;
+        const rcEntitlement = customerInfo?.entitlements.active['premium'] ?? null;
+        const hasComp = !!backendStatus.comp;
+
+        // RC wins when it has data; backend stays authoritative for legacy
+        // Paystack subscribers until the backend gets RC webhooks.
+        const rcTier: 'PRO' | 'STARTER' | null =
+            activeProductIdentifier === PRO_PRODUCT_ID ? 'PRO'
+            : activeProductIdentifier === STARTER_PRODUCT_ID ? 'STARTER'
+            : null;
+        const tier: 'FREE' | 'STARTER' | 'PRO' =
+            rcTier ?? (hasComp ? 'PRO' : backendStatus.tier);
+
+        return {
+            ...backendStatus,
+            tier,
+            isPaid: hasPremium || hasComp || backendStatus.isPaid,
+            isCancelled: rcEntitlement ? rcEntitlement.willRenew === false : backendStatus.isCancelled,
+            premiumStartedAt: rcEntitlement?.latestPurchaseDate ?? backendStatus.premiumStartedAt,
+            premiumExpiresAt: rcEntitlement?.expirationDate ?? backendStatus.premiumExpiresAt,
+            usage: {
+                ...backendStatus.usage,
+                geminiEpisodeLimit: TIER_GEMINI_LIMITS[tier],
+            },
+        };
+    }, [backendStatus, customerInfo, activeProductIdentifier, hasPremium]);
 
     const { status, reason, source } = useLocalSearchParams<{ status?: string; reason?: string; source?: string }>();
     const pricing: Pricing = subscriptionService.getPricing();
@@ -183,8 +230,11 @@ export default function SubscriptionScreen() {
                 return;
             }
 
-            const data = await subscriptionService.getSubscriptionStatus(token);
-            setSubscription(data);
+            const [data] = await Promise.all([
+                subscriptionService.getSubscriptionStatus(token),
+                refreshRC(),
+            ]);
+            setBackendStatus(data);
         } catch (err: any) {
             console.error('Error fetching subscription:', err);
             setError(err.message || 'Failed to load subscription');
@@ -208,42 +258,35 @@ export default function SubscriptionScreen() {
         fetchSubscription(true);
     };
 
+    const findPackageByProductId = useCallback(
+        (productId: string) =>
+            currentOffering?.availablePackages.find(
+                (p) => p.product.identifier === productId,
+            ) ?? null,
+        [currentOffering],
+    );
+
     const handleSubscribe = async () => {
         track('paywall_cta_tapped', { tier: selectedTier, action: 'subscribe', source: paywallSource });
+        const productId = selectedTier === 'pro' ? PRO_PRODUCT_ID : STARTER_PRODUCT_ID;
+        const pkg = findPackageByProductId(productId);
+        if (!pkg) {
+            setError('Subscription option not available. Pull to refresh and try again.');
+            return;
+        }
         try {
             setPurchasing(true);
             setError(null);
-
-            const token = await storageService.getAccessToken();
-            if (!token) {
-                router.replace('/(auth)/Auth');
-                return;
-            }
-
             track('checkout_started', { tier: selectedTier, action: 'subscribe', source: paywallSource });
-            const result = await subscriptionService.startCheckout(token, selectedTier);
-
-            // Always refresh subscription status after checkout returns
-            // (payment may have succeeded even if the redirect back to app failed)
+            const outcome = await purchasePackage(pkg);
             await fetchSubscription();
-
-            if (result.success) {
-                // Handle re-enabled subscription (same plan, just reactivated)
-                if (result.reEnabled) {
-                    showAlert({
-                        title: 'Subscription Reactivated!',
-                        message: result.message || 'Your subscription is active again.',
-                    });
-                } else {
-                    showAlert({
-                        title: 'Subscription Activated!',
-                        message: `Welcome to Auditure ${subscriptionService.getTierDisplayName(selectedTier)}! Enjoy your podcast episodes.`,
-                    });
-                }
-            } else if (result.cancelled) {
-                console.log('User cancelled or dismissed checkout');
-            } else if (result.error) {
-                setError(result.error);
+            if (outcome.status === 'purchased') {
+                showAlert({
+                    title: 'Subscription Activated!',
+                    message: `Welcome to Auditure ${subscriptionService.getTierDisplayName(selectedTier)}! Enjoy your podcast episodes.`,
+                });
+            } else if (outcome.status === 'error') {
+                setError(outcome.message);
             }
         } catch (err: any) {
             console.error('Subscription error:', err);
@@ -255,30 +298,26 @@ export default function SubscriptionScreen() {
 
     const handleUpgrade = async () => {
         track('paywall_cta_tapped', { tier: 'pro', action: 'upgrade', source: paywallSource });
+        const proPkg = findPackageByProductId(PRO_PRODUCT_ID);
+        if (!proPkg) {
+            setError('Pro plan not available. Pull to refresh and try again.');
+            return;
+        }
         try {
             setPurchasing(true);
             setError(null);
-
-            const token = await storageService.getAccessToken();
-            if (!token) {
-                router.replace('/(auth)/Auth');
-                return;
-            }
-
             track('checkout_started', { tier: 'pro', action: 'upgrade', source: paywallSource });
-            const result = await subscriptionService.startCheckout(token, 'pro', { isUpgrade: true });
-
+            const outcome = await purchasePackage(proPkg, {
+                oldProductIdentifier: BASE_PRODUCT_ID,
+            });
             await fetchSubscription();
-
-            if (result.success) {
+            if (outcome.status === 'purchased') {
                 showAlert({
                     title: 'Upgrade Successful!',
                     message: 'Welcome to Auditure Pro! Enjoy your 50 episodes per month.',
                 });
-            } else if (result.cancelled) {
-                console.log('User cancelled upgrade - existing subscription unchanged');
-            } else if (result.error) {
-                setError(result.error);
+            } else if (outcome.status === 'error') {
+                setError(outcome.message);
             }
         } catch (err: any) {
             console.error('Upgrade error:', err);
@@ -290,30 +329,27 @@ export default function SubscriptionScreen() {
 
     const handleDowngrade = async () => {
         track('paywall_cta_tapped', { tier: 'starter', action: 'downgrade', source: paywallSource });
+        const starterPkg = findPackageByProductId(STARTER_PRODUCT_ID);
+        if (!starterPkg) {
+            setError('Starter plan not available. Pull to refresh and try again.');
+            return;
+        }
         try {
             setPurchasing(true);
             setError(null);
-
-            const token = await storageService.getAccessToken();
-            if (!token) {
-                router.replace('/(auth)/Auth');
-                return;
-            }
-
             track('checkout_started', { tier: 'starter', action: 'downgrade', source: paywallSource });
-            const result = await subscriptionService.startCheckout(token, 'starter', { isUpgrade: true });
-
+            const outcome = await purchasePackage(starterPkg, {
+                oldProductIdentifier: BASE_PRODUCT_ID,
+                prorationMode: PRORATION_MODE.DEFERRED,
+            });
             await fetchSubscription();
-
-            if (result.success) {
+            if (outcome.status === 'purchased') {
                 showAlert({
-                    title: 'Plan Changed!',
-                    message: 'You are now on the Starter plan with 30 episodes per month.',
+                    title: 'Plan Change Scheduled',
+                    message: 'You will switch to the Starter plan at the end of your current billing period.',
                 });
-            } else if (result.cancelled) {
-                console.log('User cancelled downgrade - existing subscription unchanged');
-            } else if (result.error) {
-                setError(result.error);
+            } else if (outcome.status === 'error') {
+                setError(outcome.message);
             }
         } catch (err: any) {
             console.error('Downgrade error:', err);
@@ -329,17 +365,20 @@ export default function SubscriptionScreen() {
             title: "We're sorry to see you go",
             message: 'Before you cancel, could you tell us why?',
             buttons: [
-                { text: 'Keep My Subscription', style: 'cancel' },
+                { text: 'Keep My Subscription' },
                 {
                     text: "It's too expensive",
+                    style: 'cancel',
                     onPress: () => showPauseOffer(),
                 },
                 {
                     text: "I don't use it enough",
+                    style: 'cancel',
                     onPress: () => showPauseOffer(),
                 },
                 {
                     text: 'Other reason',
+                    style: 'cancel',
                     onPress: () => showFinalConfirmation(),
                 },
             ],
@@ -352,9 +391,10 @@ export default function SubscriptionScreen() {
             title: 'How about a pause instead?',
             message: "We'd hate to lose you! Would you like to pause your subscription for a month instead of cancelling?",
             buttons: [
-                { text: 'Keep My Subscription', style: 'cancel' },
+                { text: 'Keep My Subscription' },
                 {
                     text: 'Pause for 1 Month',
+                    style: 'cancel',
                     onPress: () => {
                         showAlert({
                             title: 'Feature Coming Soon',
@@ -364,7 +404,7 @@ export default function SubscriptionScreen() {
                 },
                 {
                     text: 'Continue Cancelling',
-                    style: 'destructive',
+                    style: 'cancel',
                     onPress: () => showFinalConfirmation(),
                 },
             ],
@@ -377,7 +417,7 @@ export default function SubscriptionScreen() {
             title: 'Are you absolutely sure?',
             message: `You'll lose access to:\n\n• ${subscription?.usage.geminiEpisodeLimit ?? 30} monthly episodes\n• Premium voice quality\n• All your saved preferences\n\nYour subscription will remain active until the end of your billing period.`,
             buttons: [
-                { text: "No, I'll Stay!", style: 'cancel' },
+                { text: "No, I'll Stay!" },
                 {
                     text: 'Yes, Cancel',
                     style: 'destructive',
@@ -390,16 +430,12 @@ export default function SubscriptionScreen() {
     const performCancellation = async () => {
         try {
             setPurchasing(true);
-            const token = await storageService.getAccessToken();
-            if (!token) return;
-
-            const result = await subscriptionService.cancelSubscription(token);
+            await presentCustomerCenter();
             track('subscription_cancel_completed', { tier: subscription?.tier });
-            showAlert({ title: 'Subscription Cancelled', message: result.message });
             await fetchSubscription();
         } catch (err: any) {
             track('subscription_cancel_failed', { tier: subscription?.tier, message: err?.message });
-            showAlert({ title: 'Error', message: err.message || 'Failed to cancel subscription' });
+            showAlert({ title: 'Error', message: err.message || 'Failed to open subscription management' });
         } finally {
             setPurchasing(false);
         }
@@ -409,33 +445,13 @@ export default function SubscriptionScreen() {
         track('subscription_reactivate_started', { tier: subscription?.tier });
         try {
             setPurchasing(true);
-            const token = await storageService.getAccessToken();
-            if (!token) return;
-
-            const result = await subscriptionService.reactivateSubscription(token);
+            await presentCustomerCenter();
             track('subscription_reactivate_completed', { tier: subscription?.tier });
-            showAlert({ title: 'Subscription Reactivated!', message: result.message });
             await fetchSubscription();
         } catch (err: any) {
             track('subscription_reactivate_failed', { tier: subscription?.tier, message: err?.message });
-            showAlert({ title: 'Error', message: err.message || 'Failed to reactivate subscription' });
+            showAlert({ title: 'Error', message: err.message || 'Failed to open subscription management' });
             await fetchSubscription();
-        } finally {
-            setPurchasing(false);
-        }
-    };
-
-    const handleCleanupDuplicates = async () => {
-        try {
-            setPurchasing(true);
-            const token = await storageService.getAccessToken();
-            if (!token) return;
-
-            const result = await subscriptionService.cleanupDuplicates(token);
-            showAlert({ title: 'Cleanup Complete', message: result.message });
-            await fetchSubscription();
-        } catch (err: any) {
-            showAlert({ title: 'Error', message: err.message || 'Failed to cleanup duplicates' });
         } finally {
             setPurchasing(false);
         }
@@ -461,7 +477,6 @@ export default function SubscriptionScreen() {
 
     const isPaid = subscription?.isPaid ?? false;
     const isCancelled = subscription?.isCancelled ?? false;
-    const paystackStatus = subscription?.paystackSubscription;
     const comp = subscription?.comp ?? null;
     const isComped = comp !== null;
 
@@ -595,8 +610,8 @@ export default function SubscriptionScreen() {
 
                 </View>
 
-                {/* Reactivate Button - Show below Current Plan card if cancelled AND we have Paystack status */}
-                {isPaid && !isComped && isCancelled && paystackStatus && (
+                {/* Reactivate Button - Show below Current Plan card if cancelled but still active */}
+                {isPaid && !isComped && isCancelled && (
                     <TouchableOpacity
                         onPress={handleReactivate}
                         disabled={purchasing}
@@ -627,8 +642,8 @@ export default function SubscriptionScreen() {
                     </TouchableOpacity>
                 )}
 
-                {/* Pricing Selection - Show if not paid OR cancelled without ability to reactivate OR comped (so they can subscribe to keep access) */}
-                {(!isPaid || (isPaid && isCancelled && !paystackStatus) || isComped) && (
+                {/* Pricing Selection - Show if not paid OR comped (cancelled-but-active users use the Reactivate button above) */}
+                {(!isPaid || isComped) && (
                     <>
                         <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text mb-4">
                             {isComped ? 'Keep Your Access' : isCancelled ? 'Subscribe Again' : 'Choose Your Plan'}
@@ -720,8 +735,8 @@ export default function SubscriptionScreen() {
                     </>
                 )}
 
-                {/* Upgrade Option - Show for STARTER subscribers (active or cancelled) but not when PRO is selected in Subscribe Again */}
-                {isPaid && !isComped && subscription?.tier === 'STARTER' && !(isCancelled && !paystackStatus && selectedTier === 'pro') && (
+                {/* Upgrade Option - Show for STARTER subscribers with an active (non-cancelled) sub */}
+                {isPaid && !isComped && subscription?.tier === 'STARTER' && !isCancelled && (
                     <View className="mb-6">
                         <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text mb-4">
                             Upgrade Your Plan
@@ -791,8 +806,8 @@ export default function SubscriptionScreen() {
                     </View>
                 )}
 
-                {/* Downgrade Option - Show for PRO subscribers (active, or cancelled with reactivate option) */}
-                {isPaid && !isComped && subscription?.tier === 'PRO' && (!isCancelled || paystackStatus) && (
+                {/* Downgrade Option - Show for PRO subscribers with an active (non-cancelled) sub */}
+                {isPaid && !isComped && subscription?.tier === 'PRO' && !isCancelled && (
                     <View className="mb-6">
                         <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text mb-4">
                             Change Plan
@@ -868,14 +883,6 @@ export default function SubscriptionScreen() {
                         )}
                     </TouchableOpacity>
                 )}
-
-                {/* Footer Security Badge */}
-                <View className="flex-row items-center justify-center mt-6 mb-4">
-                    <Ionicons name="shield-checkmark" size={16} color="#9CA3AF" />
-                    <Text className="font-inter-medium text-gray-400 dark:text-brand-dark-text-muted text-sm ml-1.5">
-                        Secured by Paystack
-                    </Text>
-                </View>
 
                 {/* Terms */}
                 <Text className="font-inter text-gray-400 dark:text-brand-dark-text-muted text-xs text-center px-4 leading-5">
