@@ -152,9 +152,9 @@ export default function HomeScreen() {
 
     // Render Discover header
     const renderDiscoverHeader = () => (
-        <View className="px-6 pt-4 pb-2">
-            <Text className="font-jakarta-bold text-2xl text-brand-black dark:text-brand-dark-text">Discover</Text>
-            <Text className="font-inter text-sm text-[#858585] dark:text-brand-dark-text-secondary mt-1">Podcast feed catered to you.</Text>
+        <View className="px-5 pt-5 pb-6">
+            <Text className="font-inter-bold text-2xl text-brand-black dark:text-brand-dark-text">Discover</Text>
+            <Text className="font-jakarta text-brand-black dark:text-brand-dark-text text-sm">Podcast feed catered to you.</Text>
         </View>
     );
 
