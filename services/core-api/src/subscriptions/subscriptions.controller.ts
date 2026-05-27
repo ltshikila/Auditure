@@ -1,4 +1,5 @@
 import {
+    BadRequestException,
     Controller,
     Get,
     Post,
@@ -14,6 +15,12 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SubscriptionsService } from './subscriptions.service';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
 import { PaystackService } from './paystack.service';
+
+// Returned to old-build clients (pre-RC migration) when they hit a legacy
+// Paystack mutation endpoint. The api.ts wrapper on those clients passes
+// 400 messages containing "subscription" through verbatim.
+const LEGACY_CLIENT_MESSAGE =
+    'Please update Auditure to the latest version to manage your subscription.';
 
 @Controller('subscriptions')
 export class SubscriptionsController {
@@ -36,60 +43,45 @@ export class SubscriptionsController {
         return this.subscriptionsService.getSubscriptionStatus(userId);
     }
 
-    /**
-     * Create a Paystack checkout session for subscription purchase
-     * POST /subscriptions/checkout
-     */
+    // Legacy Paystack mutation endpoints — kept alive only so old-build clients
+    // in production get a user-friendly "update the app" message instead of a
+    // broken Paystack flow. New builds use the RevenueCat SDK directly and do
+    // not call these. Remove these handlers once the RC-enabled build is the
+    // minimum supported version.
+
     @Post('checkout')
     @UseGuards(JwtAuthGuard)
-    async createCheckoutSession(@Request() req, @Body() dto: CreateCheckoutSessionDto) {
-        const userId = req.user.userId;
-        return this.subscriptionsService.createCheckoutSession(userId, dto.tier, dto.isUpgrade);
+    async createCheckoutSession(@Request() req, @Body() _dto: CreateCheckoutSessionDto) {
+        this.logger.log(`[legacy] checkout hit by user ${req.user.userId} — returning update-app notice`);
+        throw new BadRequestException(LEGACY_CLIENT_MESSAGE);
     }
 
-    /**
-     * Get subscription management info
-     * POST /subscriptions/manage
-     * Note: Paystack doesn't have a built-in portal like Stripe
-     */
     @Post('manage')
     @UseGuards(JwtAuthGuard)
     async getManageSubscription(@Request() req) {
-        const userId = req.user.userId;
-        return this.subscriptionsService.getManageSubscriptionUrl(userId);
+        this.logger.log(`[legacy] manage hit by user ${req.user.userId} — returning update-app notice`);
+        throw new BadRequestException(LEGACY_CLIENT_MESSAGE);
     }
 
-    /**
-     * Cancel subscription
-     * POST /subscriptions/cancel
-     */
     @Post('cancel')
     @UseGuards(JwtAuthGuard)
     async cancelSubscription(@Request() req) {
-        const userId = req.user.userId;
-        return this.subscriptionsService.cancelSubscription(userId);
+        this.logger.log(`[legacy] cancel hit by user ${req.user.userId} — returning update-app notice`);
+        throw new BadRequestException(LEGACY_CLIENT_MESSAGE);
     }
 
-    /**
-     * Re-enable a cancelled subscription
-     * POST /subscriptions/reactivate
-     */
     @Post('reactivate')
     @UseGuards(JwtAuthGuard)
     async reactivateSubscription(@Request() req) {
-        const userId = req.user.userId;
-        return this.subscriptionsService.reEnableSubscription(userId);
+        this.logger.log(`[legacy] reactivate hit by user ${req.user.userId} — returning update-app notice`);
+        throw new BadRequestException(LEGACY_CLIENT_MESSAGE);
     }
 
-    /**
-     * Cleanup duplicate Paystack subscriptions
-     * POST /subscriptions/cleanup-duplicates
-     */
     @Post('cleanup-duplicates')
     @UseGuards(JwtAuthGuard)
     async cleanupDuplicates(@Request() req) {
-        const userId = req.user.userId;
-        return this.subscriptionsService.cleanupDuplicateSubscriptions(userId);
+        this.logger.log(`[legacy] cleanup-duplicates hit by user ${req.user.userId} — returning update-app notice`);
+        throw new BadRequestException(LEGACY_CLIENT_MESSAGE);
     }
 
     /**

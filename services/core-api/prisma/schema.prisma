@@ -453,12 +453,16 @@ model Subscription {
   downloadCount             Int              @default(0)
   downloadPeriodStart       DateTime         @default(now())
 
-  // Paystack integration
-  paystackCustomerCode      String?          // Paystack customer code (CUS_xxx)
-  paystackSubscriptionCode  String?          // Paystack subscription code (SUB_xxx)
-  paystackEmailToken        String?          // Token for subscription management
+  // Billing integration. Source of truth is RevenueCat webhook events
+  // (writes tier, premiumStartedAt, premiumExpiresAt, cancelledAt).
+  // The paystack* columns are legacy from the pre-RC billing system and will
+  // be dropped in a follow-up migration once no code references them.
+  paystackCustomerCode      String?          // legacy
+  paystackSubscriptionCode  String?          // legacy
+  paystackEmailToken        String?          // legacy
   premiumStartedAt          DateTime?
   premiumExpiresAt          DateTime?
+  cancelledAt               DateTime?        // null = renewing; set = cancelled but still active until premiumExpiresAt
 
   // Comped subscriptions (influencer outreach, press, etc.) — independent of Paystack
   compGrantedAt             DateTime?

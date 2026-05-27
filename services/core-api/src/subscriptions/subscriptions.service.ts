@@ -107,66 +107,12 @@ export class SubscriptionsService {
             };
         }
 
-        // Paid (or plain FREE) — existing Paystack sync logic applies.
-        let paystackSubscription: {
-            status: string;
-            nextPaymentDate: Date | null;
-        } | null = null;
-        let isCancelled = false;
+        // RC webhook is the source of truth for billing state.
+        // - `tier` + `premiumExpiresAt` reflect the active entitlement.
+        // - `cancelledAt` is set when the user disables auto-renew; access
+        //   continues until premiumExpiresAt (mirrors Paystack's non-renewing).
         const isPaid = resolution.source === 'paid';
-
-        if (subscription.paystackSubscriptionCode && this.paystackService.isConfigured()) {
-            try {
-                const paystackSub = await this.paystackService.getSubscription(
-                    subscription.paystackSubscriptionCode,
-                );
-
-                const status = paystackSub.status;
-
-                if (status === 'active' || status === 'non-renewing') {
-                    // Subscription exists and is either active or pending cancellation
-                    paystackSubscription = {
-                        status,
-                        nextPaymentDate: paystackSub.next_payment_date
-                            ? new Date(paystackSub.next_payment_date)
-                            : null,
-                    };
-                    isCancelled = status === 'non-renewing';
-                } else {
-                    // Subscription is fully cancelled/completed on Paystack (e.g. "cancelled", "complete")
-                    // Clear codes so user sees Subscribe Again instead of a broken Reactivate button
-                    this.logger.log(
-                        `Paystack subscription ${subscription.paystackSubscriptionCode} has status "${status}" - clearing codes`,
-                    );
-                    await this.databaseService.subscription.update({
-                        where: { userId },
-                        data: {
-                            paystackSubscriptionCode: null,
-                            paystackEmailToken: null,
-                        },
-                    });
-                    isCancelled = true;
-                }
-            } catch (error: any) {
-                this.logger.warn(
-                    `Failed to fetch Paystack subscription ${subscription.paystackSubscriptionCode}: ${error.message}`,
-                );
-            }
-        } else if (isPaid && !subscription.paystackSubscriptionCode) {
-            // Paid tier but no Paystack subscription code could mean:
-            // 1. Subscription was cancelled locally (user keeps benefits until expiry)
-            // 2. Fresh subscription where we couldn't fetch the Paystack code yet
-            // Only mark as cancelled if subscription was started more than 10 minutes ago
-            // (gives time for Paystack to create subscription and webhook to arrive)
-            const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-            const isRecentlyStarted =
-                subscription.premiumStartedAt && subscription.premiumStartedAt > tenMinutesAgo;
-
-            if (!isRecentlyStarted) {
-                isCancelled = true;
-            }
-            // If recently started, assume it's a new subscription awaiting Paystack sync
-        }
+        const isCancelled = !!subscription.cancelledAt;
 
         return {
             tier: subscription.tier,
@@ -174,7 +120,7 @@ export class SubscriptionsService {
             isCancelled,
             premiumStartedAt: subscription.premiumStartedAt,
             premiumExpiresAt: subscription.premiumExpiresAt,
-            paystackSubscription,
+            paystackSubscription: null,
             comp: null,
             usage: {
                 geminiEpisodesUsed: subscription.geminiEpisodesUsed,
