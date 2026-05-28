@@ -5,11 +5,12 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import 'react-native-reanimated';
 import '../../global.css'
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PostHogProvider } from 'posthog-react-native';
+import * as NavigationBar from 'expo-navigation-bar';
 
 const POSTHOG_KEY = process.env.EXPO_PUBLIC_POSTHOG_KEY;
 const POSTHOG_HOST = process.env.EXPO_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com';
@@ -50,6 +51,15 @@ SplashScreen.preventAutoHideAsync();
 
 function ThemedNavigation() {
   const { resolved } = useTheme();
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const bg = resolved === 'dark' ? '#151718' : '#FBF8F2';
+    const buttonStyle = resolved === 'dark' ? 'light' : 'dark';
+    NavigationBar.setBackgroundColorAsync(bg);
+    NavigationBar.setButtonStyleAsync(buttonStyle);
+  }, [resolved]);
+
   return (
     <ThemeProvider value={resolved === 'dark' ? DarkTheme : DefaultTheme}>
       <View style={{ flex: 1 }}>
