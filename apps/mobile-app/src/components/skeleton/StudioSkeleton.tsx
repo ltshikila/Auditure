@@ -13,10 +13,18 @@ const PodcasterGridCard = () => (
 export const StudioSkeleton: React.FC = () => {
     return (
         <SkeletonProvider>
-            <View className="flex-row flex-wrap gap-4 px-5">
-                {[1, 2, 3, 4, 5, 6].map(i => (
-                    <PodcasterGridCard key={i} />
-                ))}
+            <View className="px-5">
+                {/* Section Header */}
+                <View className="flex-row justify-between items-center mb-3">
+                    <SkeletonBox width={150} height={18} />
+                    <SkeletonBox width={24} height={24} circle />
+                </View>
+                {/* Grid */}
+                <View className="flex-row flex-wrap gap-4">
+                    {[1, 2, 3, 4, 5, 6].map(i => (
+                        <PodcasterGridCard key={i} />
+                    ))}
+                </View>
             </View>
         </SkeletonProvider>
     );
