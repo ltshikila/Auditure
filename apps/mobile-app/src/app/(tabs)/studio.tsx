@@ -114,8 +114,8 @@ export default function Studio() {
                 )}
 
                 {/* Section Header */}
-                <View className="flex-row justify-between items-center mb-6">
-                    <Text className="font-inter-medium text-xl text-gray-900 dark:text-brand-dark-text">
+                <View className="flex-row justify-between items-center mb-3">
+                    <Text className="font-inter-medium text-lg text-brand-black dark:text-brand-dark-text">
                         {podcasters.length > 0 ? 'Your Podcasters' : 'Create your first podcaster'}
                     </Text>
                     <TouchableOpacity
