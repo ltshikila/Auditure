@@ -20,6 +20,7 @@ import {
 } from '@/services/subscription.service';
 import { TopBar } from '@/components';
 import { SubscriptionSkeleton } from '@/components/skeleton';
+import { useIsDark } from '@/hooks/use-colors';
 import { useAlert } from '@/contexts/AlertContext';
 import { PRORATION_MODE, useRevenueCat } from '@/contexts/RevenueCatContext';
 import { track } from '@/lib/posthog';
@@ -54,15 +55,22 @@ function PricingCard({
     isPopular,
     icon,
 }: PricingCardProps) {
+    const isDark = useIsDark();
+    const baseBg = isDark ? '#1E2022' : '#F5F5F0';
+    const selectedBg = isDark ? '#2A2C2E' : '#FDF8EE';
+    const titleColor = isDark ? '#ECEDEE' : '#111827';
+    const subtleColor = isDark ? '#9BA1A6' : '#6B7280';
+    const mutedColor = isDark ? '#687076' : '#9CA3AF';
+    const unselectedBorder = isDark ? '#2E3235' : '#D1D5DB';
     return (
         <TouchableOpacity
             onPress={onSelect}
             disabled={disabled}
             className={`flex-1 p-4 rounded-2xl ${disabled ? 'opacity-50' : ''}`}
             style={{
-                backgroundColor: isSelected ? '#FDF8EE' : '#F5F5F0',
+                backgroundColor: isSelected ? selectedBg : baseBg,
                 borderWidth: 2,
-                borderColor: isSelected ? '#BF9A54' : '#F5F5F0',
+                borderColor: isSelected ? '#BF9A54' : (isDark ? '#2E3235' : '#F5F5F0'),
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: isSelected ? 4 : 2 },
                 shadowOpacity: isSelected ? 0.12 : 0.05,
@@ -85,27 +93,29 @@ function PricingCard({
             </View>
 
             {/* Title */}
-            <Text className="font-inter-bold text-lg text-gray-900">{title}</Text>
+            <Text className="font-inter-bold text-lg" style={{ color: titleColor }}>{title}</Text>
 
             {/* Price */}
             <View className="flex-row items-baseline mt-1">
                 <Text className="font-inter-bold text-2xl text-brand-gold">{price}</Text>
-                <Text className="font-inter text-gray-500 text-sm ml-1">/mo</Text>
+                <Text className="font-inter text-sm ml-1" style={{ color: mutedColor }}>/mo</Text>
             </View>
 
             {/* Episodes */}
             <View className="flex-row items-center mt-2">
-                <Ionicons name="mic-outline" size={14} color="#6B7280" />
-                <Text className="font-inter text-gray-600 text-sm ml-1.5">
+                <Ionicons name="mic-outline" size={14} color={subtleColor} />
+                <Text className="font-inter text-sm ml-1.5" style={{ color: subtleColor }}>
                     {episodesPerMonth} episodes
                 </Text>
             </View>
 
             {/* Selection indicator */}
             <View
-                className={`w-5 h-5 rounded-full border-2 mt-3 items-center justify-center ${
-                    isSelected ? 'border-brand-gold bg-brand-gold' : 'border-gray-300'
-                }`}>
+                className="w-5 h-5 rounded-full border-2 mt-3 items-center justify-center"
+                style={{
+                    borderColor: isSelected ? '#BF9A54' : unselectedBorder,
+                    backgroundColor: isSelected ? '#BF9A54' : 'transparent',
+                }}>
                 {isSelected && <Ionicons name="checkmark" size={12} color="white" />}
             </View>
         </TouchableOpacity>
