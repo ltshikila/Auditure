@@ -10,7 +10,6 @@ import 'react-native-reanimated';
 import '../../global.css'
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PostHogProvider } from 'posthog-react-native';
-import * as NavigationBar from 'expo-navigation-bar';
 
 const POSTHOG_KEY = process.env.EXPO_PUBLIC_POSTHOG_KEY;
 const POSTHOG_HOST = process.env.EXPO_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com';
@@ -54,10 +53,16 @@ function ThemedNavigation() {
 
   useEffect(() => {
     if (Platform.OS !== 'android') return;
-    const bg = resolved === 'dark' ? '#151718' : '#FBF8F2';
-    const buttonStyle = resolved === 'dark' ? 'light' : 'dark';
-    NavigationBar.setBackgroundColorAsync(bg);
-    NavigationBar.setButtonStyleAsync(buttonStyle);
+    try {
+      // Lazy require so older dev builds without the native module don't crash.
+      const NavigationBar = require('expo-navigation-bar');
+      const bg = resolved === 'dark' ? '#151718' : '#FBF8F2';
+      const buttonStyle = resolved === 'dark' ? 'light' : 'dark';
+      NavigationBar.setBackgroundColorAsync(bg).catch(() => {});
+      NavigationBar.setButtonStyleAsync(buttonStyle).catch(() => {});
+    } catch {
+      // Native module not present in this build; tint will apply after next native build.
+    }
   }, [resolved]);
 
   return (
