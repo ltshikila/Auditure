@@ -85,18 +85,18 @@ function PricingCard({
             </View>
 
             {/* Title */}
-            <Text className="font-inter-bold text-lg text-gray-900 dark:text-brand-dark-text">{title}</Text>
+            <Text className="font-inter-bold text-lg text-gray-900">{title}</Text>
 
             {/* Price */}
             <View className="flex-row items-baseline mt-1">
                 <Text className="font-inter-bold text-2xl text-brand-gold">{price}</Text>
-                <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted text-sm ml-1">/mo</Text>
+                <Text className="font-inter text-gray-500 text-sm ml-1">/mo</Text>
             </View>
 
             {/* Episodes */}
             <View className="flex-row items-center mt-2">
                 <Ionicons name="mic-outline" size={14} color="#6B7280" />
-                <Text className="font-inter text-gray-600 dark:text-brand-dark-text-secondary text-sm ml-1.5">
+                <Text className="font-inter text-gray-600 text-sm ml-1.5">
                     {episodesPerMonth} episodes
                 </Text>
             </View>
@@ -104,7 +104,7 @@ function PricingCard({
             {/* Selection indicator */}
             <View
                 className={`w-5 h-5 rounded-full border-2 mt-3 items-center justify-center ${
-                    isSelected ? 'border-brand-gold bg-brand-gold' : 'border-gray-300 dark:border-brand-dark-border'
+                    isSelected ? 'border-brand-gold bg-brand-gold' : 'border-gray-300'
                 }`}>
                 {isSelected && <Ionicons name="checkmark" size={12} color="white" />}
             </View>
