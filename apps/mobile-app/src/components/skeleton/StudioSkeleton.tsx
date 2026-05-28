@@ -4,9 +4,19 @@ import { SkeletonProvider } from './SkeletonProvider';
 import { SkeletonBox } from './SkeletonBox';
 
 const PodcasterGridCard = () => (
-    <View style={{ width: '30%', aspectRatio: 0.9, alignItems: 'center', justifyContent: 'center' }}>
-        <SkeletonBox width={64} height={64} circle style={{ marginBottom: 8 }} />
-        <SkeletonBox width={60} height={10} />
+    <View
+        className="w-[30%] bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-2xl p-4 py-6 items-center mb-3 aspect-[0.9] justify-start"
+        style={{
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 14,
+        }}
+    >
+        <SkeletonBox width={64} height={64} circle style={{ marginBottom: 12 }} />
+        <SkeletonBox width={60} height={12} style={{ marginBottom: 8 }} />
+        <SkeletonBox width={30} height={10} />
     </View>
 );
 
