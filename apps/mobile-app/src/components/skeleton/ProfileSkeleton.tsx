@@ -16,7 +16,7 @@ const SettingRowSkeleton = () => (
 export const ProfileSkeleton: React.FC = () => {
     return (
         <SkeletonProvider>
-            <View style={{ padding: 20, paddingBottom: 25 }}>
+            <View style={{ paddingHorizontal: 20, paddingBottom: 25 }}>
                 {/* Personal Information Card */}
                 <View className="bg-white dark:bg-brand-dark-surface rounded-2xl p-5 mb-6" style={{ shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 }}>
                     <SkeletonBox width={160} height={18} style={{ marginBottom: 16 }} />

@@ -332,6 +332,14 @@ export default function Profile() {
         return (
             <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg" edges={['top', 'left', 'right']}>
                 <TopBar />
+                <View style={{ padding: 20 }}>
+                    <View className="pb-6">
+                        <Text className="font-inter-bold text-2xl text-brand-black dark:text-brand-dark-text">Profile</Text>
+                        <Text className="font-jakarta text-brand-black dark:text-brand-dark-text text-sm">
+                            Manage your account and preferences
+                        </Text>
+                    </View>
+                </View>
                 <ProfileSkeleton />
             </SafeAreaView>
         );
