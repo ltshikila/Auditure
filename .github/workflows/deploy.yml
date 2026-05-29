@@ -156,7 +156,7 @@ jobs:
             --platform managed \
             --no-allow-unauthenticated \
             --set-env-vars "STORAGE_BACKEND=gcs,GCS_BUCKET_NAME=auditure-storage-prod,REDIS_HOST=10.3.19.75,REDIS_PORT=6379" \
-            --set-secrets "DATABASE_URL=DATABASE_URL:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,RABBITMQ_URL=RABBITMQ_URL:latest" \
+            --set-secrets "DATABASE_URL=DATABASE_URL:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,RABBITMQ_URL=RABBITMQ_URL:latest,POSTHOG_API_KEY=POSTHOG_API_KEY:latest" \
             --add-cloudsql-instances ${{ env.PROJECT_ID }}:${{ env.REGION }}:auditure-db \
             --vpc-connector projects/${{ env.PROJECT_ID }}/locations/${{ env.REGION }}/connectors/auditure-connector \
             --vpc-egress private-ranges-only \

@@ -35,6 +35,9 @@ aiofiles==23.2.1               # Async file operations
 # Logging
 structlog==23.2.0              # Structured logging
 
+# Analytics
+posthog==3.7.0                 # Product analytics (episode generation outcomes)
+
 # Testing
 pytest==7.4.3
 pytest-asyncio==0.21.1

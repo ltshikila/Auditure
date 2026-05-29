@@ -24,13 +24,19 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.auditure.app",
         "EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY": "test_EodoGHreMloKVUhBAEfogqTNZrf",
-        "EXPO_PUBLIC_REVENUECAT_IOS_API_KEY": "test_EodoGHreMloKVUhBAEfogqTNZrf"
+        "EXPO_PUBLIC_REVENUECAT_IOS_API_KEY": "test_EodoGHreMloKVUhBAEfogqTNZrf",
+        "EXPO_PUBLIC_POSTHOG_KEY": "phc_waVFTGwDJkCsBccCVKM8Qkhc9bjMHE2dhME5N6T4Fng9",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://c69aa4a9be80ab1ad2f99370d137c881@o4510858002890752.ingest.us.sentry.io/4510858046341120"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.auditure.app"
+        "EXPO_PUBLIC_API_URL": "https://api.auditure.app",
+        "EXPO_PUBLIC_POSTHOG_KEY": "phc_waVFTGwDJkCsBccCVKM8Qkhc9bjMHE2dhME5N6T4Fng9",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://c69aa4a9be80ab1ad2f99370d137c881@o4510858002890752.ingest.us.sentry.io/4510858046341120"
       }
     }
   },
