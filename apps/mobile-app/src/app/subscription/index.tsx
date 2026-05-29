@@ -529,8 +529,8 @@ export default function SubscriptionScreen() {
                         <Ionicons name="alert-circle" size={20} color="#DC2626" />
                         <View className="flex-1 ml-3">
                             <Text className="font-inter-medium text-red-800">{error}</Text>
-                            <TouchableOpacity onPress={() => fetchSubscription()} className="mt-2">
-                                <Text className="font-inter-bold text-red-600">Tap to retry</Text>
+                            <TouchableOpacity onPress={() => setError(null)} className="mt-2">
+                                <Text className="font-inter-bold text-red-600">Dismiss</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
