@@ -64,6 +64,10 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = "INFO"
 
+    # Analytics (PostHog) - same project API key used by core-api
+    posthog_api_key: Optional[str] = None
+    posthog_host: str = "https://us.i.posthog.com"
+
     # Retry settings
     max_retries: int = 3
     retry_delay_base: int = 5  # seconds

@@ -3,6 +3,7 @@
 import logging
 from typing import Any
 
+from src.analytics import track_event
 from src.config import get_settings
 from src.database import EpisodeRepository, EpisodeStatus, get_database_client
 from src.generators import BookContentUnavailableError, DurationMismatchError, ScriptGenerator
@@ -347,6 +348,20 @@ class EpisodeConsumer(BaseConsumer):
             logger.info(f"[EPISODE] Duration: {tts_result.duration}s | Words: {script_result.word_count}")
             logger.info("=" * 50)
 
+            track_event(message["userId"], "episode_generation_completed", {
+                "episodeId": episode_id,
+                "podcasterId": message.get("podcasterId"),
+                "bookId": message.get("bookId"),
+                "voiceTier": voice_tier,
+                "episodeType": message.get("episodeType"),
+                "episodeTheme": message.get("episodeTheme"),
+                "contentCoverage": message.get("contentCoverage"),
+                "durationSec": tts_result.duration,
+                "wordCount": script_result.word_count,
+                "scriptMethod": script_result.method,
+                "truncated": content_result["truncated"],
+            })
+
         except DurationMismatchError as e:
             # Duration mismatch is a user-recoverable error, not a system failure
             # Don't retry - the user needs to adjust their request
@@ -375,6 +390,13 @@ class EpisodeConsumer(BaseConsumer):
                 error_message=str(e),
             )
 
+            track_event(message["userId"], "episode_generation_failed", {
+                "episodeId": episode_id,
+                "voiceTier": voice_tier,
+                "reason": "duration_mismatch",
+                "retryable": False,
+            })
+
             # Don't re-raise - this is not a retryable error
             # The user needs to select more content or adjust duration expectations
 
@@ -400,6 +422,13 @@ class EpisodeConsumer(BaseConsumer):
                 is_ready=False,
                 error_message=str(e),
             )
+
+            track_event(message["userId"], "episode_generation_failed", {
+                "episodeId": episode_id,
+                "voiceTier": voice_tier,
+                "reason": "content_unavailable",
+                "retryable": False,
+            })
 
             # Don't re-raise — not retryable.
 
@@ -431,6 +460,14 @@ class EpisodeConsumer(BaseConsumer):
                     is_ready=False,
                     error_message="Please try again.",
                 )
+
+                track_event(message["userId"], "episode_generation_failed", {
+                    "episodeId": episode_id,
+                    "voiceTier": voice_tier,
+                    "reason": "error",
+                    "errorType": type(e).__name__,
+                    "retryable": False,
+                })
             else:
                 # Intermediate failure — will be retried, don't notify user
                 # Reset status so the retry starts fresh

@@ -70,6 +70,9 @@ def main() -> None:
     except Exception as e:
         logger.error(f"Fatal error: {e}")
         sys.exit(1)
+    finally:
+        from src.analytics import shutdown_analytics
+        shutdown_analytics()
 
     logger.info("AI Worker stopped")
 

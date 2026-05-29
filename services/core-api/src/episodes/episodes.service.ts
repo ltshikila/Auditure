@@ -240,6 +240,7 @@ export class EpisodesService {
             const hasQuota = await this.usersService.checkQuota(userId, voiceTier);
             if (!hasQuota) {
                 const tierLabel = String(voiceTier) === 'GEMINI' ? 'Pro' : 'Standard';
+                trackEvent(userId, 'quota_blocked', { voiceTier, source: 'existing_book' });
                 throw new BadRequestException(
                     `You've reached your monthly ${tierLabel} episode limit. Upgrade your plan for more episodes.`,
                 );
@@ -376,6 +377,7 @@ export class EpisodesService {
             const hasQuota = await this.usersService.checkQuota(userId, voiceTier);
             if (!hasQuota) {
                 const tierLabel = String(voiceTier) === 'GEMINI' ? 'Pro' : 'Standard';
+                trackEvent(userId, 'quota_blocked', { voiceTier, source: 'upload' });
                 throw new BadRequestException(
                     `You've reached your monthly ${tierLabel} episode limit. Upgrade your plan for more episodes.`,
                 );
@@ -991,6 +993,12 @@ export class EpisodesService {
             });
         });
 
+        trackEvent(userId, 'episode_liked', {
+            episodeId,
+            podcasterId: episode.podcasterId,
+            ownContent: episode.userId === userId,
+        });
+
         // Also increment the podcaster's like count
         try {
             await this.podcastersService.incrementLikeCount(episode.podcasterId);
@@ -1113,6 +1121,8 @@ export class EpisodesService {
                 ratingCount: aggregate._count.rating,
             },
         });
+
+        trackEvent(userId, 'episode_rated', { episodeId, rating });
 
         return {
             averageRating: Math.round((aggregate._avg.rating || 0) * 10) / 10,
