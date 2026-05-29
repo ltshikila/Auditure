@@ -389,43 +389,26 @@ export default function SubscriptionScreen() {
                 {
                     text: "It's too expensive",
                     style: 'cancel',
-                    onPress: () => showPauseOffer(),
+                    onPress: () => {
+                        track('subscription_cancel_reason', { reason: 'price', tier: subscription?.tier });
+                        showFinalConfirmation();
+                    },
                 },
                 {
                     text: "I don't use it enough",
                     style: 'cancel',
-                    onPress: () => showPauseOffer(),
+                    onPress: () => {
+                        track('subscription_cancel_reason', { reason: 'low_usage', tier: subscription?.tier });
+                        showFinalConfirmation();
+                    },
                 },
                 {
                     text: 'Other reason',
                     style: 'cancel',
-                    onPress: () => showFinalConfirmation(),
-                },
-            ],
-        });
-    };
-
-    const showPauseOffer = () => {
-        // Step 2: Offer alternatives
-        showAlert({
-            title: 'How about a pause instead?',
-            message: "We'd hate to lose you! Would you like to pause your subscription for a month instead of cancelling?",
-            buttons: [
-                { text: 'Keep My Subscription' },
-                {
-                    text: 'Pause for 1 Month',
-                    style: 'cancel',
                     onPress: () => {
-                        showAlert({
-                            title: 'Feature Coming Soon',
-                            message: "We're working on adding pause functionality. For now, you can cancel and resubscribe anytime.",
-                        });
+                        track('subscription_cancel_reason', { reason: 'other', tier: subscription?.tier });
+                        showFinalConfirmation();
                     },
-                },
-                {
-                    text: 'Continue Cancelling',
-                    style: 'cancel',
-                    onPress: () => showFinalConfirmation(),
                 },
             ],
         });
