@@ -12,10 +12,8 @@ import json
 import logging
 import subprocess
 import sys
-import tempfile
 import uuid
 from pathlib import Path
-from typing import Optional
 
 from src.config import get_settings
 
@@ -26,8 +24,8 @@ def run_alignment_safe(
     audio_bytes: bytes,
     audio_format: str,
     script: str,
-    timeout_s: Optional[int] = None,
-) -> Optional[list[dict]]:
+    timeout_s: int | None = None,
+) -> list[dict] | None:
     """Force-align ``audio_bytes`` to ``script`` and return line segments.
 
     Args:
