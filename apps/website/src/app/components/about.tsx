@@ -1,3 +1,5 @@
+import founderPortrait from '@/assets/founder_portrait.jpeg';
+
 export function About() {
   return (
     <section id="about" className="py-20 md:py-28 bg-[#FBF8F2]">
@@ -39,10 +41,12 @@ export function About() {
 
           <div className="bg-[#F5F0E8] rounded-[24px] p-8 md:p-10 border border-[#d0d0d0]/40">
             <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
-              {/* Avatar */}
-              <div className="w-24 h-24 md:w-28 md:h-28 rounded-full bg-gradient-to-br from-[#920002] to-[#760002] flex items-center justify-center shrink-0 shadow-lg">
-                <span className="font-['DM_Serif_Display',serif] text-white text-4xl">LT</span>
-              </div>
+              {/* Portrait */}
+              <img
+                src={founderPortrait}
+                alt="Lubabalo Tshikila, Founder of Auditure Studios"
+                className="w-28 h-28 md:w-32 md:h-32 rounded-full object-cover shrink-0 shadow-lg"
+              />
 
               {/* Info */}
               <div className="flex-1 text-center md:text-left">
@@ -54,8 +58,8 @@ export function About() {
                 </p>
                 <p className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a] text-base leading-relaxed mb-5">
                   A recent college graduate now pursuing graduate studies, Lubabalo started building
-                  Auditure after a passing thought — what if anyone could turn the books they owned
-                  into podcasts hosted by AI personalities? — turned into something he had to ship.
+                  Auditure after a passing thought. What if anyone could turn the books they owned
+                  into podcasts hosted by AI personalities? That idea turned into something he had to ship.
                   What began as "just a cool idea" became a creator platform live on Google Play in
                   under a year.
                 </p>

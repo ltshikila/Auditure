@@ -21,18 +21,26 @@ export function Footer() {
           <div>
             <h4 className="font-['Plus_Jakarta_Sans',sans-serif] text-white mb-4">Product</h4>
             <ul className="space-y-2">
-              {[
-                { label: 'How It Works', href: '#how-it-works' },
-                { label: 'Features', href: '#features' },
-                { label: 'Pricing', href: '#pricing' },
-                { label: 'About', href: '#about' },
-              ].map((item) => (
-                <li key={item.label}>
-                  <a href={item.href} className="font-['Plus_Jakarta_Sans',sans-serif] text-white/60 hover:text-white text-sm transition-colors">
-                    {item.label}
-                  </a>
-                </li>
-              ))}
+              <li>
+                <a href="/#how-it-works" className="font-['Plus_Jakarta_Sans',sans-serif] text-white/60 hover:text-white text-sm transition-colors">
+                  How It Works
+                </a>
+              </li>
+              <li>
+                <a href="/#features" className="font-['Plus_Jakarta_Sans',sans-serif] text-white/60 hover:text-white text-sm transition-colors">
+                  Features
+                </a>
+              </li>
+              <li>
+                <a href="/#pricing" className="font-['Plus_Jakarta_Sans',sans-serif] text-white/60 hover:text-white text-sm transition-colors">
+                  Pricing
+                </a>
+              </li>
+              <li>
+                <Link to="/about" className="font-['Plus_Jakarta_Sans',sans-serif] text-white/60 hover:text-white text-sm transition-colors">
+                  About
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -59,7 +67,7 @@ export function Footer() {
             <ul className="space-y-2">
               {[
                 { label: 'X (Twitter)', href: 'https://x.com/auditurestudios' },
-                { label: 'Reddit', href: 'https://www.reddit.com/user/auditure_studios/' },
+                { label: 'TikTok', href: 'https://www.tiktok.com/@auditure_studios' },
                 { label: 'Contact Us', href: 'mailto:support@auditure.app' },
               ].map((item) => (
                 <li key={item.label}>
