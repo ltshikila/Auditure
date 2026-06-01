@@ -24,7 +24,8 @@ export function Footer() {
               {[
                 { label: 'How It Works', href: '#how-it-works' },
                 { label: 'Features', href: '#features' },
-                { label: 'Community', href: '#community' },
+                { label: 'Pricing', href: '#pricing' },
+                { label: 'About', href: '#about' },
               ].map((item) => (
                 <li key={item.label}>
                   <a href={item.href} className="font-['Plus_Jakarta_Sans',sans-serif] text-white/60 hover:text-white text-sm transition-colors">

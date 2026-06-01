@@ -3,6 +3,8 @@ import { Hero } from "./components/hero";
 import { Features } from "./components/features";
 import { WhyAuditure } from "./components/why-auditure";
 import { AppShowcase } from "./components/app-showcase";
+import { Pricing } from "./components/pricing";
+import { About } from "./components/about";
 import { CTA } from "./components/cta";
 import { Footer } from "./components/footer";
 
@@ -15,6 +17,8 @@ export default function App() {
         <WhyAuditure />
         <Features />
         <AppShowcase />
+        <Pricing />
+        <About />
         <CTA />
       </main>
       <Footer />
