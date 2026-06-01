@@ -17,7 +17,8 @@ export function Navigation() {
             {[
               { label: 'How It Works', href: '#how-it-works' },
               { label: 'Features', href: '#features' },
-              { label: 'Community', href: '#community' },
+              { label: 'Pricing', href: '#pricing' },
+              { label: 'About', href: '#about' },
             ].map((item) => (
               <a
                 key={item.label}
