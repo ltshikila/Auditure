@@ -187,6 +187,10 @@ class Episode(Base):
     summary = Column(Text, nullable=True)
     audio_file_key = Column("audioFileKey", String, nullable=True)
 
+    # Live transcript timing: [{"text", "start", "end"}] (seconds). Optional —
+    # populated by forced alignment after audio generation; null if unavailable.
+    transcript_segments = Column("transcriptSegments", JSON, nullable=True)
+
     # Generation status
     generation_status = Column("generationStatus", String, default="PENDING")
     script_generated_at = Column("scriptGeneratedAt", DateTime, nullable=True)

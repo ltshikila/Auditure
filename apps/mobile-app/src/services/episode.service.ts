@@ -6,6 +6,13 @@ export type ContentCoverage = 'ENTIRE_BOOK' | 'MULTIPLE_CHAPTERS' | 'SINGLE_CHAP
 export type EpisodeStatus = 'PENDING' | 'SCRIPT_GENERATING' | 'SCRIPT_GENERATED' | 'AUDIO_GENERATING' | 'COMPLETED' | 'FAILED';
 export type VoiceTier = 'STANDARD' | 'GEMINI';
 
+/** One spoken line with its start/end time in the audio (seconds). */
+export interface TranscriptSegment {
+    text: string;
+    start: number;
+    end: number;
+}
+
 export interface Episode {
     id: string;
     userId: string;
@@ -23,6 +30,7 @@ export interface Episode {
     voiceTier: VoiceTier;
     scriptContent?: string;
     audioFileKey?: string;
+    transcriptSegments?: TranscriptSegment[];
     generationStatus: EpisodeStatus;
     scriptGeneratedAt?: string;
     audioGeneratedAt?: string;
