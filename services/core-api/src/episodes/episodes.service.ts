@@ -301,7 +301,7 @@ export class EpisodesService {
 
             this.logger.log(`Created episode ${episode.id} and queued for generation`);
 
-            return episode as EpisodeResponseDto;
+            return episode as unknown as EpisodeResponseDto;
         } catch (error) {
             this.logger.error(`Error in create(): ${error.message}`);
             this.logger.error(`Stack: ${error.stack}`);
@@ -491,7 +491,7 @@ export class EpisodesService {
                 }
 
                 return {
-                    episode: episode as EpisodeResponseDto,
+                    episode: episode as unknown as EpisodeResponseDto,
                     book,
                     message: 'Episode created and queued for generation',
                 };
@@ -504,7 +504,7 @@ export class EpisodesService {
             );
 
             return {
-                episode: episode as EpisodeResponseDto,
+                episode: episode as unknown as EpisodeResponseDto,
                 book,
                 message:
                     'Episode created. Book is being processed. Episode generation will start automatically once extraction is complete.',
@@ -542,7 +542,7 @@ export class EpisodesService {
             },
         });
 
-        return this.cleanEpisodesTranscripts(episodes) as EpisodeResponseDto[];
+        return this.cleanEpisodesTranscripts(episodes) as unknown as EpisodeResponseDto[];
     }
 
     /**
@@ -749,7 +749,7 @@ export class EpisodesService {
             },
         });
 
-        return this.cleanEpisodesTranscripts(episodes) as EpisodeResponseDto[];
+        return this.cleanEpisodesTranscripts(episodes) as unknown as EpisodeResponseDto[];
     }
 
     /**
@@ -779,7 +779,7 @@ export class EpisodesService {
             },
         });
 
-        return this.cleanEpisodesTranscripts(episodes) as EpisodeResponseDto[];
+        return this.cleanEpisodesTranscripts(episodes) as unknown as EpisodeResponseDto[];
     }
 
     /**
@@ -876,7 +876,7 @@ export class EpisodesService {
             data: updateEpisodeDto,
         });
 
-        return updated as EpisodeResponseDto;
+        return updated as unknown as EpisodeResponseDto;
     }
 
     /**
@@ -1190,7 +1190,7 @@ export class EpisodesService {
             data: { isPublic: true },
         });
 
-        return updated as EpisodeResponseDto;
+        return updated as unknown as EpisodeResponseDto;
     }
 
     /**
@@ -1264,7 +1264,7 @@ export class EpisodesService {
             this.logger.log(`Retrying episode generation for ${episode.id}`);
         }
 
-        return episode as EpisodeResponseDto;
+        return episode as unknown as EpisodeResponseDto;
     }
 
     /**
