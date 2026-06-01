@@ -3,7 +3,10 @@ import { Hero } from "./components/hero";
 import { Features } from "./components/features";
 import { WhyAuditure } from "./components/why-auditure";
 import { AppShowcase } from "./components/app-showcase";
+import { Screenshots } from "./components/screenshots";
+import { EpisodeSnippets } from "./components/episode-snippets";
 import { Pricing } from "./components/pricing";
+import { FAQ } from "./components/faq";
 import { CTA } from "./components/cta";
 import { Footer } from "./components/footer";
 
@@ -15,8 +18,11 @@ export default function App() {
         <Hero />
         <WhyAuditure />
         <Features />
+        <Screenshots />
         <AppShowcase />
+        <EpisodeSnippets />
         <Pricing />
+        <FAQ />
         <CTA />
       </main>
       <Footer />

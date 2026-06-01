@@ -32,8 +32,18 @@ export function Footer() {
                 </a>
               </li>
               <li>
+                <a href="/#listen" className="font-['Plus_Jakarta_Sans',sans-serif] text-white/60 hover:text-white text-sm transition-colors">
+                  Listen
+                </a>
+              </li>
+              <li>
                 <a href="/#pricing" className="font-['Plus_Jakarta_Sans',sans-serif] text-white/60 hover:text-white text-sm transition-colors">
                   Pricing
+                </a>
+              </li>
+              <li>
+                <a href="/#faq" className="font-['Plus_Jakarta_Sans',sans-serif] text-white/60 hover:text-white text-sm transition-colors">
+                  FAQ
                 </a>
               </li>
               <li>
