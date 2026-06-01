@@ -307,6 +307,7 @@ model Episode {
   // Generated Content
   scriptContent         String?        @db.Text
   audioFileKey          String?        // Storage key for audio file
+  transcriptSegments    Json?          // Live transcript timing: [{text,start,end}] in seconds (forced alignment; null if unavailable)
 
   // Generation Status
   generationStatus      EpisodeStatus  @default(PENDING)

@@ -13,7 +13,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { episodeService, Episode } from '@/services/episode.service';
+import { episodeService, Episode, TranscriptSegment } from '@/services/episode.service';
 import { storageService } from '@/services/storage.service';
 import { usePlayback } from '@/contexts/PlaybackContext';
 import { MINI_PLAYER_HEIGHT } from '@/components/MiniPlayer';
@@ -27,10 +27,12 @@ const backIcon = require('@/assets/icons/back.png');
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const LINE_HEIGHT = 64;
 
-// NOTE: Transcript sync is disabled because TTS audio doesn't provide timing data.
-// The word-count estimation is fundamentally inaccurate. To enable sync, we need
-// to generate timestamps using speech recognition (e.g., Whisper) after TTS.
-const SYNC_ENABLED = false;
+// Live sync (highlight + auto-scroll + tap-to-seek) turns on per-episode when the
+// backend ships real forced-alignment timestamps (episode.transcriptSegments).
+// Episodes without segments fall back to a static, word-count-estimated transcript
+// (no sync), since estimated timing is too inaccurate to track playback.
+// Master kill-switch: set to false to force every episode back to static mode.
+const SYNC_MASTER_ENABLED = true;
 
 const LIGHT_COLORS = {
     background: '#FBF8F2',
@@ -119,9 +121,19 @@ function parseTranscript(scriptContent: string, durationMs: number): TranscriptL
     });
 }
 
-function getCurrentLineIndex(lines: TranscriptLine[], positionMs: number): number {
-    // Sync disabled - timestamps are estimated and inaccurate
-    if (!SYNC_ENABLED) return -1;
+// Map real alignment segments (seconds) to the screen's TranscriptLine shape (ms).
+function segmentsToLines(segments: TranscriptSegment[]): TranscriptLine[] {
+    return segments.map((seg, index) => ({
+        id: `seg-${index}`,
+        text: seg.text,
+        startTime: seg.start * 1000,
+        endTime: seg.end * 1000,
+    }));
+}
+
+function getCurrentLineIndex(lines: TranscriptLine[], positionMs: number, enabled: boolean): number {
+    // No real timing for this episode — render statically, nothing highlighted.
+    if (!enabled) return -1;
 
     for (let i = 0; i < lines.length; i++) {
         if (positionMs >= lines[i].startTime && positionMs < lines[i].endTime) {
@@ -215,15 +227,23 @@ export default function TranscriptScreen() {
     const currentPosition = isPlaybackEpisode ? position : 0;
     const totalDuration = isPlaybackEpisode ? duration : (episode?.duration ?? 0) * 1000;
 
+    // Live sync is on only when this episode has real alignment segments.
+    const hasTiming = SYNC_MASTER_ENABLED && (displayEpisode?.transcriptSegments?.length ?? 0) > 0;
+
     const transcriptLines = useMemo(() => {
+        const segments = displayEpisode?.transcriptSegments;
+        if (segments && segments.length > 0) {
+            return segmentsToLines(segments);
+        }
+        // Fallback: static transcript with estimated (non-synced) timing.
         if (!displayEpisode?.scriptContent || totalDuration <= 0) return [];
         return parseTranscript(displayEpisode.scriptContent, totalDuration);
-    }, [displayEpisode?.scriptContent, totalDuration]);
+    }, [displayEpisode?.scriptContent, displayEpisode?.transcriptSegments, totalDuration]);
 
     const currentLineIndex = useMemo(() => {
         if (transcriptLines.length === 0) return 0;
-        return getCurrentLineIndex(transcriptLines, currentPosition);
-    }, [transcriptLines, currentPosition]);
+        return getCurrentLineIndex(transcriptLines, currentPosition, hasTiming);
+    }, [transcriptLines, currentPosition, hasTiming]);
 
     useEffect(() => {
         if (!isPlaybackEpisode) {
@@ -249,8 +269,8 @@ export default function TranscriptScreen() {
     };
 
     useEffect(() => {
-        // Auto-scroll disabled - timestamps are estimated and inaccurate
-        if (!SYNC_ENABLED) return;
+        // Auto-scroll only when this episode has real timing.
+        if (!hasTiming) return;
         if (
             !userScrolling &&
             isPlaying &&
@@ -265,7 +285,7 @@ export default function TranscriptScreen() {
                 viewPosition: 0.5,
             });
         }
-    }, [currentLineIndex, isPlaying, userScrolling, transcriptLines.length]);
+    }, [currentLineIndex, isPlaying, userScrolling, transcriptLines.length, hasTiming]);
 
     const handleScrollBegin = useCallback(() => {
         setUserScrolling(true);
@@ -280,16 +300,15 @@ export default function TranscriptScreen() {
         const line = transcriptLines[index];
         if (!line) return;
         flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
-        // Note: Seeking by line tap is disabled since timestamps are inaccurate
-        // The user can still scroll and read the transcript manually
-        if (!SYNC_ENABLED) return;
+        // Tap-to-seek only when we have real timing; otherwise just scroll/read.
+        if (!hasTiming) return;
         if (isPlaybackEpisode) {
             await seekTo(line.startTime);
         } else if (displayEpisode) {
             await play(displayEpisode);
             setTimeout(() => seekTo(line.startTime), 300);
         }
-    }, [transcriptLines, isPlaybackEpisode, seekTo, play, displayEpisode]);
+    }, [transcriptLines, isPlaybackEpisode, seekTo, play, displayEpisode, hasTiming]);
 
     const formatTime = useCallback((ms: number) => {
         const totalSeconds = Math.floor(ms / 1000);

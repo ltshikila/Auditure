@@ -61,6 +61,12 @@ class Settings(BaseSettings):
     # TTS
     tts_temp_dir: str = "./temp/tts"
 
+    # Forced alignment (live transcript timing) — optional, non-vital enhancement.
+    # Runs after audio is generated to produce per-line timestamps. Always
+    # degrades quietly: if disabled or it fails, episodes are unaffected.
+    alignment_enabled: bool = True
+    alignment_timeout_s: int = 600  # hard cap on the alignment subprocess
+
     # Logging
     log_level: str = "INFO"
 

@@ -189,6 +189,64 @@ class EpisodeRepository:
         finally:
             session.close()
 
+    def update_segments(self, episode_id: str, segments: list[dict]) -> None:
+        """Persist forced-alignment transcript segments for an episode.
+
+        Best-effort and isolated from status updates: this runs after an episode
+        is already COMPLETED, so a failure here only means the episode lacks live
+        transcript timing — it never affects generation.
+        """
+        session = self.db_client.create_session()
+        try:
+            episode = session.query(Episode).filter(Episode.id == episode_id).first()
+            if not episode:
+                logger.warning(f"[DB] Episode not found for segments update: {episode_id}")
+                return
+
+            episode.transcript_segments = segments
+            episode.updated_at = datetime.utcnow()
+            session.commit()
+            logger.info(
+                f"[DB] Stored {len(segments)} transcript segments for episode {episode_id}"
+            )
+        except Exception as e:
+            session.rollback()
+            logger.error(f"[DB] Failed to store transcript segments: {e}")
+        finally:
+            session.close()
+
+    def get_episodes_needing_alignment(self, limit: int = 50) -> list[dict[str, Any]]:
+        """Return COMPLETED episodes that have audio + script but no segments yet.
+
+        Used by the backfill script. Returns plain dicts (id/audioFileKey/script/
+        audioFormat) so the SQLAlchemy session can be closed immediately.
+        """
+        session = self.db_client.create_session()
+        try:
+            episodes = (
+                session.query(Episode)
+                .filter(
+                    Episode.generation_status == EpisodeStatus.COMPLETED.value,
+                    Episode.transcript_segments.is_(None),
+                    Episode.audio_file_key.isnot(None),
+                    Episode.script_content.isnot(None),
+                )
+                .order_by(Episode.created_at.desc())
+                .limit(limit)
+                .all()
+            )
+            return [
+                {
+                    "id": ep.id,
+                    "audio_file_key": ep.audio_file_key,
+                    "audio_format": ep.audio_format or "mp3",
+                    "script_content": ep.script_content,
+                }
+                for ep in episodes
+            ]
+        finally:
+            session.close()
+
     def get_episode_with_relations(
         self,
         episode_id: str,

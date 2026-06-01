@@ -1,6 +1,6 @@
 # Auditure AI Worker
 
-Python microservice for AI-powered podcast generation. Handles script generation (via OpenAI GPT-4.1-mini with template fallback) and text-to-speech conversion (via Google Cloud TTS + Gemini 2.5 Flash TTS).
+Python microservice for AI-powered podcast generation. Handles script generation (via OpenAI GPT-4.1-mini with template fallback), text-to-speech conversion (via Google Cloud TTS + Gemini 2.5 Flash TTS), and optional forced alignment for live transcript timing.
 
 **SDK:** Uses the official `google-genai` SDK for Gemini TTS integration.
 
@@ -82,7 +82,9 @@ ai-worker/
 │   ├── redis/            # Redis client for progress tracking
 │   ├── storage/          # Local file storage
 │   ├── tts/              # Text-to-speech engine (Google Cloud)
+│   │   └── alignment/    # Forced alignment for live transcript timing
 │   └── utils/            # Logging utilities
+├── scripts/              # One-off ops scripts (e.g. backfill_segments.py)
 ├── tests/                # Unit & integration tests
 ├── Dockerfile
 ├── requirements.txt
@@ -96,6 +98,7 @@ ai-worker/
 - **Chunked Generation**: Long scripts (>1800 words) split into multiple chunks with topic tracking
 - **Anti-Repetition**: Automatic extraction of covered topics and examples to prevent repetition
 - **Text-to-Speech**: Gemini 2.5 Flash TTS (premium) + Google Cloud Standard (free tier)
+- **Live Transcript Timing**: Optional self-hosted forced alignment (wav2vec2, CPU) produces per-line timestamps for highlight/auto-scroll/tap-to-seek. Non-vital and crash-safe — never blocks generation
 - **Voice Tiers**: Standard ($4/1M chars) or Gemini (~$0.15/10-min episode)
 - **Episode Types**: MONOLOGUE, DUO (GROUP planned post-MVP)
 - **Episode Length**: Free: 5-10 min, Paid: 5-30 min (chunked for episodes > 11 min)
@@ -413,6 +416,11 @@ TTS_VOICE_TIER=gemini  # Options: standard, gemini
 LOCAL_STORAGE_PATH=./storage
 TTS_TEMP_DIR=./temp/tts
 
+# Forced alignment (live transcript timing) — optional, non-vital
+ALIGNMENT_ENABLED=true      # set false to disable entirely
+ALIGNMENT_TIMEOUT_S=600     # hard cap on the alignment subprocess
+TORCH_HOME=/app/.cache/torch  # where the baked wav2vec2 model is cached (set in Dockerfile)
+
 # Processing
 LOG_LEVEL=INFO
 MAX_BOOK_CONTENT_CHARS=100000
@@ -451,10 +459,11 @@ docker run -e RABBITMQ_URL=amqp://host:5672 \
 ## System Requirements
 
 - Python 3.9+
-- ffmpeg (for audio concatenation)
+- ffmpeg (for audio concatenation and alignment audio decode)
 - PostgreSQL 14+
 - RabbitMQ 3.11+
 - Redis 6+ (for progress tracking)
+- torch + torchaudio (CPU-only) — for forced alignment. Installed via the Dockerfile from PyTorch's CPU index (not in `requirements.txt`, to avoid the ~2GB CUDA wheel). Imported lazily, so the rest of the worker runs fine without them.
 
 ## Processing Pipeline
 
@@ -468,10 +477,37 @@ docker run -e RABBITMQ_URL=amqp://host:5672 \
 7. Generate audio (Gemini 2.5 Flash TTS or Standard based on tier)
 8. Concatenate segments (if multi-voice, or Standard tier)
 9. Save to storage: {userId}/{episodeId}/audio.mp3
-10. Status: COMPLETED (progress: 100%)
+10. Status: COMPLETED (progress: 100%) → quota consumed, user notified
+11. (Optional) Forced alignment → store transcriptSegments for live transcript
 ```
 
 **Note:** Gemini 2.5 Flash TTS has a max output of ~11 minutes. For longer episodes, audio is chunked and stitched.
+
+## Live Transcript Timing (Forced Alignment)
+
+Powers the mobile transcript's live tracking (highlight the spoken line, auto-scroll, tap-to-seek). Since we already have the exact script text, this is **forced alignment**, not transcription — no large ASR model or per-use API cost.
+
+**How it works**
+- Uses torchaudio's English `WAV2VEC2_ASR_BASE_960H` (~360MB, CPU) — small enough to run within the worker's existing 2Gi budget. The model is **baked into the Docker image** so runtime needs no download/egress.
+- After audio is generated, the script is split into sentence-sized lines, decoded to 16kHz mono via ffmpeg, and aligned in **15s windows** (bounds memory; wav2vec2 self-attention is O(T²)). Per-word timings are collapsed to per-line `{text, start, end}` (seconds) and stored on `episodes.transcriptSegments` (JSONB).
+- The mobile app turns sync on **per-episode** when segments are present; episodes without them fall back to a static transcript.
+
+**Crash-safe by design (non-vital feature)**
+- Runs **after** the episode is `COMPLETED`, quota is consumed, and the user is notified. A crash/timeout here can never re-run TTS — the idempotency guard skips already-completed episodes on redelivery.
+- Alignment runs in an **isolated subprocess** with a hard timeout (`ALIGNMENT_TIMEOUT_S`, default 600s). Any failure (error, hang, OOM) → no segments stored, episode unaffected.
+- Master switch: set `ALIGNMENT_ENABLED=false` to disable entirely.
+
+**Backfilling existing episodes**
+
+Re-align already-generated episodes that predate this feature (or any that failed alignment). Run from the `ai-worker` directory with the same env as the worker:
+
+```bash
+python -m scripts.backfill_segments              # up to 100 episodes
+python -m scripts.backfill_segments --limit 500  # process more
+python -m scripts.backfill_segments --dry-run    # list candidates only
+```
+
+It only touches COMPLETED episodes with audio + script but no segments yet, and reuses the same crash-safe aligner.
 
 ### Progress Tracking
 
