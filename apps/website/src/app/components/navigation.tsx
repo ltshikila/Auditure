@@ -28,6 +28,12 @@ export function Navigation() {
               Features
             </a>
             <a
+              href="/#listen"
+              className="font-['Plus_Jakarta_Sans',sans-serif] text-[#2f2f2f] hover:text-[#920002] transition-colors"
+            >
+              Listen
+            </a>
+            <a
               href="/#pricing"
               className="font-['Plus_Jakarta_Sans',sans-serif] text-[#2f2f2f] hover:text-[#920002] transition-colors"
             >
