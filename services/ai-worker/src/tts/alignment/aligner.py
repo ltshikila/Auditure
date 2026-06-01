@@ -239,7 +239,7 @@ def align(audio_path: str, script: str) -> list[dict]:
     that into ``None`` so callers degrade gracefully).
     """
     import torch
-    import torchaudio.functional as AF
+    from torchaudio.functional import forced_align, merge_tokens
 
     lines = split_into_lines(script)
     if not lines:
@@ -267,8 +267,8 @@ def align(audio_path: str, script: str) -> list[dict]:
 
     targets = torch.tensor([flat_tokens], dtype=torch.int32)
     with torch.inference_mode():
-        aligned, scores = AF.forced_align(emission, targets, blank=0)
-        token_spans = AF.merge_tokens(aligned[0], scores[0].exp())
+        aligned, scores = forced_align(emission, targets, blank=0)
+        token_spans = merge_tokens(aligned[0], scores[0].exp())
 
     # One merged span per target token, in order → regroup into words.
     word_spans = _unflatten(token_spans, [len(w) for w in word_token_lists])
