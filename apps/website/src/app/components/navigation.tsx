@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import appLogo from 'figma:asset/9d4b5c5fc52fec774c788c231ec86fca8166a560.png';
 import googlePlayIcon from '@/assets/google-play-icon.svg';
 
@@ -7,27 +8,37 @@ export function Navigation() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
-          <div className="flex items-center gap-3">
+          <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <img src={appLogo} alt="Auditure" className="w-10 h-10" />
             <span className="font-['DM_Serif_Display',serif] text-[#2f2f2f] text-2xl">Auditure</span>
-          </div>
+          </Link>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
-            {[
-              { label: 'How It Works', href: '#how-it-works' },
-              { label: 'Features', href: '#features' },
-              { label: 'Pricing', href: '#pricing' },
-              { label: 'About', href: '#about' },
-            ].map((item) => (
-              <a
-                key={item.label}
-                href={item.href}
-                className="font-['Plus_Jakarta_Sans',sans-serif] text-[#2f2f2f] hover:text-[#920002] transition-colors"
-              >
-                {item.label}
-              </a>
-            ))}
+            <a
+              href="/#how-it-works"
+              className="font-['Plus_Jakarta_Sans',sans-serif] text-[#2f2f2f] hover:text-[#920002] transition-colors"
+            >
+              How It Works
+            </a>
+            <a
+              href="/#features"
+              className="font-['Plus_Jakarta_Sans',sans-serif] text-[#2f2f2f] hover:text-[#920002] transition-colors"
+            >
+              Features
+            </a>
+            <a
+              href="/#pricing"
+              className="font-['Plus_Jakarta_Sans',sans-serif] text-[#2f2f2f] hover:text-[#920002] transition-colors"
+            >
+              Pricing
+            </a>
+            <Link
+              to="/about"
+              className="font-['Plus_Jakarta_Sans',sans-serif] text-[#2f2f2f] hover:text-[#920002] transition-colors"
+            >
+              About
+            </Link>
           </div>
 
           {/* CTA Button */}
