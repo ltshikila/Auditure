@@ -40,7 +40,7 @@ def main() -> int:
     _limit_threads()
 
     try:
-        with open(args.text, "r", encoding="utf-8") as f:
+        with open(args.text, encoding="utf-8") as f:
             script = f.read()
 
         from .aligner import align
