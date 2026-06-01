@@ -9,6 +9,16 @@ export enum EpisodeStatus {
     FAILED = 'FAILED',
 }
 
+/**
+ * One spoken line with its start/end time in the audio (seconds).
+ * Produced by forced alignment in the ai-worker; powers live transcript sync.
+ */
+export interface TranscriptSegment {
+    text: string;
+    start: number;
+    end: number;
+}
+
 export class EpisodeResponseDto {
     id: string;
     userId: string;
@@ -32,6 +42,7 @@ export class EpisodeResponseDto {
     // Generated Content
     scriptContent?: string;
     audioFileKey?: string;
+    transcriptSegments?: TranscriptSegment[];
 
     // Generation Status
     generationStatus: EpisodeStatus;

@@ -123,6 +123,7 @@ npm run start:mobile
 * Multi-speaker synthesis with up to 9 voices per episode
 * Dynamic WPM calculation based on podcaster speaking speed
 * Natural interruptions and backchannels based on chaos factor
+* Self-hosted forced alignment (wav2vec2, CPU) for live transcript timing — optional and crash-safe
 
 ### Data & Infrastructure
 * PostgreSQL (relational data)
@@ -138,6 +139,7 @@ npm run start:mobile
 * **Book Ingestion:** Upload PDF/EPUB files or provide URLs for extraction
 * **Flexible Content Selection:** Process full books, specific chapters, or page ranges
 * **Episode Types:** Generate monologues, dual-host conversations, or group discussions
+* **Live Transcript:** Karaoke-style transcript that tracks playback (highlight, auto-scroll, tap-to-seek) when alignment timing is available
 * **Social Features:** Like, comment, bookmark episodes, follow podcasters
 * **Discovery Feed:** Browse trending episodes with search by title, author, keywords
 * **Subscription Plans:** Tiered subscriptions (Free, Starter, Pro) with Paystack payment processing

@@ -18,6 +18,11 @@ google-cloud-storage>=2.14.0       # GCS for audio file storage
 # TTS - Gemini 2.5 Pro (Multi-speaker, podcast-optimized)
 google-genai>=1.0.0                # New Gemini API SDK for TTS
 
+# Forced alignment (live transcript timing) — torch/torchaudio are intentionally
+# NOT listed here. The Dockerfile installs the CPU-only build from PyTorch's CPU
+# index to avoid pulling the ~2GB CUDA wheel. The alignment code imports them
+# lazily, so the rest of the worker (and CI) runs fine without them installed.
+
 # Config
 pydantic==2.5.2                # Settings validation
 pydantic-settings==2.1.0       # Environment settings
