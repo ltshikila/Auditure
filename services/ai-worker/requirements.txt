@@ -22,6 +22,10 @@ google-genai>=1.0.0                # New Gemini API SDK for TTS
 # NOT listed here. The Dockerfile installs the CPU-only build from PyTorch's CPU
 # index to avoid pulling the ~2GB CUDA wheel. The alignment code imports them
 # lazily, so the rest of the worker (and CI) runs fine without them installed.
+# numpy IS required at runtime: torch's CPU wheel doesn't pull it (and the CPU
+# index can't resolve it), and the aligner decodes audio via numpy. Pinned <2.0
+# because torch 2.2.x is built against the NumPy 1.x ABI.
+numpy==1.26.4
 
 # Config
 pydantic==2.5.2                # Settings validation
