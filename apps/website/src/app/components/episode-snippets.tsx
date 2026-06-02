@@ -136,7 +136,14 @@ export function EpisodeSnippets() {
 
   return (
     <section id="listen" className="py-20 md:py-28 bg-[#F5F0E8]">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <style>{`
+        @keyframes pulse-glow {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(146, 0, 2, 0.45), 0 20px 30px -10px rgba(146, 0, 2, 0.25); }
+          50% { box-shadow: 0 0 0 12px rgba(146, 0, 2, 0), 0 25px 35px -8px rgba(146, 0, 2, 0.35); }
+        }
+        .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+      `}</style>
+      <div className="mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="font-['DM_Serif_Display',serif] text-[#2f2f2f] text-4xl md:text-5xl mb-4">
             Listen to an Episode
@@ -146,7 +153,7 @@ export function EpisodeSnippets() {
           </p>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {EPISODES.map((ep, idx) => {
             const isPlaying = playingIdx === idx;
             const p = progress[idx];
@@ -157,8 +164,10 @@ export function EpisodeSnippets() {
             return (
               <div
                 key={ep.audio}
-                className={`rounded-[20px] overflow-hidden shadow-md transition-all bg-[#FBF8F2] border ${
-                  isPlaying ? "border-[#920002] shadow-xl" : "border-[#d0d0d0]/40"
+                className={`group rounded-[20px] overflow-hidden bg-[#FBF8F2] border transition-all duration-300 hover:-translate-y-1 ${
+                  isPlaying
+                    ? "border-[#920002] animate-pulse-glow"
+                    : "border-[#d0d0d0]/40 shadow-md hover:shadow-xl"
                 }`}
               >
                 <div
@@ -174,24 +183,21 @@ export function EpisodeSnippets() {
                 </div>
 
                 <div className="p-5">
-                  <h3 className="font-['DM_Serif_Display',serif] text-[#2f2f2f] text-xl mb-1 line-clamp-1">
+                  <h3 className="font-['DM_Serif_Display',serif] text-[#2f2f2f] text-lg leading-snug mb-2 line-clamp-2 min-h-[3.25rem]">
                     {ep.episodeTitle}
                   </h3>
-                  <p className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a] text-sm mb-1 line-clamp-1">
-                    {ep.bookTitle}
-                  </p>
-                  <p className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a]/70 text-xs mb-4">
-                    {ep.author}
+                  <p className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a] text-sm mb-5 line-clamp-1">
+                    {ep.bookTitle} <span className="text-[#5a5a5a]/60">· {ep.author}</span>
                   </p>
 
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => handlePlay(idx)}
-                      className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-colors ${
+                      className={`shrink-0 w-[3.25rem] h-[3.25rem] rounded-full flex items-center justify-center transition-all duration-200 ${
                         isPlaying
-                          ? "bg-[#920002] text-white"
-                          : "bg-[#2f2f2f] text-white hover:bg-[#920002]"
-                      }`}
+                          ? "bg-[#920002] text-white scale-105"
+                          : "bg-[#2f2f2f] text-white hover:bg-[#920002] group-hover:scale-105"
+                      } shadow-lg`}
                       aria-label={isPlaying ? "Pause" : "Play"}
                     >
                       {isPlaying ? <PauseIcon /> : <PlayIcon />}
