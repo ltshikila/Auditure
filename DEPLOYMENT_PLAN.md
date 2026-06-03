@@ -39,7 +39,7 @@ Auditure converts books into AI-generated podcast episodes. Here's how the piece
                     ▼            ▼            ▼          ▼
               ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
               │ Cloud SQL│ │  Redis   │ │ RabbitMQ │ │ Cloud    │
-              │(Postgres)│ │ (Cache)  │ │ (Queue)  │ │ Storage  │
+              │(Postgres)│ │(Upstash) │ │ (Queue)  │ │ Storage  │
               └──────────┘ └──────────┘ └──────────┘ └──────────┘
 ```
 
@@ -83,6 +83,7 @@ Cloud SQL is a managed PostgreSQL database. "Managed" means:
 | **Cloud Run** | Run our API and Worker | Scales to zero, pay-per-use |
 | **Cloud SQL** | PostgreSQL database | Managed, automatic backups |
 | **CloudAMQP** | RabbitMQ message queue | Managed RabbitMQ, free tier available |
+| **Upstash Redis** | Cache, job progress, rate limiting, notification stream | Public TLS endpoint, free tier, no VPC connector needed |
 | **Cloud Storage** | Store audio files | Cheap, scalable object storage |
 | **Secret Manager** | Store API keys securely | Never put secrets in code! |
 | **Artifact Registry** | Store Docker images | Where our containers live |
@@ -923,13 +924,13 @@ gcloud secrets add-iam-policy-binding DATABASE_URL \
 
 #### 4. "Redis connection refused"
 
-**Symptoms**: Logs show "ECONNREFUSED 127.0.0.1:6379"
+**Symptoms**: Logs show Redis connection errors instead of "Redis connected"
 
-**Why it happens**: Memorystore Redis requires VPC connector, which we haven't set up yet.
+**Why it happens**: Both services connect to Upstash Redis via the `REDIS_URL` secret (a `rediss://` URL that encodes TLS + auth). A failure usually means the secret is missing, malformed, or has a trailing newline.
 
-**Current workaround**: The app gracefully handles this - caching is disabled but the app works.
+**How to check**: Confirm core-api logs show "Redis connected" and ai-worker logs show "Connected to Redis at ...upstash.io". If not, recreate the secret with `printf` (never `echo`) so no trailing whitespace sneaks in.
 
-**Future fix**: Set up Serverless VPC Access connector and update Cloud Run to use it.
+**Note**: Redis was migrated off Memorystore to Upstash (public TLS endpoint) on 2026-06-03, which removed the need for a Serverless VPC connector entirely. The app still degrades gracefully if Redis is unreachable: caching is skipped and the app keeps working.
 
 #### 5. GitHub Actions job stuck in "queued"
 
@@ -997,7 +998,7 @@ RUN npm install
 | Cloud Storage | ✅ Ready | auditure-storage-prod |
 | Artifact Registry | ✅ Ready | us-central1-docker.pkg.dev/auditure-483611/auditure |
 | CloudAMQP | ✅ Connected | RabbitMQ working |
-| Memorystore | ⚠️ Not connected | Needs VPC connector |
+| Redis (Upstash) | ✅ Connected | Public TLS via REDIS_URL; replaced Memorystore + VPC connector (2026-06-03) |
 | Secrets | ✅ Configured | 9 secrets in Secret Manager |
 
 ### Pending Tasks
@@ -1006,7 +1007,7 @@ RUN npm install
 - [x] Update mobile app subscription flow
 - [ ] Run database migrations
 - [ ] Set up custom domain (api.auditure.app)
-- [ ] Configure Memorystore VPC connector
+- [x] Migrate Redis to Upstash (replaced Memorystore + VPC connector)
 - [ ] Set up monitoring alerts
 - [ ] Configure production Paystack keys in Secret Manager
 - [ ] Set up Paystack webhook URL in production
@@ -1042,4 +1043,4 @@ gh run list --limit 5
 
 ---
 
-*Last updated: February 2026*
+*Last updated: June 2026*
