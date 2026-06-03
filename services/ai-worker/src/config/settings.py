@@ -77,6 +77,11 @@ class Settings(BaseSettings):
     posthog_api_key: Optional[str] = None
     posthog_host: str = "https://us.i.posthog.com"
 
+    # Expo push notifications. Optional bearer token (required only if the Expo
+    # project has Enhanced Security for Push enabled). The worker sends pushes
+    # directly rather than via core-api's Redis-stream consumer.
+    expo_access_token: Optional[str] = None
+
     # Retry settings
     max_retries: int = 3
     retry_delay_base: int = 5  # seconds

@@ -5,7 +5,16 @@ from datetime import datetime
 from typing import Any, Optional
 
 from .client import DatabaseClient
-from .models import Book, Chapter, Episode, EpisodeStatus, Notification, Podcaster, Subscription
+from .models import (
+    Book,
+    Chapter,
+    Episode,
+    EpisodeStatus,
+    Notification,
+    Podcaster,
+    Subscription,
+    UserSettings,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -307,6 +316,46 @@ class EpisodeRepository:
             session.rollback()
             logger.error(f"[DB] Failed to create notification: {e}")
             return None
+        finally:
+            session.close()
+
+    def get_push_settings(self, user_id: str) -> Optional[dict[str, Any]]:
+        """Get a user's push token and whether push notifications are enabled."""
+        session = self.db_client.create_session()
+        try:
+            settings = (
+                session.query(UserSettings)
+                .filter(UserSettings.user_id == user_id)
+                .first()
+            )
+            if not settings:
+                return None
+            return {
+                "push_enabled": bool(settings.push_notifications_enabled),
+                "token": settings.expo_push_token,
+            }
+        except Exception as e:
+            logger.error(f"[DB] Failed to fetch push settings for {user_id}: {e}")
+            return None
+        finally:
+            session.close()
+
+    def clear_push_token(self, user_id: str) -> None:
+        """Clear a user's push token (e.g. after Expo reports DeviceNotRegistered)."""
+        session = self.db_client.create_session()
+        try:
+            settings = (
+                session.query(UserSettings)
+                .filter(UserSettings.user_id == user_id)
+                .first()
+            )
+            if settings:
+                settings.expo_push_token = None
+                session.commit()
+                logger.info(f"[DB] Cleared dead push token for user {user_id}")
+        except Exception as e:
+            session.rollback()
+            logger.error(f"[DB] Failed to clear push token for {user_id}: {e}")
         finally:
             session.close()
 
