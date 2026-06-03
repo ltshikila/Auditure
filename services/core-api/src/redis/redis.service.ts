@@ -7,20 +7,28 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     private readonly logger = new Logger(RedisService.name);
 
     async onModuleInit() {
-        this.client = new Redis({
-            host: process.env.REDIS_HOST || 'localhost',
-            port: parseInt(process.env.REDIS_PORT || '6379'),
+        const options = {
             maxRetriesPerRequest: 3,
             connectTimeout: 10_000, // 10s connection timeout
             lazyConnect: true,
-            retryStrategy: times => {
+            retryStrategy: (times: number) => {
                 if (times > 3) {
                     this.logger.warn('Redis max connection retries reached, giving up');
                     return null; // Stop retrying
                 }
                 return Math.min(times * 200, 2000);
             },
-        });
+        };
+
+        // Prefer a full connection URL (managed Redis like Upstash encodes TLS + auth via
+        // the rediss:// scheme); fall back to host/port for local development.
+        this.client = process.env.REDIS_URL
+            ? new Redis(process.env.REDIS_URL, options)
+            : new Redis({
+                  host: process.env.REDIS_HOST || 'localhost',
+                  port: parseInt(process.env.REDIS_PORT || '6379'),
+                  ...options,
+              });
 
         this.client.on('error', err => {
             this.logger.error('Redis connection error:', err.message);
