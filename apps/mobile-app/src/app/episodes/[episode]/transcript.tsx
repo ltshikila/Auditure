@@ -133,17 +133,27 @@ function segmentsToLines(segments: TranscriptSegment[]): TranscriptLine[] {
 
 function getCurrentLineIndex(lines: TranscriptLine[], positionMs: number, enabled: boolean): number {
     // No real timing for this episode — render statically, nothing highlighted.
-    if (!enabled) return -1;
+    if (!enabled || lines.length === 0) return -1;
 
-    for (let i = 0; i < lines.length; i++) {
-        if (positionMs >= lines[i].startTime && positionMs < lines[i].endTime) {
-            return i;
+    // Before the first line starts, treat the first line as the (upcoming) current one.
+    if (positionMs < lines[0].startTime) return 0;
+
+    // The current line is the LAST line that has started by now. Using "has started"
+    // (rather than start <= pos < end) keeps the highlight stable across the small
+    // silent gaps between lines instead of snapping back to the top.
+    let lo = 0;
+    let hi = lines.length - 1;
+    let idx = 0;
+    while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (lines[mid].startTime <= positionMs) {
+            idx = mid;
+            lo = mid + 1;
+        } else {
+            hi = mid - 1;
         }
     }
-    if (lines.length > 0 && positionMs >= lines[lines.length - 1].endTime) {
-        return lines.length - 1;
-    }
-    return 0;
+    return idx;
 }
 
 const TranscriptLineItem = React.memo(({
@@ -172,10 +182,11 @@ const TranscriptLineItem = React.memo(({
                 minHeight: LINE_HEIGHT,
                 justifyContent: 'center',
                 paddingHorizontal: 24,
-                paddingVertical: 12,
+                paddingVertical: isCurrent ? 18 : 12,
                 backgroundColor: isCurrent ? palette.accentBg : 'transparent',
-                borderRadius: isCurrent ? 12 : 0,
+                borderRadius: isCurrent ? 16 : 0,
                 marginHorizontal: isCurrent ? 12 : 0,
+                marginVertical: isCurrent ? 6 : 0,
             }}
         >
             <Text
@@ -192,9 +203,14 @@ const TranscriptLineItem = React.memo(({
         </TouchableOpacity>
     );
 }, (prev, next) => {
-    // Simplified memo - only re-render if item changes, current state changes, or palette switches
+    // Re-render when the line's "current" OR "past" state changes (so colors update as
+    // the highlight passes), or when its content / palette changes.
+    const sameCurrent = (prev.index === prev.currentIndex) === (next.index === next.currentIndex);
+    const samePast = (prev.index < prev.currentIndex) === (next.index < next.currentIndex);
     return prev.item.id === next.item.id &&
-           (prev.index === prev.currentIndex) === (next.index === next.currentIndex) &&
+           prev.item.text === next.item.text &&
+           sameCurrent &&
+           samePast &&
            prev.palette === next.palette;
 });
 
@@ -212,12 +228,12 @@ export default function TranscriptScreen() {
     const flatListRef = useRef<FlatList>(null);
     const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastScrolledIndex = useRef<number>(-1);
+    const hasInitialScrolled = useRef(false);
 
     const {
         episode: playbackEpisode,
         position,
         duration,
-        isPlaying,
         play,
         seekTo,
     } = usePlayback();
@@ -269,23 +285,24 @@ export default function TranscriptScreen() {
     };
 
     useEffect(() => {
-        // Auto-scroll only when this episode has real timing.
-        if (!hasTiming) return;
-        if (
-            !userScrolling &&
-            isPlaying &&
-            transcriptLines.length > 0 &&
-            currentLineIndex >= 0 &&
-            currentLineIndex !== lastScrolledIndex.current
-        ) {
-            lastScrolledIndex.current = currentLineIndex;
-            flatListRef.current?.scrollToIndex({
-                index: currentLineIndex,
-                animated: true,
-                viewPosition: 0.5,
-            });
-        }
-    }, [currentLineIndex, isPlaying, userScrolling, transcriptLines.length, hasTiming]);
+        // Keep the current line centered as playback advances — and right when the
+        // screen opens. Deliberately NOT gated on isPlaying, so opening the transcript
+        // (or scrubbing while paused) still snaps to the right line. The userScrolling
+        // guard yields to manual scrolling for a couple of seconds.
+        if (!hasTiming || userScrolling) return;
+        if (transcriptLines.length === 0 || currentLineIndex < 0) return;
+        if (currentLineIndex === lastScrolledIndex.current) return;
+
+        lastScrolledIndex.current = currentLineIndex;
+        // First sync (on open) jumps instantly; later updates animate smoothly.
+        const animated = hasInitialScrolled.current;
+        hasInitialScrolled.current = true;
+        flatListRef.current?.scrollToIndex({
+            index: currentLineIndex,
+            animated,
+            viewPosition: 0.5,
+        });
+    }, [currentLineIndex, userScrolling, transcriptLines.length, hasTiming]);
 
     const handleScrollBegin = useCallback(() => {
         setUserScrolling(true);
@@ -331,10 +348,14 @@ export default function TranscriptScreen() {
         />
     ), [currentLineIndex, handleLineTap, COLORS]);
 
-    const onScrollToIndexFailed = useCallback((info: { index: number }) => {
+    const onScrollToIndexFailed = useCallback((info: { index: number; averageItemLength: number }) => {
+        // The target row isn't measured yet (common when jumping far on open). Jump to an
+        // estimated offset to force those rows to render, then land precisely on the row.
+        const offset = Math.max(0, info.averageItemLength * info.index);
+        flatListRef.current?.scrollToOffset({ offset, animated: false });
         setTimeout(() => {
-            flatListRef.current?.scrollToIndex({ index: info.index, animated: true, viewPosition: 0.5 });
-        }, 100);
+            flatListRef.current?.scrollToIndex({ index: info.index, animated: false, viewPosition: 0.5 });
+        }, 80);
     }, []);
 
     // Bottom padding to account for mini player
