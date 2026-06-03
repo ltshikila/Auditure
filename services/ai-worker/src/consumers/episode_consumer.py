@@ -7,6 +7,7 @@ from src.analytics import track_event
 from src.config import get_settings
 from src.database import EpisodeRepository, EpisodeStatus, get_database_client
 from src.generators import BookContentUnavailableError, DurationMismatchError, ScriptGenerator
+from src.notifications import ExpoPushClient, is_device_not_registered
 from src.redis import get_redis_client
 from src.storage import get_storage
 from src.tts import PodcasterVoice, TTSEngine
@@ -44,6 +45,12 @@ class EpisodeConsumer(BaseConsumer):
         self.tts_engine = TTSEngine()
         self.storage = get_storage()
         self.redis_client = get_redis_client()
+
+        # Push notifications are sent directly from this always-on worker rather
+        # than handed to core-api via a Redis stream. core-api runs with CPU
+        # throttling + scale-to-zero, so its background stream consumer could not
+        # reliably finish delivering pushes.
+        self.push_client = ExpoPushClient(access_token=settings.expo_access_token)
 
         # LLM client for summary generation
         from src.generators.llm_client import OpenAIClient
@@ -567,7 +574,8 @@ class EpisodeConsumer(BaseConsumer):
 
             data = {"episodeId": episode_id, "route": f"/episodes/{episode_id}"}
 
-            notification_id = self.repository.create_notification(
+            # Persist the in-app notification record...
+            self.repository.create_notification(
                 user_id=user_id,
                 notification_type=notif_type,
                 title=title,
@@ -575,15 +583,8 @@ class EpisodeConsumer(BaseConsumer):
                 data=data,
             )
 
-            if notification_id:
-                self.redis_client.queue_notification(
-                    notification_id=notification_id,
-                    user_id=user_id,
-                    notification_type=notif_type,
-                    title=title,
-                    body=body,
-                    data=data,
-                )
+            # ...then deliver the push directly from this always-on worker.
+            self._deliver_push(user_id=user_id, title=title, body=body, data=data)
         except Exception as e:
             logger.error(f"Failed to send notification: {e}")
             # Don't raise - notification failure shouldn't affect episode processing
@@ -606,7 +607,7 @@ class EpisodeConsumer(BaseConsumer):
             )
             data = {"episodeId": episode_id, "route": f"/episodes/{episode_id}"}
 
-            notification_id = self.repository.create_notification(
+            self.repository.create_notification(
                 user_id=user_id,
                 notification_type="SYSTEM",
                 title=title,
@@ -614,17 +615,38 @@ class EpisodeConsumer(BaseConsumer):
                 data=data,
             )
 
-            if notification_id:
-                self.redis_client.queue_notification(
-                    notification_id=notification_id,
-                    user_id=user_id,
-                    notification_type="SYSTEM",
-                    title=title,
-                    body=body,
-                    data=data,
-                )
+            self._deliver_push(user_id=user_id, title=title, body=body, data=data)
         except Exception as e:
             logger.error(f"Failed to send truncation warning: {e}")
+
+    def _deliver_push(
+        self,
+        user_id: str,
+        title: str,
+        body: str,
+        data: dict,
+    ) -> None:
+        """Send a push notification directly via Expo.
+
+        Replaces the old Redis-stream handoff to core-api, whose background
+        consumer could not run reliably under Cloud Run CPU throttling. Never
+        raises: a push failure must not affect episode processing.
+        """
+        try:
+            settings = self.repository.get_push_settings(user_id)
+            if not settings or not settings.get("push_enabled") or not settings.get("token"):
+                logger.info(
+                    f"[PUSH] Skipping push for user {user_id}: "
+                    f"enabled={settings.get('push_enabled') if settings else None}, "
+                    f"hasToken={bool(settings and settings.get('token'))}"
+                )
+                return
+
+            ticket = self.push_client.send(settings["token"], title, body, data)
+            if is_device_not_registered(ticket):
+                self.repository.clear_push_token(user_id)
+        except Exception as e:
+            logger.error(f"[PUSH] Delivery failed (non-critical): {e}")
 
     def _build_content_scope(
         self,

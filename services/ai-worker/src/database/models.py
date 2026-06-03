@@ -232,6 +232,21 @@ class Subscription(Base):
     updated_at = Column("updatedAt", DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class UserSettings(Base):
+    """User settings - push token and notification preferences.
+
+    Only the fields the worker needs are mapped (read push prefs, clear a
+    dead token). The full table is owned by core-api / Prisma.
+    """
+
+    __tablename__ = "user_settings"
+
+    id = Column(String, primary_key=True)
+    user_id = Column("userId", String, nullable=False, unique=True)
+    push_notifications_enabled = Column("pushNotificationsEnabled", Boolean, default=True)
+    expo_push_token = Column("expoPushToken", String, nullable=True)
+
+
 class Notification(Base):
     """Notification model - user notifications for push delivery."""
 
