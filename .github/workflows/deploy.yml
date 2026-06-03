@@ -182,9 +182,10 @@ jobs:
             --concurrency 1 \
             --min-instances 0 \
             --max-instances 1 \
-            --memory 4Gi \
+            --memory 8Gi \
             --cpu 4 \
             --timeout 900
+            # 8Gi matches the proven backfill config (4Gi/2Gi OOM'd long episodes).
             # max-instances capped at 1: region CPU quota (20 vCPU) is mostly used by
             # ai-worker + core-api. Raise this once a CpuAllocPerProjectRegion quota
             # bump lands, for higher alignment concurrency.
