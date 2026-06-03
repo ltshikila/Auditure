@@ -69,6 +69,10 @@ class Settings(BaseSettings):
     # degrades quietly: if disabled or it fails, episodes are unaffected.
     alignment_enabled: bool = True
     alignment_timeout_s: int = 600  # hard cap on the alignment subprocess
+    # Pub/Sub topic the generation worker publishes to on episode-complete; a
+    # dedicated alignment service (Pub/Sub push -> Cloud Run) consumes it so
+    # generation never blocks on the heavy CPU alignment work.
+    alignment_topic: str = "transcript-alignment"
 
     # Logging
     log_level: str = "INFO"

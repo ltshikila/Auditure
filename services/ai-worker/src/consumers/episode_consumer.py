@@ -369,18 +369,13 @@ class EpisodeConsumer(BaseConsumer):
                 "truncated": content_result["truncated"],
             })
 
-            # Step 11 (optional, non-vital): forced-alignment for live transcript
-            # timing. Deliberately runs AFTER the episode is COMPLETED, quota is
-            # consumed, and the user is notified — so a crash/timeout here never
-            # re-runs TTS (the idempotency guard skips already-COMPLETED episodes
-            # on redelivery). Runs in an isolated subprocess; worst case the
-            # episode simply has no live-sync.
-            self._align_transcript(
-                episode_id=episode_id,
-                audio_buffer=tts_result.audio_buffer,
-                audio_format=tts_result.format,
-                script=script_result.script,
-            )
+            # Step 11 (optional, non-vital): queue live-transcript alignment.
+            # Published to Pub/Sub so a dedicated, autoscaling alignment service
+            # does the heavy CPU work — generation never blocks on it (this
+            # publish returns in well under a second). Best-effort: a publish
+            # failure just means this episode won't get live transcript sync.
+            from src.tts.alignment.publisher import publish_alignment_request
+            publish_alignment_request(episode_id)
 
         except DurationMismatchError as e:
             # Duration mismatch is a user-recoverable error, not a system failure
@@ -496,36 +491,6 @@ class EpisodeConsumer(BaseConsumer):
 
             # Re-raise for retry logic
             raise
-
-    def _align_transcript(
-        self,
-        episode_id: str,
-        audio_buffer: bytes,
-        audio_format: str,
-        script: str,
-    ) -> None:
-        """Generate and store live-transcript timing. Best-effort, never raises.
-
-        Any failure (import error, alignment error, timeout, OOM in the isolated
-        subprocess) is swallowed: the episode is already COMPLETED, so it simply
-        ends up without live transcript sync.
-        """
-        try:
-            from src.tts.alignment import run_alignment_safe
-
-            logger.info("[ALIGN] Attempting transcript alignment (optional)...")
-            segments = run_alignment_safe(
-                audio_bytes=audio_buffer,
-                audio_format=audio_format,
-                script=script,
-            )
-            if segments:
-                self.repository.update_segments(episode_id, segments)
-                logger.info(f"[ALIGN] Live transcript ready: {len(segments)} segments")
-            else:
-                logger.info("[ALIGN] No segments — transcript sync unavailable for this episode")
-        except Exception as e:
-            logger.warning(f"[ALIGN] Transcript alignment skipped (non-vital): {e}")
 
     def _update_status(
         self,
