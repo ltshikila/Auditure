@@ -26,7 +26,9 @@ def main() -> None:
     logger.info("=" * 60)
     logger.info(f"RabbitMQ URL: {settings.rabbitmq_url}")
     logger.info(f"Database URL: {settings.database_url.split('@')[-1]}")  # Hide credentials
-    logger.info(f"Redis: {settings.redis_host}:{settings.redis_port}")
+    logger.info(
+        f"Redis: {'managed (REDIS_URL)' if settings.redis_url else f'{settings.redis_host}:{settings.redis_port}'}"
+    )
     logger.info(f"Storage path: {settings.local_storage_path}")
     logger.info(f"LLM available: {settings.has_llm_api}")
     if settings.has_llm_api:

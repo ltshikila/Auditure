@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://postgres:password@localhost:5432/auditure"
 
     # Redis
+    # Prefer a full connection URL (managed Redis like Upstash encodes TLS + auth).
+    # Falls back to host/port for local development.
+    redis_url: Optional[str] = None
     redis_host: str = "localhost"
     redis_port: int = 6379
 

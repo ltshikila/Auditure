@@ -14,22 +14,29 @@ logger = logging.getLogger(__name__)
 class RedisClient:
     """Redis client for tracking job progress."""
 
-    def __init__(self, host: str, port: int):
+    def __init__(self, host: str, port: int, url: Optional[str] = None):
         """Initialize Redis client."""
         self._client: Optional[redis.Redis] = None
         self._host = host
         self._port = port
+        self._url = url
 
     def connect(self) -> None:
         """Connect to Redis."""
         try:
-            self._client = redis.Redis(
-                host=self._host,
-                port=self._port,
-                decode_responses=True,
-            )
+            if self._url:
+                # Managed Redis (e.g. Upstash) — the URL encodes TLS + auth.
+                self._client = redis.Redis.from_url(self._url, decode_responses=True)
+                target = self._url.split("@")[-1]  # host:port only, never the password
+            else:
+                self._client = redis.Redis(
+                    host=self._host,
+                    port=self._port,
+                    decode_responses=True,
+                )
+                target = f"{self._host}:{self._port}"
             self._client.ping()
-            logger.info(f"Connected to Redis at {self._host}:{self._port}")
+            logger.info(f"Connected to Redis at {target}")
         except redis.ConnectionError as e:
             logger.warning(f"Failed to connect to Redis: {e}. Progress tracking disabled.")
             self._client = None
@@ -175,6 +182,7 @@ def get_redis_client() -> RedisClient:
         _redis_client = RedisClient(
             host=settings.redis_host,
             port=settings.redis_port,
+            url=settings.redis_url,
         )
         _redis_client.connect()
 
