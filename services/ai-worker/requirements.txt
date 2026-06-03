@@ -15,6 +15,11 @@ google-cloud-texttospeech>=2.14.0  # Google Cloud TTS API
 # Storage - Google Cloud Storage
 google-cloud-storage>=2.14.0       # GCS for audio file storage
 
+# Pub/Sub - decoupled transcript alignment pipeline
+google-cloud-pubsub>=2.18.0        # publish alignment requests (generation worker)
+flask>=2.3.0                       # HTTP server for the alignment push target
+gunicorn>=21.2.0                   # WSGI server for the alignment Cloud Run service
+
 # TTS - Gemini 2.5 Pro (Multi-speaker, podcast-optimized)
 google-genai>=1.0.0                # New Gemini API SDK for TTS
 
