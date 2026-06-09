@@ -50,7 +50,7 @@ export class FeedController {
      * GET /feed/section/:sectionId?page=1&limit=20
      *
      * Valid section IDs:
-     * - Episodes: continue_listening, popular, latest, recommended
+     * - Episodes: continue_listening, popular, top_rated_episodes, discussions, latest, quick_listens
      * - Books: popular_inspirations, popular_books, latest_books
      * - Podcasters: trending, top_rated, new_voices
      */

@@ -312,6 +312,68 @@ describe('FeedService', () => {
                 expect(latestSection).toBeDefined();
             });
         });
+
+        describe('Top Rated Episodes Section', () => {
+            it('should return a top rated section ranked by rating', async () => {
+                mockPrismaClient.episode.findMany.mockResolvedValue([
+                    createMockEpisodeWithRelations({ averageRating: 4.8, ratingCount: 30 }),
+                ]);
+                mockRedisService.getAllPlaybackProgress.mockResolvedValue({});
+
+                const result = await service.getFeed(FeedTab.EPISODES, MOCK_USER_ID);
+
+                const topRated = result.sections.find(
+                    s => s.id === EpisodeSectionId.TOP_RATED_EPISODES,
+                );
+                expect(topRated).toBeDefined();
+                expect(topRated?.title).toBe('Top Rated');
+            });
+
+            it('should only include episodes that have at least one rating', async () => {
+                mockPrismaClient.episode.findMany.mockResolvedValue([]);
+                mockRedisService.getAllPlaybackProgress.mockResolvedValue({});
+
+                await service.getFeed(FeedTab.EPISODES, MOCK_USER_ID);
+
+                const calls = mockPrismaClient.episode.findMany.mock.calls;
+                const hasRatingFilter = calls.some(call => call[0]?.where?.ratingCount?.gt === 0);
+                expect(hasRatingFilter).toBe(true);
+            });
+        });
+
+        describe('Quick Listens Section', () => {
+            it('should cap episode duration at the quick-listen threshold', async () => {
+                mockPrismaClient.episode.findMany.mockResolvedValue([]);
+                mockRedisService.getAllPlaybackProgress.mockResolvedValue({});
+
+                await service.getFeed(FeedTab.EPISODES, MOCK_USER_ID);
+
+                const calls = mockPrismaClient.episode.findMany.mock.calls;
+                const hasDurationFilter = calls.some(
+                    call =>
+                        call[0]?.where?.duration?.lte === FEED_CONFIG.QUICK_LISTEN_MAX_SECONDS &&
+                        call[0]?.where?.duration?.gt === 0,
+                );
+                expect(hasDurationFilter).toBe(true);
+            });
+        });
+
+        describe('Discussions Section', () => {
+            it('should filter by debate/discussion theme', async () => {
+                mockPrismaClient.episode.findMany.mockResolvedValue([]);
+                mockRedisService.getAllPlaybackProgress.mockResolvedValue({});
+
+                await service.getFeed(FeedTab.EPISODES, MOCK_USER_ID);
+
+                const calls = mockPrismaClient.episode.findMany.mock.calls;
+                const hasThemeFilter = calls.some(call =>
+                    Array.isArray(call[0]?.where?.episodeTheme?.in) &&
+                    call[0].where.episodeTheme.in.includes('DEBATE') &&
+                    call[0].where.episodeTheme.in.includes('DISCUSSION'),
+                );
+                expect(hasThemeFilter).toBe(true);
+            });
+        });
     });
 
     // ============================================
@@ -520,6 +582,39 @@ describe('FeedService', () => {
                     expect.objectContaining({
                         skip: 10, // (page 2 - 1) * limit 10
                         take: 10,
+                    }),
+                );
+            });
+
+            it('should apply the rating filter when paginating top rated episodes', async () => {
+                mockPrismaClient.episode.findMany.mockResolvedValue([]);
+                mockPrismaClient.episode.count.mockResolvedValue(0);
+
+                await service.getSectionData(
+                    EpisodeSectionId.TOP_RATED_EPISODES,
+                    MOCK_USER_ID,
+                    1,
+                    10,
+                );
+
+                expect(mockPrismaClient.episode.findMany).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        where: expect.objectContaining({ ratingCount: { gt: 0 } }),
+                    }),
+                );
+            });
+
+            it('should apply the duration filter when paginating quick listens', async () => {
+                mockPrismaClient.episode.findMany.mockResolvedValue([]);
+                mockPrismaClient.episode.count.mockResolvedValue(0);
+
+                await service.getSectionData(EpisodeSectionId.QUICK_LISTENS, MOCK_USER_ID, 1, 10);
+
+                expect(mockPrismaClient.episode.findMany).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        where: expect.objectContaining({
+                            duration: { gt: 0, lte: FEED_CONFIG.QUICK_LISTEN_MAX_SECONDS },
+                        }),
                     }),
                 );
             });
