@@ -33,6 +33,21 @@ export class FeedService {
         ],
     };
 
+    /**
+     * Shared relation selection for episode feed cards.
+     */
+    private readonly EPISODE_FEED_INCLUDE = {
+        book: {
+            select: { id: true, title: true, author: true, coverImageUrl: true },
+        },
+        podcaster: {
+            select: { id: true, name: true, profilePictureUrl: true },
+        },
+        user: {
+            select: { id: true, firstName: true, lastName: true },
+        },
+    };
+
     constructor(
         private readonly databaseService: DatabaseService,
         private readonly redisService: RedisService,
@@ -128,20 +143,26 @@ export class FeedService {
     private async getEpisodesFeed(userId: string): Promise<EpisodesFeedResponse> {
         this.logger.log(`getEpisodesFeed() called for userId: ${userId}`);
 
-        const [continueListening, popular, latest] = await Promise.all([
-            this.getContinueListeningSection(userId),
-            this.getPopularEpisodesSection(),
-            this.getLatestEpisodesSection(),
-        ]);
-
-        // For MVP, recommended is same as popular (different instances)
-        const recommended = await this.getRecommendedEpisodesSection();
+        const [continueListening, popular, topRated, discussions, latest, quickListens] =
+            await Promise.all([
+                this.getContinueListeningSection(userId),
+                this.getPopularEpisodesSection(),
+                this.getTopRatedEpisodesSection(),
+                this.getDiscussionsSection(),
+                this.getLatestEpisodesSection(),
+                this.getQuickListensSection(),
+            ]);
 
         return {
             tab: FeedTab.EPISODES,
-            sections: [continueListening, popular, latest, recommended].filter(
-                section => section.items.length > 0,
-            ),
+            sections: [
+                continueListening,
+                popular,
+                topRated,
+                discussions,
+                latest,
+                quickListens,
+            ].filter(section => section.items.length > 0),
         };
     }
 
@@ -390,55 +411,105 @@ export class FeedService {
     }
 
     /**
-     * Get "Recommended Episodes" section
-     * MVP: Returns popular episodes (same logic as popular)
+     * Get "Top Rated" episodes section.
+     * Distinct from Popular: ranks by average rating (quality) rather than play count (reach).
      */
-    private async getRecommendedEpisodesSection(): Promise<FeedSection<EpisodeFeedItem>> {
-        this.logger.log('getRecommendedEpisodesSection() called (MVP: using popular)');
+    private async getTopRatedEpisodesSection(): Promise<FeedSection<EpisodeFeedItem>> {
+        this.logger.log('getTopRatedEpisodesSection() called');
 
         try {
-            // For MVP, recommended is the same as popular
-            const cacheKey = FEED_CONFIG.CACHE_KEYS.EPISODES_POPULAR;
+            const cacheKey = FEED_CONFIG.CACHE_KEYS.EPISODES_TOP_RATED;
             const cached = await this.getCachedData<EpisodeFeedItem[]>(cacheKey);
             if (cached) {
-                return this.buildSection(EpisodeSectionId.RECOMMENDED, cached, true);
+                this.logger.log('Cache hit for top rated episodes');
+                return this.buildSection(EpisodeSectionId.TOP_RATED_EPISODES, cached, true);
             }
 
             const episodes = await this.databaseService.episode.findMany({
-                where: this.PUBLIC_EPISODE_FILTER,
-                orderBy: [{ playCount: 'desc' }, { likeCount: 'desc' }],
+                where: { ...this.PUBLIC_EPISODE_FILTER, ratingCount: { gt: 0 } },
+                orderBy: [{ averageRating: 'desc' }, { ratingCount: 'desc' }],
                 take: FEED_CONFIG.DEFAULT_SECTION_LIMIT,
-                include: {
-                    book: {
-                        select: {
-                            id: true,
-                            title: true,
-                            author: true,
-                            coverImageUrl: true,
-                        },
-                    },
-                    podcaster: {
-                        select: {
-                            id: true,
-                            name: true,
-                            profilePictureUrl: true,
-                        },
-                    },
-                    user: {
-                        select: {
-                            id: true,
-                            firstName: true,
-                            lastName: true,
-                        },
-                    },
-                },
+                include: this.EPISODE_FEED_INCLUDE,
             });
 
             const items = this.mapEpisodesToFeedItems(episodes);
-            return this.buildSection(EpisodeSectionId.RECOMMENDED, items, true);
+            await this.setCachedData(cacheKey, items, FEED_CONFIG.CACHE_TTL.EPISODES_TOP_RATED);
+
+            this.logger.log(`Found ${items.length} top rated episodes`);
+            return this.buildSection(EpisodeSectionId.TOP_RATED_EPISODES, items, true);
         } catch (error) {
-            this.logger.error(`Error in getRecommendedEpisodesSection(): ${error.message}`);
-            return this.buildSection(EpisodeSectionId.RECOMMENDED, [], false);
+            this.logger.error(`Error in getTopRatedEpisodesSection(): ${error.message}`);
+            return this.buildSection(EpisodeSectionId.TOP_RATED_EPISODES, [], false);
+        }
+    }
+
+    /**
+     * Get "Quick Listens" section: completed episodes short enough for a single sitting.
+     */
+    private async getQuickListensSection(): Promise<FeedSection<EpisodeFeedItem>> {
+        this.logger.log('getQuickListensSection() called');
+
+        try {
+            const cacheKey = FEED_CONFIG.CACHE_KEYS.EPISODES_QUICK_LISTENS;
+            const cached = await this.getCachedData<EpisodeFeedItem[]>(cacheKey);
+            if (cached) {
+                this.logger.log('Cache hit for quick listens');
+                return this.buildSection(EpisodeSectionId.QUICK_LISTENS, cached, true);
+            }
+
+            const episodes = await this.databaseService.episode.findMany({
+                where: {
+                    ...this.PUBLIC_EPISODE_FILTER,
+                    duration: { gt: 0, lte: FEED_CONFIG.QUICK_LISTEN_MAX_SECONDS },
+                },
+                orderBy: [{ playCount: 'desc' }, { likeCount: 'desc' }],
+                take: FEED_CONFIG.DEFAULT_SECTION_LIMIT,
+                include: this.EPISODE_FEED_INCLUDE,
+            });
+
+            const items = this.mapEpisodesToFeedItems(episodes);
+            await this.setCachedData(cacheKey, items, FEED_CONFIG.CACHE_TTL.EPISODES_QUICK_LISTENS);
+
+            this.logger.log(`Found ${items.length} quick listens`);
+            return this.buildSection(EpisodeSectionId.QUICK_LISTENS, items, true);
+        } catch (error) {
+            this.logger.error(`Error in getQuickListensSection(): ${error.message}`);
+            return this.buildSection(EpisodeSectionId.QUICK_LISTENS, [], false);
+        }
+    }
+
+    /**
+     * Get "Debates & Discussions" section: conversational-format episodes.
+     */
+    private async getDiscussionsSection(): Promise<FeedSection<EpisodeFeedItem>> {
+        this.logger.log('getDiscussionsSection() called');
+
+        try {
+            const cacheKey = FEED_CONFIG.CACHE_KEYS.EPISODES_DISCUSSIONS;
+            const cached = await this.getCachedData<EpisodeFeedItem[]>(cacheKey);
+            if (cached) {
+                this.logger.log('Cache hit for discussions');
+                return this.buildSection(EpisodeSectionId.DISCUSSIONS, cached, true);
+            }
+
+            const episodes = await this.databaseService.episode.findMany({
+                where: {
+                    ...this.PUBLIC_EPISODE_FILTER,
+                    episodeTheme: { in: ['DEBATE', 'DISCUSSION'] },
+                },
+                orderBy: [{ playCount: 'desc' }, { likeCount: 'desc' }],
+                take: FEED_CONFIG.DEFAULT_SECTION_LIMIT,
+                include: this.EPISODE_FEED_INCLUDE,
+            });
+
+            const items = this.mapEpisodesToFeedItems(episodes);
+            await this.setCachedData(cacheKey, items, FEED_CONFIG.CACHE_TTL.EPISODES_DISCUSSIONS);
+
+            this.logger.log(`Found ${items.length} discussion episodes`);
+            return this.buildSection(EpisodeSectionId.DISCUSSIONS, items, true);
+        } catch (error) {
+            this.logger.error(`Error in getDiscussionsSection(): ${error.message}`);
+            return this.buildSection(EpisodeSectionId.DISCUSSIONS, [], false);
         }
     }
 
@@ -886,7 +957,18 @@ export class FeedService {
 
         switch (sectionId) {
             case EpisodeSectionId.POPULAR:
-            case EpisodeSectionId.RECOMMENDED:
+                orderBy = [{ playCount: 'desc' }, { likeCount: 'desc' }];
+                break;
+            case EpisodeSectionId.TOP_RATED_EPISODES:
+                where.ratingCount = { gt: 0 };
+                orderBy = [{ averageRating: 'desc' }, { ratingCount: 'desc' }];
+                break;
+            case EpisodeSectionId.QUICK_LISTENS:
+                where.duration = { gt: 0, lte: FEED_CONFIG.QUICK_LISTEN_MAX_SECONDS };
+                orderBy = [{ playCount: 'desc' }, { likeCount: 'desc' }];
+                break;
+            case EpisodeSectionId.DISCUSSIONS:
+                where.episodeTheme = { in: ['DEBATE', 'DISCUSSION'] };
                 orderBy = [{ playCount: 'desc' }, { likeCount: 'desc' }];
                 break;
             case EpisodeSectionId.LATEST:

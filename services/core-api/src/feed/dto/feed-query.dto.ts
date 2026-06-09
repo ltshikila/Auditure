@@ -17,7 +17,11 @@ export enum EpisodeSectionId {
     CONTINUE_LISTENING = 'continue_listening',
     POPULAR = 'popular',
     LATEST = 'latest',
-    RECOMMENDED = 'recommended',
+    // Distinct string values so getSectionData() routes these to the episode handler
+    // and not the podcaster TOP_RATED = 'top_rated'.
+    TOP_RATED_EPISODES = 'top_rated_episodes',
+    QUICK_LISTENS = 'quick_listens',
+    DISCUSSIONS = 'discussions',
 }
 
 export enum BookSectionId {
