@@ -143,7 +143,9 @@ export const SECTION_TITLES = {
     [EpisodeSectionId.CONTINUE_LISTENING]: 'Pick up where you left off',
     [EpisodeSectionId.POPULAR]: 'Popular Episodes',
     [EpisodeSectionId.LATEST]: 'Latest Releases',
-    [EpisodeSectionId.RECOMMENDED]: 'Recommended Episodes',
+    [EpisodeSectionId.TOP_RATED_EPISODES]: 'Top Rated',
+    [EpisodeSectionId.QUICK_LISTENS]: 'Quick Listens',
+    [EpisodeSectionId.DISCUSSIONS]: 'Debates & Discussions',
 
     // Books
     [BookSectionId.POPULAR_INSPIRATIONS]: 'Popular podcast inspirations',
@@ -169,9 +171,15 @@ export const FEED_CONFIG = {
     // Default section item counts
     DEFAULT_SECTION_LIMIT: 10,
 
+    // Episodes at or under this duration (seconds) qualify as "Quick Listens" (15 min)
+    QUICK_LISTEN_MAX_SECONDS: 900,
+
     // Cache TTLs (in seconds)
     CACHE_TTL: {
         EPISODES_POPULAR: 300, // 5 minutes
+        EPISODES_TOP_RATED: 600, // 10 minutes
+        EPISODES_QUICK_LISTENS: 300, // 5 minutes
+        EPISODES_DISCUSSIONS: 300, // 5 minutes
         EPISODES_LATEST: 120, // 2 minutes
         BOOKS_POPULAR: 600, // 10 minutes
         BOOKS_LATEST: 300, // 5 minutes
@@ -184,6 +192,9 @@ export const FEED_CONFIG = {
     // Cache keys
     CACHE_KEYS: {
         EPISODES_POPULAR: 'feed:episodes:popular',
+        EPISODES_TOP_RATED: 'feed:episodes:top_rated',
+        EPISODES_QUICK_LISTENS: 'feed:episodes:quick_listens',
+        EPISODES_DISCUSSIONS: 'feed:episodes:discussions',
         EPISODES_LATEST: 'feed:episodes:latest',
         BOOKS_POPULAR: 'feed:books:popular',
         BOOKS_INSPIRATIONS: 'feed:books:inspirations',

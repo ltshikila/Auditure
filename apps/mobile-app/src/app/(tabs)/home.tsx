@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, RefreshControl, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -19,6 +19,9 @@ import {
 } from '@/services/feed.service';
 
 type TabType = 'episodes' | 'books' | 'podcasters';
+
+// How long a tab's feed stays "fresh" before a focus/tab-switch triggers a background refresh.
+const FEED_STALE_MS = 60_000;
 
 const TABS: { key: TabType; label: string }[] = [
     { key: 'episodes', label: 'Episodes' },
@@ -47,12 +50,15 @@ const adaptFeedItemToEpisode = (item: EpisodeFeedItem): Episode => ({
 });
 
 export default function HomeScreen() {
-    const { getAccessToken, isAuthenticated } = useAuth();
+    const { getAccessToken, isAuthenticated, user } = useAuth();
     const { setQueue } = usePlayback();
     const isDark = useIsDark();
 
     // Tab state
     const [activeTab, setActiveTab] = useState<TabType>('episodes');
+
+    // Last successful fetch time per tab, used to decide when a refresh is worth it.
+    const lastFetchedRef = useRef<Record<TabType, number>>({ episodes: 0, books: 0, podcasters: 0 });
 
     // Feed data
     const [episodesFeed, setEpisodesFeed] = useState<EpisodesFeedResponse | null>(null);
@@ -69,6 +75,8 @@ export default function HomeScreen() {
         try {
             if (!isRefreshing) setLoading(true);
             setError(null);
+            // Claim freshness up front so a concurrent focus/mount effect skips a duplicate fetch.
+            lastFetchedRef.current[tab] = Date.now();
 
             const token = await getAccessToken();
             if (!token) {
@@ -90,9 +98,13 @@ export default function HomeScreen() {
                     setPodcastersFeed(podcastersData);
                     break;
             }
+
+            lastFetchedRef.current[tab] = Date.now();
         } catch (err: any) {
             console.error(`[HomeScreen] Error fetching ${tab} feed:`, err);
             setError(err.message || 'Failed to load feed');
+            // Allow the next focus/tab-switch to retry instead of treating it as fresh.
+            lastFetchedRef.current[tab] = 0;
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -101,15 +113,17 @@ export default function HomeScreen() {
 
     // Initial load
     useEffect(() => {
-        if (isAuthenticated) {
+        if (isAuthenticated && Date.now() - lastFetchedRef.current[activeTab] > FEED_STALE_MS) {
             fetchFeed(activeTab);
         }
     }, [isAuthenticated]);
 
-    // Refresh on focus
+    // Refresh on focus, but only if the active tab's feed has gone stale.
     useFocusEffect(
         useCallback(() => {
-            if (isAuthenticated) {
+            if (!isAuthenticated) return;
+            const isStale = Date.now() - lastFetchedRef.current[activeTab] > FEED_STALE_MS;
+            if (isStale) {
                 fetchFeed(activeTab, true);
             }
         }, [activeTab, isAuthenticated])
@@ -118,10 +132,14 @@ export default function HomeScreen() {
     // Handle tab change
     const handleTabChange = (tab: TabType) => {
         setActiveTab(tab);
-        // Fetch data for the new tab if we don't have it cached
         const feedData = tab === 'episodes' ? episodesFeed : tab === 'books' ? booksFeed : podcastersFeed;
+        const isStale = Date.now() - lastFetchedRef.current[tab] > FEED_STALE_MS;
         if (!feedData) {
+            // No cached data yet — show the skeleton while loading.
             fetchFeed(tab);
+        } else if (isStale) {
+            // Have data but it's stale — refresh in the background without flashing the skeleton.
+            fetchFeed(tab, true);
         }
     };
 
@@ -151,12 +169,19 @@ export default function HomeScreen() {
     };
 
     // Render Discover header
-    const renderDiscoverHeader = () => (
-        <View className="px-5 pt-5 pb-6">
-            <Text className="font-inter-bold text-2xl text-brand-black dark:text-brand-dark-text">Discover</Text>
-            <Text className="font-jakarta text-brand-black dark:text-brand-dark-text text-sm">Podcast feed catered to you.</Text>
-        </View>
-    );
+    const renderDiscoverHeader = () => {
+        const firstName = user?.firstName?.trim();
+        const hour = new Date().getHours();
+        const timeOfDay = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
+        const greeting = firstName ? `Good ${timeOfDay}, ${firstName}` : 'Discover';
+
+        return (
+            <View className="px-5 pt-5 pb-6">
+                <Text className="font-inter-bold text-2xl text-brand-black dark:text-brand-dark-text">{greeting}</Text>
+                <Text className="font-jakarta text-brand-black dark:text-brand-dark-text text-sm">Podcast feed catered to you.</Text>
+            </View>
+        );
+    };
 
     // Render tab selector
     const renderTabSelector = () => (
@@ -187,70 +212,47 @@ export default function HomeScreen() {
         </View>
     );
 
-    // Render episodes tab content
+    // Render episodes tab content.
+    // Renders whatever sections the backend returns, in order, so new feed
+    // sections appear automatically without a frontend change. The
+    // "continue_listening" section uses the featured-card layout; the rest
+    // use the standard horizontal row.
     const renderEpisodesTab = () => {
         if (!episodesFeed) return null;
 
-        // Find sections by id
-        const continueSection = episodesFeed.sections.find(s => s.id === 'continue_listening');
-        const popularSection = episodesFeed.sections.find(s => s.id === 'popular');
-        const latestSection = episodesFeed.sections.find(s => s.id === 'latest');
-        const recommendedSection = episodesFeed.sections.find(s => s.id === 'recommended');
-
         return (
             <>
-                {/* Pick up where you left off - Featured Cards */}
-                {continueSection && continueSection.items.length > 0 && (
-                    <FeaturedEpisodeSection
-                        title={continueSection.title}
-                        episodes={continueSection.items}
-                        onEpisodePress={(ep) => handleEpisodePressWithQueue(ep, continueSection.items)}
-                        showSeeAll={continueSection.hasMore}
-                        onSeeAll={() => handleSeeAll('continue_listening')}
-                    />
-                )}
+                {episodesFeed.sections
+                    .filter(section => section.items.length > 0)
+                    .map((section) => {
+                        if (section.id === 'continue_listening') {
+                            return (
+                                <FeaturedEpisodeSection
+                                    key={section.id}
+                                    title={section.title}
+                                    episodes={section.items}
+                                    onEpisodePress={(ep) => handleEpisodePressWithQueue(ep, section.items)}
+                                    showSeeAll={section.hasMore}
+                                    onSeeAll={() => handleSeeAll(section.id)}
+                                />
+                            );
+                        }
 
-                {/* Popular Episodes */}
-                {popularSection && popularSection.items.length > 0 && (
-                    <EpisodeSection
-                        title={popularSection.title}
-                        episodes={popularSection.items.map(adaptFeedItemToEpisode)}
-                        onEpisodePress={(episode) => {
-                            setQueue(popularSection.items.map(adaptFeedItemToEpisode));
-                            router.push(`/episodes/${episode.id}`);
-                        }}
-                        showSeeAll={popularSection.hasMore}
-                        onSeeAll={() => handleSeeAll('popular')}
-                    />
-                )}
-
-                {/* Latest Releases */}
-                {latestSection && latestSection.items.length > 0 && (
-                    <EpisodeSection
-                        title={latestSection.title}
-                        episodes={latestSection.items.map(adaptFeedItemToEpisode)}
-                        onEpisodePress={(episode) => {
-                            setQueue(latestSection.items.map(adaptFeedItemToEpisode));
-                            router.push(`/episodes/${episode.id}`);
-                        }}
-                        showSeeAll={latestSection.hasMore}
-                        onSeeAll={() => handleSeeAll('latest')}
-                    />
-                )}
-
-                {/* Recommended */}
-                {recommendedSection && recommendedSection.items.length > 0 && (
-                    <EpisodeSection
-                        title={recommendedSection.title}
-                        episodes={recommendedSection.items.map(adaptFeedItemToEpisode)}
-                        onEpisodePress={(episode) => {
-                            setQueue(recommendedSection.items.map(adaptFeedItemToEpisode));
-                            router.push(`/episodes/${episode.id}`);
-                        }}
-                        showSeeAll={recommendedSection.hasMore}
-                        onSeeAll={() => handleSeeAll('recommended')}
-                    />
-                )}
+                        const episodes = section.items.map(adaptFeedItemToEpisode);
+                        return (
+                            <EpisodeSection
+                                key={section.id}
+                                title={section.title}
+                                episodes={episodes}
+                                onEpisodePress={(episode) => {
+                                    setQueue(episodes);
+                                    router.push(`/episodes/${episode.id}`);
+                                }}
+                                showSeeAll={section.hasMore}
+                                onSeeAll={() => handleSeeAll(section.id)}
+                            />
+                        );
+                    })}
             </>
         );
     };
@@ -363,16 +365,25 @@ export default function HomeScreen() {
     };
 
     // Render empty state
-    const renderEmptyState = () => (
-        <View className="flex-1 items-center justify-center py-20">
-            <Text className="font-inter-medium text-lg text-[#858585] dark:text-brand-dark-text-secondary">
-                No content available
-            </Text>
-            <Text className="font-inter text-sm text-[#A0A0A0] mt-2 text-center px-10">
-                Check back later for new {activeTab === 'episodes' ? 'episodes' : activeTab === 'books' ? 'books' : 'podcasters'}
-            </Text>
-        </View>
-    );
+    const renderEmptyState = () => {
+        const label = activeTab === 'episodes' ? 'episodes' : activeTab === 'books' ? 'books' : 'podcasters';
+        return (
+            <View className="flex-1 items-center justify-center py-20">
+                <Text className="font-inter-medium text-lg text-[#858585] dark:text-brand-dark-text-secondary">
+                    No {label} yet
+                </Text>
+                <Text className="font-inter text-sm text-[#A0A0A0] mt-2 text-center px-10">
+                    New {label} land here as the community publishes them. Pull to refresh or check back soon.
+                </Text>
+                <TouchableOpacity
+                    onPress={() => fetchFeed(activeTab)}
+                    className="mt-5 px-6 py-2 bg-brand-red rounded-full"
+                >
+                    <Text className="font-inter-medium text-white">Refresh</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    };
 
     // Render error state
     const renderErrorState = () => (

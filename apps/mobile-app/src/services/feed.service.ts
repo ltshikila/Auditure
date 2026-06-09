@@ -6,7 +6,13 @@ import { apiClient } from './api';
 
 export type FeedTab = 'episodes' | 'books' | 'podcasters';
 
-export type EpisodeSectionId = 'continue_listening' | 'popular' | 'latest' | 'recommended';
+export type EpisodeSectionId =
+    | 'continue_listening'
+    | 'popular'
+    | 'top_rated_episodes'
+    | 'discussions'
+    | 'latest'
+    | 'quick_listens';
 export type BookSectionId = 'popular_inspirations' | 'popular_books' | 'latest_books';
 export type PodcasterSectionId = 'trending' | 'top_rated' | 'new_voices';
 export type SectionId = EpisodeSectionId | BookSectionId | PodcasterSectionId;

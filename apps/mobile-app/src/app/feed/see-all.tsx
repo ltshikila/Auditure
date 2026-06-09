@@ -33,8 +33,10 @@ import { resolveCoverUrl } from '@/services/api';
 const SECTION_TITLES: Record<string, string> = {
     continue_listening: 'Continue Listening',
     popular: 'Popular Episodes',
+    top_rated_episodes: 'Top Rated',
+    quick_listens: 'Quick Listens',
+    discussions: 'Debates & Discussions',
     latest: 'Latest Episodes',
-    recommended: 'Recommended',
     popular_inspirations: 'Popular Inspirations',
     popular_books: 'Popular Books',
     latest_books: 'Latest Books',
@@ -45,7 +47,7 @@ const SECTION_TITLES: Record<string, string> = {
 
 // Determine item type based on section
 const getItemType = (section: string): 'episode' | 'book' | 'podcaster' => {
-    if (['continue_listening', 'popular', 'latest', 'recommended'].includes(section)) {
+    if (['continue_listening', 'popular', 'top_rated_episodes', 'quick_listens', 'discussions', 'latest'].includes(section)) {
         return 'episode';
     }
     if (['popular_inspirations', 'popular_books', 'latest_books'].includes(section)) {

@@ -75,7 +75,7 @@ Returns paginated data for a specific section ("See All" functionality).
 | limit | number | 20 | 50 | Items per page |
 
 **Valid Section IDs:**
-- Episodes: `continue_listening`, `popular`, `latest`, `recommended`
+- Episodes: `continue_listening`, `popular`, `top_rated_episodes`, `discussions`, `latest`, `quick_listens`
 - Books: `popular_inspirations`, `popular_books`, `latest_books`, `bestsellers`
 - Podcasters: `trending`, `top_rated`, `new_voices`
 
@@ -99,8 +99,10 @@ Returns paginated data for a specific section ("See All" functionality).
 |------------|-------|-------------|-----------|
 | `continue_listening` | Pick up where you left off | User's in-progress episodes | 7 |
 | `popular` | Popular Episodes | Episodes sorted by play count | 10 |
+| `top_rated_episodes` | Top Rated | Rated episodes sorted by average rating | 10 |
+| `discussions` | Debates & Discussions | Episodes with DEBATE/DISCUSSION theme | 10 |
 | `latest` | Latest Releases | Episodes sorted by creation date | 10 |
-| `recommended` | Recommended Episodes | MVP: Same as Popular | 10 |
+| `quick_listens` | Quick Listens | Episodes ≤ 15 min, sorted by play count | 10 |
 
 ### Books Tab
 
