@@ -3,7 +3,7 @@
     "name": "Auditure",
     "slug": "Auditure",
     "owner": "auditure",
-    "version": "1.1.2",
+    "version": "1.1.3",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -96,7 +96,7 @@
       ]
     ],
     "updates": {
-      "url": "https://u.expo.dev/"
+      "url": "https://u.expo.dev/a737f099-7b55-4e27-8499-156479644818"
     },
     "extra": {
       "eas": {
