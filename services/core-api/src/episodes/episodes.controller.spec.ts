@@ -203,12 +203,20 @@ describe('EpisodesController (Integration)', () => {
                 });
         });
 
-        it('should require position in body', () => {
+        it('should reject a missing position with 400', () => {
             return request(app.getHttpServer())
                 .post('/episodes/some-id/progress')
                 .set('Authorization', 'Bearer mock-token')
-                .send({}) // Missing position
-                .expect(204); // No validation on body currently
+                .send({}) // Missing position — rejected by SaveProgressDto
+                .expect(400);
+        });
+
+        it('should reject a negative position with 400', () => {
+            return request(app.getHttpServer())
+                .post('/episodes/some-id/progress')
+                .set('Authorization', 'Bearer mock-token')
+                .send({ position: -1 })
+                .expect(400);
         });
     });
 

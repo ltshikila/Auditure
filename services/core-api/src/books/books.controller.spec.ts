@@ -81,7 +81,7 @@ describe('BooksController (Integration)', () => {
                 .field('title', mockCreateBookDto.title)
                 .field('author', mockCreateBookDto.author)
                 .field('sourceType', mockCreateBookDto.sourceType)
-                .attach('file', Buffer.from('mock pdf content'), 'test.pdf')
+                .attach('file', Buffer.from('%PDF-1.4\nmock pdf content'), 'test.pdf')
                 .expect(201)
                 .then(response => {
                     expect(response.body).toHaveProperty('id');
