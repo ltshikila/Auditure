@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { StorageService } from '../common/storage.service';
+import { safeImageExtension } from '../common/file-validation';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreatePodcasterDto } from './dto/create-podcaster.dto';
 import { UpdatePodcasterDto } from './dto/update-podcaster.dto';
@@ -555,7 +556,9 @@ export class PodcastersService {
                 .catch(e => this.logger.warn(`Failed to delete old profile picture: ${e.message}`));
         }
 
-        const ext = file.originalname?.split('.').pop() || 'jpg';
+        // Derive the extension from the (validated) MIME type, never from the
+        // client-supplied filename, which could inject path separators into the key.
+        const ext = safeImageExtension(file.mimetype);
         const key = `podcasters/${id}/profile-picture.${ext}`;
         await this.storageService.uploadFile(file.buffer, key, file.mimetype);
 

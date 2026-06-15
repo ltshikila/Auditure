@@ -20,6 +20,7 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { DeleteAccountDto } from './dto/delete-account.dto';
 import { UpdateSettingsDto } from './dto/user-settings.dto';
 import { AcceptTermsDto } from './dto/accept-terms.dto';
+import { hasValidSignature } from '../common/file-validation';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
@@ -70,6 +71,9 @@ export class UsersController {
     uploadProfilePicture(@Request() req, @UploadedFile() file: Express.Multer.File) {
         if (!file) {
             throw new BadRequestException('No file provided');
+        }
+        if (!hasValidSignature(file.buffer, 'image')) {
+            throw new BadRequestException('File contents are not a valid image');
         }
         return this.usersService.uploadProfilePicture(req.user.userId, file);
     }

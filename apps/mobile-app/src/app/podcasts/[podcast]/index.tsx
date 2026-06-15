@@ -42,6 +42,11 @@ export default function PodcastDetailsScreen() {
   const isOwner = podcaster?.userId === user?.id;
 
   useEffect(() => {
+    // Validate podcastId is a real UUID — ignore junk from deep links like "notification.click"
+    if (podcastId && !/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(podcastId as string)) {
+      router.back();
+      return;
+    }
     fetchPodcaster();
     fetchUserRating();
   }, [podcastId]);

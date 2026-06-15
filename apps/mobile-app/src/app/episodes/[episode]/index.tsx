@@ -147,6 +147,11 @@ export default function EpisodeInfoScreen() {
     }, [isGenerating, episodeId]);
 
     useEffect(() => {
+        // Validate episodeId is a real UUID — ignore junk from deep links like "notification.click"
+        if (episodeId && !/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(episodeId)) {
+            router.back();
+            return;
+        }
         fetchEpisode();
     }, [episodeId]);
 
