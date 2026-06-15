@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nest
 import * as bcrypt from 'bcrypt';
 import { DatabaseService } from '../database/database.service';
 import { StorageService } from '../common/storage.service';
+import { safeImageExtension } from '../common/file-validation';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { DeleteAccountDto } from './dto/delete-account.dto';
 import {
@@ -95,8 +96,10 @@ export class UsersService {
                 .catch(e => this.logger.warn(`Failed to delete old profile picture: ${e.message}`));
         }
 
-        // Upload new picture
-        const ext = file.originalname?.split('.').pop() || 'jpg';
+        // Upload new picture. Derive the extension from the (validated) MIME type,
+        // never from the client-supplied filename, which could inject path
+        // separators into the storage key.
+        const ext = safeImageExtension(file.mimetype);
         const key = `${userId}/profile-picture.${ext}`;
         await this.storageService.uploadFile(file.buffer, key, file.mimetype);
 

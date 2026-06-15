@@ -20,6 +20,7 @@ import { PodcastersService } from './podcasters.service';
 import { CreatePodcasterDto } from './dto/create-podcaster.dto';
 import { UpdatePodcasterDto } from './dto/update-podcaster.dto';
 import { QueryPodcastersDto } from './dto/query-podcasters.dto';
+import { hasValidSignature } from '../common/file-validation';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 
@@ -130,6 +131,9 @@ export class PodcastersController {
     ) {
         if (!file) {
             throw new BadRequestException('No file provided');
+        }
+        if (!hasValidSignature(file.buffer, 'image')) {
+            throw new BadRequestException('File contents are not a valid image');
         }
         return this.podcastersService.uploadProfilePicture(id, req.user.userId, file);
     }
