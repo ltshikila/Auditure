@@ -27,8 +27,12 @@ import { CreateEpisodeDto, CreateEpisodeWithFileDto } from './dto/create-episode
 import { UpdateEpisodeDto } from './dto/update-episode.dto';
 import { QueryEpisodesDto } from './dto/query-episodes.dto';
 import { CreateCommentDto } from './dto/comment.dto';
+import { ListLimitQueryDto } from './dto/list-query.dto';
+import { SaveProgressDto } from './dto/save-progress.dto';
+import { RateEpisodeDto } from './dto/rate-episode.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
+import { hasValidSignature } from '../common/file-validation';
 
 const logger = new Logger('EpisodesController');
 
@@ -89,6 +93,11 @@ export class EpisodesController {
             throw new BadRequestException('File is required');
         }
 
+        if (!hasValidSignature(file.buffer, 'document')) {
+            this.logger.warn('File rejected — contents do not match a PDF or EPUB');
+            throw new BadRequestException('File contents are not a valid PDF or EPUB');
+        }
+
         try {
             const result = await this.episodesService.createWithFile(
                 req.user.userId,
@@ -118,8 +127,8 @@ export class EpisodesController {
      * GET /episodes/trending?limit=10
      */
     @Get('trending')
-    findTrending(@Query('limit') limit?: number) {
-        return this.episodesService.findTrending(limit ? Number(limit) : 10);
+    findTrending(@Query() query: ListLimitQueryDto) {
+        return this.episodesService.findTrending(query.limit ?? 10);
     }
 
     /**
@@ -127,8 +136,8 @@ export class EpisodesController {
      * GET /episodes/podcaster/:podcasterId?limit=20
      */
     @Get('podcaster/:podcasterId')
-    findByPodcaster(@Param('podcasterId') podcasterId: string, @Query('limit') limit?: number) {
-        return this.episodesService.findByPodcaster(podcasterId, limit ? Number(limit) : 20);
+    findByPodcaster(@Param('podcasterId') podcasterId: string, @Query() query: ListLimitQueryDto) {
+        return this.episodesService.findByPodcaster(podcasterId, query.limit ?? 20);
     }
 
     /**
@@ -136,8 +145,8 @@ export class EpisodesController {
      * GET /episodes/book/:bookId?limit=20
      */
     @Get('book/:bookId')
-    findByBook(@Param('bookId') bookId: string, @Query('limit') limit?: number) {
-        return this.episodesService.findByBook(bookId, limit ? Number(limit) : 20);
+    findByBook(@Param('bookId') bookId: string, @Query() query: ListLimitQueryDto) {
+        return this.episodesService.findByBook(bookId, query.limit ?? 20);
     }
 
     /**
@@ -271,9 +280,9 @@ export class EpisodesController {
     async rateEpisode(
         @Param('id') id: string,
         @Request() req,
-        @Body('rating') rating: number,
+        @Body() body: RateEpisodeDto,
     ) {
-        return this.episodesService.rateEpisode(id, req.user.userId, rating);
+        return this.episodesService.rateEpisode(id, req.user.userId, body.rating);
     }
 
     /**
@@ -352,7 +361,7 @@ export class EpisodesController {
     async saveProgress(
         @Param('id') id: string,
         @Request() req,
-        @Body() body: { position: number },
+        @Body() body: SaveProgressDto,
     ) {
         await this.episodesService.savePlaybackProgress(req.user.userId, id, body.position);
     }

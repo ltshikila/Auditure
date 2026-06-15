@@ -17,6 +17,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BooksService } from './books.service';
 import { CreateBookDto } from './dto/create-book.dto';
 import { GetTextDto } from './dto/get-text.dto';
+import { ValidateChaptersDto } from './dto/validate-chapters.dto';
+import { hasValidSignature } from '../common/file-validation';
 
 const bookFileFilter = (req, file, callback) => {
     const allowedMimes = ['application/pdf', 'application/epub+zip'];
@@ -45,6 +47,9 @@ export class BooksController {
     ) {
         if (!file) {
             throw new BadRequestException('File is required');
+        }
+        if (!hasValidSignature(file.buffer, 'document')) {
+            throw new BadRequestException('File contents are not a valid PDF or EPUB');
         }
         return this.booksService.uploadBook(req.user.userId, file, createBookDto);
     }
@@ -80,7 +85,7 @@ export class BooksController {
     async validateChapters(
         @Request() req,
         @Param('id') id: string,
-        @Body() body: { chapters: number[] },
+        @Body() body: ValidateChaptersDto,
     ) {
         // First verify user owns the book
         await this.booksService.findOne(req.user.userId, id);
