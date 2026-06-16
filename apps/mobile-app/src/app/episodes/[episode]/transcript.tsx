@@ -34,6 +34,10 @@ const LINE_HEIGHT = 64;
 // Master kill-switch: set to false to force every episode back to static mode.
 const SYNC_MASTER_ENABLED = true;
 
+// Advance the highlight slightly to counter position-polling latency and perceived
+// lag, so a line lights up as you hear it rather than a beat later. Tune if needed.
+const SYNC_LEAD_MS = 250;
+
 const LIGHT_COLORS = {
     background: '#FBF8F2',
     backgroundRgb: '251, 248, 242',
@@ -254,7 +258,7 @@ export default function TranscriptScreen() {
 
     const currentLineIndex = useMemo(() => {
         if (transcriptLines.length === 0) return 0;
-        return getCurrentLineIndex(transcriptLines, currentPosition, hasTiming);
+        return getCurrentLineIndex(transcriptLines, currentPosition + SYNC_LEAD_MS, hasTiming);
     }, [transcriptLines, currentPosition, hasTiming]);
 
     useEffect(() => {

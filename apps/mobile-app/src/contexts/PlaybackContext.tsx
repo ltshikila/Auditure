@@ -169,7 +169,8 @@ export const PlaybackProvider: React.FC<PlaybackProviderProps> = ({ children }) 
 
     // RNTP hooks for reactive state
     const playbackState = usePlaybackState();
-    const progress = useProgress(500);
+    // 250ms keeps the live transcript highlight tracking tightly (500ms lagged it).
+    const progress = useProgress(250);
 
     // Derive isPlaying from RNTP state
     const isPlaying = playbackState.state === State.Playing;
