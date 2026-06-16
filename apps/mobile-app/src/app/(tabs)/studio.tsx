@@ -8,13 +8,15 @@ import {
     ActivityIndicator,
     RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { podcasterService, Podcaster } from '@/services/podcaster.service';
 import { storageService } from '@/services/storage.service';
 import { resolveCoverUrl } from '@/services/api';
 import { TopBar } from '@/components';
+import { MINI_PLAYER_HEIGHT, TAB_BAR_BASE_HEIGHT } from '@/components/MiniPlayer';
+import { usePlayback } from '@/contexts/PlaybackContext';
 import { StudioSkeleton } from '@/components/skeleton';
 import { formatCount } from '@/utils/formatCount';
 
@@ -25,6 +27,15 @@ export default function Studio() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const insets = useSafeAreaInsets();
+    const { episode: activeEpisode } = usePlayback();
+
+    // Clear the tab bar plus, when a track is playing, the floating mini player
+    // so the last podcaster row is never hidden behind it.
+    const scrollBottomPadding =
+        TAB_BAR_BASE_HEIGHT +
+        insets.bottom +
+        (activeEpisode ? MINI_PLAYER_HEIGHT + 24 : 16);
 
     const fetchPodcasters = async (isRefreshing: boolean = false) => {
         try {
@@ -87,7 +98,7 @@ export default function Studio() {
         <SafeAreaView className="flex-1 bg-brand-beige dark:bg-brand-dark-bg" edges={['top', 'left', 'right']}>
             <TopBar />
             <ScrollView
-                contentContainerStyle={{ padding: 20 }}
+                contentContainerStyle={{ padding: 20, paddingBottom: scrollBottomPadding }}
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}

@@ -182,20 +182,16 @@ const TranscriptLineItem = React.memo(({
                 minHeight: LINE_HEIGHT,
                 justifyContent: 'center',
                 paddingHorizontal: 24,
-                paddingVertical: isCurrent ? 18 : 12,
-                backgroundColor: isCurrent ? palette.accentBg : 'transparent',
-                borderRadius: isCurrent ? 16 : 0,
-                marginHorizontal: isCurrent ? 12 : 0,
-                marginVertical: isCurrent ? 6 : 0,
+                paddingVertical: 14,
             }}
         >
             <Text
                 style={{
-                    fontSize: isCurrent ? 24 : 17,
+                    fontSize: isCurrent ? 22 : 17,
                     fontWeight: isCurrent ? '700' : '400',
-                    color: syncDisabled ? palette.textCurrent : (isCurrent ? palette.textCurrent : isPast ? palette.textPast : palette.textFuture),
+                    color: syncDisabled ? palette.textCurrent : (isCurrent ? palette.accent : isPast ? palette.textPast : palette.textFuture),
                     textAlign: 'center',
-                    lineHeight: isCurrent ? 32 : 24,
+                    lineHeight: isCurrent ? 30 : 24,
                 }}
             >
                 {item.text}

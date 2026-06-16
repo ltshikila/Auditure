@@ -248,8 +248,10 @@ export default function SubscriptionScreen() {
             ]);
             setBackendStatus(data);
         } catch (err: any) {
+            // Log the technical detail for debugging, but never surface raw
+            // backend / Play Billing strings to the user.
             console.error('Error fetching subscription:', err);
-            setError(err.message || 'Failed to load subscription');
+            setError('Something went wrong loading your subscription. Pull down to refresh.');
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -298,11 +300,12 @@ export default function SubscriptionScreen() {
                     message: `Welcome to Auditure ${subscriptionService.getTierDisplayName(selectedTier)}! Enjoy your podcast episodes.`,
                 });
             } else if (outcome.status === 'error') {
-                setError(outcome.message);
+                console.warn('Subscription purchase error:', outcome.message);
+                setError('Something went wrong. Please try again.');
             }
         } catch (err: any) {
             console.error('Subscription error:', err);
-            setError(err.message || 'Failed to start subscription');
+            setError('Something went wrong. Please try again.');
         } finally {
             setPurchasing(false);
         }
@@ -321,9 +324,13 @@ export default function SubscriptionScreen() {
             track('checkout_started', { tier: 'pro', action: 'upgrade', source: paywallSource });
             // Only do a product change when RC sees an active entitlement to
             // switch from; otherwise BillingClient throws DEVELOPER_ERROR.
+            // oldProductIdentifier must be the FULL active product id RevenueCat
+            // reports (e.g. "auditure_premium:starter"), not the bare base id —
+            // Google BillingClient rejects a product-change whose old id doesn't
+            // match an active purchase with DEVELOPER_ERROR ("arguments invalid").
             const outcome = await purchasePackage(
                 proPkg,
-                hasPremium ? { oldProductIdentifier: BASE_PRODUCT_ID } : undefined,
+                activeProductIdentifier ? { oldProductIdentifier: activeProductIdentifier } : undefined,
             );
             await fetchSubscription();
             if (outcome.status === 'purchased') {
@@ -332,11 +339,12 @@ export default function SubscriptionScreen() {
                     message: 'Welcome to Auditure Pro! Enjoy your 50 episodes per month.',
                 });
             } else if (outcome.status === 'error') {
-                setError(outcome.message);
+                console.warn('Upgrade purchase error:', outcome.message);
+                setError('Something went wrong. Please try again.');
             }
         } catch (err: any) {
             console.error('Upgrade error:', err);
-            setError(err.message || 'Failed to upgrade subscription');
+            setError('Something went wrong. Please try again.');
         } finally {
             setPurchasing(false);
         }
@@ -355,9 +363,9 @@ export default function SubscriptionScreen() {
             track('checkout_started', { tier: 'starter', action: 'downgrade', source: paywallSource });
             const outcome = await purchasePackage(
                 starterPkg,
-                hasPremium
+                activeProductIdentifier
                     ? {
-                          oldProductIdentifier: BASE_PRODUCT_ID,
+                          oldProductIdentifier: activeProductIdentifier,
                           prorationMode: PRORATION_MODE.DEFERRED,
                       }
                     : undefined,
@@ -369,11 +377,12 @@ export default function SubscriptionScreen() {
                     message: 'You will switch to the Starter plan at the end of your current billing period.',
                 });
             } else if (outcome.status === 'error') {
-                setError(outcome.message);
+                console.warn('Downgrade purchase error:', outcome.message);
+                setError('Something went wrong. Please try again.');
             }
         } catch (err: any) {
             console.error('Downgrade error:', err);
-            setError(err.message || 'Failed to change subscription');
+            setError('Something went wrong. Please try again.');
         } finally {
             setPurchasing(false);
         }
