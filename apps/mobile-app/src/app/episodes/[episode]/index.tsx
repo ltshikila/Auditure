@@ -21,7 +21,7 @@ import { resolveCoverUrl } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAlert } from '@/contexts/AlertContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { EpisodeDetailSkeleton, SkeletonBox } from '@/components/skeleton';
+import { EpisodeDetailSkeleton, SkeletonBox, SkeletonProvider } from '@/components/skeleton';
 import { formatCount } from '@/utils/formatCount';
 
 const icons = {
@@ -650,24 +650,26 @@ export default function EpisodeInfoScreen() {
     const renderAuthorTab = () => {
         if (authorLoading) {
             return (
-                <View className="px-6 mt-4 mb-32">
-                    <View className="bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-2xl p-5">
-                        {/* Author header: avatar + name lines */}
-                        <View className="flex-row items-center mb-4">
-                            <SkeletonBox width={64} height={64} circle />
-                            <View className="ml-4 flex-1">
-                                <SkeletonBox width="60%" height={20} />
-                                <SkeletonBox width="40%" height={14} style={{ marginTop: 8 }} />
-                                <SkeletonBox width="30%" height={14} style={{ marginTop: 6 }} />
+                <SkeletonProvider>
+                    <View className="px-6 mt-4 mb-32">
+                        <View className="bg-[#F5F5F0] dark:bg-brand-dark-surface rounded-2xl p-5">
+                            {/* Author header: avatar + name lines */}
+                            <View className="flex-row items-center mb-4">
+                                <SkeletonBox width={64} height={64} circle />
+                                <View className="ml-4 flex-1">
+                                    <SkeletonBox width="60%" height={20} />
+                                    <SkeletonBox width="40%" height={14} style={{ marginTop: 8 }} />
+                                    <SkeletonBox width="30%" height={14} style={{ marginTop: 6 }} />
+                                </View>
                             </View>
+                            {/* Bio lines */}
+                            <SkeletonBox width="100%" height={14} style={{ marginTop: 4 }} />
+                            <SkeletonBox width="100%" height={14} style={{ marginTop: 8 }} />
+                            <SkeletonBox width="95%" height={14} style={{ marginTop: 8 }} />
+                            <SkeletonBox width="80%" height={14} style={{ marginTop: 8 }} />
                         </View>
-                        {/* Bio lines */}
-                        <SkeletonBox width="100%" height={14} style={{ marginTop: 4 }} />
-                        <SkeletonBox width="100%" height={14} style={{ marginTop: 8 }} />
-                        <SkeletonBox width="95%" height={14} style={{ marginTop: 8 }} />
-                        <SkeletonBox width="80%" height={14} style={{ marginTop: 8 }} />
                     </View>
-                </View>
+                </SkeletonProvider>
             );
         }
 
