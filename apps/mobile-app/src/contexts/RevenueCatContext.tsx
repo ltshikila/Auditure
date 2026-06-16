@@ -250,7 +250,8 @@ export const RevenueCatProvider: React.FC<{ children: ReactNode }> = ({
           : undefined;
         const result = await Purchases.purchasePackage(
           pkg,
-          googleProductChangeInfo,
+          null, // upgradeInfo (deprecated, oldSKU-based)
+          googleProductChangeInfo, // productChangeInfo — correct slot for oldProductIdentifier
         );
         setCustomerInfo(result.customerInfo);
         return {
