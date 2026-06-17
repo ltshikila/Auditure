@@ -264,9 +264,20 @@ export const RevenueCatProvider: React.FC<{ children: ReactNode }> = ({
           return { status: 'cancelled' };
         }
         console.warn('[RevenueCat] purchasePackage failed:', err);
+        // TEMP DIAGNOSTIC: surface Google's underlying BillingResult so we can
+        // pin down the product-change DEVELOPER_ERROR. Revert once resolved.
+        const detail = [
+          err?.code != null ? `code=${err.code}` : null,
+          err?.readableErrorCode ? `rc=${err.readableErrorCode}` : null,
+          err?.underlyingErrorMessage ??
+            err?.userInfo?.underlyingErrorMessage ??
+            null,
+        ]
+          .filter(Boolean)
+          .join(' | ');
         return {
           status: 'error',
-          message: err?.message ?? 'Purchase failed',
+          message: detail || err?.message || 'Purchase failed',
         };
       }
     },
