@@ -33,6 +33,7 @@ import {
     UpdateSettingsData,
 } from '@/services/user.service';
 import { resolveCoverUrl } from '@/services/api';
+import { useRevenueCat } from '@/contexts/RevenueCatContext';
 import { TopBar, ThemeToggle } from '@/components';
 import { ProfileSkeleton } from '@/components/skeleton';
 import { notificationService } from '@/services/notification.service';
@@ -69,6 +70,7 @@ export default function Profile() {
     const { logout, updateUser } = useAuth();
     const { showAlert } = useAlert();
     const { updatePlaybackSettings } = usePlayback();
+    const { customerInfo } = useRevenueCat();
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [settings, setSettings] = useState<UserSettings | null>(null);
     const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -672,18 +674,21 @@ export default function Profile() {
                                 }
                             })()}
 
-                            {/* Reset/Expires info - only show for paid tiers */}
-                            {subscription.isPaid && subscription.premiumExpiresAt && (
-                                <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted text-xs mt-3">
-                                    {(() => {
-                                        const daysUntilReset = Math.ceil(
-                                            (new Date(subscription.premiumExpiresAt).getTime() - Date.now()) /
-                                                (1000 * 60 * 60 * 24),
-                                        );
-                                        return `Resets in ${daysUntilReset} day${daysUntilReset !== 1 ? 's' : ''}`;
-                                    })()}
-                                </Text>
-                            )}
+                            {/* Renewal / expiry — mirror the subscription page exactly so the
+                                two screens never disagree. RevenueCat is the authoritative
+                                source (willRenew + expirationDate); the backend
+                                premiumExpiresAt is only a fallback. */}
+                            {(() => {
+                                const premiumEnt = customerInfo?.entitlements.active['premium'] ?? null;
+                                const expiresAt = premiumEnt?.expirationDate ?? subscription.premiumExpiresAt;
+                                if (!subscription.isPaid || !expiresAt) return null;
+                                const isCancelled = premiumEnt ? premiumEnt.willRenew === false : false;
+                                return (
+                                    <Text className="font-inter text-gray-500 dark:text-brand-dark-text-muted text-xs mt-3">
+                                        {isCancelled ? 'Expires' : 'Renews'} {formatDate(expiresAt)}
+                                    </Text>
+                                );
+                            })()}
                         </View>
 
                         {/* Manage Subscription Button */}

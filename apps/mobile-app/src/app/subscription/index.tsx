@@ -324,13 +324,13 @@ export default function SubscriptionScreen() {
             track('checkout_started', { tier: 'pro', action: 'upgrade', source: paywallSource });
             // Only do a product change when RC sees an active entitlement to
             // switch from; otherwise BillingClient throws DEVELOPER_ERROR.
-            // oldProductIdentifier must be the FULL active product id RevenueCat
-            // reports (e.g. "auditure_premium:starter"), not the bare base id —
-            // Google BillingClient rejects a product-change whose old id doesn't
-            // match an active purchase with DEVELOPER_ERROR ("arguments invalid").
+            // For a Google base-plan change, oldProductIdentifier must be the BARE
+            // subscription product id (auditure_premium), NOT the colon-qualified
+            // productId:basePlanId form — Google rejects the colon form with
+            // DEVELOPER_ERROR ("arguments invalid").
             const outcome = await purchasePackage(
                 proPkg,
-                activeProductIdentifier ? { oldProductIdentifier: activeProductIdentifier } : undefined,
+                hasPremium ? { oldProductIdentifier: BASE_PRODUCT_ID } : undefined,
             );
             await fetchSubscription();
             if (outcome.status === 'purchased') {
@@ -363,9 +363,10 @@ export default function SubscriptionScreen() {
             track('checkout_started', { tier: 'starter', action: 'downgrade', source: paywallSource });
             const outcome = await purchasePackage(
                 starterPkg,
-                activeProductIdentifier
+                hasPremium
                     ? {
-                          oldProductIdentifier: activeProductIdentifier,
+                          // Bare subscription id (not productId:basePlanId) — see handleUpgrade.
+                          oldProductIdentifier: BASE_PRODUCT_ID,
                           prorationMode: PRORATION_MODE.DEFERRED,
                       }
                     : undefined,
