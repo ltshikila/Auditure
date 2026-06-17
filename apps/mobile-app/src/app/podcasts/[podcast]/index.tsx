@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { GeneratingEpisodeCard } from '@/components/GeneratingEpisodeCard';
 import { TopBar } from '@/components/TopBar';
-import { PodcastDetailSkeleton } from '@/components/skeleton';
+import { PodcastDetailSkeleton, SkeletonBox, SkeletonProvider } from '@/components/skeleton';
 import { formatCount } from '@/utils/formatCount';
 
 const statIcons = {
@@ -30,6 +30,7 @@ export default function PodcastDetailsScreen() {
   const [completedEpisodes, setCompletedEpisodes] = useState<Episode[]>([]);
   const [sortBy, setSortBy] = useState<'recent' | 'popular'>('recent');
   const [loading, setLoading] = useState(true);
+  const [episodesLoading, setEpisodesLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userRating, setUserRating] = useState<number | null>(null);
   const [isRating, setIsRating] = useState(false);
@@ -158,6 +159,8 @@ export default function PodcastDetailsScreen() {
       setCompletedEpisodes(completed);
     } catch (err) {
       console.error('Error fetching episodes:', err);
+    } finally {
+      setEpisodesLoading(false);
     }
   };
 
@@ -335,8 +338,29 @@ export default function PodcastDetailsScreen() {
             />
           ))}
 
-          {/* Completed Episodes - List */}
-          {completedEpisodes.length > 0 ? (
+          {/* Completed Episodes - List (skeleton while the first fetch is in flight) */}
+          {episodesLoading ? (
+            <SkeletonProvider>
+              {[0, 1, 2].map((i) => (
+                <View
+                  key={i}
+                  className="flex-row items-center py-4"
+                  style={i > 0 ? { borderTopWidth: 1, borderTopColor: resolved === 'dark' ? '#2E3235' : '#E5E7EB' } : undefined}
+                >
+                  <View className="w-6">
+                    <SkeletonBox width={14} height={14} />
+                  </View>
+                  <SkeletonBox width={50} height={72} borderRadius={8} style={{ marginRight: 12 }} />
+                  <View className="flex-1 mr-3">
+                    <SkeletonBox width="70%" height={15} />
+                    <SkeletonBox width="45%" height={12} style={{ marginTop: 6 }} />
+                    <SkeletonBox width={90} height={18} borderRadius={9} style={{ marginTop: 8 }} />
+                  </View>
+                  <SkeletonBox width={36} height={36} circle />
+                </View>
+              ))}
+            </SkeletonProvider>
+          ) : completedEpisodes.length > 0 ? (
             [...completedEpisodes]
               .sort((a, b) => {
                 if (sortBy === 'popular') return b.playCount - a.playCount;
