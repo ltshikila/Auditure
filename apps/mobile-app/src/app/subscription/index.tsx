@@ -330,7 +330,16 @@ export default function SubscriptionScreen() {
             // DEVELOPER_ERROR ("arguments invalid").
             const outcome = await purchasePackage(
                 proPkg,
-                hasPremium ? { oldProductIdentifier: BASE_PRODUCT_ID } : undefined,
+                hasPremium
+                    ? {
+                          oldProductIdentifier: BASE_PRODUCT_ID,
+                          // Same-subscription base-plan upgrades only allow
+                          // CHARGE_FULL_PRICE or WITHOUT_PRORATION; Google rejects
+                          // time-proration here with DEVELOPER_ERROR ("replacement
+                          // mode is not supported for this request").
+                          prorationMode: PRORATION_MODE.IMMEDIATE_AND_CHARGE_FULL_PRICE,
+                      }
+                    : undefined,
             );
             await fetchSubscription();
             if (outcome.status === 'purchased') {
