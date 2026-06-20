@@ -349,13 +349,11 @@ export default function SubscriptionScreen() {
                 });
             } else if (outcome.status === 'error') {
                 console.warn('Upgrade purchase error:', outcome.message);
-                // TEMP DIAGNOSTIC: show the raw RC/Billing detail so we can capture
-                // the exact product-change error. Revert to generic copy once fixed.
-                setError(`DIAG: ${outcome.message}`);
+                setError('Something went wrong. Please try again.');
             }
         } catch (err: any) {
             console.error('Upgrade error:', err);
-            setError(`DIAG: ${err?.message ?? err}`);
+            setError('Something went wrong. Please try again.');
         } finally {
             setPurchasing(false);
         }
