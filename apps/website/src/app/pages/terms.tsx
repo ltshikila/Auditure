@@ -28,7 +28,7 @@ export function TermsOfService() {
         </Section>
 
         <Section title="2. Description of Service">
-          <p>Auditure is an AI-powered platform where users create virtual AI podcasters and convert books and written content into podcast-style audio episodes. The service includes AI podcaster creation and customisation, audio episode generation, social features (feed, comments, likes, ratings), and related features available through our mobile application.</p>
+          <p>Auditure is an AI-powered platform where users create Virtual Podcasters and convert books and written content into podcast-style audio episodes. The service includes Virtual Podcaster creation and customisation, audio episode generation, social features (feed, comments, likes, ratings), and related features available through our mobile application.</p>
         </Section>
 
         <Section title="3. User Accounts">
@@ -67,14 +67,14 @@ export function TermsOfService() {
           <p>AI-generated audio may contain inaccuracies, interpretive differences, or imperfections. Auditure does not guarantee the accuracy or completeness of AI-generated content. Generated episodes are provided for your personal, non-commercial use. You may not redistribute, resell, or publicly broadcast generated content without prior written consent.</p>
         </Section>
 
-        <Section title="8. AI Podcasters (Virtual Podcasters)">
-          <p className="mb-3">Users may create and customise AI podcaster personalities on Auditure. By creating an AI podcaster, you agree that:</p>
+        <Section title="8. Virtual Podcasters">
+          <p className="mb-3">Users may create and customise Virtual Podcaster personalities on Auditure. By creating a Virtual Podcaster, you agree that:</p>
           <ul className="list-disc pl-5 space-y-1 mb-3">
-            <li>You will not create AI podcasters that impersonate real individuals without their consent</li>
-            <li>You will not use AI podcasters to generate harmful, misleading, defamatory, or illegal content</li>
-            <li>Auditure may remove AI podcasters or generated content that violates these terms or applicable law</li>
+            <li>You will not create Virtual Podcasters that impersonate real individuals without their consent</li>
+            <li>You will not use Virtual Podcasters to generate harmful, misleading, defamatory, or illegal content</li>
+            <li>Auditure may remove Virtual Podcasters or generated content that violates these terms or applicable law</li>
           </ul>
-          <p>AI podcasters you create may be visible to other users on the platform through the social feed and discovery features.</p>
+          <p>Virtual Podcasters you create may be visible to other users on the platform through the social feed and discovery features.</p>
         </Section>
 
         <Section title="9. Community & Social Features">

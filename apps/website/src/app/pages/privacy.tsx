@@ -28,13 +28,13 @@ export function PrivacyPolicy() {
           <p className="mb-3">When you create an account, we collect your name, email address, date of birth (optional), and password (stored securely using encryption).</p>
 
           <p className="mb-3"><strong>Usage Data</strong></p>
-          <p className="mb-3">We collect information about how you use the app, including episodes generated, playback activity, AI podcaster configurations, social interactions (comments, likes, ratings), and feature usage to improve our service.</p>
+          <p className="mb-3">We collect information about how you use the app, including episodes generated, playback activity, Virtual Podcaster configurations, social interactions (comments, likes, ratings), and feature usage to improve our service.</p>
 
           <p className="mb-3"><strong>Device Information</strong></p>
           <p className="mb-3">We may collect device type, operating system, and push notification tokens to deliver notifications and optimise the app experience.</p>
 
           <p className="mb-3"><strong>User-Generated Content</strong></p>
-          <p>We collect and store content you create on the platform, including AI podcaster configurations, comments, ratings, and other social interactions.</p>
+          <p>We collect and store content you create on the platform, including Virtual Podcaster configurations, comments, ratings, and other social interactions.</p>
         </Section>
 
         <Section title="2. How We Use Your Information">
@@ -43,7 +43,7 @@ export function PrivacyPolicy() {
             <li>Provide and maintain the Auditure service</li>
             <li>Process your subscription and payments</li>
             <li>Generate AI audio episodes from your uploaded content</li>
-            <li>Display your AI podcasters, comments, and ratings to other users through social features</li>
+            <li>Display your Virtual Podcasters, comments, and ratings to other users through social features</li>
             <li>Send you notifications about your episodes, social interactions, and account</li>
             <li>Improve and personalise your experience</li>
             <li>Respond to your enquiries and support requests</li>
@@ -57,15 +57,15 @@ export function PrivacyPolicy() {
           <p>AI-generated episodes derived from your uploads may be visible to other users through the platform's social features (feed, discovery). The original uploaded source material (book text) is never shared or made accessible to other users.</p>
         </Section>
 
-        <Section title="4. AI Podcaster Data">
-          <p>When you create an AI podcaster, we store the configuration details (name, voice, style, personality settings) and associate it with your account. Your AI podcaster profiles and the episodes they generate may be visible to other users through the platform's social features, including the feed, search, and discovery.</p>
+        <Section title="4. Virtual Podcaster Data">
+          <p>When you create a Virtual Podcaster, we store the configuration details (name, voice, style, personality settings) and associate it with your account. Your Virtual Podcaster profiles and the episodes they generate may be visible to other users through the platform's social features, including the feed, search, and discovery.</p>
         </Section>
 
         <Section title="5. Social Features & Community Data">
           <p className="mb-3">Auditure includes social features such as a feed, comments, likes, and ratings. When you use these features:</p>
           <ul className="list-disc pl-5 space-y-1 mb-3">
             <li>Your comments, likes, and ratings are visible to other users</li>
-            <li>Your profile name and AI podcasters are visible on the platform</li>
+            <li>Your profile name and Virtual Podcasters are visible on the platform</li>
             <li>Your social interactions may appear in other users' feeds</li>
           </ul>
           <p>You can manage your social presence through your profile settings.</p>
@@ -97,7 +97,7 @@ export function PrivacyPolicy() {
           <ul className="list-disc pl-5 space-y-1 mb-3">
             <li>Access your personal data through your profile</li>
             <li>Update or correct your information</li>
-            <li>Delete your account and associated data (including AI podcasters, comments, and generated content)</li>
+            <li>Delete your account and associated data (including Virtual Podcasters, comments, and generated content)</li>
             <li>Export your data upon request</li>
             <li>Opt out of non-essential notifications</li>
             <li>Request removal of specific comments or social content you have posted</li>
@@ -117,7 +117,7 @@ export function PrivacyPolicy() {
           <p className="mb-3"><strong>What gets deleted:</strong></p>
           <ul className="list-disc pl-5 space-y-1 mb-3">
             <li>Your account and personal information (name, email, date of birth)</li>
-            <li>All AI podcasters you created</li>
+            <li>All Virtual Podcasters you created</li>
             <li>All generated audio episodes</li>
             <li>All comments, likes, and ratings</li>
             <li>Your subscription (if active, it will be cancelled)</li>

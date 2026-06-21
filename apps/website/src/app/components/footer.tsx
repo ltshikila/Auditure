@@ -13,7 +13,7 @@ export function Footer() {
               <h3 className="font-['DM_Serif_Display',serif] text-white text-2xl">Auditure</h3>
             </div>
             <p className="font-['Plus_Jakarta_Sans',sans-serif] text-white/60 text-sm mb-4">
-              Create your own AI podcaster. Turn any book into engaging podcast episodes.
+              Create your own Virtual Podcaster. Turn any book into engaging podcast episodes.
             </p>
           </div>
 

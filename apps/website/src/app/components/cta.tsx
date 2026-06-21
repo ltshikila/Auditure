@@ -10,10 +10,10 @@ export function CTA() {
 
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center relative z-10">
         <h2 className="font-['DM_Serif_Display',serif] text-white text-4xl md:text-5xl lg:text-6xl mb-6">
-          Ready to Create Your<br />First AI Podcaster?
+          Ready to Create Your<br />First Virtual Podcaster?
         </h2>
         <p className="font-['Plus_Jakarta_Sans',sans-serif] text-white/80 text-lg md:text-xl mb-10 max-w-2xl mx-auto">
-          Turn your bookshelf into a podcast library. Create an AI podcaster, upload a book, and start listening in minutes.
+          Turn your bookshelf into a podcast library. Create a Virtual Podcaster, upload a book, and start listening in minutes.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
@@ -87,7 +87,7 @@ export function CTA() {
               Share & Discover
             </h4>
             <p className="font-['Plus_Jakarta_Sans',sans-serif] text-white/60 text-sm">
-              A community of AI podcast creators
+              A community of Virtual Podcaster creators
             </p>
           </div>
         </div>
