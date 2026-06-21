@@ -176,7 +176,7 @@ export default function HomeScreen() {
         const greeting = firstName ? `Good ${timeOfDay}, ${firstName}` : 'Discover';
 
         return (
-            <View className="px-5 pt-5 pb-6">
+            <View className="px-5 pt-2 pb-2">
                 <Text className="font-inter-bold text-2xl text-brand-black dark:text-brand-dark-text">{greeting}</Text>
                 <Text className="font-jakarta text-brand-black dark:text-brand-dark-text text-sm">Podcast feed catered to you.</Text>
             </View>
@@ -185,7 +185,7 @@ export default function HomeScreen() {
 
     // Render tab selector
     const renderTabSelector = () => (
-        <View style={{ flexDirection: 'row', paddingHorizontal: 24, paddingVertical: 12 }}>
+        <View style={{ flexDirection: 'row', paddingHorizontal: 24, paddingTop: 4, paddingBottom: 10 }}>
             {TABS.map((tab) => (
                 <TouchableOpacity
                     key={tab.key}

@@ -1,7 +1,7 @@
 // apps/mobile-app/src/app/(tabs)/_layout.tsx
 import { Tabs, Redirect } from 'expo-router';
 import React from 'react';
-import { ActivityIndicator, View, Image } from 'react-native';
+import { ActivityIndicator, View, Image, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { useColors } from '@/hooks/use-colors';
@@ -55,6 +55,29 @@ function TabIcon({ focused, icon, iconFilled }: TabIconProps) {
   );
 }
 
+// Custom tab button: no Android ripple "circle", just a subtle icon dim on press.
+function TabBarButton({ children, onPress, onLongPress, accessibilityState, accessibilityLabel, testID }: any) {
+  return (
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      accessibilityRole="button"
+      accessibilityState={accessibilityState}
+      accessibilityLabel={accessibilityLabel}
+      testID={testID}
+      android_ripple={null}
+      style={({ pressed }) => ({
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        opacity: pressed ? 0.5 : 1,
+      })}
+    >
+      {children}
+    </Pressable>
+  );
+}
+
 export default function TabLayout() {
   const { isAuthenticated, loading } = useAuth();
   const insets = useSafeAreaInsets();
@@ -80,6 +103,7 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
+        tabBarButton: (props) => <TabBarButton {...props} />,
         tabBarActiveTintColor: colors.tabIconSelected,
         tabBarInactiveTintColor: colors.tabIconDefault,
         tabBarStyle: {
