@@ -9,7 +9,7 @@ export function Features() {
         </svg>
       ),
       bg: "bg-[#920002]",
-      title: "AI Podcaster Creation",
+      title: "Virtual Podcaster Creation",
       description: "Design a virtual podcaster with a custom name, voice, and personality. It's your show - you decide how it sounds."
     },
     {
@@ -21,7 +21,7 @@ export function Features() {
       ),
       bg: "bg-[#2f2f2f]",
       title: "Book-to-Podcast",
-      description: "Upload any book you own and your AI podcaster transforms it into audio episodes. Read more books without reading."
+      description: "Upload any book you own and your Virtual Podcaster transforms it into audio episodes. Read more books without reading."
     },
     {
       icon: (
@@ -59,7 +59,7 @@ export function Features() {
       ),
       bg: "bg-[#920002]",
       title: "No Experience Needed",
-      description: "You don't need a microphone, editing software, or a radio voice. Just upload a book and let your AI podcaster do the rest."
+      description: "You don't need a microphone, editing software, or a radio voice. Just upload a book and let your Virtual Podcaster do the rest."
     },
     {
       icon: (

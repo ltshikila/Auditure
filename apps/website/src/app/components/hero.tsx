@@ -14,11 +14,11 @@ export function Hero() {
 
           <h2 className="font-['DM_Serif_Display',serif] text-[#2f2f2f] text-5xl md:text-6xl lg:text-7xl leading-tight">
             Create Your Own<br />
-            AI Podcaster
+            Virtual Podcaster
           </h2>
 
           <p className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a] text-lg md:text-xl leading-relaxed max-w-2xl">
-            Design an AI podcaster with its own voice and personality. Upload any book and turn it into engaging podcast episodes - lectures, debates, discussions, and more.
+            Design a Virtual Podcaster with its own voice and personality. Upload any book and turn it into engaging podcast episodes - lectures, debates, discussions, and more.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4">

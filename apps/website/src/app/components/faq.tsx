@@ -7,9 +7,9 @@ type FAQItem = {
 
 const FAQ_ITEMS: FAQItem[] = [
   {
-    question: "What is an AI podcaster?",
+    question: "What is a Virtual Podcaster?",
     answer:
-      "An AI podcaster is a custom virtual host you design inside Auditure. You give it a name, pick a voice and accent, define its personality and intellectual angle, then point it at a book. The podcaster generates a unique episode discussing the book in its own voice. No microphone, no editing, no studio.",
+      "A Virtual Podcaster is a custom host you design inside Auditure. You give it a name, pick a voice and accent, define its personality and intellectual angle, then point it at a book. The podcaster generates a unique episode discussing the book in its own voice. No microphone, no editing, no studio.",
   },
   {
     question: "How does it work?",

@@ -24,7 +24,7 @@ export function WhyAuditure() {
               Create a Podcaster
             </h3>
             <p className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a] leading-relaxed">
-              Design your own AI podcaster. Give it a name, a voice, and a unique personality. No mic or studio required.
+              Design your own Virtual Podcaster. Give it a name, a voice, and a unique personality. No mic or studio required.
             </p>
           </div>
 
@@ -36,7 +36,7 @@ export function WhyAuditure() {
               Upload a Book
             </h3>
             <p className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a] leading-relaxed">
-              Upload any book you own. Your AI podcaster transforms it into engaging audio episodes - lectures, debates, discussions, and more.
+              Upload any book you own. Your Virtual Podcaster transforms it into engaging audio episodes - lectures, debates, discussions, and more.
             </p>
           </div>
 

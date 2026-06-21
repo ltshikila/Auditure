@@ -22,7 +22,7 @@ export function About() {
               for the books on their shelf.
             </p>
             <p>
-              With Auditure, anyone can create their own AI podcaster, give it a voice and a personality,
+              With Auditure, anyone can create their own Virtual Podcaster, give it a voice and a personality,
               then turn any book they own into engaging audio episodes: lectures, debates, deep dives,
               casual discussions, and more. No microphone, no editing software, no radio voice required.
             </p>

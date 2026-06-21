@@ -19,7 +19,7 @@ const SHOTS = [
     image: playShot,
     title: "Live Transcripts",
     description:
-      "Follow along with synced transcripts as your AI podcaster breaks down the book. Skip, rewind, or just listen.",
+      "Follow along with synced transcripts as your Virtual Podcaster breaks down the book. Skip, rewind, or just listen.",
   },
 ];
 

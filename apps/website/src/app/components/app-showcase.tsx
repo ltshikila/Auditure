@@ -16,7 +16,7 @@ export function AppShowcase() {
             A Growing Community of Creators
           </h2>
           <p className="font-['Plus_Jakarta_Sans',sans-serif] text-white/90 text-lg leading-relaxed max-w-2xl mx-auto">
-            Auditure isn't just a tool - it's a platform. Discover AI podcasters built by people around the world, explore episodes on topics you care about, and share your own creations.
+            Auditure isn't just a tool - it's a platform. Discover Virtual Podcasters built by people around the world, explore episodes on topics you care about, and share your own creations.
           </p>
         </div>
 
@@ -25,7 +25,7 @@ export function AppShowcase() {
           {[
             {
               title: "Discover & Explore",
-              description: "Browse a feed of episodes from AI podcasters across every genre and interest.",
+              description: "Browse a feed of episodes from Virtual Podcasters across every genre and interest.",
               icon: (
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
                   <circle cx="11" cy="11" r="7" stroke="white" strokeWidth="2"/>
@@ -44,7 +44,7 @@ export function AppShowcase() {
             },
             {
               title: "Build Your Audience",
-              description: "Share your AI podcaster's episodes and grow a following around your unique content.",
+              description: "Share your Virtual Podcaster's episodes and grow a following around your unique content.",
               icon: (
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
                   <circle cx="12" cy="8" r="3" fill="white"/>
