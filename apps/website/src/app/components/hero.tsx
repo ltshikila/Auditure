@@ -7,7 +7,7 @@ export function Hero() {
     <section className="relative overflow-hidden bg-[#FBF8F2] pt-20 pb-20 md:pt-32 md:pb-32">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto text-center flex flex-col items-center gap-8">
-          <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-3">
             <img src={appLogo} alt="Auditure" className="w-16 h-16" />
             <h1 className="font-['DM_Serif_Display',serif] text-[#2f2f2f] text-4xl">Auditure</h1>
           </div>
