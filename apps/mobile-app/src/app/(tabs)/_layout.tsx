@@ -55,20 +55,10 @@ function TabIcon({ focused, icon, iconFilled }: TabIconProps) {
   );
 }
 
-// Custom tab button: no Android ripple "circle", just a subtle icon dim on press.
-// Spread the navigator's props (incl. its layout `style`) so each tab keeps its
-// even flex sizing; only override the ripple and add a press-dim.
-function TabBarButton({ style, ...props }: any) {
-  return (
-    <Pressable
-      {...props}
-      android_ripple={null}
-      style={({ pressed }) => [
-        style,
-        { justifyContent: 'center', alignItems: 'center', opacity: pressed ? 0.5 : 1 },
-      ]}
-    />
-  );
+// Custom tab button: identical to the navigator's default button (same props,
+// same layout/centering) but with the Android ripple "circle" disabled.
+function TabBarButton(props: any) {
+  return <Pressable {...props} android_ripple={null} />;
 }
 
 export default function TabLayout() {
