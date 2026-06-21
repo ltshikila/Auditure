@@ -56,25 +56,18 @@ function TabIcon({ focused, icon, iconFilled }: TabIconProps) {
 }
 
 // Custom tab button: no Android ripple "circle", just a subtle icon dim on press.
-function TabBarButton({ children, onPress, onLongPress, accessibilityState, accessibilityLabel, testID }: any) {
+// Spread the navigator's props (incl. its layout `style`) so each tab keeps its
+// even flex sizing; only override the ripple and add a press-dim.
+function TabBarButton({ style, ...props }: any) {
   return (
     <Pressable
-      onPress={onPress}
-      onLongPress={onLongPress}
-      accessibilityRole="button"
-      accessibilityState={accessibilityState}
-      accessibilityLabel={accessibilityLabel}
-      testID={testID}
+      {...props}
       android_ripple={null}
-      style={({ pressed }) => ({
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        opacity: pressed ? 0.5 : 1,
-      })}
-    >
-      {children}
-    </Pressable>
+      style={({ pressed }) => [
+        style,
+        { justifyContent: 'center', alignItems: 'center', opacity: pressed ? 0.5 : 1 },
+      ]}
+    />
   );
 }
 
