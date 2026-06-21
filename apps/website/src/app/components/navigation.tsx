@@ -44,6 +44,7 @@ export function Navigation() {
   const close = () => setIsOpen(false);
 
   return (
+    <>
     <nav className="fixed top-0 left-0 right-0 z-50 bg-[#FBF8F2]/80 backdrop-blur-lg border-b border-[#d0d0d0]/30">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
@@ -112,45 +113,47 @@ export function Navigation() {
         </div>
       </div>
 
-      {/* Mobile Menu Overlay */}
-      {isOpen && (
-        <div className="md:hidden fixed inset-x-0 top-20 bottom-0 bg-[#FBF8F2] border-t border-[#d0d0d0]/30 overflow-y-auto">
-          <div className="px-4 sm:px-6 py-6 flex flex-col gap-1">
-            {NAV_ITEMS.map((item) =>
-              item.type === "anchor" ? (
-                <a
-                  key={item.label}
-                  href={item.href}
-                  onClick={close}
-                  className="font-['Plus_Jakarta_Sans',sans-serif] text-[#2f2f2f] hover:text-[#920002] hover:bg-[#F5F0E8] text-lg py-4 px-3 rounded-[12px] transition-colors"
-                >
-                  {item.label}
-                </a>
-              ) : (
-                <Link
-                  key={item.label}
-                  to={item.to}
-                  onClick={close}
-                  className="font-['Plus_Jakarta_Sans',sans-serif] text-[#2f2f2f] hover:text-[#920002] hover:bg-[#F5F0E8] text-lg py-4 px-3 rounded-[12px] transition-colors"
-                >
-                  {item.label}
-                </Link>
-              )
-            )}
-
-            <a
-              href={PLAY_STORE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={close}
-              className="mt-4 flex items-center justify-center gap-2 bg-[#920002] hover:bg-[#760002] text-white px-6 py-4 rounded-[12px] font-['Plus_Jakarta_Sans',sans-serif] transition-colors"
-            >
-              <img src={googlePlayIcon} alt="" width="20" height="20" />
-              Get on Android
-            </a>
-          </div>
-        </div>
-      )}
     </nav>
+
+    {/* Mobile Menu Overlay - sibling to nav to escape its stacking context */}
+    {isOpen && (
+      <div className="md:hidden fixed inset-x-0 top-20 bottom-0 z-40 bg-[#FBF8F2] border-t border-[#d0d0d0]/30 overflow-y-auto">
+        <div className="px-4 sm:px-6 py-6 flex flex-col gap-1">
+          {NAV_ITEMS.map((item) =>
+            item.type === "anchor" ? (
+              <a
+                key={item.label}
+                href={item.href}
+                onClick={close}
+                className="font-['Plus_Jakarta_Sans',sans-serif] text-[#2f2f2f] hover:text-[#920002] hover:bg-[#F5F0E8] text-lg py-4 px-3 rounded-[12px] transition-colors"
+              >
+                {item.label}
+              </a>
+            ) : (
+              <Link
+                key={item.label}
+                to={item.to}
+                onClick={close}
+                className="font-['Plus_Jakarta_Sans',sans-serif] text-[#2f2f2f] hover:text-[#920002] hover:bg-[#F5F0E8] text-lg py-4 px-3 rounded-[12px] transition-colors"
+              >
+                {item.label}
+              </Link>
+            )
+          )}
+
+          <a
+            href={PLAY_STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={close}
+            className="mt-4 flex items-center justify-center gap-2 bg-[#920002] hover:bg-[#760002] text-white px-6 py-4 rounded-[12px] font-['Plus_Jakarta_Sans',sans-serif] transition-colors"
+          >
+            <img src={googlePlayIcon} alt="" width="20" height="20" />
+            Get on Android
+          </a>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
