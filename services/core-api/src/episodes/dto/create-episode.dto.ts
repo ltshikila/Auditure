@@ -6,6 +6,7 @@ import {
     IsOptional,
     Min,
     Max,
+    MaxLength,
     ArrayMinSize,
     IsUUID,
 } from 'class-validator';
@@ -46,6 +47,16 @@ export class CreateEpisodeDto {
     @IsOptional()
     @IsString()
     description?: string;
+
+    /**
+     * Optional editor's notes: free-text steering for how the episode should go
+     * (what to focus on, angle, what to skip). Injected as high-priority direction
+     * into the generation prompt. Capped to keep it a directive, not a script.
+     */
+    @IsOptional()
+    @IsString()
+    @MaxLength(600)
+    editorNotes?: string;
 
     @IsEnum(ContentCoverage)
     contentCoverage: ContentCoverage;
@@ -90,6 +101,11 @@ export class CreateEpisodeWithFileDto {
     @IsOptional()
     @IsString()
     description?: string;
+
+    @IsOptional()
+    @IsString()
+    @MaxLength(600)
+    editorNotes?: string;
 
     @IsEnum(ContentCoverage)
     contentCoverage: ContentCoverage;

@@ -312,6 +312,7 @@ export class BookExtractionWorker {
                     targetLengthMin: episode.targetLengthMin,
                     targetLengthMax: episode.targetLengthMax,
                     voiceTier: (episode.voiceTier as any) || 'STANDARD',
+                    editorNotes: episode.editorNotes ?? undefined,
                 });
                 this.logger.log(`Queued pending episode ${episode.id} for generation`);
             }

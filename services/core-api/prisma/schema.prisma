@@ -294,6 +294,7 @@ model Episode {
   title                 String
   description           String?
   summary               String?        @db.Text  // AI-generated episode synopsis
+  editorNotes           String?        @db.Text  // Optional user steering: what to focus on / how the episode should go
 
   // Content Configuration
   contentCoverage       ContentCoverage

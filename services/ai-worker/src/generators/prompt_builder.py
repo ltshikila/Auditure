@@ -297,6 +297,9 @@ class ScriptRequest:
     debate_config: Optional[DebateConfig] = None
     # Book genres from Google Books API (e.g., ["Fiction / Fantasy / Epic"])
     book_genres: Optional[list[str]] = None
+    # Optional user steering: what to focus on / how the episode should go.
+    # Injected as high-priority direction that overrides "cover everything".
+    editor_notes: Optional[str] = None
     # Chunking fields (for long episode generation)
     chunk_num: Optional[int] = None  # 1-indexed chunk number
     total_chunks: Optional[int] = None  # Total chunks planned
@@ -415,6 +418,17 @@ class PromptBuilder:
         9: "openly oppositional, picks fights with the text, calls out logical leaps directly",
         10: "COMBATIVE: dismantles claims line by line, treats the book as something to be defeated",
     }
+
+    # Worn-out openers that show up across too many episodes — ban them explicitly
+    # so episodes don't all start the same way.
+    BANNED_OPENERS_NOTE = (
+        'Do NOT open with worn-out hype phrases. Banned openers include: '
+        '"buckle up", "strap in", "strap yourselves in", "hold onto your seats", '
+        '"hold onto your hats", "grab your coffee", "grab your popcorn", '
+        '"without further ado", "let\'s dive right in", "picture this". '
+        'Open with something specific to THIS content — a concrete image, a sharp '
+        'question, or a surprising claim.'
+    )
 
     def _get_trait_description(
         self,
@@ -726,6 +740,7 @@ Land the plane — how does this debate resolve? Not a cop-out ending. A genuine
         content_scope: str,
         book_title: str,
         chapter_title: Optional[str] = None,
+        editor_notes: Optional[str] = None,
     ) -> str:
         """Build position-specific instructions for chunked generation."""
         is_first = chunk_num == 1
@@ -733,10 +748,20 @@ Land the plane — how does this debate resolve? Not a cop-out ending. A genuine
 
         max_words = int(words_per_chunk * 1.15)
 
+        # Reinforce the editor's focus at the exact place the model is told what to
+        # cover in this chunk — otherwise chunked generation dilutes the steering.
+        focus_reminder = (
+            "\n\n## STAY ON THE EDITOR'S FOCUS\n"
+            "Remember the editor's direction above. In THIS part too, prioritize that "
+            "focus over broad coverage. Do not drift into source material that does not serve it."
+            if editor_notes and editor_notes.strip()
+            else ""
+        )
+
         if is_first:
             return f"""## CHUNK POSITION: Part {chunk_num} of {total_chunks} — INTRODUCTION
 This is the OPENING of the episode. You MUST:
-- Start with an engaging hook to grab listeners
+- Start with an engaging hook to grab listeners. {self.BANNED_OPENERS_NOTE}
 - Introduce "{book_title}" and clearly state you're covering {content_scope}{f" — specifically {chapter_title}" if chapter_title else ""}
 - Set up the key themes you'll be discussing
 - Begin exploring the first key concepts from the content
@@ -746,7 +771,7 @@ This is the OPENING of the episode. You MUST:
 ## WORD COUNT — HARD LIMIT
 Target: {words_per_chunk} words. Maximum: {max_words} words.
 Going OVER {max_words} words is WORSE than going slightly under. Your output will be cut off if too long.
-Count your words as you write — stop introducing new points once you approach {words_per_chunk} words."""
+Count your words as you write — stop introducing new points once you approach {words_per_chunk} words.{focus_reminder}"""
         elif is_last:
             conclusion_words = max(250, int(words_per_chunk * 0.25))
             content_words = words_per_chunk - conclusion_words
@@ -767,7 +792,7 @@ CRITICAL CONCLUSION RULES:
 - {conclusion_req}
 - If you're running long, CUT middle content — NEVER cut the ending
 - A script without a proper conclusion is REJECTED. The host MUST finish their final goodbye
-- NEVER end mid-sentence or mid-thought. The very last line must be a complete farewell"""
+- NEVER end mid-sentence or mid-thought. The very last line must be a complete farewell{focus_reminder}"""
         else:
             return f"""## CHUNK POSITION: Part {chunk_num} of {total_chunks} — CONTINUATION
 This is a MIDDLE section of the episode. You MUST:
@@ -780,7 +805,7 @@ This is a MIDDLE section of the episode. You MUST:
 ## WORD COUNT — HARD LIMIT
 Target: {words_per_chunk} words. Maximum: {max_words} words.
 Going OVER {max_words} words is WORSE than going slightly under. Your output will be cut off if too long.
-Count your words as you write — stop introducing new points once you approach {words_per_chunk} words."""
+Count your words as you write — stop introducing new points once you approach {words_per_chunk} words.{focus_reminder}"""
 
     def _build_chunk_context(
         self,
@@ -937,13 +962,25 @@ The HOST and GUEST should sound like GENUINELY DIFFERENT PEOPLE — not two vers
 - Let reactions sometimes interrupt, sometimes come after a [short pause]
 - Match reactions to personality — analytical hosts react differently than energetic hosts
 
+**Pauses & Thinking In The Moment (KEY TO SOUNDING UNSCRIPTED):**
+Real people do not speak in finished paragraphs. They pause to find the word, trail off, and restart. Use the pause tags to act this out — not only BETWEEN turns, but INSIDE a turn too:
+- At the START of a turn, before committing: "[medium pause] Okay. [short pause] Here's the thing..."
+- In the MIDDLE, hunting for the word: "It's almost like... [long pause] like the author is daring you to disagree."
+- At the END, leaving a thought hanging for the other to pick up.
+- Reach for [long pause] on the real beats — a point that lands, a hard question, a change of mind. [medium pause] on its own is often too short to read as genuine thought; do not default to it every time.
+
 **Genuine Thinking Moments:**
-- When one speaker makes a point that genuinely challenges the other, the other should NOT respond with an instant, polished rebuttal. They should think:
-  - "I... [medium pause] hm, that's actually..." then regroup
-  - "[uhm] Well... okay, if you look at it that way... [short pause] but consider this—"
-  - "[sigh] That's fair. I hadn't thought of it like that. But here's where I push back..."
-- This should happen 2-3 times per episode — at the moments where a point genuinely lands.
+- When one speaker makes a point that genuinely challenges the other, the other should NOT fire back an instant, polished rebuttal. They think first:
+  - "I... [long pause] hm, that's actually a good point."
+  - "[uhm] Well... [medium pause] okay, if you look at it that way... [short pause] but consider this—"
+  - "[sigh] That's fair. [long pause] I hadn't thought of it like that. But here's where I push back..."
 - The speaker who's thinking should sometimes concede partially before pivoting to their counter.
+- Scale it to length: a couple of times in a short episode, more across a long one. These beats are not filler — they are where it stops sounding like two prepared speeches.
+
+**Make Room For The Other Person:**
+- A speaker can float a point, pause, and let the other jump in before fully finishing — "So I think the ending is a cop-out. [long pause] ...or am I wrong?"
+- When the other is clearly forming a response, the first speaker can REPHRASE or narrow their point to help them engage — "What I mean is, less 'it's bad', more 'it's unearned' — does that land?"
+- This trading of half-formed thoughts, shaped together in real time, is what an actual conversation sounds like.
 
 **{interruption_style}**
 
@@ -1120,6 +1157,11 @@ Style: Both speakers COMMIT to their positions. This is not a polite disagreemen
 - Direct challenges: "That's exactly the kind of thinking the author warns against..."
 - Don't hedge: avoid "well, you make a good point" unless you're about to demolish it.
 - The audience should be able to clearly identify which side each speaker is on at ALL times.
+
+AVOID THESE DEBATE TICS (they make it sound robotic and smug):
+- Do NOT restate or parrot the other speaker's point back before making your own ("So what you're saying is X... well, I think Y"). Just respond. Echo their words only on the rare occasion it sharpens a specific rebuttal, not as a habitual lead-in.
+- Do NOT open most turns by mocking, sneering, or belittling the other ("Oh PLEASE", "That's adorable", "Wow, really?"). A sharp jab now and then is fine; constant mockery is grating. Attack the argument, not the person.
+- Lead with your actual counter-point, not a reaction to theirs.
 {tts_markup_guide}"""
             else:  # DISCUSSION
                 return f"""
@@ -1798,6 +1840,30 @@ Repetition is the enemy of engagement. Keep moving forward with fresh content.
 **Minimum content per concept: 250-400 words of discussion (but all UNIQUE content, no rehashing).**
 """
 
+    def _build_editor_direction(self, editor_notes: Optional[str]) -> str:
+        """Build the high-priority editor's direction block.
+
+        This is the steering lever that lets a user narrow a dense, multi-topic
+        chapter down to the part they actually care about. It deliberately
+        OVERRIDES the default "cover all key ideas" instruction so an interesting
+        moment is not shadowed by everything else in the source.
+        """
+        if not editor_notes or not editor_notes.strip():
+            return ""
+
+        notes = editor_notes.strip()
+        return f"""## EDITOR'S DIRECTION (HIGHEST PRIORITY — OVERRIDES "COVER EVERYTHING")
+The person creating this episode left specific direction for how it should go:
+
+"{notes}"
+
+Treat this as the steering wheel for the ENTIRE episode:
+- PRIORITIZE this direction. The bulk of the episode must serve it.
+- The source material may contain many other events, characters, and threads. Those are now BACKGROUND — touch them only if they support the direction, otherwise skip them. Do NOT give equal time to everything in the source.
+- If the direction names a specific scene, moment, person, or angle, build the episode around it: set it up, dwell on it, pay it off.
+- Stay within the provided source content (never invent facts) — but it is the editor's call WHICH part of that content matters most.
+- If the direction conflicts with the episode title or the generic pacing guidance, follow the direction."""
+
     def build_prompt(self, request: ScriptRequest) -> str:
         """
         Build complete prompt for script generation.
@@ -1895,6 +1961,7 @@ Repetition is the enemy of engagement. Keep moving forward with fresh content.
                 content_scope=request.content_scope,
                 book_title=request.book_title,
                 chapter_title=request.chapter_title,
+                editor_notes=request.editor_notes,
             )
             if request.topics_covered or request.previous_summary:
                 chunk_context_section = self._build_chunk_context(
@@ -1915,7 +1982,7 @@ Repetition is the enemy of engagement. Keep moving forward with fresh content.
                 intro_lines = (
                     f'- **INTRODUCTION MUST STATE SCOPE**: Clearly state what you are covering '
                     f'(e.g., "Today we are diving into {request.content_scope} from {request.book_title}"{scope_detail})\n'
-                    f'- Hook the listener in the first 100 words.'
+                    f'- Hook the listener in the first 100 words. {self.BANNED_OPENERS_NOTE}'
                 )
 
             ending_line = (
@@ -1938,7 +2005,7 @@ Repetition is the enemy of engagement. Keep moving forward with fresh content.
 - DO NOT write a short script. Episodes under {request.target_length_min} minutes will be rejected.
 - **NEVER BE REPETITIVE** - Each paragraph must add NEW value.
 - **INTRODUCTION MUST STATE SCOPE**: Clearly state what you're covering (e.g., "Today we're diving into {request.content_scope} from {request.book_title}"{f' - specifically {request.chapter_title}' if request.chapter_title else ''})
-- Hook the listener in the first 100 words.
+- Hook the listener in the first 100 words. {self.BANNED_OPENERS_NOTE}
 - Cover ALL key ideas from the source — discuss each with depth, examples, and commentary.
 - Add original real-world examples, insights, and analysis (NOT from the source).
 - Use meaningful transitions, not "next, let's talk about..."
@@ -1986,6 +2053,9 @@ CRITICAL RULES:
                     "using evidence and ideas from the book content. Stay focused on the title's theme."
                 )
 
+        # Build high-priority editor's direction (the focus/steering lever)
+        editor_direction_section = self._build_editor_direction(request.editor_notes)
+
         prompt = f"""You are {request.podcaster_name}, a podcast host creating an episode about "{request.book_title}"{author_line}.
 
 ## Your Personality
@@ -2030,6 +2100,7 @@ When content is limited, use CREATIVE EXPANSION instead of repeating:
 ## Episode Title
 "{request.episode_title}"
 {title_focus_instruction}
+{editor_direction_section}
 {structure_section}
 
 Now write {"Part " + str(request.chunk_num) + " of " + str(request.total_chunks) + " of " if is_chunked else ""}the {"complete " if not is_chunked else ""}podcast script:
