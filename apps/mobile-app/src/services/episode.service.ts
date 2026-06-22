@@ -92,6 +92,7 @@ export interface CreateEpisodeDto {
     podcasterId: string;
     title: string;
     description?: string;
+    editorNotes?: string;
     contentCoverage: ContentCoverage;
     chapters: number[];
     episodeType: EpisodeType;
@@ -105,6 +106,7 @@ export interface CreateEpisodeWithFileDto {
     podcasterId: string;
     title: string;
     description?: string;
+    editorNotes?: string;
     contentCoverage: ContentCoverage;
     chapters?: number[];
     episodeType: EpisodeType;
@@ -181,6 +183,10 @@ class EpisodeService {
 
         if (episodeData.description) {
             formData.append('description', episodeData.description);
+        }
+
+        if (episodeData.editorNotes) {
+            formData.append('editorNotes', episodeData.editorNotes);
         }
 
         if (episodeData.chapters && episodeData.chapters.length > 0) {

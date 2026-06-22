@@ -195,6 +195,7 @@ class EpisodeConsumer(BaseConsumer):
                 voice_tier=voice_tier,
                 content_scope=content_scope,
                 chapter_title=chapter_title,
+                editor_notes=message.get("editorNotes"),
             )
 
             logger.info(

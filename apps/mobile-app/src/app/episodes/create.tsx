@@ -65,6 +65,7 @@ const Create = () => {
     const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
     const [selectedPodcasterId, setSelectedPodcasterId] = useState<string | null>(null);
     const [episodeTitle, setEpisodeTitle] = useState('');
+    const [editorNotes, setEditorNotes] = useState('');
     const [contentCoverage, setContentCoverage] = useState<ContentCoverage>('ENTIRE_BOOK');
     const [chapters, setChapters] = useState('');
     const [episodeType, setEpisodeType] = useState<EpisodeType>('MONOLOGUE');
@@ -440,6 +441,7 @@ const Create = () => {
                     {
                         podcasterId: selectedPodcasterId,
                         title: episodeTitle.trim(),
+                        editorNotes: editorNotes.trim() || undefined,
                         contentCoverage,
                         chapters: chaptersToUse,
                         episodeType,
@@ -474,6 +476,7 @@ const Create = () => {
                         bookId: selectedBookId,
                         podcasterId: selectedPodcasterId,
                         title: episodeTitle.trim(),
+                        editorNotes: editorNotes.trim() || undefined,
                         contentCoverage,
                         chapters: chaptersToUse,
                         episodeType,
@@ -944,6 +947,31 @@ const Create = () => {
                     <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-lg mb-3">Episode Theme</Text>
                     <InfoTooltip text={episodeThemeDescriptions[episodeTheme]} />
                     {renderTabSelector(episodeThemeOptions, episodeTheme, setEpisodeTheme)}
+                </View>
+
+                {/* Editor's Notes (optional steering) */}
+                <View className="mb-6">
+                    <Text className="text-[#1A1C1E] dark:text-brand-dark-text font-inter-medium text-lg mb-2">Editor's Notes</Text>
+                    <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-xs mb-2">
+                        Optional. Tell the podcaster what to focus on, the angle to take, or what to skip (e.g. "Focus on the main character's turning point" or "Make it a debate about the ending"). A chapter often covers a lot, so this keeps the part you care about from getting buried.
+                    </Text>
+                    <View className="bg-brand-input dark:bg-brand-dark-input rounded-xl px-4 py-3">
+                        <TextInput
+                            className="font-inter text-[#1A1C1E] dark:text-brand-dark-text"
+                            value={editorNotes}
+                            onChangeText={setEditorNotes}
+                            placeholder="What should this episode focus on?"
+                            placeholderTextColor="#858585"
+                            multiline
+                            numberOfLines={3}
+                            maxLength={600}
+                            textAlignVertical="top"
+                            style={{ minHeight: 72 }}
+                        />
+                    </View>
+                    <Text className="font-inter text-[#858585] dark:text-brand-dark-text-secondary text-xs mt-1 ml-1 text-right">
+                        {editorNotes.length}/600
+                    </Text>
                 </View>
 
                 {/* Episode Length Range */}

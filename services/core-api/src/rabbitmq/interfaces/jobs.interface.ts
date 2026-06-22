@@ -11,4 +11,5 @@ export interface EpisodeGenerationJob {
     targetLengthMin: number;
     targetLengthMax: number;
     voiceTier: 'STANDARD' | 'GEMINI';
+    editorNotes?: string;
 }

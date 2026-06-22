@@ -297,6 +297,7 @@ export class EpisodesService {
                 targetLengthMin: createEpisodeDto.targetLengthMin,
                 targetLengthMax: createEpisodeDto.targetLengthMax,
                 voiceTier: createEpisodeDto.voiceTier || 'STANDARD',
+                editorNotes: createEpisodeDto.editorNotes,
             });
 
             this.logger.log(`Created episode ${episode.id} and queued for generation`);
@@ -435,6 +436,7 @@ export class EpisodesService {
                         podcasterId: createEpisodeDto.podcasterId,
                         title: createEpisodeDto.title,
                         description: createEpisodeDto.description,
+                        editorNotes: createEpisodeDto.editorNotes,
                         contentCoverage: createEpisodeDto.contentCoverage,
                         chapters: createEpisodeDto.chapters || [],
                         episodeType: createEpisodeDto.episodeType,
@@ -482,6 +484,7 @@ export class EpisodesService {
                         targetLengthMin: createEpisodeDto.targetLengthMin,
                         targetLengthMax: createEpisodeDto.targetLengthMax,
                         voiceTier: createEpisodeDto.voiceTier || 'STANDARD',
+                        editorNotes: createEpisodeDto.editorNotes,
                     });
                     this.logger.log(`Episode ${episode.id} queued for generation immediately`);
                 } catch (mqError) {
@@ -1259,6 +1262,7 @@ export class EpisodesService {
                 targetLengthMin: episode.targetLengthMin,
                 targetLengthMax: episode.targetLengthMax,
                 voiceTier: (episode.voiceTier as any) || 'STANDARD',
+                editorNotes: episode.editorNotes ?? undefined,
             });
 
             this.logger.log(`Retrying episode generation for ${episode.id}`);

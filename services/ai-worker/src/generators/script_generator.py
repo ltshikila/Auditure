@@ -85,11 +85,16 @@ class ScriptGenerator:
         content_scope: str = "the book",
         chapter_title: Optional[str] = None,
         book_genres: Optional[list[str]] = None,
+        editor_notes: Optional[str] = None,
     ) -> ScriptResult:
         """
         Generate a podcast script.
 
         First attempts LLM generation, falls back to templates on failure.
+
+        editor_notes: optional free-text user steering for what to focus on / how the
+        episode should go. Injected as high-priority direction into the prompt so a
+        single dense chapter can be narrowed to the part the user actually cares about.
         """
         # Calculate wpm based on podcaster's speaking speed
         wpm = self._speed_to_wpm(speaking_speed, voice_tier)
@@ -144,6 +149,7 @@ class ScriptGenerator:
                     content_scope=content_scope,
                     chapter_title=chapter_title,
                     book_genres=book_genres,
+                    editor_notes=editor_notes,
                 )
                 method = "llm"
 
@@ -177,6 +183,7 @@ class ScriptGenerator:
                         content_scope=content_scope,
                         chapter_title=chapter_title,
                         book_genres=book_genres,
+                        editor_notes=editor_notes,
                     )
                     retry_count = retry_num
                     method = f"llm_retry{retry_num}"
@@ -347,6 +354,7 @@ class ScriptGenerator:
         chapter_title: Optional[str],
         debate_config: Optional[DebateConfig],
         book_genres: Optional[list[str]],
+        editor_notes: Optional[str] = None,
     ) -> tuple[str, Optional[CoHostArchetype]]:
         """Generate a long script in multiple chunks and combine them.
 
@@ -397,6 +405,7 @@ class ScriptGenerator:
                 chapter_title=chapter_title,
                 debate_config=debate_config,
                 book_genres=book_genres,
+                editor_notes=editor_notes,
                 chunk_num=chunk_num,
                 total_chunks=num_chunks,
                 chunk_target_words=fixed_chunk_target,
@@ -543,6 +552,7 @@ class ScriptGenerator:
         content_scope: str = "the book",
         chapter_title: Optional[str] = None,
         book_genres: Optional[list[str]] = None,
+        editor_notes: Optional[str] = None,
     ) -> tuple[str, Optional[CoHostArchetype]]:
         """Generate script using LLM. Returns (script, cohost_archetype)."""
         retry_info = f" (RETRY #{retry_count} with enhanced prompt)" if retry_count > 0 else ""
@@ -583,6 +593,7 @@ class ScriptGenerator:
                 chapter_title=chapter_title,
                 debate_config=debate_config,
                 book_genres=book_genres,
+                editor_notes=editor_notes,
             )
 
         # Single-call generation for shorter scripts
@@ -605,6 +616,7 @@ class ScriptGenerator:
             chapter_title=chapter_title,
             debate_config=debate_config,
             book_genres=book_genres,
+            editor_notes=editor_notes,
         )
 
         # Request more words on retries
