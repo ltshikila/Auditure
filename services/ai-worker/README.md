@@ -61,13 +61,30 @@ May hit token limits                   Chunk 2: "Generate middle, avoid: [topics
 - Quality sweet spot: Models produce better content under 1,500 words
 - Buffer for variance: Target 1,300 words/chunk, allows some overflow
 
-**Anti-repetition tracking:**
-Between chunks, we extract and pass forward:
-- Topics already covered ("compound interest", "time value of money")
-- Examples used ("the restaurant scenario with the waiter")
-- Quotes cited ("Warren Buffett's famous quote")
+**Anti-repetition (three layers):**
 
-This prevents the model from repeating itself across chunks.
+1. **Outline-first planning (primary).** Before the chunk loop, one cheap LLM call
+   (`_plan_segments`) partitions the episode's focus (including any editor's notes)
+   into N distinct beats — one per chunk. Each chunk's prompt then says "THIS part
+   covers ONLY: <beat>". This is what stops two chunks re-arguing the same thesis;
+   without it, every chunk received the identical scope and looped on it. Each chunk
+   also gets only its *slice* of the emotional arc (`build_chunk_arc_position`):
+   first chunk = opening, middle chunks = escalation/tension, last = climax +
+   resolution. Injecting the full 5-act arc into every chunk made each chunk run a
+   complete mini-episode. If planning fails, generation proceeds with layer 2 only.
+
+2. **Topic ledger (legacy fallback).** Between chunks we extract and pass forward
+   topics, examples, and quotes already used ("compound interest", "the restaurant
+   scenario"). Regex-based, so it only blocks reuse of specific nouns/examples —
+   not thesis-level looping. Kept as the fallback when planning fails.
+
+3. **Repetition gate (backstop).** After the final script is assembled we score
+   exact-phrase repetition over 5-word shingles (`_repetition_score`). If the
+   redundant-shingle ratio ≥ 0.03 or any single phrase appears ≥ 10 times, one
+   targeted rewrite pass runs (`_reduce_repetition`). The rewrite is only kept if
+   it measurably reduces repetition AND stays above the length floor — it can never
+   make a script worse. Thresholds were calibrated on real production scripts: the
+   known-looping episode scored 0.048 / x18, the worst healthy one 0.011 / x9.
 
 ## Architecture
 
@@ -95,8 +112,8 @@ ai-worker/
 
 - **Script Generation**: OpenAI GPT-4.1-mini with template fallback
 - **Chapter-Aware Scripts**: Episode introductions specify exact chapters being covered
-- **Chunked Generation**: Long scripts (>1800 words) split into multiple chunks with topic tracking
-- **Anti-Repetition**: Automatic extraction of covered topics and examples to prevent repetition
+- **Chunked Generation**: Long scripts (>1800 words) split into multiple chunks, each assigned a distinct beat via outline-first planning
+- **Anti-Repetition**: Three layers — outline-first segment planning, topic-ledger fallback, and a post-assembly repetition gate with a targeted rewrite pass (see "Why Chunked Generation?")
 - **Text-to-Speech**: Gemini 2.5 Flash TTS (premium) + Google Cloud Standard (free tier)
 - **Live Transcript Timing**: Optional self-hosted forced alignment (wav2vec2, CPU) produces per-line timestamps for highlight/auto-scroll/tap-to-seek. Non-vital and crash-safe — never blocks generation
 - **Voice Tiers**: Standard ($4/1M chars) or Gemini (~$0.15/10-min episode)
@@ -365,23 +382,21 @@ This ensures listeners know exactly what content is being discussed.
 
 For target scripts exceeding 1,800 words, the generator uses **chunked generation**:
 
-1. Script is split into multiple chunks (~1,300 words each)
-2. Each chunk has position-specific instructions (intro/middle/conclusion)
-3. Context from previous chunks is passed forward
-4. Topics and examples are tracked to prevent repetition
+1. An upfront planning call (`_plan_segments`) divides the episode's focus into one distinct beat per chunk (editor's notes constrain the plan when present)
+2. Script is split into multiple chunks (~1,300 words each), each owning its assigned beat
+3. Each chunk gets position-specific instructions AND only its slice of the emotional arc (opening / escalation / climax+resolution) — never the full arc
+4. Context from previous chunks is passed forward
+5. Topics and examples are tracked as a fallback when planning fails
 
 #### Anti-Repetition System
 
-Between chunks, the system extracts and tracks:
+Three layers (see "Why Chunked Generation?" above for rationale):
 
-| Tracked Item | Example |
-|--------------|---------|
-| **Topics** | "the power of compound interest" |
-| **Examples** | "the restaurant scenario with the waiter" |
-| **Quotes** | "time is money" |
-| **References** | "Warren Buffett", "Apple Inc." |
-
-Subsequent chunks are explicitly instructed to avoid repeating these elements and use fresh examples.
+| Layer | Mechanism | Catches |
+|-------|-----------|---------|
+| **Segment plan** | One beat per chunk, distinct by construction | Thesis-level looping (chunks re-arguing the same point) |
+| **Topic ledger** | Regex-extracted topics/examples/quotes passed forward | Reuse of specific nouns and examples (fallback layer) |
+| **Repetition gate** | 5-gram shingle scoring on the final script + one conditional rewrite pass | Whatever slips through — only applied if measurably better and length-safe |
 
 ## Environment Variables
 

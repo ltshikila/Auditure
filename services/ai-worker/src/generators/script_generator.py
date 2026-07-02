@@ -209,6 +209,25 @@ class ScriptGenerator:
             )
             method = "template"
 
+        # Repetition gate: if a finalized LLM script loops, run one targeted rewrite pass.
+        # Template scripts are deterministic and skipped.
+        if script is not None and method and method.startswith("llm"):
+            score = self._repetition_score(self._normalize_for_scoring(script))
+            if self._is_repetitive(score):
+                logger.warning(
+                    f"Repetition gate tripped (redundant_ratio={score['ratio']:.3f}, "
+                    f"top_phrase=\"{score['top_phrase']}\" x{score['max_phrase_count']}); "
+                    "running dedup pass"
+                )
+                # Don't let the rewrite shrink the episode below ~0.7x the requested minimum.
+                min_words = int(target_length_min * wpm * 0.7)
+                script = self._reduce_repetition(
+                    script,
+                    episode_type=episode_type,
+                    min_words=min_words,
+                    top_phrase=score["top_phrase"],
+                )
+
         # Calculate duration and validate
         word_count = len(script.split())
         estimated_duration_seconds = self._estimate_duration_seconds(word_count, wpm)
@@ -371,6 +390,17 @@ class ScriptGenerator:
             f"(total target: {target_words} words)"
         )
 
+        # Outline-first: assign each chunk a distinct beat so chunks don't re-argue the
+        # same thesis. Empty on failure — we then fall back to the legacy topic-ledger.
+        segments = self._plan_segments(
+            book_content=book_content,
+            book_title=book_title,
+            content_scope=content_scope,
+            episode_theme=episode_theme,
+            editor_notes=editor_notes,
+            num_chunks=num_chunks,
+        )
+
         chunks = []
         cohost_archetype = None
         previous_summary = ""
@@ -411,6 +441,7 @@ class ScriptGenerator:
                 chunk_target_words=fixed_chunk_target,
                 previous_summary=previous_summary if chunk_num > 1 else None,
                 topics_covered=topics_covered if chunk_num > 1 else None,
+                segment_brief=segments[chunk_num - 1] if segments else None,
             )
 
             logger.info(f"Generating chunk {chunk_num}/{num_chunks}...")
@@ -451,6 +482,86 @@ class ScriptGenerator:
         logger.info(f"Combined script: {total_words} words from {num_chunks} chunks")
 
         return combined_script, cohost_archetype
+
+    def _plan_segments(
+        self,
+        *,
+        book_content: str,
+        book_title: str,
+        content_scope: str,
+        episode_theme: str,
+        editor_notes: Optional[str],
+        num_chunks: int,
+    ) -> list[str]:
+        """Outline-first planning: split the episode's focus into num_chunks DISTINCT beats.
+
+        Chunked generation used to divide the script by word budget only, handing every
+        chunk the same scope + full arc, so chunks re-argued the same thesis. This makes
+        one upfront LLM call to partition the focus into a different beat per chunk.
+
+        Returns a list of segment briefs with len == num_chunks, or [] on any failure
+        (caller falls back to the legacy topic-ledger, so this never blocks generation).
+        """
+        if not self.llm_client.is_available:
+            return []
+
+        if editor_notes and editor_notes.strip():
+            focus_line = (
+                "The editor's steering is the HIGHEST priority — every segment MUST stay "
+                f'within this focus:\n"{editor_notes.strip()}"\n\n'
+            )
+        else:
+            focus_line = ""
+
+        theme_hint = {
+            "DEBATE": "Each segment should advance the debate to a DIFFERENT point of contention or line of evidence — not the same argument re-stated.",
+            "DISCUSSION": "Each segment should explore a DIFFERENT facet, tension, or question — not circle the same observation.",
+            "LECTURE": "Each segment should teach a DIFFERENT concept or stage of the material — not re-explain the same idea.",
+        }.get(episode_theme, "Each segment should cover different ground.")
+
+        # A sample is enough to plan beats; keep the planning call cheap on long sources.
+        sample = book_content.strip()
+        if len(sample) > 10000:
+            sample = sample[:7000] + "\n...\n" + sample[-3000:]
+
+        prompt = f"""You are planning a {num_chunks}-part podcast episode about "{book_title}" covering {content_scope}.
+
+{focus_line}Divide the episode into EXACTLY {num_chunks} sequential segments. Each segment must cover a DISTINCT beat, scene, sub-argument, or sub-topic. NO two segments may make the same point, re-argue the same thesis, or reuse the same key scene. Together they should form ONE continuous arc from open to close. {theme_hint}
+
+Return EXACTLY {num_chunks} lines, numbered 1 to {num_chunks}. Each line is a specific, concrete brief (1-2 sentences) naming what THAT segment covers and the fresh material or events it draws on. Output ONLY the numbered lines, nothing else.
+
+SOURCE CONTENT (only use what is here; never invent material):
+{sample}
+"""
+        try:
+            raw = self.llm_client.generate_text(prompt, max_tokens=700, temperature=0.5)
+            segments = self._parse_segment_plan(raw, num_chunks)
+        except Exception as e:
+            logger.warning(f"Segment planning failed, falling back to topic-ledger: {e}")
+            return []
+        if len(segments) != num_chunks:
+            logger.warning(
+                f"Segment plan yielded {len(segments)} beats for {num_chunks} chunks; "
+                "falling back to topic-ledger"
+            )
+            return []
+
+        logger.info(f"Segment plan ({num_chunks} beats): {segments}")
+        return segments
+
+    def _parse_segment_plan(self, raw: str, num_chunks: int) -> list[str]:
+        """Parse numbered segment briefs from the planner response."""
+        segments = []
+        for line in raw.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            match = re.match(r"^(?:segment\s*)?#?\d+\s*[.):\-]\s*(.+)$", line, re.IGNORECASE)
+            if match:
+                brief = match.group(1).strip()
+                if len(brief) >= 10:
+                    segments.append(brief)
+        return segments[:num_chunks]
 
     def _extract_topics_from_chunk(self, chunk_script: str) -> list[str]:
         """Extract key topics, concepts, and examples from a chunk to avoid repetition."""
@@ -532,6 +643,121 @@ class ScriptGenerator:
                 combined.append("\n")
             combined.append(chunk)
         return "\n".join(combined)
+
+    # --- Repetition gate ------------------------------------------------------
+    # Objective backstop: even with outline-first chunking, a script can still loop.
+    # We measure exact-phrase repetition and, if it's clearly bad, run one targeted
+    # rewrite pass. Thresholds calibrated on 6 real prod scripts (2026-07): the
+    # known-looping episode scored ratio=0.048 / top phrase x18; the worst healthy
+    # script scored ratio=0.011 / x9 (the x9 being the book's era name, natural for
+    # a 25-min episode). Thresholds sit in the gap so proper-noun reuse never trips.
+    _REP_REDUNDANT_5GRAM_RATIO = 0.03  # fraction of 5-grams that are duplicates
+    _REP_MAX_PHRASE_COUNT = 10         # any single 5-gram repeated this many times
+
+    def _normalize_for_scoring(self, script: str) -> str:
+        """Strip speaker labels and TTS markup so scoring sees only spoken words."""
+        text = re.sub(r"(?im)^\s*(?:HOST|GUEST)\s*:", " ", script)
+        text = re.sub(r"\[[^\]]+\]", " ", text)  # remove [sigh], [short pause], etc.
+        return text
+
+    def _repetition_score(self, script: str) -> dict:
+        """Compute exact-phrase repetition signals over 5-word shingles."""
+        words = re.findall(r"[a-z0-9']+", script.lower())
+        n = len(words)
+        if n < 60:
+            return {"ratio": 0.0, "max_phrase_count": 0, "top_phrase": ""}
+
+        grams: dict[str, int] = {}
+        for i in range(n - 4):
+            gram = " ".join(words[i:i + 5])
+            grams[gram] = grams.get(gram, 0) + 1
+
+        total = sum(grams.values())
+        distinct = len(grams)
+        redundant_ratio = 1 - (distinct / total) if total else 0.0
+        top_phrase, max_count = max(grams.items(), key=lambda kv: kv[1])
+        return {
+            "ratio": redundant_ratio,
+            "max_phrase_count": max_count,
+            "top_phrase": top_phrase,
+        }
+
+    def _is_repetitive(self, score: dict) -> bool:
+        return (
+            score["ratio"] >= self._REP_REDUNDANT_5GRAM_RATIO
+            or score["max_phrase_count"] >= self._REP_MAX_PHRASE_COUNT
+        )
+
+    def _reduce_repetition(
+        self,
+        script: str,
+        *,
+        episode_type: str,
+        min_words: int,
+        top_phrase: str,
+    ) -> str:
+        """One editing pass to de-loop a repetitive script.
+
+        Returns the rewrite only if it is a genuine improvement AND still long enough;
+        otherwise returns the original untouched (the gate must never make things worse).
+        """
+        if not self.llm_client.is_available:
+            return script
+
+        label_rule = (
+            "Keep every 'HOST:' and 'GUEST:' speaker label exactly as-is."
+            if episode_type == "DUO"
+            else "This is a single-speaker script — do not add speaker labels."
+        )
+        prompt = f"""The following podcast script is too repetitive — it restates the same points, phrases, and images instead of moving forward. Rewrite it so it does not repeat itself.
+
+RULES:
+- Preserve the overall length (stay within ~10% of the original word count). Where you cut a repeated point, replace it with a DIFFERENT concrete detail or beat that is already supported by the script — do NOT pad with filler and do NOT invent new facts.
+- Every paragraph/turn must advance the episode. Do not reuse a phrase, argument, or image that already appeared.
+- Keep the same speakers, tone, structure, and all TTS markup tags (e.g. [sigh], [short pause]). {label_rule}
+- Keep the opening hook and the closing goodbye intact.
+- The single most over-used phrase was: "{top_phrase}". It must appear at most twice in the whole script.
+
+Return ONLY the rewritten script, nothing else.
+
+SCRIPT:
+{script}
+"""
+        try:
+            target_tokens = int(len(script.split()) * 1.8) + 200
+            revised = self.llm_client.generate_text(
+                prompt,
+                max_tokens=min(target_tokens, self.llm_client.max_tokens),
+                temperature=0.6,
+            )
+        except Exception as e:
+            logger.warning(f"Repetition-reduction pass failed, keeping original: {e}")
+            return script
+
+        revised = self._clean_script(revised, episode_type)
+        revised_words = len(revised.split())
+        if revised_words < min_words:
+            logger.info(
+                f"Dedup pass dropped below floor ({revised_words} < {min_words} words); "
+                "keeping original"
+            )
+            return script
+
+        before = self._repetition_score(self._normalize_for_scoring(script))
+        after = self._repetition_score(self._normalize_for_scoring(revised))
+        if (
+            after["ratio"] >= before["ratio"]
+            and after["max_phrase_count"] >= before["max_phrase_count"]
+        ):
+            logger.info("Dedup pass did not reduce repetition; keeping original")
+            return script
+
+        logger.info(
+            f"Dedup pass applied: redundant_ratio {before['ratio']:.3f}->{after['ratio']:.3f}, "
+            f"max_phrase {before['max_phrase_count']}->{after['max_phrase_count']}, "
+            f"words {len(script.split())}->{revised_words}"
+        )
+        return revised
 
     def _generate_with_llm(
         self,
