@@ -306,6 +306,10 @@ class ScriptRequest:
     chunk_target_words: Optional[int] = None  # Per-chunk word target (overrides calculated)
     previous_summary: Optional[str] = None  # Last ~3 sentences from previous chunk
     topics_covered: Optional[list[str]] = None  # Anti-repetition list from prior chunks
+    # Outline-first planning: the specific beat/sub-topic THIS chunk must cover.
+    # Divides the episode by CONTENT so two chunks can't re-argue the same thesis
+    # (the topic-ledger only blocked noun/example reuse, not argument-level looping).
+    segment_brief: Optional[str] = None
 
 
 class PromptBuilder:
@@ -730,6 +734,59 @@ The critical exchange where the core disagreement crystallizes. The audience sho
 **5. RESOLUTION (~{w(0.20)} words, ~20%)**
 Land the plane — how does this debate resolve? Not a cop-out ending. A genuine conclusion that reflects the outcome."""
 
+    def build_chunk_arc_position(
+        self,
+        episode_theme: str,
+        chunk_num: int,
+        total_chunks: int,
+    ) -> str:
+        """Position-aware slice of the emotional arc for one chunk.
+
+        The full pacing structure (build_pacing_structure) tells the model to run a
+        complete 5-act arc. Injecting that whole arc into EVERY chunk made each chunk
+        run its own opening -> climax -> resolution, so a 3-chunk episode restated the
+        same thesis three times. For chunked generation we instead give each chunk only
+        the phase of the arc that matches its position, so the arc unfolds ONCE across
+        the whole episode.
+        """
+        is_first = chunk_num == 1
+        is_last = chunk_num == total_chunks
+
+        if episode_theme == "DEBATE":
+            opening = ("OPENING SALVOS + first EVIDENCE. Both sides stake out their positions on "
+                       "this part's material and start making their case. Do NOT reach the climax "
+                       "or resolve anything — that comes later.")
+            middle = ("ESCALATION. This is the heated middle: direct rebuttals and the sharpest "
+                      "clashes over this part's material. No position-restating opening, no wrap-up.")
+            closing = ("CLIMAX + RESOLUTION. The core disagreement crystallizes and the debate "
+                       "lands. This is where the episode concludes.")
+        elif episode_theme == "DISCUSSION":
+            opening = ("SPARK + EXPLORATION. Open the thread and surface the first genuine reactions "
+                       "and tensions in this part's material. Do NOT reach a breakthrough or wrap up yet.")
+            middle = ("TENSION. Dig into the genuinely hard questions in this part's material and push "
+                      "each other. No re-introduction of the topic, no closing takeaways.")
+            closing = ("BREAKTHROUGH + REFLECTION. Work the tension through to new understanding and "
+                       "land the closing takeaway. This is where the episode concludes.")
+        else:  # LECTURE
+            opening = ("HOOK + BUILD. Open with the concrete hook and set up this part's material. "
+                       "Do NOT deliver the final payoff or wrap up yet.")
+            middle = ("CORE. The deep middle — develop this part's material with depth and examples. "
+                      "No re-introduction, no conclusion.")
+            closing = ("CLIMAX + CLOSE. The ideas crystallize into the payoff and the actionable "
+                       "takeaway. This is where the episode concludes.")
+
+        if is_first:
+            phase = opening
+        elif is_last:
+            phase = closing
+        else:
+            phase = middle
+
+        return f"""## WHERE THIS PART SITS IN THE EPISODE ARC
+This episode runs ONE emotional arc across all {total_chunks} parts. Do NOT run the full
+arc inside this single part — that is what makes episodes feel repetitive.
+Your job in THIS part (Part {chunk_num} of {total_chunks}): {phase}"""
+
     def _build_chunk_position_instructions(
         self,
         chunk_num: int,
@@ -741,6 +798,7 @@ Land the plane — how does this debate resolve? Not a cop-out ending. A genuine
         book_title: str,
         chapter_title: Optional[str] = None,
         editor_notes: Optional[str] = None,
+        segment_brief: Optional[str] = None,
     ) -> str:
         """Build position-specific instructions for chunked generation."""
         is_first = chunk_num == 1
@@ -757,6 +815,22 @@ Land the plane — how does this debate resolve? Not a cop-out ending. A genuine
             if editor_notes and editor_notes.strip()
             else ""
         )
+
+        # Outline-first division of labor: this part owns ONE beat of the episode.
+        # This is what actually stops two chunks re-arguing the same thesis — the
+        # topic-ledger below only blocked reuse of specific nouns/examples.
+        if segment_brief and segment_brief.strip():
+            segment_focus = (
+                "\n\n## THIS PART'S ASSIGNED BEAT (COVER ONLY THIS)\n"
+                "The episode's focus has been divided across the "
+                f"{total_chunks} parts. THIS part covers ONLY:\n\n"
+                f"{segment_brief.strip()}\n\n"
+                "Advance THIS specific beat with concrete detail from the source. Do NOT cover "
+                "the material assigned to the other parts, and do NOT restate the episode's "
+                "overall thesis in general terms — the other parts handle the rest of the arc."
+            )
+            # Prepend so the assigned beat leads the reminders block.
+            focus_reminder = segment_focus + focus_reminder
 
         if is_first:
             return f"""## CHUNK POSITION: Part {chunk_num} of {total_chunks} — INTRODUCTION
@@ -1897,12 +1971,21 @@ Treat this as the steering wheel for the ENTIRE episode:
             book_title=request.book_title,
         )
 
-        # Build emotional pacing structure
-        pacing_section = self.build_pacing_structure(
-            episode_theme=request.episode_theme,
-            book_genres=request.book_genres,
-            target_words=target_words,
-        )
+        # Build emotional pacing structure.
+        # For chunked generation, use only this chunk's slice of the arc — injecting the
+        # full 5-act arc into every chunk makes each chunk restate the same thesis.
+        if request.chunk_num is not None and request.total_chunks is not None:
+            pacing_section = self.build_chunk_arc_position(
+                episode_theme=request.episode_theme,
+                chunk_num=request.chunk_num,
+                total_chunks=request.total_chunks,
+            )
+        else:
+            pacing_section = self.build_pacing_structure(
+                episode_theme=request.episode_theme,
+                book_genres=request.book_genres,
+                target_words=target_words,
+            )
 
         # Build conversation flow for DUO episodes
         cohost_archetype = None
@@ -1962,6 +2045,7 @@ Treat this as the steering wheel for the ENTIRE episode:
                 book_title=request.book_title,
                 chapter_title=request.chapter_title,
                 editor_notes=request.editor_notes,
+                segment_brief=request.segment_brief,
             )
             if request.topics_covered or request.previous_summary:
                 chunk_context_section = self._build_chunk_context(
