@@ -34,9 +34,11 @@ const LINE_HEIGHT = 64;
 // Master kill-switch: set to false to force every episode back to static mode.
 const SYNC_MASTER_ENABLED = true;
 
-// Advance the highlight slightly to counter position-polling latency and perceived
-// lag, so a line lights up as you hear it rather than a beat later. Tune if needed.
-const SYNC_LEAD_MS = 250;
+// Advance the highlight slightly to counter position-polling latency. Position is
+// polled every 250ms, so the sample can be up to 250ms stale; leading by ~half the
+// poll interval centers the error (instead of a full 250ms lead, which pushed the
+// highlight AHEAD of the voice at line transitions). Tune if needed.
+const SYNC_LEAD_MS = 125;
 
 const LIGHT_COLORS = {
     background: '#FBF8F2',
