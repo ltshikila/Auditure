@@ -24,8 +24,26 @@ import { useIsDark } from '@/hooks/use-colors';
 const booksIcon = require('@/assets/icons/books_fill.png');
 const backIcon = require('@/assets/icons/back.png');
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 const LINE_HEIGHT = 64;
+
+// Estimated row-height model for scroll-offset math. Rows are variable height
+// (wrapped sentences) with no getItemLayout, so far scrollToIndex jumps can't
+// measure their target. We estimate each row from its text length using the
+// non-highlighted typography (fontSize 17 / lineHeight 24, ~0.52em avg glyph
+// width for Inter) and the row's paddingVertical (14 * 2). Estimates only need
+// to be good enough to land within a screen of the target; a precise
+// scrollToIndex snap follows once the rows are measured.
+const ROW_TEXT_LINE_HEIGHT = 24;
+const ROW_V_PADDING = 28;
+const ROW_AVG_CHAR_WIDTH = 17 * 0.52;
+const ROW_TEXT_WIDTH = SCREEN_WIDTH - 48; // paddingHorizontal 24 each side
+const LIST_HEADER_HEIGHT = SCREEN_HEIGHT * 0.3; // ListHeaderComponent spacer
+
+function estimateRowHeight(text: string): number {
+    const wrappedLines = Math.max(1, Math.ceil((text.length * ROW_AVG_CHAR_WIDTH) / ROW_TEXT_WIDTH));
+    return Math.max(LINE_HEIGHT, wrappedLines * ROW_TEXT_LINE_HEIGHT + ROW_V_PADDING);
+}
 
 // Live sync (highlight + auto-scroll + tap-to-seek) turns on per-episode when the
 // backend ships real forced-alignment timestamps (episode.transcriptSegments).
@@ -229,8 +247,16 @@ export default function TranscriptScreen() {
     const [userScrolling, setUserScrolling] = useState(false);
     const flatListRef = useRef<FlatList>(null);
     const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const snapTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastScrolledIndex = useRef<number>(-1);
     const hasInitialScrolled = useRef(false);
+
+    useEffect(() => {
+        return () => {
+            if (snapTimeout.current) clearTimeout(snapTimeout.current);
+            if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
+        };
+    }, []);
 
     const {
         episode: playbackEpisode,
@@ -262,6 +288,25 @@ export default function TranscriptScreen() {
         if (transcriptLines.length === 0) return 0;
         return getCurrentLineIndex(transcriptLines, currentPosition + SYNC_LEAD_MS, hasTiming);
     }, [transcriptLines, currentPosition, hasTiming]);
+
+    // Cumulative estimated top-offset of each row (including the list header
+    // spacer), so far jumps can scrollToOffset near the target immediately
+    // instead of relying on RN's crude averageItemLength guess.
+    const estimatedOffsets = useMemo(() => {
+        const offsets = new Array<number>(transcriptLines.length);
+        let acc = LIST_HEADER_HEIGHT;
+        for (let i = 0; i < transcriptLines.length; i++) {
+            offsets[i] = acc;
+            acc += estimateRowHeight(transcriptLines[i].text);
+        }
+        return offsets;
+    }, [transcriptLines]);
+
+    // Offset that puts the row's estimated top at the vertical center of the list.
+    const centeredOffsetFor = useCallback((index: number) => {
+        const rowTop = estimatedOffsets[index] ?? 0;
+        return Math.max(0, rowTop - SCREEN_HEIGHT * 0.4);
+    }, [estimatedOffsets]);
 
     useEffect(() => {
         if (!isPlaybackEpisode) {
@@ -296,15 +341,30 @@ export default function TranscriptScreen() {
         if (currentLineIndex === lastScrolledIndex.current) return;
 
         lastScrolledIndex.current = currentLineIndex;
-        // First sync (on open) jumps instantly; later updates animate smoothly.
-        const animated = hasInitialScrolled.current;
-        hasInitialScrolled.current = true;
+        if (!hasInitialScrolled.current) {
+            hasInitialScrolled.current = true;
+            // First sync (on open): far rows aren't measured yet, so scrollToIndex
+            // can't land. Jump straight to the estimated offset (no visible hunt),
+            // let the rows around the target render, then snap precisely.
+            flatListRef.current?.scrollToOffset({
+                offset: centeredOffsetFor(currentLineIndex),
+                animated: false,
+            });
+            snapTimeout.current = setTimeout(() => {
+                flatListRef.current?.scrollToIndex({
+                    index: lastScrolledIndex.current,
+                    animated: false,
+                    viewPosition: 0.5,
+                });
+            }, 150);
+            return;
+        }
         flatListRef.current?.scrollToIndex({
             index: currentLineIndex,
-            animated,
+            animated: true,
             viewPosition: 0.5,
         });
-    }, [currentLineIndex, userScrolling, transcriptLines.length, hasTiming]);
+    }, [currentLineIndex, userScrolling, transcriptLines.length, hasTiming, centeredOffsetFor]);
 
     const handleScrollBegin = useCallback(() => {
         setUserScrolling(true);
@@ -350,15 +410,20 @@ export default function TranscriptScreen() {
         />
     ), [currentLineIndex, handleLineTap, COLORS]);
 
-    const onScrollToIndexFailed = useCallback((info: { index: number; averageItemLength: number }) => {
-        // The target row isn't measured yet (common when jumping far on open). Jump to an
-        // estimated offset to force those rows to render, then land precisely on the row.
-        const offset = Math.max(0, info.averageItemLength * info.index);
-        flatListRef.current?.scrollToOffset({ offset, animated: false });
-        setTimeout(() => {
+    const onScrollToIndexFailed = useCallback((info: { index: number }) => {
+        // The target row isn't measured yet (jumping far, e.g. tapping a distant
+        // line). Jump to our text-length-based offset estimate — much closer than
+        // RN's averageItemLength guess — to force those rows to render, then land
+        // precisely on the row.
+        flatListRef.current?.scrollToOffset({
+            offset: centeredOffsetFor(info.index),
+            animated: false,
+        });
+        if (snapTimeout.current) clearTimeout(snapTimeout.current);
+        snapTimeout.current = setTimeout(() => {
             flatListRef.current?.scrollToIndex({ index: info.index, animated: false, viewPosition: 0.5 });
-        }, 80);
-    }, []);
+        }, 100);
+    }, [centeredOffsetFor]);
 
     // Bottom padding to account for mini player
     const bottomPadding = MINI_PLAYER_HEIGHT + insets.bottom + 16;
