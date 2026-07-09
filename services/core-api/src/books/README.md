@@ -570,7 +570,9 @@ Handles cover image extraction with fallback strategy:
 - `scoreGoogleBooksResult()` - Score candidates by title match, author, page count (replaces first-match-wins)
 - `isDerivativeWork()` - Filter out summaries, workbooks, study guides, cliff notes, etc.
 - `extractPdfCover()` - Extract embedded images or render first page
-- `extractEpubCover()` - Extract cover from EPUB metadata (partial)
+- `extractEpubCover()` - Unzip the EPUB and pull the embedded cover from the OPF manifest
+- `fetchWithRetry()` - fetch with exponential backoff on 429/503
+- `buildSearchTitle()` - strip series/edition parentheticals for cover search
 - Title validation to prevent incorrect cover matches
 - High-resolution image upgrade (zoom=4)
 
@@ -818,11 +820,13 @@ The `CoverExtractionService` automatically extracts or fetches cover images duri
 Cover images are obtained using a priority-based fallback strategy:
 
 ```
-1. Google Books API (highest quality)
+1. Google Books API (highest quality; API key + 429 backoff)
    ↓ (if no match found)
-2. PDF/EPUB File Extraction
+2. Open Library
+   ↓ (if no match found)
+3. PDF/EPUB File Extraction (EPUB = unzip + OPF manifest)
    ↓ (if extraction fails)
-3. No cover image
+4. No cover image
 ```
 
 ### Google Books API (Primary)
@@ -861,6 +865,12 @@ This prevents matching a 73-page "The Laws of Human Nature: Summary and Illustra
 Before searching Google Books, PDF/EPUB metadata is cleaned:
 - **Titles:** Strip download site tags (`(PDFDrive.com)`, `[BooksLD]`, `(z-lib.org)`), file extensions, "Free PDF" suffixes
 - **Authors:** Reject software names (`calibre`, `Adobe`), publisher names (`Penguin`, `HarperCollins`), websites, and placeholders (`unknown`, `N/A`)
+
+**Search-title normalization (`buildSearchTitle`):** in addition to the cleaning above, the cover search strips series/edition parentheticals and bracket groups, because external catalogs index the core title. `Sunrise on the Reaping (A Hunger Games Novel) (The Hunger Games)` is searched (and matched) as `Sunrise on the Reaping`. This only affects the title sent to Google Books / Open Library — the stored book title keeps its full form.
+
+**Rate limiting & API key:**
+- Requests use exponential backoff on `429`/`503` (`fetchWithRetry`). Google Books rate-limits unauthenticated requests aggressively, and back-to-back cover lookups were hitting hard `429`s.
+- If `GOOGLE_BOOKS_API_KEY` is set, it is appended to every request, raising the quota well above the unauthenticated limit. The key is **optional**: absent, the service falls back to unauthenticated requests plus backoff. To activate it in prod, create the `GOOGLE_BOOKS_API_KEY` secret and add it to the `book-extractor` job (and core-api) `--set-secrets` in `deploy.yml`.
 
 **Additional Features:**
 - Placeholder image detection via PNG compression ratio analysis
@@ -902,10 +912,24 @@ When Google Books doesn't have a cover, extracts from the PDF file:
 
 ### EPUB Cover Extraction
 
-Looks for cover in EPUB metadata:
-- Checks `metadata.cover` property
-- Searches manifest for `cover-image` ID
-- Note: EPUB extraction is partially implemented
+Extracts the embedded cover directly from the EPUB (a ZIP archive) using `jszip`:
+1. Read `META-INF/container.xml` to locate the OPF package document (falls back to the first `.opf` in the archive)
+2. Parse the OPF manifest for the cover image, in priority order:
+   - EPUB3 item with `properties="cover-image"`
+   - `<meta name="cover" content="ID">` pointing to a manifest item
+   - a manifest item whose `id` or `href` contains "cover" and is an image
+3. Resolve the href relative to the OPF directory (handling `../`) and read the image bytes from the archive
+
+Returns a locally-stored cover (`source: "epub_extraction"`). This is a reliable offline fallback that cannot be rate-limited, so an EPUB with an embedded cover no longer ends up coverless when the external APIs fail.
+
+**Example Response:**
+```typescript
+{
+  coverImageUrl: "/api/storage/{userId}/{bookId}/cover.jpg",
+  coverImageKey: "{userId}/{bookId}/cover.jpg",
+  source: "epub_extraction"
+}
+```
 
 ### Cover URL Resolution
 

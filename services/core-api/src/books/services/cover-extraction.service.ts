@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import JSZip from 'jszip';
 import { normalizeBookTitle, titlesMatch as utilTitlesMatch } from '../utils/book-matching.utils';
 
 export interface CoverExtractionResult {
@@ -18,6 +19,52 @@ interface GoogleBooksResult {
 @Injectable()
 export class CoverExtractionService {
     private readonly logger = new Logger(CoverExtractionService.name);
+
+    /**
+     * Optional Google Books API key. When set, raises the per-IP quota well above
+     * the tiny unauthenticated limit that was causing 429s on cover lookups.
+     * Falls back to unauthenticated requests (plus backoff) when absent.
+     */
+    private readonly googleBooksApiKey = process.env.GOOGLE_BOOKS_API_KEY?.trim() || undefined;
+
+    /**
+     * Strip series/edition parentheticals and bracket groups from a title so cover
+     * lookups match on the core title. External catalogs index the core title, so
+     * "Sunrise on the Reaping (A Hunger Games Novel) (The Hunger Games)" only matches
+     * once reduced to "Sunrise on the Reaping". Falls back to the original if
+     * stripping would empty the title.
+     */
+    private buildSearchTitle(title?: string): string | undefined {
+        if (!title) return title;
+        const stripped = title
+            .replace(/\s*[([{][^)\]}]*[)\]}]/g, ' ') // remove ( ... ), [ ... ], { ... }
+            .replace(/\s+/g, ' ')
+            .trim();
+        return stripped || title;
+    }
+
+    /**
+     * fetch() with exponential backoff on transient rate-limit/unavailable responses
+     * (429, 503). Google Books rate-limits unauthenticated requests aggressively;
+     * a short backoff turns a hard 429 failure into a successful retry.
+     */
+    private async fetchWithRetry(url: string, maxAttempts = 3): Promise<Response> {
+        let response!: Response;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            response = await fetch(url);
+            if (response.status !== 429 && response.status !== 503) {
+                return response;
+            }
+            if (attempt < maxAttempts) {
+                const delayMs = 400 * 2 ** (attempt - 1); // 400ms, 800ms
+                this.logger.warn(
+                    `Rate-limited (${response.status}), retrying in ${delayMs}ms (attempt ${attempt}/${maxAttempts})`,
+                );
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+            }
+        }
+        return response;
+    }
 
     /**
      * Extract or fetch cover image for a book.
@@ -75,7 +122,7 @@ export class CoverExtractionService {
             if (sourceType === 'PDF') {
                 imageBuffer = await this.extractPdfCover(fileBuffer);
             } else if (sourceType === 'EPUB') {
-                imageBuffer = this.extractEpubCover(fileBuffer);
+                imageBuffer = await this.extractEpubCover(fileBuffer);
             }
 
             if (imageBuffer && imageBuffer.length > 0) {
@@ -148,10 +195,14 @@ export class CoverExtractionService {
     }): Promise<string | null> {
         if (!metadata.title) return null;
 
+        // Strip series/edition parentheticals so "Sunrise on the Reaping (A Hunger
+        // Games Novel) (The Hunger Games)" searches as "Sunrise on the Reaping".
+        const searchTitle = this.buildSearchTitle(metadata.title) || metadata.title;
+
         try {
             // Build search URL
             const params = new URLSearchParams({
-                title: metadata.title,
+                title: searchTitle,
                 limit: '5',
                 fields: 'title,author_name,cover_i,edition_count',
             });
@@ -160,7 +211,7 @@ export class CoverExtractionService {
             }
 
             const url = `https://openlibrary.org/search.json?${params.toString()}`;
-            this.logger.log(`Open Library search: "${metadata.title}" by "${metadata.author}"`);
+            this.logger.log(`Open Library search: "${searchTitle}" by "${metadata.author}"`);
 
             const response = await fetch(url);
             if (!response.ok) {
@@ -180,7 +231,7 @@ export class CoverExtractionService {
 
                 // Verify title is a reasonable match
                 const returnedTitle = (doc.title || '').toLowerCase();
-                const expectedTitle = metadata.title.toLowerCase();
+                const expectedTitle = searchTitle.toLowerCase();
                 if (
                     !returnedTitle.includes(expectedTitle) &&
                     !expectedTitle.includes(returnedTitle)
@@ -235,6 +286,13 @@ export class CoverExtractionService {
             `[fetchGoogleBooksCover] Called with metadata: ${JSON.stringify(metadata)}`,
         );
 
+        // Strip series/edition parentheticals so "Sunrise on the Reaping (A Hunger
+        // Games Novel) (The Hunger Games)" searches (and matches) as the core title.
+        const searchTitle = this.buildSearchTitle(metadata.title);
+        if (searchTitle && searchTitle !== metadata.title) {
+            this.logger.log(`Cover search title cleaned: "${metadata.title}" -> "${searchTitle}"`);
+        }
+
         // Build list of queries to try in order
         const queries: string[] = [];
 
@@ -244,15 +302,15 @@ export class CoverExtractionService {
         }
 
         // 2. Title + Author search
-        if (metadata.title && metadata.author) {
+        if (searchTitle && metadata.author) {
             queries.push(
-                `intitle:${encodeURIComponent(metadata.title)}+inauthor:${encodeURIComponent(metadata.author)}`,
+                `intitle:${encodeURIComponent(searchTitle)}+inauthor:${encodeURIComponent(metadata.author)}`,
             );
         }
 
         // 3. Title only search (fallback - PDF author metadata is often wrong/publisher name)
-        if (metadata.title) {
-            queries.push(`intitle:${encodeURIComponent(metadata.title)}`);
+        if (searchTitle) {
+            queries.push(`intitle:${encodeURIComponent(searchTitle)}`);
         }
 
         if (queries.length === 0) {
@@ -271,7 +329,7 @@ export class CoverExtractionService {
         // Try each query until we find a cover
         for (const query of queries) {
             this.logger.log(`Trying Google Books query: ${query}`);
-            const result = await this.tryGoogleBooksQuery(query, metadata.title, metadata.author);
+            const result = await this.tryGoogleBooksQuery(query, searchTitle, metadata.author);
             if (result) {
                 return result;
             }
@@ -400,10 +458,11 @@ export class CoverExtractionService {
         expectedAuthor?: string,
     ): Promise<GoogleBooksResult | null> {
         try {
-            const url = `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=5`;
+            const keyParam = this.googleBooksApiKey ? `&key=${this.googleBooksApiKey}` : '';
+            const url = `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=5${keyParam}`;
             this.logger.debug(`Google Books API query: ${url}`);
 
-            const response = await fetch(url);
+            const response = await this.fetchWithRetry(url);
             if (!response.ok) {
                 this.logger.warn(`Google Books API error: ${response.status}`);
                 return null;
@@ -717,16 +776,148 @@ export class CoverExtractionService {
     }
 
     /**
-     * Extract cover image from EPUB.
-     * Note: @gxl/epub-parser doesn't directly expose cover images,
-     * so we rely on Google Books API for EPUB covers.
+     * Extract the embedded cover image from an EPUB.
+     *
+     * An EPUB is a ZIP archive. The cover is located by:
+     * 1. Reading META-INF/container.xml to find the OPF package document
+     * 2. Parsing the OPF manifest for the cover image, in priority order:
+     *    a. EPUB3 item with properties="cover-image"
+     *    b. <meta name="cover" content="ID"> pointing to a manifest item
+     *    c. a manifest item whose id or href contains "cover" and is an image
+     * 3. Resolving that href relative to the OPF's directory and reading the bytes
+     *
+     * Returns null if no cover can be found (caller then leaves the book coverless).
      */
-    private extractEpubCover(_buffer: Buffer): Buffer | null {
-        // EPUB cover extraction requires parsing the OPF manifest and extracting
-        // the referenced image file from the ZIP archive. The @gxl/epub-parser
-        // library doesn't expose this functionality directly.
-        // For EPUBs, we rely on Google Books API for cover images instead.
-        this.logger.debug('EPUB cover extraction deferred to Google Books API');
+    private async extractEpubCover(buffer: Buffer): Promise<Buffer | null> {
+        try {
+            const zip = await JSZip.loadAsync(buffer);
+
+            // 1. Locate the OPF package document via the container manifest.
+            let opfPath: string | null = null;
+            const containerFile = zip.file('META-INF/container.xml');
+            if (containerFile) {
+                const containerXml = await containerFile.async('text');
+                const rootfile = containerXml.match(/<rootfile\b[^>]*\bfull-path=["']([^"']+)["']/i);
+                if (rootfile) opfPath = rootfile[1];
+            }
+            // Fallback: first .opf anywhere in the archive.
+            if (!opfPath) {
+                opfPath = Object.keys(zip.files).find(f => /\.opf$/i.test(f)) || null;
+            }
+            if (!opfPath) {
+                this.logger.debug('EPUB: no OPF package document found');
+                return null;
+            }
+
+            const opfFile = zip.file(opfPath);
+            if (!opfFile) return null;
+            const opf = await opfFile.async('text');
+            const opfDir = opfPath.includes('/') ? opfPath.replace(/\/[^/]*$/, '/') : '';
+
+            // 2. Resolve the cover image href from the manifest.
+            const coverHref = this.resolveEpubCoverHref(opf);
+            if (!coverHref) {
+                this.logger.debug('EPUB: no cover image referenced in OPF manifest');
+                return null;
+            }
+
+            // 3. Resolve the href relative to the OPF directory and read the bytes.
+            const coverPath = this.normalizeZipPath(opfDir + coverHref);
+            const coverEntry =
+                zip.file(coverPath) ||
+                zip.file(decodeURIComponent(coverPath)) ||
+                zip.file(coverHref);
+            if (!coverEntry) {
+                this.logger.debug(`EPUB: cover entry not found in archive: ${coverPath}`);
+                return null;
+            }
+
+            const imageBuffer = await coverEntry.async('nodebuffer');
+            if (imageBuffer && imageBuffer.length > 1000) {
+                this.logger.log(
+                    `Extracted EPUB cover: ${coverPath} (${imageBuffer.length} bytes)`,
+                );
+                return imageBuffer;
+            }
+
+            this.logger.debug(
+                `EPUB: cover entry too small (${imageBuffer?.length ?? 0} bytes) — skipping`,
+            );
+            return null;
+        } catch (error) {
+            this.logger.warn(`EPUB cover extraction failed: ${error.message}`);
+            return null;
+        }
+    }
+
+    /**
+     * Given an OPF package document (XML text), return the href of the cover image
+     * relative to the OPF, or null. Handled with targeted regex rather than a full
+     * XML parser: OPF manifests are small and well-structured, and this avoids
+     * adding an XML dependency.
+     */
+    private resolveEpubCoverHref(opf: string): string | null {
+        // Parse each <item .../> in the manifest into its attributes.
+        const items: {
+            id?: string;
+            href?: string;
+            mediaType?: string;
+            properties?: string;
+        }[] = [];
+        const itemRegex = /<item\b[^>]*>/gi;
+        let match: RegExpExecArray | null;
+        while ((match = itemRegex.exec(opf)) !== null) {
+            const tag = match[0];
+            items.push({
+                id: this.readXmlAttr(tag, 'id'),
+                href: this.readXmlAttr(tag, 'href'),
+                mediaType: this.readXmlAttr(tag, 'media-type'),
+                properties: this.readXmlAttr(tag, 'properties'),
+            });
+        }
+
+        const isImage = (it: { href?: string; mediaType?: string }): boolean =>
+            (it.mediaType || '').toLowerCase().startsWith('image/') ||
+            /\.(jpe?g|png|gif|webp)$/i.test(it.href || '');
+
+        // a. EPUB3: item flagged properties="cover-image"
+        const epub3 = items.find(
+            it => (it.properties || '').split(/\s+/).includes('cover-image') && it.href,
+        );
+        if (epub3?.href) return epub3.href;
+
+        // b. <meta name="cover" content="ID"> -> manifest item with that id
+        const metaCover =
+            opf.match(/<meta\b[^>]*\bname=["']cover["'][^>]*\bcontent=["']([^"']+)["']/i) ||
+            opf.match(/<meta\b[^>]*\bcontent=["']([^"']+)["'][^>]*\bname=["']cover["']/i);
+        if (metaCover) {
+            const item = items.find(it => it.id === metaCover[1] && it.href);
+            if (item?.href && isImage(item)) return item.href;
+        }
+
+        // c. manifest item whose id or href contains "cover" and is an image
+        const byId = items.find(it => /cover/i.test(it.id || '') && isImage(it));
+        if (byId?.href) return byId.href;
+        const byHref = items.find(it => /cover/i.test(it.href || '') && isImage(it));
+        if (byHref?.href) return byHref.href;
+
         return null;
+    }
+
+    /** Read a single attribute value from an XML start tag (attribute-order agnostic). */
+    private readXmlAttr(tag: string, name: string): string | undefined {
+        const m = tag.match(new RegExp(`\\b${name}\\s*=\\s*["']([^"']*)["']`, 'i'));
+        return m ? m[1] : undefined;
+    }
+
+    /** Resolve ./ and ../ segments in a ZIP-internal path and strip any leading slash. */
+    private normalizeZipPath(path: string): string {
+        const stack: string[] = [];
+        for (const part of path.split('/')) {
+            if (part === '' || part === '.') continue;
+            if (part === '..') stack.pop();
+            else stack.push(part);
+        }
+        return stack.join('/');
     }
 }
