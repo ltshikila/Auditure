@@ -178,6 +178,12 @@ class EpisodeRepository:
             elif status == EpisodeStatus.COMPLETED:
                 if "audio_file_key" in kwargs:
                     episode.audio_file_key = kwargs["audio_file_key"]
+                    # New audio invalidates any existing forced-alignment timing.
+                    # Without this, a regeneration keeps the OLD segments and the
+                    # alignment service skips re-alignment ("already aligned"),
+                    # leaving the transcript permanently out of sync with the new
+                    # audio. Clearing lets the queued alignment request re-align.
+                    episode.transcript_segments = None
                 if "duration" in kwargs:
                     episode.duration = kwargs["duration"]
                 if "audio_format" in kwargs:
