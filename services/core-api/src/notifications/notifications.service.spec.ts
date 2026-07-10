@@ -621,6 +621,61 @@ describe('NotificationsService', () => {
     // CONSUMER/STREAM PROCESSING TESTS
     // ============================================
 
+    describe('drainPendingNotifications', () => {
+        const msg = (id: string) => ({
+            id,
+            notificationId: `n-${id}`,
+            userId: mockUserId,
+            type: NotificationType.BOOK_READY,
+            title: 'Ready',
+            body: 'Your book is ready',
+            createdAt: new Date().toISOString(),
+        });
+
+        beforeEach(() => {
+            // reclaimStaleMessages() calls this — keep it quiet in drain tests
+            (mockRedisServiceWithStreams as any).getPendingNotifications = jest
+                .fn()
+                .mockResolvedValue([]);
+            const settings = createMockUserSettingsWithPushToken({ userId: mockUserId });
+            mockPrismaClient.userSettings.findUnique.mockResolvedValue(settings);
+            mockExpoPushService.sendPushNotification.mockResolvedValue(mockExpoPushSuccessTicket);
+            mockExpoPushService.getInvalidTokenFromTicket.mockReturnValue(null);
+        });
+
+        it('processes all available messages then stops on the first empty read', async () => {
+            mockRedisServiceWithStreams.readNotificationsFromStream
+                .mockResolvedValueOnce([msg('1-0'), msg('2-0')])
+                .mockResolvedValueOnce([]);
+
+            const processed = await service.drainPendingNotifications();
+
+            expect(processed).toBe(2);
+            expect(mockRedisServiceWithStreams.ackNotification).toHaveBeenCalledTimes(2);
+            // one batch + one empty read
+            expect(mockRedisServiceWithStreams.readNotificationsFromStream).toHaveBeenCalledTimes(2);
+        });
+
+        it('returns 0 when the stream is empty', async () => {
+            mockRedisServiceWithStreams.readNotificationsFromStream.mockResolvedValue([]);
+            expect(await service.drainPendingNotifications()).toBe(0);
+        });
+
+        it('is bounded by maxBatches (does not loop forever on a busy stream)', async () => {
+            mockRedisServiceWithStreams.readNotificationsFromStream.mockResolvedValue([msg('x-0')]);
+            const processed = await service.drainPendingNotifications({ maxBatches: 3 });
+            expect(processed).toBe(3);
+            expect(mockRedisServiceWithStreams.readNotificationsFromStream).toHaveBeenCalledTimes(3);
+        });
+
+        it('never throws — swallows read errors and returns count so far', async () => {
+            mockRedisServiceWithStreams.readNotificationsFromStream.mockRejectedValue(
+                new Error('redis down'),
+            );
+            await expect(service.drainPendingNotifications()).resolves.toBe(0);
+        });
+    });
+
     describe('processNotificationMessage (internal)', () => {
         it('should send push notification when user has token and push enabled', async () => {
             const mockSettings = createMockUserSettingsWithPushToken({ userId: mockUserId });
