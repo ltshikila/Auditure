@@ -48,8 +48,18 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         // Initialize the notification stream
         await this.redisService.initNotificationStream();
 
-        // Start the background consumer
-        this.startConsumer();
+        // Start the background consumer — UNLESS this process is a short-lived job
+        // (e.g. the book-extractor Cloud Run Job). Such processes enqueue a
+        // notification and exit, so a background loop would be torn down before it
+        // drains; they call drainPendingNotifications() explicitly instead.
+        if (process.env.NOTIFICATIONS_CONSUMER_DISABLED === 'true') {
+            this.logger.log(
+                'Background notification consumer disabled (NOTIFICATIONS_CONSUMER_DISABLED=true) — ' +
+                    'notifications will be delivered via explicit drain',
+            );
+        } else {
+            this.startConsumer();
+        }
 
         this.logger.log('NotificationsService initialized');
     }
@@ -131,6 +141,51 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
                 await this.delay(1000);
             }
         }
+    }
+
+    /**
+     * Synchronously drain and deliver all currently-available notifications from the
+     * stream, returning the number processed.
+     *
+     * Unlike the background consumer loop, this runs to completion within the caller's
+     * execution window. It exists for short-lived processes like the book-extractor
+     * Cloud Run Job, which enqueue a BOOK_READY/BOOK_FAILED notification and then exit:
+     * core-api's own consumer runs under CPU throttling + scale-to-zero, so it may not
+     * pick the message up until core-api next receives HTTP traffic. Draining here
+     * delivers the push immediately, while this always-on job still has CPU. (This
+     * mirrors ai-worker, which pushes its episode notifications directly for the same
+     * reason.) Best-effort: never throws.
+     */
+    async drainPendingNotifications(options?: { maxBatches?: number }): Promise<number> {
+        const maxBatches = options?.maxBatches ?? 20;
+        let processed = 0;
+
+        try {
+            // Reclaim anything stuck in a dead consumer's pending list first.
+            await this.reclaimStaleMessages();
+
+            for (let batch = 0; batch < maxBatches; batch++) {
+                const messages = await this.redisService.readNotificationsFromStream(
+                    this.CONSUMER_NAME,
+                    10, // up to 10 per batch
+                    500, // short block — returns promptly when the stream is empty
+                );
+
+                if (messages.length === 0) break;
+
+                for (const message of messages) {
+                    await this.processNotificationMessage(message);
+                    processed++;
+                }
+            }
+        } catch (error: any) {
+            this.logger.error(`drainPendingNotifications failed: ${error.message}`);
+        }
+
+        if (processed > 0) {
+            this.logger.log(`Drained ${processed} pending notification(s)`);
+        }
+        return processed;
     }
 
     /**
