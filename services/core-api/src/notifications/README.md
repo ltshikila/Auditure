@@ -130,6 +130,35 @@ async createNotification(dto) {
 - If Expo is slow/down, notifications queue up (not lost)
 - Retry logic happens in background, not blocking users
 
+### Delivery under core-api scale-to-zero (important)
+
+The background consumer runs **inside core-api**, which is deployed **scale-to-zero
+with CPU throttling**. That has a consequence: when core-api has no HTTP traffic it
+either has zero instances or is CPU-throttled between requests, so the consumer loop
+does not run. Messages in the stream are **not lost** (that is the whole point of using
+Streams over Pub/Sub — they're durable and the consumer group tracks a pending list),
+but their **delivery is delayed** until core-api next receives a request.
+
+This matters for producers that enqueue a notification and then exit while core-api is
+idle. Two such producers are handled explicitly:
+
+1. **ai-worker** (episode notifications) pushes to Expo **directly** from the always-on
+   worker, bypassing the stream entirely. See `ai-worker/.../episode_consumer.py`.
+2. **book-extractor Cloud Run Job** (`BOOK_READY` / `BOOK_FAILED`) runs this same
+   codebase but is short-lived. It sets `NOTIFICATIONS_CONSUMER_DISABLED=true` (so the
+   background loop never starts) and instead calls
+   `NotificationsService.drainPendingNotifications()` right before shutdown, delivering
+   its push in-process while it still has CPU.
+
+`drainPendingNotifications()` reads and processes all currently-available messages
+(bounded by `maxBatches`), acking each, and returns to completion synchronously —
+unlike the background loop, which relies on core-api being awake. It is best-effort and
+never throws.
+
+For notifications created **by core-api itself** during a request, the instance is warm
+by definition and its consumer drains them during the surrounding traffic window, so no
+special handling is needed.
+
 ## Notification Types
 
 | Type | Description | Use Case |
