@@ -14,13 +14,14 @@ The Core API is built with NestJS and provides authentication, book management, 
 - **Virtual Podcasters** - Create and customize AI podcasters with 17 configurable traits and permanent voice assignment
 - **Episode Generation** - Create podcast episodes from books with multiple formats (monologue, duo, group)
 - **Audio Streaming** - Range-request audio streaming for episode playback
-- **Async Processing** - Background processing with RabbitMQ for extraction and generation
+- **Async Processing** - Episode generation via RabbitMQ; book extraction via a Cloud Run Job
 - **Smart Chapter Detection** - Three-tier detection: TOC-based, dynamic pattern, and regex fallback
-- **Flexible Storage** - Local storage with S3-ready abstraction
-- **Search & Discovery** - Full-text search, trending content, and filtering
-- **Redis Caching** - Job progress tracking, playback progress, rate limiting
-- **Social Features** - Comments, likes, shares, ratings, and engagement tracking
-- **Comprehensive Testing** - 83 tests with 90%+ coverage
+- **Flexible Storage** - Local filesystem (dev) or Google Cloud Storage (prod) behind one abstraction
+- **Search & Discovery** - Unified search (Postgres ILIKE + pg_trgm), curated feed, filtering
+- **Redis Caching** - Job progress, playback position, rate limiting, notification streams
+- **Social Features** - Comments, likes, ratings, and engagement tracking
+- **Subscriptions** - RevenueCat webhook handling and tier/usage limits
+- **Notifications** - In-app notifications + Expo push (Redis Streams)
 
 ## Project Structure
 
@@ -37,14 +38,25 @@ services/core-api/
 │   │   ├── services/            # Text extraction service
 │   │   ├── workers/             # Background workers
 │   │   └── README.md            # Books documentation
-│   ├── subscriptions/             # Subscriptions module (Paystack)
-│   │   ├── subscriptions.service.ts # Subscription business logic
-│   │   ├── subscriptions.controller.ts # API endpoints
-│   │   ├── paystack.service.ts  # Paystack API wrapper
+│   ├── subscriptions/             # Subscriptions module (RevenueCat)
+│   │   ├── subscriptions.service.ts     # Status, usage, tier logic
+│   │   ├── subscriptions.controller.ts  # /status + legacy Paystack stubs
+│   │   ├── revenuecat-webhook.controller.ts # POST /subscriptions/rc-webhook
+│   │   ├── revenuecat.service.ts        # RC event → tier/limits
+│   │   ├── tier-resolution.ts           # paid > comp > free resolution
+│   │   ├── paystack.service.ts          # Legacy (retiring)
 │   │   └── README.md            # Subscriptions documentation
+│   ├── episodes/                # Episode orchestration, streaming, progress
+│   ├── podcasters/              # Virtual host management + voice assignment
+│   ├── feed/                    # Discovery feed (episodes/books/podcasters)
+│   ├── search/                  # Unified search (ILIKE + pg_trgm)
+│   ├── social/                  # Likes, comments, ratings
+│   ├── notifications/           # In-app + Expo push (Redis Streams)
+│   ├── users/                   # User profiles & settings
 │   ├── common/                  # Shared services
-│   │   ├── email.service.ts     # Email/OTP service
-│   │   ├── storage.service.ts   # File storage abstraction
+│   │   ├── email.service.ts     # Email/OTP service (Resend)
+│   │   ├── storage.service.ts   # Storage abstraction (local | GCS)
+│   │   ├── gcs-storage.backend.ts # Google Cloud Storage backend
 │   │   ├── storage.controller.ts# File serving endpoint (/api/storage/*)
 │   │   └── guards/              # Rate limiting guards
 │   ├── database/                # Prisma integration
@@ -153,15 +165,18 @@ RESEND_API_KEY="re_xxxxxxxxxxxx"
 OTP_EXPIRY_MINUTES="10"
 
 # Storage
-STORAGE_BACKEND="local"
+STORAGE_BACKEND="local"          # or "gcs" in production
 LOCAL_STORAGE_PATH="./storage"
+GCS_BUCKET_NAME=""               # required when STORAGE_BACKEND=gcs
 
-# RabbitMQ (optional)
+# RabbitMQ
 RABBITMQ_URL="amqp://localhost:5672"
 
-# Redis (for caching)
-REDIS_HOST="localhost"
-REDIS_PORT="6379"
+# Redis (caching, progress, notification streams)
+REDIS_URL="redis://localhost:6379"   # prod uses an Upstash URL
+
+# Subscriptions (RevenueCat)
+REVENUECAT_WEBHOOK_AUTH_HEADER=""    # static Authorization header from the RC dashboard
 
 # Server
 PORT="3000"
@@ -236,18 +251,14 @@ See [Episodes Service Documentation](src/episodes/EPISODES_SERVICE.md) for detai
 
 ### Subscriptions Endpoints
 
-See [Subscriptions Documentation](src/subscriptions/README.md) for detailed API documentation.
+Billing runs through **RevenueCat + Google Play Billing**. Purchases happen in-app via the RevenueCat SDK; the backend reacts to webhooks. See [Subscriptions Documentation](src/subscriptions/README.md) for the full lifecycle.
 
 **Base URL:** `/subscriptions`
 
-- `GET /status` - Get subscription status and usage
-- `POST /checkout` - Initialize Paystack checkout (or re-enable existing)
-- `POST /manage` - Get subscription management info
-- `POST /cancel` - Cancel subscription (non-renewing)
-- `POST /reactivate` - Re-enable a cancelled subscription
-- `POST /cleanup-duplicates` - Clean up duplicate Paystack subscriptions
-- `POST /webhook` - Handle Paystack webhooks
-- `GET /callback` - Payment callback (HTML redirect to app)
+- `GET /status` - Get subscription status and usage (JWT)
+- `POST /rc-webhook` - RevenueCat webhook handler (static-header auth)
+
+**Legacy Paystack routes (retiring):** `/checkout`, `/manage`, `/cancel`, `/reactivate`, `/cleanup-duplicates` now return a "please update the app" notice. `/webhook`, `/callback`, `/success`, `/cancel-redirect` remain for old clients only.
 
 ### Storage Endpoints
 
@@ -279,16 +290,9 @@ npm test -- auth
 npm test -- books
 ```
 
-### Test Statistics
+Unit and integration tests cover the auth, books, feed, search, notifications, and subscriptions modules (services and controllers), including negative and edge cases. Run `npm test -- --coverage` for the current numbers.
 
-- **Total Tests:** 83 passing, 1 skipped
-- **Test Suites:** 5 suites
-- **Coverage:**
-  - Auth Service: 98.7% statements, 100% functions
-  - Books Service: 100% statements, 100% functions
-  - Controllers: 95%+ statements
-
-See [Testing Documentation](TESTING.md) for comprehensive testing guide.
+See [Testing Documentation](TESTING.md) for the comprehensive testing guide.
 
 ## Database
 
@@ -420,10 +424,10 @@ HTTP Request
 | **NotificationsService** | In-app + push notifications | RedisService, ExpoPushService |
 | **EpisodesService** | Episode CRUD, playback progress | RedisService, StorageService |
 | **PodcastersService** | Podcaster management, voice assignment | DatabaseService |
-| **SubscriptionsService** | Subscription lifecycle, Paystack integration | PaystackService, DatabaseService |
-| **PaystackService** | Paystack API wrapper (plans, transactions, subscriptions) | Paystack API |
+| **SubscriptionsService** | Subscription status, usage, tier resolution | DatabaseService |
+| **RevenueCatService** | Maps RevenueCat webhook events to tier/limits | DatabaseService |
 | **EmailService** | Email delivery and OTP generation | Resend API |
-| **StorageService** | File storage abstraction | Local/S3 backends |
+| **StorageService** | File storage abstraction | Local / GCS backends |
 | **RabbitMQService** | Async job processing | amqplib |
 | **TextExtractionService** | PDF/EPUB text extraction | pdf-parse, pdfjs-dist |
 | **DatabaseService** | Prisma client wrapper | @prisma/client |
@@ -530,43 +534,27 @@ npx prisma studio
 
 ## Deployment
 
+Production runs on **Google Cloud Run** (`us-central1`, project `auditure-483611`), deployed by `.github/workflows/deploy.yml` on push to `master`. core-api is scale-to-zero with CPU throttling; the `migrate` job runs `prisma migrate deploy` automatically after the core-api deploy.
+
 ### Production Checklist
 
-- [ ] Set strong JWT secrets
-- [ ] Configure production database
-- [ ] Set up email service (Resend recommended)
-- [ ] Configure S3 for file storage
-- [ ] Set up RabbitMQ cluster
-- [ ] Enable HTTPS
-- [ ] Configure CORS properly
-- [ ] Set up monitoring (Sentry, DataDog, etc.)
-- [ ] Configure rate limiting
-- [ ] Set up backup strategy
+- [ ] Set strong JWT secrets (Secret Manager)
+- [ ] Point `DATABASE_URL` at Cloud SQL (`auditure_prod`)
+- [ ] Set `REDIS_URL` to the Upstash instance
+- [ ] Set `STORAGE_BACKEND=gcs` and `GCS_BUCKET_NAME`
+- [ ] Configure Resend (`RESEND_API_KEY`)
+- [ ] Set `REVENUECAT_WEBHOOK_AUTH_HEADER`
+- [ ] Declare every env var/secret in `deploy.yml` (they get wiped on redeploy otherwise)
+- [ ] Confirm CORS origins and rate limiting
+- [ ] Verify Sentry DSN
 
-### Docker Deployment
+> **Important:** Book extraction runs as a Cloud Run Job (`book-extractor`), not inside core-api. Do not add long-lived consumers to the scale-to-zero core-api service.
 
-```dockerfile
-FROM node:18-alpine
-
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm ci --only=production
-
-COPY . .
-RUN npm run build
-
-EXPOSE 3000
-
-CMD ["npm", "run", "start:prod"]
-```
+### Docker Build
 
 ```bash
-# Build image
-docker build -t auditure-api .
-
-# Run container
-docker run -p 3000:3000 --env-file .env auditure-api
+docker build -t auditure-core-api ./services/core-api
+docker run -p 3000:3000 --env-file .env auditure-core-api
 ```
 
 ## Monitoring & Logging
@@ -716,16 +704,18 @@ All endpoints are prefixed with `/api/v1` in production.
 ### Core Dependencies
 
 - **@nestjs/core** - NestJS framework
-- **@nestjs/jwt** - JWT authentication
-- **@nestjs/passport** - Authentication middleware
+- **@nestjs/jwt** / **@nestjs/passport** - JWT authentication
 - **@prisma/client** - Database ORM
 - **bcrypt** - Password hashing
 - **class-validator** - Input validation
 - **multer** - File upload handling
-- **pdf-parse** - PDF text extraction
-- **epub-parser** - EPUB text extraction
+- **pdf-parse** / **pdfjs-dist** - PDF text extraction, TOC/OCR
+- **@gxl/epub-parser** / **jszip** - EPUB parsing and cover extraction
+- **tesseract.js** / **canvas** - OCR for scanned PDFs
 - **amqplib** - RabbitMQ client
-- **resend** - Email sending via Resend API
+- **@google-cloud/storage** - GCS backend (production storage)
+- **@google-cloud/run** - Dispatch the book-extractor Cloud Run Job
+- **resend** - Transactional email / OTP
 
 ### Development Dependencies
 
@@ -738,14 +728,7 @@ All endpoints are prefixed with `/api/v1` in production.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Support
-
-- Email: support@auditure.app
-- Discord: [Auditure Community](https://discord.gg/auditure)
-- Documentation: [docs.auditure.app](https://docs.auditure.app)
-- Issues: [GitHub Issues](https://github.com/auditure/issues)
+Proprietary. All rights reserved.
 
 ## Roadmap
 

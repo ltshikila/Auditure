@@ -135,30 +135,36 @@ redis-cli -h localhost -p 6379
 
 ## AI Worker Configuration
 
-The AI Worker service requires additional configuration via environment variables. Create a `.env` file in the `infra/` directory:
+The AI Worker service requires additional configuration via environment variables. Create a `.env` file in the `infra/` directory (read by docker-compose):
 
 ```bash
 # infra/.env
-HUGGINGFACE_API_KEY=your_huggingface_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
+GEMINI_API_KEY=your_gemini_api_key_here
+GOOGLE_CLOUD_PROJECT_ID=your_gcp_project_id
+TTS_VOICE_TIER=standard        # standard | gemini
 ```
+
+Google Cloud Standard TTS additionally needs a service-account credentials file mounted at `/app/google-credentials.json` (see the compose volume below).
 
 ### AI Worker Environment Variables
 
 | Variable | Default | Description |
 |:---------|:--------|:------------|
-| `HUGGINGFACE_API_KEY` | (required) | HuggingFace API key for LLM script generation |
-| `HUGGINGFACE_MODEL` | `mistralai/Mistral-7B-Instruct-v0.2` | Model to use for script generation |
+| `OPENAI_API_KEY` | (required for LLM) | OpenAI key for script generation. If unset, the worker falls back to template scripts. |
+| `OPENAI_MODEL` | `gpt-4o-mini` | Model used for script generation |
+| `GEMINI_API_KEY` | (required for Gemini TTS) | Gemini 2.5 Flash TTS key |
+| `GOOGLE_CLOUD_PROJECT_ID` | (required for Standard TTS) | GCP project for Google Cloud Standard TTS |
+| `TTS_VOICE_TIER` | `standard` | `standard` (Google Cloud) or `gemini` (Gemini 2.5 Flash) |
 | `LOG_LEVEL` | `INFO` | Logging verbosity (DEBUG, INFO, WARNING, ERROR) |
 | `LOCAL_STORAGE_PATH` | `/storage` | Path for generated audio files |
 | `TTS_TEMP_DIR` | `/app/temp/tts` | Temporary directory for TTS processing |
 
-**Note:** If `OPENAI_API_KEY` is not set, the worker will fall back to template-based script generation (no LLM).
-
 ### Technology Stack
 
 The AI Worker uses:
-* **Script Generation:** OpenAI GPT-4o mini with template fallback
-* **Text-to-Speech:** Gemini 2.5 Flash TTS (premium) + Google Cloud Standard TTS (free tier)
+* **Script Generation:** OpenAI GPT-4o-mini with template fallback
+* **Text-to-Speech:** Gemini 2.5 Flash TTS (premium, multi-speaker) + Google Cloud Standard TTS (free tier)
 * **TTS SDK:** `google-genai` for Gemini TTS integration
 * **Database:** SQLAlchemy ORM connecting to PostgreSQL
 * **Message Queue:** pika (RabbitMQ client)
@@ -267,14 +273,24 @@ services:
       DATABASE_URL: postgresql://admin:password@postgres:5432/auditure_db
       LOCAL_STORAGE_PATH: /storage
       TTS_TEMP_DIR: /app/temp/tts
-      HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-}
-      HUGGINGFACE_MODEL: mistralai/Mistral-7B-Instruct-v0.2
+      # LLM - OpenAI GPT-4o mini
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: gpt-4o-mini
+      OPENAI_MAX_TOKENS: 16000
+      # Google Cloud TTS
+      GOOGLE_CLOUD_PROJECT_ID: ${GOOGLE_CLOUD_PROJECT_ID}
+      GOOGLE_APPLICATION_CREDENTIALS: /app/google-credentials.json
+      # Gemini TTS
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      TTS_VOICE_TIER: ${TTS_VOICE_TIER:-standard}
       LOG_LEVEL: INFO
       REDIS_HOST: redis
       REDIS_PORT: 6379
     volumes:
       # Shared storage with core-api for audio files
       - ../services/core-api/storage:/storage
+      # Google Cloud service-account credentials (for Standard TTS)
+      - ../services/ai-worker/google-credentials.json:/app/google-credentials.json:ro
     depends_on:
       - rabbitmq
       - postgres
@@ -290,6 +306,19 @@ networks:
   auditure_net:
     driver: bridge
 ```
+
+## Production vs. Local
+
+This Docker Compose stack is for **local development only**. In production these are managed services:
+
+| Local (compose) | Production |
+|:----------------|:-----------|
+| PostgreSQL container | Google Cloud SQL (`auditure_prod`) |
+| Redis container | Upstash Redis (services read `REDIS_URL`) |
+| RabbitMQ container | Managed RabbitMQ |
+| Local `/storage` volume | Google Cloud Storage (`STORAGE_BACKEND=gcs`) |
+| `ai-worker` compose service | Cloud Run service (`--min-instances 1 --no-cpu-throttling`) |
+| n/a | core-api Cloud Run service (scale-to-zero) + `book-extractor` Cloud Run Job |
 
 ### Customization
 

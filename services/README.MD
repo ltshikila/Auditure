@@ -1,43 +1,46 @@
 # Auditure Backend Services
 
-The backend is composed of a **Core API** (NestJS) and **AI Workers** (Python), decoupled via RabbitMQ message broker. This architecture ensures scalability, maintainability, and separation of concerns between business logic and computationally intensive AI tasks.
+The backend is a **Core API** (NestJS) plus an **AI Worker** (Python), decoupled by RabbitMQ. Long book extraction runs separately as a Cloud Run **Job**. This separation keeps business logic in a scale-to-zero API while heavy AI and extraction work runs where it can take as long as it needs.
 
 ## Services Overview
 
 ### 1. Core API (`/core-api`)
 
-A **NestJS** modular monolith that serves as the API Gateway for the mobile application.
+A **NestJS** modular monolith serving the mobile app.
 
-**Architecture:** Modular monolith with domain-driven design
+**Modules:**
+* **Auth** - Registration, login, OTP email verification, JWT access/refresh tokens (email/password only; no social login or 2FA)
+* **Users** - Profiles, settings, push token, preferences
+* **Podcasters** - Virtual host creation, personality traits, permanent Gemini voice assignment
+* **Books** - PDF/EPUB upload, extraction dispatch, chapter data, deduplication
+* **Episodes** - Episode orchestration, audio streaming (range requests), playback progress
+* **Feed** - Discovery feed across episodes, books, and podcasters
+* **Search** - Unified search (Postgres ILIKE + pg_trgm)
+* **Social** - Likes, comments, ratings
+* **Subscriptions** - RevenueCat webhook handling and tier mapping (legacy Paystack stubs retained)
+* **Notifications** - In-app notifications and Expo push via Redis Streams
+* **Redis / RabbitMQ** - Shared caching and messaging infrastructure
 
-**Primary Responsibilities:**
-* **Auth Service:** User registration, login (email/password, OAuth), JWT token management, 2FA
-* **User Service:** Profile management, settings, preferences
-* **Podcaster Service:** Virtual host creation, personality configuration, voice settings
-* **Book Ingestion Service:** PDF/EPUB upload, text extraction, URL-based import, optional cloud storage integration
-* **Episode Service:** Episode generation orchestration, status tracking, retrieval
-* **Feed/Discovery Service:** Trending logic, recommendations, search functionality
-* **Social Interaction Service:** Likes, comments, bookmarks, follow relationships
-
-**Role:** Acts as the orchestrator. When a user requests episode generation, this service:
-1. Validates the request and user permissions
-2. Creates a job record in PostgreSQL with status `pending`
-3. Enqueues a message to RabbitMQ
-4. Returns a job ID to the client for status polling
-5. Updates job status when workers complete processing
+**Role (episode generation orchestrator):** When a user creates an episode, the Core API validates the request and quota, creates an `Episode` record, and publishes a message to the `episode_generation` RabbitMQ queue. If the book is not yet extracted, the message is deferred and published once extraction completes.
 
 ### 2. AI Worker (`/ai-worker`)
 
-A **Python** microservice designed for heavy computational AI tasks.
+A **Python** service for the compute-heavy generation pipeline.
 
 **Responsibilities:**
-* **LLM Script Generation:** Generate podcast scripts using HuggingFace API (Mistral-7B) with template fallback
-* **TTS Audio Synthesis:** Convert scripts to audio using Microsoft Edge TTS (free, unlimited)
-* **Audio Processing:** Concatenate multiple speaker segments, apply ffmpeg processing
-* **Progress Tracking:** Update Redis with real-time progress for UI polling
-* **Storage Management:** Save final audio files to local storage (S3-ready abstraction)
+* **Script generation** - OpenAI GPT-4.1-mini with a template fallback; chunked generation for long episodes with a three-layer anti-repetition system
+* **TTS synthesis** - Gemini 2.5 Flash TTS (premium, native multi-speaker) or Google Cloud Standard TTS (free-tier fallback)
+* **Audio assembly** - Concatenate multi-speaker/multi-chunk segments (pydub + ffmpeg), add trailing silence
+* **Live transcript timing** - Optional forced alignment (wav2vec2, CPU) producing per-line timestamps; crash-safe and non-vital
+* **Progress tracking** - Real-time progress written to Redis for UI polling
 
-**Role:** Listens to RabbitMQ queue, processes generation requests, updates job status via SQLAlchemy, and reports progress to Redis.
+**Role:** Consumes from RabbitMQ, reads book/podcaster data via SQLAlchemy, generates and stores audio, updates episode status, consumes quota on success, and notifies the user.
+
+### 3. Book Extractor (Cloud Run Job)
+
+Book extraction runs as a **Cloud Run Job** using the core-api codebase (`src/book-extractor-main.ts`), dispatched by `BookExtractionDispatcher` via the `@google-cloud/run` Jobs API. It downloads the file, extracts text, detects chapters, extracts a cover, runs deduplication/consolidation, and publishes any deferred episode-generation messages.
+
+**Why a Job, not a consumer inside core-api:** core-api is scale-to-zero with CPU throttling. A long-running consumer there gets killed mid-extraction for large books. Each Job execution is independent with its own budget.
 
 ## Running the Services
 
@@ -45,127 +48,76 @@ A **Python** microservice designed for heavy computational AI tasks.
 
 ```bash
 cd services/core-api
-
-# Install dependencies (if not done from root)
 npm install
-
-# Run database migrations
-npm run migration:run
-
-# Development Mode (Watch Mode)
-npm run start:dev
-
-# Production Build
-npm run build
-npm run start:prod
-
-# Debug Mode
-npm run start:debug
+npx prisma migrate dev        # run migrations + generate client
+npm run start:dev             # watch mode
+npm run build && npm run start:prod   # production
 ```
 
 ### AI Worker (Python)
 
-**Prerequisites:** Ensure `infra/docker-compose.yml` is running and environment variables are configured.
+**Prerequisites:** Local infra running (`infra/docker-compose.yml`) and AI keys configured.
 
-**Option 1: Via Docker Compose (recommended)**
+Via Docker Compose (recommended):
 ```bash
 cd infra
-
-# Create .env file with HuggingFace API key (optional but recommended)
-echo "HUGGINGFACE_API_KEY=your_key_here" > .env
-
-# Start all services including AI worker
+# Provide keys in infra/.env: OPENAI_API_KEY, GEMINI_API_KEY, GOOGLE_CLOUD_PROJECT_ID
 docker-compose up -d
-
-# View AI worker logs
 docker-compose logs -f ai-worker
 ```
 
-**Option 2: Run Standalone**
+Standalone:
 ```bash
 cd services/ai-worker
-
-# Create virtual environment
 python -m venv venv
-
-# Activate virtual environment
-source venv/bin/activate  # macOS/Linux
-# or
-.\venv\Scripts\activate  # Windows
-
-# Install dependencies
+source venv/bin/activate       # or .\venv\Scripts\activate on Windows
 pip install -r requirements.txt
-
-# Run worker
 python -m src.main
 ```
 
 ## Testing
 
 ### Core API
-
 ```bash
-# Unit Tests
-npm run test
-
-# Watch mode
-npm run test:watch
-
-# e2e Tests
-npm run test:e2e
-
-# Test Coverage
-npm run test:cov
+npm run test          # unit tests
+npm run test:watch    # watch mode
+npm run test:cov      # coverage
+npm run test:e2e      # e2e
 ```
 
 ### AI Worker
-
 ```bash
-# Run pytest
-pytest tests/
-
-# With coverage
-pytest --cov=src tests/
-
-# Verbose output
-pytest -v tests/
+pytest                # or: pytest -v
+pytest --cov=src
 ```
 
 ## Messaging Architecture
 
-We use **RabbitMQ** for asynchronous job processing (NFR-5).
+**RabbitMQ** decouples episode generation from the API.
 
-**Queue:** `episode_generation_queue`
+**Queue:** `episode_generation` (dead-letter queue `episode_generation_dlq`)
 
-**Flow:** Core API (Producer) → RabbitMQ → AI Worker (Consumer)
+**Flow:** Core API (producer) → RabbitMQ → AI Worker (consumer)
 
 ### Message Structure
 
+The message references the episode record; the worker fetches full detail from the database.
+
 ```json
 {
-  "jobId": "550e8400-e29b-41d4-a716-446655440000",
-  "bookId": "660e8400-e29b-41d4-a716-446655440001",
-  "chapterIds": ["770e8400-e29b-41d4-a716-446655440002"],
-  "episodeType": "dual-host",
-  "podcasterIds": [
-    "880e8400-e29b-41d4-a716-446655440003",
-    "990e8400-e29b-41d4-a716-446655440004"
-  ],
-  "settings": {
-    "voiceSpeed": 1.0,
-    "style": "conversational",
-    "includeIntro": true,
-    "includeOutro": true
-  }
+  "episodeId": "660e8400-e29b-41d4-a716-446655440001",
+  "attempt": 1
 }
 ```
 
 ### Queue Configuration
 
-* **Prefetch Count:** 1 (process one job at a time per worker)
+* **Prefetch:** 1 (one job at a time per worker)
 * **Acknowledgment:** Manual (ack after successful processing)
-* **Retry Policy:** 3 attempts with exponential backoff
-* **Dead Letter Queue:** Failed jobs move to DLQ for manual review
+* **Retry:** 3 attempts with exponential backoff (5s, 10s, 20s)
+* **Dead-letter queue:** Failed jobs route to the DLQ after max retries
+
+> Notifications use **Redis Streams** rather than RabbitMQ. See the [Notifications README](./core-api/src/notifications/README.md).
 
 ## Core API Architecture
 
@@ -174,43 +126,23 @@ We use **RabbitMQ** for asynchronous job processing (NFR-5).
 ```text
 core-api/
 ├── src/
-│   ├── auth/                 # Authentication & Authorization (FR-1, FR-2)
-│   │   ├── guards/          # JWT, OAuth guards
-│   │   ├── strategies/      # Passport strategies
-│   │   └── dto/             # Login, signup DTOs
-│   ├── users/                # User Management (FR-3)
-│   │   ├── entities/        # User entity
-│   │   └── users.service.ts
-│   ├── books/                # Book Ingestion (FR-9 to FR-12)
-│   │   ├── parsers/         # PDF/EPUB parsers
-│   │   ├── extractors/      # Text extraction logic
-│   │   └── books.service.ts
-│   ├── episodes/             # Episode Orchestration (FR-16 to FR-19)
-│   │   ├── entities/        # Episode, Job entities
-│   │   ├── episodes.controller.ts
-│   │   └── episodes.service.ts
-│   ├── podcasters/           # Virtual Host Management (FR-4 to FR-8)
-│   │   ├── entities/        # Podcaster entity
-│   │   ├── templates/       # Personality templates
-│   │   └── podcasters.service.ts
-│   ├── feed/                 # Content Discovery (FR-20, FR-24, FR-25)
-│   │   ├── feed.controller.ts
-│   │   └── trending.service.ts
-│   ├── social/               # Social Features (FR-22, FR-23)
-│   │   ├── likes/
-│   │   ├── comments/
-│   │   └── follows/
-│   ├── common/               # Shared utilities
-│   │   ├── guards/          # Auth guards
-│   │   ├── interceptors/    # Logging, transform
-│   │   ├── filters/         # Exception filters
-│   │   └── decorators/      # Custom decorators
-│   └── config/               # Configuration modules
-│       ├── database.config.ts
-│       ├── rabbitmq.config.ts
-│       └── storage.config.ts
-├── test/                     # e2e tests
-└── migrations/               # Database migrations
+│   ├── auth/              # Email/password + OTP + JWT (guards, strategies, dto)
+│   ├── users/            # User profiles & settings
+│   ├── books/            # Upload, extraction dispatch, dedup (workers/, services/)
+│   ├── episodes/         # Orchestration, streaming, playback progress
+│   ├── podcasters/       # Virtual host management + voice assignment
+│   ├── feed/             # Discovery feed
+│   ├── search/           # Unified search (ILIKE + pg_trgm)
+│   ├── social/           # Likes, comments, ratings
+│   ├── subscriptions/    # RevenueCat webhooks (+ legacy Paystack stubs)
+│   ├── notifications/    # In-app + Expo push (Redis Streams)
+│   ├── common/           # Storage, email, guards, filters, interceptors
+│   ├── database/         # Prisma service
+│   ├── redis/            # Redis module (cache, progress, playback, streams)
+│   └── rabbitmq/         # Episode-generation producer
+├── prisma/               # schema.prisma + migrations
+├── test/                 # e2e tests, mocks, fixtures
+└── book-extractor-main.ts  # Cloud Run Job entry point
 ```
 
 ### Key Technologies
@@ -218,55 +150,45 @@ core-api/
 * **Framework:** NestJS (Node.js)
 * **ORM:** Prisma with PostgreSQL
 * **Validation:** class-validator, class-transformer
-* **Authentication:** Passport.js (JWT, Google OAuth, Apple OAuth)
-* **Security:** Helmet, CORS, rate limiting
-* **Documentation:** Swagger/OpenAPI
-* **Message Queue:** amqplib (RabbitMQ client)
-* **Storage:** Local storage with S3-ready abstraction
-* **Caching:** Redis (job progress, playback progress, rate limiting)
+* **Auth:** Passport JWT strategy, bcrypt
+* **Email:** Resend
+* **Message queue:** amqplib (RabbitMQ)
+* **Storage:** local filesystem (dev) or Google Cloud Storage (prod), behind a `StorageService` abstraction
+* **Caching / streams:** Redis (job progress, playback position, rate limiting, notification streams)
 
 ## AI Worker Architecture
 
 ### Processing Pipeline
 
-1. **Consume Message** from RabbitMQ `episode_generation` queue
-2. **Update Status** to `SCRIPT_GENERATING` (progress: 10%)
-3. **Fetch Data** from PostgreSQL via SQLAlchemy (book content, podcaster configs) (progress: 20%)
-4. **Generate Script** using HuggingFace API (Mistral-7B) or template fallback (progress: 40%)
-5. **Update Status** to `SCRIPT_GENERATED` (progress: 60%)
-6. **Update Status** to `AUDIO_GENERATING` (progress: 80%)
-7. **Synthesize Audio** using Microsoft Edge TTS (multi-voice support)
-8. **Concatenate Audio** segments if multi-speaker episode
-9. **Save to Storage** at `{userId}/{episodeId}/audio.mp3`
-10. **Update Status** to `COMPLETED` (progress: 100%)
-11. **Acknowledge Message** to RabbitMQ
+1. Consume message from RabbitMQ `episode_generation` queue
+2. Status → `SCRIPT_GENERATING` (progress 10%)
+3. Fetch book content + podcaster config via SQLAlchemy (progress 20%)
+4. Generate script with OpenAI GPT-4.1-mini (or template fallback) (progress 40%)
+5. Status → `SCRIPT_GENERATED` (progress 60%)
+6. Status → `AUDIO_GENERATING` (progress 80%)
+7. Synthesize audio with Gemini 2.5 Flash TTS (or Standard by tier)
+8. Concatenate segments (multi-speaker or multi-chunk)
+9. Save audio to storage at `{userId}/{episodeId}/audio.mp3`
+10. Status → `COMPLETED` (progress 100%); quota consumed; user notified
+11. (Optional) Forced alignment → store `transcriptSegments` for live transcript
 
-**Progress Tracking:** Real-time progress stored in Redis at key `job:{episodeId}` for UI polling.
+**Progress tracking:** Redis hash at key `job:{episodeId}`.
 
 ### Project Structure
 
 ```text
 ai-worker/
 ├── src/
-│   ├── config/               # Pydantic settings configuration
-│   ├── consumers/            # RabbitMQ message consumers
-│   │   ├── base_consumer.py  # Abstract consumer with retry logic
-│   │   └── episode_consumer.py
-│   ├── generators/           # LLM script generation
-│   │   ├── llm_client.py     # HuggingFace API client
-│   │   ├── script_generator.py
-│   │   └── templates/        # Fallback template generator
-│   ├── tts/                  # Text-to-speech (Edge TTS)
-│   │   └── engine.py
-│   ├── storage/              # Local file storage
-│   │   └── local_storage.py
-│   ├── database/             # SQLAlchemy ORM
-│   │   ├── client.py         # Database connection
-│   │   ├── models.py         # SQLAlchemy models (matches Prisma schema)
-│   │   └── repository.py     # Data access layer
-│   ├── redis/                # Redis client for progress tracking
-│   └── utils/                # Logging utilities
-├── tests/                    # Unit & integration tests
+│   ├── config/           # Pydantic settings
+│   ├── consumers/        # RabbitMQ consumers (base + episode)
+│   ├── generators/       # Script generation (LLM + templates/)
+│   ├── tts/              # TTS engine + alignment/
+│   ├── storage/          # Local/GCS file storage
+│   ├── database/         # SQLAlchemy client, models, repository
+│   ├── redis/            # Progress tracking
+│   └── utils/            # Logging
+├── scripts/              # One-off ops (e.g. backfill_segments.py)
+├── tests/
 ├── Dockerfile
 ├── requirements.txt
 └── pyproject.toml
@@ -275,61 +197,58 @@ ai-worker/
 ### Key Technologies
 
 * **Python:** 3.9+
-* **LLM:** HuggingFace Inference API (Mistral-7B-Instruct) with template fallback
-* **TTS:** Microsoft Edge TTS (free, unlimited usage)
-* **Message Queue:** pika (RabbitMQ client)
-* **Database:** SQLAlchemy ORM with PostgreSQL
-* **Storage:** Local file storage (S3-ready abstraction)
-* **Audio Processing:** pydub, ffmpeg
-* **Progress Tracking:** Redis for real-time UI updates
+* **LLM:** OpenAI GPT-4.1-mini with template fallback
+* **TTS:** Gemini 2.5 Flash TTS (via `google-genai`) + Google Cloud Standard TTS
+* **Message queue:** pika (RabbitMQ)
+* **Database:** SQLAlchemy over PostgreSQL
+* **Audio:** pydub, ffmpeg
+* **Alignment (optional):** torch + torchaudio (CPU), baked into the Docker image
+* **Progress:** Redis
 
 ## Environment Variables
 
-### Core API (.env)
+### Core API
 
 ```bash
 # Server
 NODE_ENV=development
 PORT=3000
 
-# Database (NFR-6)
+# Database
 DATABASE_URL=postgresql://admin:password@localhost:5432/auditure_db
-DB_SSL=false
 
-# RabbitMQ (NFR-5)
+# RabbitMQ
 RABBITMQ_URL=amqp://user:password@localhost:5672
-RABBITMQ_QUEUE=episode_generation_queue
 
-# Redis (optional caching)
-REDIS_URL=redis://localhost:6379
+# Redis
+REDIS_URL=redis://localhost:6379          # prod uses an Upstash URL
 
-# JWT Authentication (SR-2)
-JWT_SECRET=your-super-secret-key-change-in-production
+# JWT
+JWT_SECRET=change-me
 JWT_EXPIRES_IN=15m
+JWT_REFRESH_SECRET=change-me
 JWT_REFRESH_EXPIRES_IN=7d
 
-# OAuth (SR-1 - PKCE for mobile)
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-secret
-APPLE_CLIENT_ID=your-apple-client-id
-APPLE_CLIENT_SECRET=your-apple-secret
+# Email (Resend)
+RESEND_API_KEY=re_xxx
+EMAIL_FROM="Auditure <noreply@auditure.app>"
+OTP_EXPIRY_MINUTES=10
 
-# Cloud Storage
-AWS_REGION=us-east-1
-AWS_ACCESS_KEY_ID=your-aws-key
-AWS_SECRET_ACCESS_KEY=your-aws-secret
-S3_BUCKET=auditure-audio-production
+# Storage
+STORAGE_BACKEND=local                     # or 'gcs' in prod
+LOCAL_STORAGE_PATH=./storage
+GCS_BUCKET_NAME=                          # required when STORAGE_BACKEND=gcs
 
-# Security (NFR-10, NFR-11)
-BCRYPT_ROUNDS=12
-ENCRYPTION_KEY=your-aes-256-key
+# Subscriptions (RevenueCat)
+REVENUECAT_WEBHOOK_AUTH_HEADER=           # static Authorization header value RC sends
 
-# Rate Limiting (SR-4)
-RATE_LIMIT_TTL=60
-RATE_LIMIT_MAX=100
+# Book extraction (Cloud Run Job)
+GCP_PROJECT_ID=auditure-483611
+GCP_REGION=us-central1
+BOOK_EXTRACTOR_JOB=book-extractor
 ```
 
-### AI Worker (.env)
+### AI Worker
 
 ```bash
 # RabbitMQ
@@ -340,167 +259,85 @@ EPISODE_GENERATION_DLQ=episode_generation_dlq
 # Database
 DATABASE_URL=postgresql://admin:password@localhost:5432/auditure_db
 
-# LLM (HuggingFace)
-HUGGINGFACE_API_KEY=your-huggingface-api-key
-HUGGINGFACE_MODEL=mistralai/Mistral-7B-Instruct-v0.2
-
-# Redis (for progress tracking)
+# Redis (progress)
 REDIS_HOST=localhost
 REDIS_PORT=6379
 
-# Storage
-LOCAL_STORAGE_PATH=./storage
-TTS_TEMP_DIR=./temp/tts
+# LLM (OpenAI)
+OPENAI_API_KEY=your-openai-key
+OPENAI_MODEL=gpt-4.1-mini
+
+# TTS
+GOOGLE_CLOUD_PROJECT_ID=your-gcp-project
+GOOGLE_APPLICATION_CREDENTIALS=/app/google-credentials.json
+GEMINI_API_KEY=your-gemini-key
+TTS_VOICE_TIER=standard                   # standard | gemini
+
+# Forced alignment (optional)
+ALIGNMENT_ENABLED=true
+ALIGNMENT_TIMEOUT_S=600
 
 # Processing
 LOG_LEVEL=INFO
-MAX_BOOK_CONTENT_CHARS=8000
-MAX_RETRIES=3
-RETRY_DELAY_BASE=5
+MAX_BOOK_CONTENT_CHARS=100000
 ```
 
-**Note:** The AI Worker uses Microsoft Edge TTS which requires no API key. If `HUGGINGFACE_API_KEY` is not set, the worker falls back to template-based script generation.
+**Note:** If `OPENAI_API_KEY` is unset, the worker falls back to template-based scripts. Gemini TTS requires `GEMINI_API_KEY`; Standard TTS requires Google Cloud credentials.
 
-## Communication Flow
+## Episode Generation Workflow
 
-### Episode Generation Workflow
+1. User creates an episode from a book + podcaster in the mobile app (`POST /episodes`).
+2. Core API validates auth, permissions, and quota (check-only at creation).
+3. Core API creates the `Episode` record and publishes to the `episode_generation` queue. If the book is still extracting, the message is deferred and published when extraction finishes.
+4. Core API responds immediately; the client polls status or receives a push notification.
+5. AI Worker consumes the message, generates the script, synthesizes audio, and stores the file.
+6. On success the worker sets status `COMPLETED`, consumes quota, and delivers a push notification (directly, since core-api may be scaled to zero).
+7. Client polls `/episodes/:id` and streams the audio.
 
-1. **User Action:** User requests episode generation via mobile app
-2. **API Request:** Mobile app sends `POST /episodes` with configuration
-3. **Validation:** Core API validates request (auth, permissions, quotas)
-4. **Job Creation:** Core API creates job record in PostgreSQL with status `pending`
-5. **Queue Message:** Core API publishes message to RabbitMQ
-6. **Immediate Response:** Core API returns job ID and polling endpoint to client
-7. **Worker Pickup:** AI Worker consumes message from queue
-8. **Status Update:** Worker updates job status to `processing`
-9. **LLM Generation:** Worker generates podcast script using LLM
-10. **TTS Synthesis:** Worker converts script to audio using TTS
-11. **Audio Upload:** Worker uploads audio file to S3/GCP Storage
-12. **Completion:** Worker updates job status to `completed` with audio URL
-13. **Notification:** Core API sends push notification to user (optional)
-14. **Client Poll:** Mobile app polls `/episodes/:id/status` and retrieves result
+### API Surface (selected)
 
-### API Specifications (Section 8)
+**Auth:** `POST /auth/register`, `/auth/login`, `/auth/verify`, `/auth/refresh`, `/auth/resend-otp`, `GET /auth/me`
 
-**Authentication:**
-* `POST /auth/signup` - User registration
-* `POST /auth/login` - Email/password login
-* `POST /auth/oauth/google` - Google OAuth
-* `POST /auth/oauth/apple` - Apple OAuth
-* `POST /auth/2fa/enable` - Enable 2FA
-* `POST /auth/refresh` - Refresh access token
+**Books:** `POST /books/upload`, `GET /books`, `GET /books/:id`, `GET /books/:id/chapters`, `POST /books/:id/retry-extraction`, `DELETE /books/:id`
 
-**Books:**
-* `POST /books` - Upload PDF/EPUB (API-2)
-* `GET /books/:id` - Get book details (API-2)
-* `GET /books` - List user's books
-* `DELETE /books/:id` - Delete book
+**Podcasters:** `POST /podcasters`, `GET /podcasters/my`, `GET /podcasters/public`, `PATCH /podcasters/:id`, `POST /podcasters/:id/rate`
 
-**Podcasters:**
-* `POST /podcasters` - Create virtual host (API-3)
-* `GET /podcasters` - List podcasters
-* `PUT /podcasters/:id` - Update podcaster
-* `DELETE /podcasters/:id` - Delete podcaster
+**Episodes:** `POST /episodes`, `POST /episodes/with-file`, `GET /episodes/my`, `GET /episodes/:id`, `GET /episodes/:id/stream`, `GET|POST /episodes/:id/progress`
 
-**Episodes:**
-* `POST /episodes` - Generate episode (API-4)
-* `GET /episodes/:id` - Get episode details (API-4)
-* `GET /episodes/:id/status` - Check generation status
-* `POST /episodes/:id/regenerate` - Regenerate episode
-* `DELETE /episodes/:id` - Delete episode
+**Feed & Search:** `GET /feed?tab=`, `GET /feed/section/:id`, `GET /search`, `GET /search/suggestions`
 
-**Feed & Discovery:**
-* `GET /feed` - Get personalized feed (API-5)
-* `GET /feed/trending` - Get trending episodes
-* `GET /search` - Search episodes
+**Notifications:** `GET /notifications`, `PATCH /notifications/:id/read`, `POST /notifications/push-token`
 
-**Social:**
-* `POST /episodes/:id/like` - Like episode
-* `POST /episodes/:id/comments` - Add comment (API-6)
-* `POST /podcasters/:id/follow` - Follow podcaster
-
-## Monitoring & Observability
-
-### Health Checks
-
-**Core API:**
-```bash
-GET /health
-GET /health/db
-GET /health/mq
-```
-
-**AI Worker:**
-* Logs processing metrics to stdout
-* Exposes metrics endpoint for Prometheus (optional)
-
-### Logging
-
-* **Structured Logging:** Winston (Core API), Python logging (Worker)
-* **Log Levels:** ERROR, WARN, INFO, DEBUG
-* **Critical Events:** Login attempts, episode generation, errors (SR-3)
-
-### Metrics to Monitor
-
-* API response times (NFR-3: < 500ms average)
-* Queue depth and processing rate
-* Episode generation success/failure rate
-* Database connection pool status
-* Storage upload success rate
-
-### RabbitMQ Management
-
-Monitor queue health at: `http://localhost:15672`
-* Check message rate
-* Monitor consumer count
-* Alert on queue buildup
+**Subscriptions:** `GET /subscriptions/status`, `POST /subscriptions/rc-webhook`
 
 ## Deployment
 
-### Docker Support
-
-Both services include Dockerfiles for containerization:
+Both services build from Dockerfiles and deploy to **Google Cloud Run** (`us-central1`) via `.github/workflows/deploy.yml` on push to `master`.
 
 ```bash
-# Build Core API
 docker build -t auditure-core-api ./services/core-api
-
-# Build AI Worker
 docker build -t auditure-ai-worker ./services/ai-worker
 ```
 
-### Kubernetes Deployment
+**Cloud Run topology:**
+* **core-api** - scale-to-zero with CPU throttling (cost savings). Do not run long-lived consumers inside it.
+* **ai-worker** - `--min-instances 1 --no-cpu-throttling` (RabbitMQ consumer needs always-on CPU).
+* **book-extractor** - Cloud Run Job, dispatched per upload/re-extraction.
+* **migrate** - job runs `prisma migrate deploy` after `deploy-core-api`.
 
-Supports horizontal pod autoscaling (NFR-4):
+All env vars and secrets must be declared in `deploy.yml`, or they get wiped on redeploy.
 
-```yaml
-# Example HPA for Core API
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: core-api-hpa
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: core-api
-  minReplicas: 2
-  maxReplicas: 10
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 70
-```
+## Monitoring & Observability
+
+* **Health check:** `GET /health` on core-api.
+* **Logging:** NestJS logger (core-api) and Python logging (worker) to stdout, aggregated by Cloud Logging.
+* **RabbitMQ:** local management UI at `http://localhost:15672`.
+* **Metrics to watch:** queue depth, generation success/failure rate, API latency, DB pool.
 
 ## Security Implementation
 
-* **Input Validation:** All DTOs validated with class-validator (NFR-12)
-* **SQL Injection Protection:** TypeORM parameterized queries
-* **XSS Protection:** Helmet middleware
-* **CSRF Protection:** CSRF tokens for state-changing operations
-* **Rate Limiting:** Express-rate-limit on all endpoints (SR-4)
-* **CORS:** Configured for mobile app origins only
-* **Secrets Management:** Environment variables, never committed to repo
+* Input validation on all DTOs (class-validator)
+* Prisma parameterized queries (no string-built SQL)
+* Upload hardening: MIME allowlist, magic-byte verification, PDF JavaScript/XFA disabled at parse time, restricted VPC egress on the extractor Job
+* JWT auth on user-facing endpoints; webhook signature/secret verification
+* CORS restricted to app origins; secrets via env vars and GCP Secret Manager

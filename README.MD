@@ -1,36 +1,48 @@
 # Auditure
 
-Auditure is a mobile-first application that converts book content into AI-generated podcast episodes featuring customizable virtual hosts. Users can upload books (PDF/EPUB), configure virtual "podcasters" with distinct personalities, and generate multi-speaker audio episodes (monologue, dual-host, or group conversations) using LLMs and Text-to-Speech engines.
+Auditure is a mobile-first creator platform that turns books into podcast-style audio. Users upload a book (PDF or EPUB), configure virtual "podcasters" with distinct personalities and voices, and generate multi-speaker episodes (monologue or duo conversation) using an LLM for scripting and text-to-speech for audio. The AI podcaster is the product; books are the fuel.
+
+Launched on Google Play (Android) in April 2026. iOS is on a waitlist.
 
 ## System Architecture
 
-Auditure follows a **Mobile-Client / Cloud-Backend** architecture:
+Auditure follows a **Mobile-Client / Cloud-Backend** split:
 
-* **Frontend:** React Native (Expo) for iOS and Android
-* **Backend (Core):** NestJS API Gateway handling routing, authentication, and orchestration
-* **Backend (AI):** Python microservices for LLM script generation and TTS audio synthesis
-* **Infrastructure:** PostgreSQL (relational data), RabbitMQ (async job queue), Redis (caching), AWS S3/GCP Storage (audio/book files)
+* **Frontend:** React Native (Expo) app for Android and iOS.
+* **Core API:** NestJS modular monolith handling auth, books, podcasters, episodes, feed, search, social, subscriptions, and notifications.
+* **AI Worker:** Python service that generates scripts and synthesizes audio. It runs as an always-on RabbitMQ consumer.
+* **Book Extractor:** A Cloud Run **Job** (same codebase as core-api) that extracts text and chapters from uploaded files. Kept separate because core-api is scale-to-zero and would kill a long extraction mid-run.
+* **Data & infra:** PostgreSQL (Cloud SQL in prod), RabbitMQ, Redis (Upstash in prod), Google Cloud Storage for audio and book files.
+
+Production runs on **Google Cloud Run** (`us-central1`, project `auditure-483611`), not Kubernetes.
 
 ## Project Structure
 
-This project is configured as an NPM Monorepo using Workspaces.
+This is an NPM workspaces monorepo.
 
 ```text
 Auditure/
 ├── apps/
-│   └── mobile-app/          # React Native client (Expo)
+│   ├── mobile-app/          # React Native client (Expo)
+│   └── website/             # Marketing/landing site (Vite)
 ├── services/
-│   ├── core-api/            # NestJS Backend (Auth, Users, Orchestration)
-│   │   ├── auth/            # Authentication & OAuth
-│   │   ├── users/           # User profiles & settings
-│   │   ├── podcasters/      # Virtual host management
-│   │   ├── books/           # Book ingestion & extraction
-│   │   ├── episodes/        # Episode generation orchestration
-│   │   ├── feed/            # Discovery & trending logic
-│   │   └── social/          # Likes, comments, bookmarks
-│   └── ai-worker/           # Python Service (LLM & TTS Generation)
+│   ├── core-api/            # NestJS backend (auth, books, episodes, feed, ...)
+│   │   └── src/
+│   │       ├── auth/          # Email/password + OTP + JWT
+│   │       ├── users/         # User profiles & settings
+│   │       ├── podcasters/    # Virtual host management
+│   │       ├── books/         # Book upload, extraction dispatch, dedup
+│   │       ├── episodes/      # Episode orchestration, streaming, progress
+│   │       ├── feed/          # Discovery feed (episodes/books/podcasters)
+│   │       ├── search/        # Unified search (Postgres ILIKE + pg_trgm)
+│   │       ├── social/        # Likes, comments, ratings
+│   │       ├── subscriptions/ # RevenueCat webhooks (+ legacy Paystack)
+│   │       ├── notifications/ # In-app + Expo push (Redis Streams)
+│   │       ├── redis/         # Caching, progress, playback position
+│   │       └── rabbitmq/      # Episode-generation producer
+│   └── ai-worker/           # Python service (LLM scripting + TTS)
 ├── infra/
-│   └── docker-compose.yml   # Local development infrastructure
+│   └── docker-compose.yml   # Local dev infrastructure
 └── package.json             # Root workspace configuration
 ```
 
@@ -38,323 +50,189 @@ Auditure/
 
 ### Prerequisites
 
-* Node.js (v18+)
-* Docker Desktop (for PostgreSQL, RabbitMQ, Redis)
-* Python 3.9+ (for AI workers)
-* AWS/GCP credentials (for object storage in production)
+* Node.js v18+
+* Docker Desktop (for local PostgreSQL, RabbitMQ, Redis)
+* Python 3.9+ (for the AI worker)
+* API keys: OpenAI (scripting), Gemini (TTS), Google Cloud credentials (Standard TTS + GCS in prod)
 
-### Bootstrap the Project
+### Bootstrap
 
-1. **Install Dependencies:** Run from the root to install all workspace dependencies.
+1. **Install dependencies** from the repo root:
 
 ```bash
 npm install
 ```
 
-2. **Start Infrastructure:** Spin up PostgreSQL, RabbitMQ, and Redis.
+2. **Start local infrastructure** (PostgreSQL, RabbitMQ, Redis):
 
 ```bash
 docker-compose -f infra/docker-compose.yml up -d
 ```
 
-3. **Run Database Migrations:**
+3. **Run migrations** and generate the Prisma client:
 
 ```bash
 cd services/core-api
-npm run migration:run
+npx prisma migrate dev
 ```
 
-4. **Run the Backend (Core API):**
+4. **Run the Core API:**
 
 ```bash
-npm run start:core-api
+npm run start:core-api   # from repo root
 ```
 
-5. **Configure API Keys (required for AI features):**
+5. **Configure AI keys.** Create `infra/.env` (used by the docker-compose ai-worker) or `services/ai-worker/.env`:
 
-Create `infra/.env` with your API keys:
 ```bash
-# Script Generation (OpenAI GPT-4o mini)
-OPENAI_API_KEY=your_openai_api_key_here
-
-# Text-to-Speech (Gemini 2.5 Flash TTS)
-GEMINI_API_KEY=your_gemini_api_key_here
+OPENAI_API_KEY=your_openai_api_key
+GEMINI_API_KEY=your_gemini_api_key
+GOOGLE_CLOUD_PROJECT_ID=your_gcp_project   # for Standard TTS
 ```
 
 6. **Run the AI Worker:**
 
-**Option A: Via Docker (Recommended)**
+Via Docker (recommended):
 ```bash
 docker-compose -f infra/docker-compose.yml up -d ai-worker
 ```
 
-**Option B: Standalone (for development)**
+Standalone (development):
 ```bash
 cd services/ai-worker
 python -m venv venv
-source venv/bin/activate  # or .\venv\Scripts\activate on Windows
+source venv/bin/activate   # or .\venv\Scripts\activate on Windows
 pip install -r requirements.txt
 python -m src.main
 ```
 
-7. **Run the Mobile App:**
+7. **Run the mobile app:**
 
 ```bash
-npm run start:mobile
+npm run start:mobile   # from repo root
 ```
 
 ## Tech Stack
 
 ### Frontend
-* React Native with TypeScript
-* Expo for cross-platform development
-* Audio playback libraries
+* React Native + TypeScript, Expo (managed workflow), Expo Router
+* `expo-av` for audio playback (background audio, mini-player, lock-screen controls)
+* State via React Context (Auth, Playback)
+* `react-native-purchases` (RevenueCat) for subscriptions
+* PostHog (analytics) and Sentry (crash reporting)
 
-### Backend
-* Node.js with NestJS framework
-* Prisma ORM for database access
-* Passport.js for OAuth (Google/Apple)
-* JWT authentication with refresh tokens
+### Backend (Core API)
+* NestJS with Prisma ORM over PostgreSQL
+* JWT auth (access + refresh with rotation), bcrypt password hashing
+* Email/OTP verification via Resend
+* RabbitMQ producer for episode generation
+* Redis for caching, job progress, playback position, and notification streams
+* Storage abstraction: local filesystem (dev) or Google Cloud Storage (prod)
 
-### AI Processing
+### AI Processing (AI Worker)
 * Python 3.9+
-* LLM integration (OpenAI GPT-4o mini) with template fallback
-* TTS engine: Gemini 2.5 Flash TTS (~$0.15/ep) + Google Cloud Standard (free tier fallback)
-* Multi-speaker synthesis with up to 9 voices per episode
-* Dynamic WPM calculation based on podcaster speaking speed
-* Natural interruptions and backchannels based on chaos factor
-* Self-hosted forced alignment (wav2vec2, CPU) for live transcript timing — optional and crash-safe
-
-### Data & Infrastructure
-* PostgreSQL (relational data)
-* RabbitMQ (async job queue)
-* Redis (caching layer)
-* AWS S3 or GCP Storage (audio and book files)
-* Docker + Kubernetes (production deployment)
+* **Scripting:** OpenAI GPT-4.1-mini with a template fallback; chunked generation and a three-layer anti-repetition system for long episodes
+* **TTS:** Gemini 2.5 Flash TTS (premium, multi-speaker) with Google Cloud Standard TTS as the free-tier fallback
+* Multi-speaker synthesis (up to 9 voices), dynamic words-per-minute, natural interruptions/backchannels driven by a chaos factor
+* Optional self-hosted forced alignment (wav2vec2, CPU) for live transcript timing; non-vital and crash-safe
 
 ## Key Features
 
-* **Multi-Auth Support:** Email/password, Google OAuth, Apple OAuth, optional 2FA
-* **Virtual Podcaster Creation:** Customizable name, avatar, personality, voice, speaking style
-* **Book Ingestion:** Upload PDF/EPUB files or provide URLs for extraction
-* **Flexible Content Selection:** Process full books, specific chapters, or page ranges
-* **Episode Types:** Generate monologues, dual-host conversations, or group discussions
-* **Live Transcript:** Karaoke-style transcript that tracks playback (highlight, auto-scroll, tap-to-seek) when alignment timing is available
-* **Social Features:** Like, comment, bookmark episodes, follow podcasters
-* **Discovery Feed:** Browse trending episodes with search by title, author, keywords
-* **Subscription Plans:** Tiered subscriptions (Free, Starter, Pro) with Paystack payment processing
+* **Auth:** Email/password with OTP email verification, JWT access/refresh tokens (rotation on refresh). No social login or 2FA yet.
+* **Virtual podcasters:** Configurable name, avatar, personality (5 traits on a 1-10 scale), and a permanently assigned Gemini voice for consistency.
+* **Book ingestion:** Upload PDF/EPUB (32MB limit, magic-byte verified). Three-tier chapter detection (TOC, dynamic pattern, regex fallback), OCR for scanned PDFs, and cover extraction (Google Books + PDF/EPUB fallback).
+* **Book deduplication:** Quality-scored canonical selection so shared books converge on the best copy.
+* **Flexible content selection:** Full book, specific chapters, or page ranges.
+* **Episode types:** Monologue and duo conversation. Themes include lecture, discussion, and debate. (Group is planned post-MVP.)
+* **Live transcript:** Karaoke-style highlight, auto-scroll, and tap-to-seek when alignment timing is available.
+* **Discovery feed & search:** Curated feed across episodes, books, and podcasters; unified search with fuzzy matching.
+* **Social:** Likes, comments, ratings, play counts.
+* **Notifications:** In-app plus Expo push (FCM/APNs), delivered via Redis Streams.
+* **Subscriptions:** Free, Starter, Pro tiers via Google Play Billing (RevenueCat).
 
 ## Subscription Plans
 
-Auditure uses **Paystack** for subscription management, supporting both local (South Africa) and international payments.
+Billing runs through **RevenueCat + Google Play Billing**. Purchases and management happen in-app via the RevenueCat SDK; RevenueCat webhooks notify the Core API, which maps products to tiers and updates episode limits.
 
-### Plans
+> The earlier Paystack integration is being retired. Its mutation endpoints remain only as stubs that ask old clients to update the app. No real Paystack subscribers ever existed.
 
-| Tier | Price | Episodes/Month | Max Duration | Features |
-|------|-------|----------------|--------------|----------|
-| Free | $0 | 3 (1 Gemini + 2 Standard) | 10 min | Basic access |
-| Starter | $9.99/mo | 20 (unified) | 30 min | Gemini Pro voice, Mono & Duo episodes, 10 personalities |
-| Pro | $24.99/mo | 50 (unified) | 30 min | Gemini Pro voice, Unlimited personalities, Priority processing |
+| Tier | Price | Episodes / Month | Max Duration | Notes |
+|------|-------|------------------|--------------|-------|
+| Free | $0 | 3 (1 Gemini + 2 Standard) | 10 min | Hybrid free tier |
+| Starter | $9.99/mo | 20 (unified, Gemini) | 30 min | Mono & duo episodes |
+| Pro | $24.99/mo | 50 (unified, Gemini) | 30 min | Priority processing |
 
-### Payment Flow
+**Product mapping (RevenueCat):**
+* `auditure_premium:starter` → STARTER
+* `auditure_premium:pro` → PRO
 
-1. User selects a plan in the mobile app
-2. App opens Paystack Checkout in a web browser
-3. User completes payment on Paystack's secure page
-4. Paystack webhook notifies the backend of successful payment
-5. Backend updates user's subscription tier and episode limits
+**Webhook endpoint:** `POST /subscriptions/rc-webhook` (authenticated by a static header, `REVENUECAT_WEBHOOK_AUTH_HEADER`)
 
-### Configuration
+Complimentary (comp) access can be granted manually for outreach/press; effective tier resolves as paid > comp > free.
 
-Set the following environment variables in `services/core-api/.env`:
-
-```env
-PAYSTACK_SECRET_KEY="sk_test_xxx"
-PAYSTACK_PUBLIC_KEY="pk_test_xxx"
-PAYSTACK_PLAN_CODE_STARTER="PLN_xxx"
-PAYSTACK_PLAN_CODE_PRO="PLN_xxx"
-APP_URL="http://localhost:3000"
-```
-
-### Webhook Setup
-
-Configure webhook URL in Paystack dashboard:
-```
-https://your-api-domain.com/subscriptions/webhook
-```
-
-For local testing, use ngrok:
-```bash
-ngrok http 3000
-# Then set webhook to: https://xxxx.ngrok.io/subscriptions/webhook
-```
-
-### Test Cards
-
-- **Success:** 4084 0841 1111 1111 (any future expiry, any CVV)
-- **Failed:** 4084 0841 1111 1119
+See [Subscriptions Documentation](./services/core-api/src/subscriptions/README.md) for the full lifecycle and webhook event handling.
 
 ## Documentation
 
-For detailed information about specific components:
-
-* [Mobile App Documentation](./apps/mobile-app/README.md) - React Native setup, development workflow
-* [Backend Services Documentation](./services/README.md) - Core API and AI Worker details
-* [Infrastructure Setup](./infra/README.md) - Docker Compose configuration and troubleshooting
+* [Mobile App](./apps/mobile-app/README.md) - Expo setup, routing, playback, EAS builds
+* [Backend Services](./services/README.md) - Core API + AI Worker architecture
+* [Infrastructure](./infra/README.md) - Local Docker Compose setup
+* [Core API](./services/core-api/README.md) and its per-module READMEs (auth, books, feed, search, notifications, subscriptions)
+* [AI Worker](./services/ai-worker/README.md) - scripting, TTS, voices, alignment
 
 ## Security
 
-* TLS encryption for all data transmission
-* AES-256 encryption for stored sensitive data
-* PKCE flow for OAuth on mobile clients
-* Short-lived access tokens with refresh token rotation
-* Rate limiting on all API endpoints
-* GDPR/CCPA compliance for user data
+* JWT access tokens (15 min) with rotating refresh tokens (7 days)
+* bcrypt password hashing; email verification required before activation
+* Input validation via class-validator on all DTOs
+* Prisma parameterized queries (no string-built SQL)
+* Upload defenses: MIME allowlist, magic-byte verification, PDF JavaScript/XFA disabled at parse time, VPC egress restricted on the extractor Job
+* Secrets via environment variables and GCP Secret Manager (never committed)
+* TLS in transit; encryption at rest on managed data stores
 
-## Performance Targets
-
-* UI rendering at 60fps
-* API latency < 500ms average
-* 99.9% uptime target
-* Asynchronous episode generation with user notifications
-* Horizontal scaling support via Docker/Kubernetes
-
-## Branching Strategy
-
-This project follows **GitFlow**:
+## Branching Strategy (GitFlow)
 
 | Branch | Purpose |
 |--------|---------|
-| `master` | Production-ready code. Deploys to Cloud Run on push. |
-| `develop` | Integration branch for features. Default branch. |
+| `master` | Production. Deploys to Cloud Run on push. |
+| `develop` | Integration branch. Default branch on GitHub. |
 | `feature/*` | New features. Branch from `develop`, PR back to `develop`. |
-| `release/*` | Release prep. Branch from `develop`, merge to both `master` and `develop`. |
-| `hotfix/*` | Urgent production fixes. Branch from `master`, merge to both `master` and `develop`. |
+| `release/*` | Release prep. Branch from `develop`, merge to `master` and `develop`. |
+| `hotfix/*` | Urgent production fixes. Branch from `master`, merge to `master` and `develop`. |
 
-CI runs tests on pushes and PRs to both `develop` and `master`. Deployment only triggers on push to `master`.
+CI runs tests on pushes and PRs to both `develop` and `master`. Deployment triggers only on push to `master`, and DB migrations (`prisma migrate deploy`) apply automatically after the core-api deploy. Branch protection is not enforced (GitHub Pro limitation on private repos); conventions are followed manually.
 
 ## Contributing
 
-We welcome contributions! Please follow these guidelines before submitting pull requests.
+1. Branch from `develop` with a descriptive name (`feature/add-voice-preview`, `fix/audio-playback-bug`).
+2. Keep commits atomic and use conventional commit messages: `type(scope): description` where type is one of `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`.
+3. Ensure lint and tests pass before opening a PR.
 
-### Getting Started
+### Linting & Tests
 
-1. Fork the repository and create a feature branch from `develop`
-2. Use descriptive branch names: `feature/add-voice-preview`, `fix/audio-playback-bug`, `refactor/episode-service`
-3. Keep commits atomic and focused on a single change
-
-### Code Quality Requirements
-
-#### Linting
-
-All code must pass linting checks before merge:
-
-**TypeScript (Mobile App & Core API):**
+TypeScript (mobile app & core API):
 ```bash
-# Run ESLint
 npm run lint
-
-# Auto-fix issues
 npm run lint:fix
-```
-
-**Python (AI Worker):**
-```bash
-cd services/ai-worker
-
-# Run flake8 for style checks
-flake8 src/
-
-# Run mypy for type checking
-mypy src/
-```
-
-#### Testing
-
-All new features and bug fixes must include tests:
-
-**TypeScript:**
-```bash
-# Run Jest tests
 npm run test
-
-# Run with coverage
-npm run test:coverage
 ```
 
-**Python:**
+Python (AI worker):
 ```bash
 cd services/ai-worker
-
-# Run pytest
+flake8 src/
+mypy src/
 pytest
-
-# Run with coverage
-pytest --cov=src
 ```
 
-* Aim for >80% code coverage on new code
-* Include unit tests for business logic
-* Add integration tests for API endpoints and service interactions
-
-### Code Style
-
-#### TypeScript Best Practices
-
-* Use strict TypeScript (`strict: true` in tsconfig)
-* Define explicit return types for functions
-* Use interfaces for object shapes, types for unions/primitives
-* Prefer `const` over `let`, avoid `var`
-* Use async/await over raw Promises
-* Follow NestJS conventions: decorators, dependency injection, DTOs with class-validator
-
-#### Python Best Practices
-
-* Follow PEP 8 style guidelines
-* Use type hints for all function signatures
-* Use Pydantic models for data validation
-* Prefer f-strings for string formatting
-* Use context managers for resource handling
-* Keep functions focused and under 50 lines
-
-### Modular Structure
-
-* **Mobile App:** One component per file, co-locate styles and tests
-* **Core API:** One module per domain (auth, users, episodes), use NestJS module boundaries
-* **AI Worker:** Separate concerns into generators, clients, consumers, and models
-* Avoid circular dependencies between modules
-* Keep shared utilities in dedicated `common/` or `utils/` directories
-
-### Commit Messages
-
-Use conventional commit format:
-```
-type(scope): short description
-
-[optional body with more details]
-```
-
-Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
-
-Examples:
-* `feat(episodes): add support for group conversations`
-* `fix(tts): handle timeout errors in Gemini client`
-* `docs(readme): expand contributing guidelines`
-
-### Pull Request Process
-
-1. Ensure all checks pass (lint, tests, build)
-2. Update documentation if adding new features
-3. Add a clear PR description explaining the changes
-4. Request review from at least one maintainer
-5. Squash commits before merge if requested
-6. Feature PRs target `develop`; release/hotfix PRs target `master`
+Feature PRs target `develop`; release and hotfix PRs target `master`.
 
 ## Helpful Commands
+
 ```bash
 npx tree-node-cli -I "node_modules|.git|dist|.expo|.vscode" --dirs-first
 ```
 
 ## License
 
-[Your License Here]
+Proprietary. All rights reserved.

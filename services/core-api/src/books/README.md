@@ -8,7 +8,7 @@ Complete book management system with file upload, text extraction, and async pro
 - Async text extraction with RabbitMQ
 - Automatic chapter detection
 - Cover image extraction (Google Books API + PDF/EPUB fallback)
-- Local file storage with S3-ready abstraction
+- Storage abstraction: local filesystem (dev) or Google Cloud Storage (prod)
 - Full-text search capabilities
 - Extraction retry mechanism
 - Public API for Episodes and Feed services
@@ -71,10 +71,10 @@ class LocalStorageBackend implements StorageBackend {
   }
 }
 
-// Implementation 2: AWS S3 (production)
-class S3StorageBackend implements StorageBackend {
+// Implementation 2: Google Cloud Storage (production)
+class GcsStorageBackend implements StorageBackend {
   async upload(key, data) {
-    await s3.putObject({ Bucket: 'auditure', Key: key, Body: data });
+    await bucket.file(key).save(data);
   }
 }
 ```
@@ -88,7 +88,7 @@ class S3StorageBackend implements StorageBackend {
 **Configuration:**
 ```env
 STORAGE_BACKEND=local  # Development
-STORAGE_BACKEND=s3     # Production
+STORAGE_BACKEND=gcs    # Production (requires GCS_BUCKET_NAME)
 ```
 
 ### Chapter Detection: Why Three Tiers?
@@ -160,7 +160,8 @@ author: "F. Scott Fitzgerald" (optional)
 **Validation:**
 - File is required (400)
 - Only PDF and EPUB files allowed (400)
-- Maximum file size: 50MB (413)
+- Maximum file size: 32MB (413)
+- Magic-byte verification must match the declared MIME (400)
 - Valid sourceType enum: PDF, EPUB, URL (400)
 
 **Extraction Status Flow:**
@@ -584,8 +585,8 @@ Abstraction layer for file storage:
 - `fileExists()` - Check if file exists
 
 **Backends:**
-- `LocalStorageBackend` - Filesystem storage (current)
-- `S3StorageBackend` - AWS S3 (future)
+- `LocalStorageBackend` - Filesystem storage (development)
+- `GcsStorageBackend` - Google Cloud Storage (production; supports signed URLs)
 
 #### BookExtractionDispatcher
 Triggers the book-extractor Cloud Run Job for extraction work:
@@ -1006,24 +1007,21 @@ npm test -- books --watch
 
 ```env
 # Storage Configuration
-STORAGE_BACKEND=local
+STORAGE_BACKEND=local            # or 'gcs' in production
 LOCAL_STORAGE_PATH=./storage
 
 # RabbitMQ Configuration
 RABBITMQ_URL=amqp://localhost:5672
 
-# File Upload Limits
-MAX_FILE_SIZE=52428800  # 50MB in bytes
+# File upload limit is 32MB, enforced in books.controller.ts (Multer)
 ```
 
-### Future S3 Configuration
+### Production (GCS) Configuration
 
 ```env
-STORAGE_BACKEND=s3
-AWS_REGION=us-east-1
-AWS_S3_BUCKET=auditure-files
-AWS_ACCESS_KEY_ID=your-key
-AWS_SECRET_ACCESS_KEY=your-secret
+STORAGE_BACKEND=gcs
+GCS_BUCKET_NAME=auditure-files
+# Auth via GOOGLE_APPLICATION_CREDENTIALS or the Cloud Run runtime service account
 ```
 
 ## Upload Security
@@ -1208,4 +1206,4 @@ const popular = await booksService.getPopularBooks(10);
 - [ ] Share books between users
 - [ ] Export to different formats
 - [ ] Audio book support
-- [ ] Cloud storage integration (S3, Google Cloud)
+- [x] Cloud storage integration (Google Cloud Storage)

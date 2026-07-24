@@ -128,49 +128,53 @@ With PlaybackContext:
 
 ## Features
 
-### Authentication (FR-1, FR-2, FR-3)
+### Authentication
 
-- Email/password login and registration
-- OAuth integration (Google Sign-In, Apple Sign-In)
-- Optional Two-Factor Authentication (2FA) via SMS or authenticator app
+- Email/password registration and login
+- OTP email verification (via the Core API + Resend)
+- JWT access tokens with automatic refresh (rotation)
 - User profile management with settings and preferences
 
-### Virtual Podcaster Management (FR-4 to FR-8)
+> Social login (Google/Apple) and 2FA are not implemented.
 
-- Create and configure AI virtual podcasters
+### Virtual Podcaster Management
+
+- Create and configure virtual podcasters
 - Customize podcaster attributes:
     - Name and avatar
-    - Personality and speaking style
-    - TTS voice selection with accent, tone, and style
-    - Speech parameters (pace, pitch, emphasis)
-- Browse predefined personality templates
-- Follow favorite podcasters
+    - Personality traits (tone, communication, humor, depth, chaos) on a 1-10 scale
+    - Voice: gender, accent, speaking speed, vocal pitch, voice model
+    - A permanently assigned Gemini voice for consistency across episodes
+- Browse and follow public podcasters; rate them (1-5 stars)
 
-### Book Ingestion (FR-9 to FR-12)
+### Book Ingestion
 
-- Upload PDF and EPUB files from device
-- Input URLs for content extraction
-- Optional integration with Google Drive and Dropbox
-- Preview extracted text before processing
+- Upload PDF and EPUB files from the device (32MB limit)
+- Automatic text extraction and chapter detection (runs server-side)
+- Cover images fetched automatically (Google Books + file fallback)
 
-### Content Selection & Episode Generation (FR-13 to FR-19)
+### Content Selection & Episode Generation
 
-- Select full books, specific chapters, or page ranges
-- Combine multiple sections into a single episode
+- Select the full book, specific chapters, or page ranges
 - Choose episode type:
     - Monologue (single host)
-    - Dual-host conversation
-    - Group discussion
-- Real-time generation status updates
-- Push notifications when episodes complete
+    - Duo conversation (two hosts)
+    - Themes: lecture, discussion, debate
+- Real-time generation progress
+- Push notification when the episode is ready
 
-### Episode Feed & Discovery (FR-20 to FR-25)
+### Episode Feed & Discovery
 
-- Scrollable feed of generated episodes
+- Curated feed across Episodes, Books, and Podcasters tabs
 - In-app audio player with playback controls
-- Search by title, author, keywords, or podcaster name
-- Trending and recommended episodes
-- Episode bookmarking for later
+- Unified search by title, author, keywords, or podcaster name
+- Trending, top-rated, and latest sections
+
+### Subscriptions
+
+- Free, Starter, and Pro tiers via Google Play Billing (RevenueCat SDK)
+- Purchases and management handled in-app by `react-native-purchases`
+- Usage/quota surfaced from the Core API `/subscriptions/status`
 
 ### Audio Playback
 
@@ -181,18 +185,17 @@ With PlaybackContext:
 - **Notification Controls**: Control playback from phone notification/lock screen
 - **Streaming**: HTTP range request support for efficient seeking
 
-### Social Features (FR-22, FR-23)
+### Social Features
 
 - Like episodes
-- Comment on episodes
-- Follow podcasters
-- Share episodes with friends
+- Comment on episodes (with replies)
+- Follow podcasters and rate them
+- Share episodes
 
-### Content Management (FR-26 to FR-28)
+### Content Management
 
 - View history of uploaded books and episodes
-- Edit and regenerate existing episodes
-- Download audio files for offline listening
+- Regenerate an existing episode with editor's notes (steering)
 
 ## Setup & Installation
 
@@ -347,21 +350,21 @@ mobile-app/
 
 ### Environment Variables
 
-Create a `.env` file in the app root:
+Public config is exposed through `EXPO_PUBLIC_*` variables. These must live in `eas.json` for production builds (not only `.env`), or prod builds ship without analytics/crash reporting.
 
 ```bash
-# API Configuration
-API_BASE_URL=http://localhost:3000
-WS_BASE_URL=ws://localhost:3000
+# API
+EXPO_PUBLIC_API_BASE_URL=http://localhost:3000
 
-# OAuth Configuration
-GOOGLE_CLIENT_ID=your-google-client-id
-APPLE_CLIENT_ID=your-apple-client-id
+# Analytics (PostHog) — RN emits $screen, not $pageview
+EXPO_PUBLIC_POSTHOG_API_KEY=phc_xxx
+EXPO_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
 
-# Feature Flags
-ENABLE_2FA=true
-ENABLE_CLOUD_IMPORT=true
+# Crash reporting (Sentry)
+EXPO_PUBLIC_SENTRY_DSN=https://xxx@sentry.io/xxx
 ```
+
+> RevenueCat is configured with the platform SDK key. Never place RevenueCat `test_*` keys in the production EAS profile — they intentionally crash release builds.
 
 ### Expo Configuration (`app.json`)
 
@@ -405,16 +408,15 @@ export const generateEpisode = async (payload: EpisodeGenerationRequest) => {
 
 ### iOS
 
-- Apple Sign-In integration
 - Native audio session handling
 - Background audio playback
-- Universal links
+- Universal links (waitlist; iOS not yet shipped)
 
 ### Android
 
-- Google Sign-In integration
-- Background service for downloads
-- Deep linking
+- Google Play Billing (via RevenueCat)
+- Background audio playback
+- Deep linking (`auditure://`)
 - Notification channels
 
 ## Push Notifications
@@ -436,17 +438,16 @@ Notifications.setNotificationHandler({
 
 ## Performance Monitoring
 
-- **Error Tracking:** Sentry integration for crash reporting
-- **Analytics:** Track user engagement and feature usage
-- **Performance Metrics:** Monitor app launch time and screen transitions
+- **Error Tracking:** Sentry (`@sentry/react-native`) for crash reporting
+- **Analytics:** PostHog (`posthog-react-native`). React Native emits `$screen` events, not `$pageview`.
+- Both require their `EXPO_PUBLIC_*` keys in `eas.json` for production builds.
 
 ## Development Notes
 
 - The app requires an active internet connection for most features
-- Audio files are streamed from cloud storage for optimal performance
-- Offline playback support planned for future releases
-- OAuth requires platform-specific configuration in Expo app.json
-- 2FA setup requires backend SMS/authenticator service integration
+- Audio is streamed from the Core API with HTTP range requests (efficient seeking)
+- Offline playback is not yet implemented
+- Subscriptions are handled by the RevenueCat SDK; the backend stays in sync via webhooks
 
 ## Common Mistakes to Avoid
 
