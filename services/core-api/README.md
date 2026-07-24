@@ -14,13 +14,14 @@ The Core API is built with NestJS and provides authentication, book management, 
 - **Virtual Podcasters** - Create and customize AI podcasters with 17 configurable traits and permanent voice assignment
 - **Episode Generation** - Create podcast episodes from books with multiple formats (monologue, duo, group)
 - **Audio Streaming** - Range-request audio streaming for episode playback
-- **Async Processing** - Background processing with RabbitMQ for extraction and generation
+- **Async Processing** - Episode generation via RabbitMQ; book extraction via a Cloud Run Job
 - **Smart Chapter Detection** - Three-tier detection: TOC-based, dynamic pattern, and regex fallback
-- **Flexible Storage** - Local storage with S3-ready abstraction
-- **Search & Discovery** - Full-text search, trending content, and filtering
-- **Redis Caching** - Job progress tracking, playback progress, rate limiting
-- **Social Features** - Comments, likes, shares, ratings, and engagement tracking
-- **Comprehensive Testing** - 83 tests with 90%+ coverage
+- **Flexible Storage** - Local filesystem (dev) or Google Cloud Storage (prod) behind one abstraction
+- **Search & Discovery** - Unified search (Postgres ILIKE + pg_trgm), curated feed, filtering
+- **Redis Caching** - Job progress, playback position, rate limiting, notification streams
+- **Social Features** - Comments, likes, ratings, and engagement tracking
+- **Subscriptions** - RevenueCat webhook handling and tier/usage limits
+- **Notifications** - In-app notifications + Expo push (Redis Streams)
 
 ## Project Structure
 
@@ -37,14 +38,25 @@ services/core-api/
 │   │   ├── services/            # Text extraction service
 │   │   ├── workers/             # Background workers
 │   │   └── README.md            # Books documentation
-│   ├── subscriptions/             # Subscriptions module (Paystack)
-│   │   ├── subscriptions.service.ts # Subscription business logic
-│   │   ├── subscriptions.controller.ts # API endpoints
-│   │   ├── paystack.service.ts  # Paystack API wrapper
+│   ├── subscriptions/             # Subscriptions module (RevenueCat)
+│   │   ├── subscriptions.service.ts     # Status, usage, tier logic
+│   │   ├── subscriptions.controller.ts  # /status + legacy Paystack stubs
+│   │   ├── revenuecat-webhook.controller.ts # POST /subscriptions/rc-webhook
+│   │   ├── revenuecat.service.ts        # RC event → tier/limits
+│   │   ├── tier-resolution.ts           # paid > comp > free resolution
+│   │   ├── paystack.service.ts          # Legacy (retiring)
 │   │   └── README.md            # Subscriptions documentation
+│   ├── episodes/                # Episode orchestration, streaming, progress
+│   ├── podcasters/              # Virtual host management + voice assignment
+│   ├── feed/                    # Discovery feed (episodes/books/podcasters)
+│   ├── search/                  # Unified search (ILIKE + pg_trgm)
+│   ├── social/                  # Likes, comments, ratings
+│   ├── notifications/           # In-app + Expo push (Redis Streams)
+│   ├── users/                   # User profiles & settings
 │   ├── common/                  # Shared services
-│   │   ├── email.service.ts     # Email/OTP service
-│   │   ├── storage.service.ts   # File storage abstraction
+│   │   ├── email.service.ts     # Email/OTP service (Resend)
+│   │   ├── storage.service.ts   # Storage abstraction (local | GCS)
+│   │   ├── gcs-storage.backend.ts # Google Cloud Storage backend
 │   │   ├── storage.controller.ts# File serving endpoint (/api/storage/*)
 │   │   └── guards/              # Rate limiting guards
 │   ├── database/                # Prisma integration
@@ -153,15 +165,18 @@ RESEND_API_KEY="re_xxxxxxxxxxxx"
 OTP_EXPIRY_MINUTES="10"
 
 # Storage
-STORAGE_BACKEND="local"
+STORAGE_BACKEND="local"          # or "gcs" in production
 LOCAL_STORAGE_PATH="./storage"
+GCS_BUCKET_NAME=""               # required when STORAGE_BACKEND=gcs
 
-# RabbitMQ (optional)
+# RabbitMQ
 RABBITMQ_URL="amqp://localhost:5672"
 
-# Redis (for caching)
-REDIS_HOST="localhost"
-REDIS_PORT="6379"
+# Redis (caching, progress, notification streams)
+REDIS_URL="redis://localhost:6379"   # prod uses an Upstash URL
+
+# Subscriptions (RevenueCat)
+REVENUECAT_WEBHOOK_AUTH_HEADER=""    # static Authorization header from the RC dashboard
 
 # Server
 PORT="3000"
@@ -169,94 +184,20 @@ PORT="3000"
 
 ## API Documentation
 
-### Authentication Endpoints
+Endpoints are documented per module. Each module README below is the source of truth for its routes, request/response shapes, and error codes.
 
-See [Auth Service Documentation](src/auth/README.md) for detailed API documentation.
+| Domain | Base URL | Documentation |
+|--------|----------|---------------|
+| Authentication | `/auth` | [Auth](src/auth/README.md) |
+| Books | `/books` (+ `/books/api/*` for services) | [Books](src/books/README.md) |
+| Podcasters | `/podcasters` | [Podcasters](src/podcasters/PODCASTERS_SERVICE.md) |
+| Episodes | `/episodes` | [Episodes](src/episodes/EPISODES_SERVICE.md) |
+| Feed | `/feed` | [Feed](src/feed/README.md) |
+| Search | `/search` | [Search](src/search/README.md) |
+| Notifications | `/notifications` | [Notifications](src/notifications/README.md) |
+| Subscriptions | `/subscriptions` | [Subscriptions](src/subscriptions/README.md) |
 
-**Base URL:** `/auth`
-
-- `POST /register` - Register new user
-- `POST /login` - User login
-- `POST /verify` - Verify email with OTP
-- `POST /refresh` - Refresh access token
-- `POST /resend-otp` - Resend verification code
-- `GET /me` - Get current user profile (protected)
-
-### Books Endpoints
-
-See [Books Service Documentation](src/books/README.md) for detailed API documentation.
-
-**Base URL:** `/books`
-
-- `POST /upload` - Upload book file
-- `GET /` - Get all user's books
-- `GET /:id` - Get single book
-- `GET /:id/text` - Get extracted text
-- `GET /:id/chapters` - Get book chapters
-- `DELETE /:id` - Delete book
-- `POST /:id/retry-extraction` - Retry failed extraction
-
-**Public APIs for Microservices:**
-- `GET /api/book/:id` - Get book for episode generation
-- `GET /api/search` - Search books
-- `GET /api/popular` - Get popular books
-
-### Podcasters Endpoints
-
-See [Podcasters Service Documentation](src/podcasters/PODCASTERS_SERVICE.md) for detailed API documentation.
-
-**Base URL:** `/podcasters`
-
-- `POST /` - Create podcaster (17 configurable traits)
-- `GET /my` - Get user's podcasters
-- `GET /public` - Browse public podcasters (paginated, filtered)
-- `GET /trending` - Get trending podcasters
-- `GET /:id` - Get single podcaster
-- `PATCH /:id` - Update podcaster
-- `DELETE /:id` - Delete podcaster
-- `POST /:id/like` - Like podcaster
-- `POST /:id/rate` - Rate podcaster (1-5 stars)
-
-### Episodes Endpoints
-
-See [Episodes Service Documentation](src/episodes/EPISODES_SERVICE.md) for detailed API documentation.
-
-**Base URL:** `/episodes`
-
-- `POST /` - Create episode from book + podcaster
-- `POST /with-file` - Upload book and create episode in one request
-- `GET /my` - Get user's episodes
-- `GET /public` - Browse public episodes
-- `GET /:id` - Get episode with book/podcaster details
-- `GET /:id/stream` - Stream audio (range request support)
-- `GET /:id/progress` - Get playback position
-- `POST /:id/progress` - Save playback position
-- `POST /:id/like` - Like episode
-- `POST /:id/comments` - Add comment
-
-### Subscriptions Endpoints
-
-See [Subscriptions Documentation](src/subscriptions/README.md) for detailed API documentation.
-
-**Base URL:** `/subscriptions`
-
-- `GET /status` - Get subscription status and usage
-- `POST /checkout` - Initialize Paystack checkout (or re-enable existing)
-- `POST /manage` - Get subscription management info
-- `POST /cancel` - Cancel subscription (non-renewing)
-- `POST /reactivate` - Re-enable a cancelled subscription
-- `POST /cleanup-duplicates` - Clean up duplicate Paystack subscriptions
-- `POST /webhook` - Handle Paystack webhooks
-- `GET /callback` - Payment callback (HTML redirect to app)
-
-### Storage Endpoints
-
-**Base URL:** `/api/storage`
-
-- `GET /*` - Serve files from storage (cover images, etc.)
-  - Example: `/api/storage/{userId}/{bookId}/cover.jpg`
-  - Returns: File content with appropriate Content-Type
-  - Supports: jpg, jpeg, png, gif, webp, pdf, txt, mp3, wav, ogg
+**Storage:** `GET /api/storage/*` serves stored files (e.g. `/api/storage/{userId}/{bookId}/cover.jpg`) with the appropriate `Content-Type`.
 
 ## Testing
 
@@ -279,16 +220,9 @@ npm test -- auth
 npm test -- books
 ```
 
-### Test Statistics
+Unit and integration tests cover the auth, books, feed, search, notifications, and subscriptions modules (services and controllers), including negative and edge cases. Run `npm test -- --coverage` for the current numbers.
 
-- **Total Tests:** 83 passing, 1 skipped
-- **Test Suites:** 5 suites
-- **Coverage:**
-  - Auth Service: 98.7% statements, 100% functions
-  - Books Service: 100% statements, 100% functions
-  - Controllers: 95%+ statements
-
-See [Testing Documentation](TESTING.md) for comprehensive testing guide.
+See [Testing Documentation](TESTING.md) for the comprehensive testing guide.
 
 ## Database
 
@@ -420,10 +354,10 @@ HTTP Request
 | **NotificationsService** | In-app + push notifications | RedisService, ExpoPushService |
 | **EpisodesService** | Episode CRUD, playback progress | RedisService, StorageService |
 | **PodcastersService** | Podcaster management, voice assignment | DatabaseService |
-| **SubscriptionsService** | Subscription lifecycle, Paystack integration | PaystackService, DatabaseService |
-| **PaystackService** | Paystack API wrapper (plans, transactions, subscriptions) | Paystack API |
+| **SubscriptionsService** | Subscription status, usage, tier resolution | DatabaseService |
+| **RevenueCatService** | Maps RevenueCat webhook events to tier/limits | DatabaseService |
 | **EmailService** | Email delivery and OTP generation | Resend API |
-| **StorageService** | File storage abstraction | Local/S3 backends |
+| **StorageService** | File storage abstraction | Local / GCS backends |
 | **RabbitMQService** | Async job processing | amqplib |
 | **TextExtractionService** | PDF/EPUB text extraction | pdf-parse, pdfjs-dist |
 | **DatabaseService** | Prisma client wrapper | @prisma/client |
@@ -530,43 +464,27 @@ npx prisma studio
 
 ## Deployment
 
+Production runs on **Google Cloud Run** (`us-central1`, project `auditure-483611`), deployed by `.github/workflows/deploy.yml` on push to `master`. core-api is scale-to-zero with CPU throttling; the `migrate` job runs `prisma migrate deploy` automatically after the core-api deploy.
+
 ### Production Checklist
 
-- [ ] Set strong JWT secrets
-- [ ] Configure production database
-- [ ] Set up email service (Resend recommended)
-- [ ] Configure S3 for file storage
-- [ ] Set up RabbitMQ cluster
-- [ ] Enable HTTPS
-- [ ] Configure CORS properly
-- [ ] Set up monitoring (Sentry, DataDog, etc.)
-- [ ] Configure rate limiting
-- [ ] Set up backup strategy
+- [ ] Set strong JWT secrets (Secret Manager)
+- [ ] Point `DATABASE_URL` at Cloud SQL (`auditure_prod`)
+- [ ] Set `REDIS_URL` to the Upstash instance
+- [ ] Set `STORAGE_BACKEND=gcs` and `GCS_BUCKET_NAME`
+- [ ] Configure Resend (`RESEND_API_KEY`)
+- [ ] Set `REVENUECAT_WEBHOOK_AUTH_HEADER`
+- [ ] Declare every env var/secret in `deploy.yml` (they get wiped on redeploy otherwise)
+- [ ] Confirm CORS origins and rate limiting
+- [ ] Verify Sentry DSN
 
-### Docker Deployment
+> **Important:** Book extraction runs as a Cloud Run Job (`book-extractor`), not inside core-api. Do not add long-lived consumers to the scale-to-zero core-api service.
 
-```dockerfile
-FROM node:18-alpine
-
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm ci --only=production
-
-COPY . .
-RUN npm run build
-
-EXPOSE 3000
-
-CMD ["npm", "run", "start:prod"]
-```
+### Docker Build
 
 ```bash
-# Build image
-docker build -t auditure-api .
-
-# Run container
-docker run -p 3000:3000 --env-file .env auditure-api
+docker build -t auditure-core-api ./services/core-api
+docker run -p 3000:3000 --env-file .env auditure-core-api
 ```
 
 ## Monitoring & Logging
@@ -604,8 +522,7 @@ logger.warn('Warning message');
 | **OTP expiration (10 min)** | Time-limited codes reduce the attack window if an email is compromised. Balance between security and user convenience. |
 | **Input validation (class-validator)** | Validates data shape and constraints at the API boundary. Rejects malformed requests before they reach business logic. |
 | **SQL injection protection (Prisma)** | Prisma uses parameterized queries by default. Never concatenate user input into SQL strings - Prisma handles escaping. |
-| **File type validation** | MIME type + extension checking prevents upload of executable files disguised as PDFs. Defense in depth with storage scanning. |
-| **File size limits (50MB)** | Prevents denial-of-service via large uploads that exhaust disk/memory. Balance between usability and protection. |
+| **Upload hardening** | MIME allowlist, magic-byte verification, 32MB size limit, and PDF JavaScript/XFA disabled at parse time. See [Books upload security](src/books/README.md#upload-security) for the full breakdown. |
 
 ### Security Anti-Patterns to Avoid
 
@@ -672,7 +589,7 @@ npx prisma generate
 **File Upload Issues:**
 - Check STORAGE_BACKEND environment variable
 - Verify LOCAL_STORAGE_PATH directory exists and is writable
-- Ensure file size is under 50MB limit
+- Ensure file size is under the 32MB limit
 
 **RabbitMQ Connection:**
 ```bash
@@ -716,16 +633,18 @@ All endpoints are prefixed with `/api/v1` in production.
 ### Core Dependencies
 
 - **@nestjs/core** - NestJS framework
-- **@nestjs/jwt** - JWT authentication
-- **@nestjs/passport** - Authentication middleware
+- **@nestjs/jwt** / **@nestjs/passport** - JWT authentication
 - **@prisma/client** - Database ORM
 - **bcrypt** - Password hashing
 - **class-validator** - Input validation
 - **multer** - File upload handling
-- **pdf-parse** - PDF text extraction
-- **epub-parser** - EPUB text extraction
+- **pdf-parse** / **pdfjs-dist** - PDF text extraction, TOC/OCR
+- **@gxl/epub-parser** / **jszip** - EPUB parsing and cover extraction
+- **tesseract.js** / **canvas** - OCR for scanned PDFs
 - **amqplib** - RabbitMQ client
-- **resend** - Email sending via Resend API
+- **@google-cloud/storage** - GCS backend (production storage)
+- **@google-cloud/run** - Dispatch the book-extractor Cloud Run Job
+- **resend** - Transactional email / OTP
 
 ### Development Dependencies
 
@@ -738,14 +657,7 @@ All endpoints are prefixed with `/api/v1` in production.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Support
-
-- Email: support@auditure.app
-- Discord: [Auditure Community](https://discord.gg/auditure)
-- Documentation: [docs.auditure.app](https://docs.auditure.app)
-- Issues: [GitHub Issues](https://github.com/auditure/issues)
+Proprietary. All rights reserved.
 
 ## Roadmap
 
