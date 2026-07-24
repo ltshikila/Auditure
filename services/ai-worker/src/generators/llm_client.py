@@ -92,19 +92,21 @@ class OpenAIClient:
             return self.fallback_model
         return self.model
 
-    def _completion_params(self, model: str, max_tokens: int) -> dict:
+    def _completion_params(self, model: str, max_tokens: int, temperature: float) -> dict:
         """Model-family-specific request params.
 
         gpt-5.x are reasoning models on Chat Completions: they take
         max_completion_tokens (which also counts reasoning tokens, hence the
-        headroom) and reasoning_effort. gpt-4.1.x keep the legacy max_tokens.
+        headroom) and reasoning_effort, and they ONLY accept the default
+        temperature (1) — sending any other value 400s, so we omit it entirely.
+        gpt-4.1.x keep the legacy max_tokens and honor temperature.
         """
         if model.startswith("gpt-5"):
             params: dict = {"max_completion_tokens": max_tokens + 2000}
             if self.reasoning_effort:
                 params["reasoning_effort"] = self.reasoning_effort
             return params
-        return {"max_tokens": max_tokens}
+        return {"max_tokens": max_tokens, "temperature": temperature}
 
     @property
     def is_available(self) -> bool:
@@ -151,19 +153,19 @@ class OpenAIClient:
 
         model = self._select_model((system_prompt or "") + prompt)
 
+        temp_note = "default(1)" if model.startswith("gpt-5") else temperature
         logger.info("[LLM] Calling OpenAI API...")
         logger.info(f"[LLM] Model: {model}")
         logger.info(f"[LLM] Prompt length: {len(prompt)} chars")
-        logger.info(f"[LLM] Max tokens: {max_tokens}, Temperature: {temperature}")
+        logger.info(f"[LLM] Max tokens: {max_tokens}, Temperature: {temp_note}")
 
         try:
             try:
                 response = self.client.chat.completions.create(
                     model=model,
                     messages=messages,
-                    temperature=temperature,
                     timeout=self.timeout,
-                    **self._completion_params(model, max_tokens),
+                    **self._completion_params(model, max_tokens, temperature),
                 )
             except Exception as e:
                 # Safety net: if the primary model rejects the request for
@@ -181,9 +183,8 @@ class OpenAIClient:
                     response = self.client.chat.completions.create(
                         model=model,
                         messages=messages,
-                        temperature=temperature,
                         timeout=self.timeout,
-                        **self._completion_params(model, max_tokens),
+                        **self._completion_params(model, max_tokens, temperature),
                     )
                 else:
                     raise
