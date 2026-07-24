@@ -131,7 +131,7 @@ npm run start:mobile   # from repo root
 
 ### AI Processing (AI Worker)
 * Python 3.9+
-* **Scripting:** OpenAI GPT-4.1-mini with a template fallback; chunked generation and a three-layer anti-repetition system for long episodes
+* **Scripting:** OpenAI GPT-5.4-mini (1M-context GPT-4.1-mini fallback for oversized books) with a template fallback; chunked generation and a three-layer anti-repetition system for long episodes
 * **TTS:** Gemini 2.5 Flash TTS (premium, multi-speaker) with Google Cloud Standard TTS as the free-tier fallback
 * Multi-speaker synthesis (up to 9 voices), dynamic words-per-minute, natural interruptions/backchannels driven by a chaos factor
 * Optional self-hosted forced alignment (wav2vec2, CPU) for live transcript timing; non-vital and crash-safe

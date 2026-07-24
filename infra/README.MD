@@ -11,7 +11,7 @@ The `docker-compose.yml` spins up the following services:
 | **PostgreSQL** | `auditure_db` | `5432` | Primary relational database for Users, Books, Episodes, and Metadata | Section 6.3 |
 | **RabbitMQ** | `auditure_mq` | `5672` (AMQP)<br>`15672` (UI) | Message broker handling the async job queue for episode generation | Section 6.3, NFR-5 |
 | **Redis** | `auditure_redis` | `6379` | In-memory cache for job progress tracking, playback progress (resume position), and rate limiting | Section 6.3 |
-| **AI Worker** | `auditure_ai_worker` | N/A | Python microservice for script generation (OpenAI GPT-4o mini) and TTS audio synthesis (Gemini 2.5 Flash + Google Cloud TTS) | FR-Episode |
+| **AI Worker** | `auditure_ai_worker` | N/A | Python microservice for script generation (OpenAI GPT-5.4-mini) and TTS audio synthesis (Gemini 2.5 Flash + Google Cloud TTS) | FR-Episode |
 
 ## Usage
 
@@ -152,7 +152,8 @@ Google Cloud Standard TTS additionally needs a service-account credentials file 
 | Variable | Default | Description |
 |:---------|:--------|:------------|
 | `OPENAI_API_KEY` | (required for LLM) | OpenAI key for script generation. If unset, the worker falls back to template scripts. |
-| `OPENAI_MODEL` | `gpt-4o-mini` | Model used for script generation |
+| `OPENAI_MODEL` | `gpt-5.4-mini` | Model used for script generation |
+| `OPENAI_FALLBACK_MODEL` | `gpt-4.1-mini` | 1M-context fallback for prompts over the 272K input-token cap |
 | `GEMINI_API_KEY` | (required for Gemini TTS) | Gemini 2.5 Flash TTS key |
 | `GOOGLE_CLOUD_PROJECT_ID` | (required for Standard TTS) | GCP project for Google Cloud Standard TTS |
 | `TTS_VOICE_TIER` | `standard` | `standard` (Google Cloud) or `gemini` (Gemini 2.5 Flash) |
@@ -163,7 +164,7 @@ Google Cloud Standard TTS additionally needs a service-account credentials file 
 ### Technology Stack
 
 The AI Worker uses:
-* **Script Generation:** OpenAI GPT-4o-mini with template fallback
+* **Script Generation:** OpenAI GPT-5.4-mini with template fallback
 * **Text-to-Speech:** Gemini 2.5 Flash TTS (premium, multi-speaker) + Google Cloud Standard TTS (free tier)
 * **TTS SDK:** `google-genai` for Gemini TTS integration
 * **Database:** SQLAlchemy ORM connecting to PostgreSQL
@@ -273,9 +274,9 @@ services:
       DATABASE_URL: postgresql://admin:password@postgres:5432/auditure_db
       LOCAL_STORAGE_PATH: /storage
       TTS_TEMP_DIR: /app/temp/tts
-      # LLM - OpenAI GPT-4o mini
+      # LLM - OpenAI
       OPENAI_API_KEY: ${OPENAI_API_KEY}
-      OPENAI_MODEL: gpt-4o-mini
+      OPENAI_MODEL: gpt-5.4-mini
       OPENAI_MAX_TOKENS: 16000
       # Google Cloud TTS
       GOOGLE_CLOUD_PROJECT_ID: ${GOOGLE_CLOUD_PROJECT_ID}

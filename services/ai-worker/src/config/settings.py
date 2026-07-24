@@ -31,10 +31,20 @@ class Settings(BaseSettings):
     redis_host: str = "localhost"
     redis_port: int = 6379
 
-    # LLM - OpenAI GPT-4.1-mini (script generation)
+    # LLM - OpenAI (script generation)
+    # Primary: gpt-5.4-mini (272K input-token cap — no long-context tier on mini).
+    # Fallback: gpt-4.1-mini (1M context) absorbs oversized full-book episodes;
+    # routing happens in llm_client based on counted prompt tokens.
     openai_api_key: Optional[str] = None
-    openai_model: str = "gpt-4.1-mini"
-    openai_max_tokens: int = 16000  # GPT-4.1-mini supports up to 16,384 output tokens
+    openai_model: str = "gpt-5.4-mini"
+    openai_fallback_model: str = "gpt-4.1-mini"
+    openai_max_tokens: int = 16000
+    # Reasoning effort for gpt-5.x models ("none"/"low"/"medium"/"high"/"xhigh").
+    # Dialogue writing needs no deliberation; reasoning tokens bill as output.
+    openai_reasoning_effort: str = "low"
+    # Route to fallback model above this many counted input tokens — stays under
+    # the 272K short-context/input cap with headroom for the system prompt.
+    openai_long_context_threshold_tokens: int = 265000
 
     # Google Cloud TTS (Standard voices - $4/1M chars)
     google_cloud_project_id: Optional[str] = None
@@ -58,8 +68,11 @@ class Settings(BaseSettings):
     # Gemini TTS baseline WPM — actual rate varies per voice (155-200 wpm)
     # Dynamic calculation in script_generator._speed_to_wpm() overrides this
     words_per_minute: int = 175
-    max_book_content_chars: int = 1250000  # GPT-4.1-mini 1M context (~312k tokens at ~4 chars/token)
-    script_generation_timeout: int = 120  # GPT-4.1-mini timeout
+    # Sized for the FALLBACK model's 1M context (~312k tokens at ~4 chars/token).
+    # Episodes whose prompts exceed openai_long_context_threshold_tokens are routed
+    # to the fallback model, so this cap does not need to fit the primary model.
+    max_book_content_chars: int = 1250000
+    script_generation_timeout: int = 120
 
     # TTS
     tts_temp_dir: str = "./temp/tts"
