@@ -270,6 +270,9 @@ class CoHostArchetype:
     perspective: str  # Their angle: skeptical, enthusiastic, analytical, experiential, philosophical
     speaking_style: str  # How they communicate: concise and direct, warm and expansive, etc.
     role_description: str  # One-line description for the prompt
+    # Chosen once per episode so every chunk's prompt renders identically —
+    # required both for speaker consistency and for prompt-cache hits.
+    leader_pattern: Optional[str] = None
 
 
 @dataclass
@@ -310,6 +313,10 @@ class ScriptRequest:
     # Divides the episode by CONTENT so two chunks can't re-argue the same thesis
     # (the topic-ledger only blocked noun/example reuse, not argument-level looping).
     segment_brief: Optional[str] = None
+    # Co-host archetype reused across chunks of one episode. When set, build_prompt
+    # uses it instead of generating a fresh random one, keeping the co-host
+    # consistent AND keeping the prompt prefix byte-identical for prompt caching.
+    cohost_archetype: Optional[CoHostArchetype] = None
 
 
 class PromptBuilder:
@@ -423,15 +430,72 @@ class PromptBuilder:
         10: "COMBATIVE: dismantles claims line by line, treats the book as something to be defeated",
     }
 
+    # Anti-AI-mannerism rules, distilled from an audit of 15 production scripts
+    # (2026-07): the contrast-reframe family alone ("it's not X, it's Y") appeared
+    # ~284 times in 53k words, roughly once every 190 words. These tics are the
+    # loudest "AI wrote this" tell and are restricted per-part below.
+    HUMAN_VOICE_RULES = """## BANNED AI MANNERISMS (CRITICAL. These make the script sound machine-written.)
+
+**1. The contrast-reframe. Maximum ONE in this part, ideally zero.**
+All of these are the same tic, defining a thing by what it is NOT:
+- "It's not X. It's Y." / "That's not X, that's Y."
+- "This isn't just X, it's Y." / "It's not about X, it's about Y."
+- "Not X, but Y."
+When tempted, delete the "not" half and say what the thing IS.
+Weak: "That's not loyalty; that's fear." Strong: "She's afraid, plain and simple."
+
+**2. The either/or rhetorical question. BANNED.**
+"Is it X, or is it Y?" / "Was she the villain, or the victim?"
+Speakers take positions. If a real tension exists, one speaker asserts a side and the other pushes back. Do not pose menu questions to the audience.
+
+**3. The self-answered question. BANNED.**
+"Why? Because..." / "The result? Chaos." State the point directly.
+
+**4. Thesis-stamp closers. BANNED.**
+"That's the power of...", "That's what makes this so...", "That's why this hits so hard", "And that's the heart of it." Do not stamp a verdict onto an exchange. Let the point stand, or let the other speaker react to it.
+
+**5. Stock phrases. BANNED, do not use even once:**
+"here's the thing", "here's the kicker", "let that sink in", "testament to", "speaks volumes", "masterclass in", "masterstroke", "double-edged sword", "no easy answers", "holds a mirror", "a mirror held up to", "lays bare", "pulls no punches", "doesn't flinch", "doesn't shy away", "forces us to confront", "demands we confront", "wrapped in", "soaked in", "at its core", "the emotional core", and paradox-poetry like "a silence that screams".
+
+**6. Hype-adjective budget: each of these may appear AT MOST ONCE in this part:**
+brutal, raw, visceral, gut-wrenching, shattering, shattered, devastating, haunting, chilling, messy, tangled, crucible, reckoning, unravel.
+Instead of an intensity word, use a concrete detail from the source. Instead of "the scene is brutal and raw", describe what actually happens in the scene.
+
+**7. Fragment triads. Maximum ONE in this part.**
+"It's messy, it's painful, and it's human." Three-beat fragment lists are AI cadence. Make one clear statement instead.
+
+**8. No meta-narration about the author.**
+"Hoover isn't just telling a story, she's exposing...", "The author demands we wrestle with..." Talk about the characters and events themselves. Mention the author only for something specific: a particular line, choice, or structure. Never as recurring reverence for what the book "makes us feel".
+
+**9. Do not restate, do not recap.**
+Never summarize what the other speaker just said before responding, and never close an exchange by restating the same thesis in new words. Every turn must ADD something: a new fact from the source, a new implication, a concession, or a sharper disagreement. If a point has been made, it is made. Move.
+
+**10. Punctuation.**
+Strongly prefer periods and commas. Use dashes rarely, a few per part at most, never several in one paragraph.
+
+## SOUND SPOKEN, NOT WRITTEN (write for the ear, not the page)
+
+**Spoken register.** Always use contractions. Prefer the word a person would actually SAY out loud: "scary" over "harrowing", "stuck" over "ensnared", "figure out" over "grapple with", "mess" over "maelstrom". No one says "psychological cement" or "the crucible of grief" in conversation. If a sentence cannot be said comfortably in one breath, split it into two.
+
+**False starts and self-corrections (2-3 per part, at moments of genuine difficulty).** Real speakers abandon a phrasing mid-thought and rebuild it: "She's protecting— no, okay, look. What she's actually doing is buying time." Or catch their own word choice: "He wins. Well. 'Wins.'" Use these where a speaker is working out something hard, not sprinkled at random.
+
+**Quote like a person, not an essay.** When quoting the book, set the quote up the way someone holding the book would: "There's this line that stopped me cold. She literally says..." Then react to it. Never weave a quote seamlessly into an argumentative sentence like a term paper, and never quote more than one sentence at a time."""
+
     # Worn-out openers that show up across too many episodes — ban them explicitly
     # so episodes don't all start the same way.
     BANNED_OPENERS_NOTE = (
         'Do NOT open with worn-out hype phrases. Banned openers include: '
         '"buckle up", "strap in", "strap yourselves in", "hold onto your seats", '
         '"hold onto your hats", "grab your coffee", "grab your popcorn", '
-        '"without further ado", "let\'s dive right in", "picture this". '
-        'Open with something specific to THIS content — a concrete image, a sharp '
-        'question, or a surprising claim.'
+        '"without further ado", "let\'s dive right in", "picture this", '
+        '"imagine...", "imagine if", "you ever...", "have you ever", '
+        '"what if I told you", "ladies and gentlemen". The second-person '
+        'hypothetical ("Imagine coming home to find...") is as worn out as '
+        '"buckle up" — do not use it. '
+        'Instead, cold-open on something concrete from THIS source: a specific '
+        'action, an object, a line of dialogue, or a claim the speaker actually '
+        'believes, delivered in their own voice. Start mid-thought if you like — '
+        'as if the mics caught the speaker already caring about this.'
     )
 
     def _get_trait_description(
@@ -578,10 +642,17 @@ class PromptBuilder:
         if genre_cat in genre_flavor:
             role_description += genre_flavor[genre_cat]
 
+        leader_pattern = random.choice([
+            "HOST leads most topics, GUEST adds depth and challenges",
+            "Leadership alternates — HOST leads odd topics, GUEST leads even topics",
+            "GUEST leads the opening and closing topics, HOST leads the middle",
+        ])
+
         return CoHostArchetype(
             perspective=perspective,
             speaking_style=speaking_style,
             role_description=role_description,
+            leader_pattern=leader_pattern,
         )
 
     def _categorize_genre(self, book_genres: Optional[list[str]]) -> str:
@@ -840,7 +911,12 @@ This is the OPENING of the episode. You MUST:
 - Set up the key themes you'll be discussing
 - Begin exploring the first key concepts from the content
 - Do NOT conclude or wrap up — this continues in the next part
-- End naturally mid-discussion — NOT with "see you next time" or any closing remarks
+
+## HOW TO END THIS PART (SETTLE THE POINT, THEN STOP)
+- Land the point currently on the table BEFORE stopping: the active argument reaches a natural resting place — a concession, a sharp rebuttal that stands, or a clearly held disagreement.
+- Do NOT end with a dangling question, a trailing setup ("So let's zoom in on..."), or a half-made point.
+- Do NOT open a new topic in your last ~100 words if you cannot finish it here.
+- No closing remarks, no "see you next time" — just a settled beat the next part can build on.
 
 ## WORD COUNT — HARD LIMIT
 Target: {words_per_chunk} words. Maximum: {max_words} words.
@@ -857,7 +933,7 @@ BEFORE you start writing, plan this section in two acts:
 2. CONCLUSION (~{conclusion_words} words, 25%): Full, complete wrap-up with closing thoughts and goodbyes
 
 This is the FINAL part of the episode. You MUST:
-- Continue naturally from where the previous part left off (NO "welcome back" — this is seamless)
+- Your FIRST line must pick up the previous part's final thought directly — respond to it, build on it, or pivot FROM it. NO "welcome back", and NO scene-setting restarts ("So here we are...", "So let's zoom in on...")
 - Discuss any remaining insights and concepts that haven't been covered yet
 - Write approximately {words_per_chunk} words total
 
@@ -870,11 +946,16 @@ CRITICAL CONCLUSION RULES:
         else:
             return f"""## CHUNK POSITION: Part {chunk_num} of {total_chunks} — CONTINUATION
 This is a MIDDLE section of the episode. You MUST:
-- Continue naturally from where the previous part left off (NO "welcome back" — this is seamless)
+- Your FIRST line must pick up the previous part's final thought directly — respond to it, build on it, or pivot FROM it. Do NOT restart with scene-setting ("So here we are...", "So let's zoom in on...", "Let's get to the heart of...") — that re-introduction pattern is what makes parts feel stitched together.
 - Dive deeper into NEW concepts from the source (not ones already covered!)
 - Add examples, analysis, and personal insights
 - Do NOT conclude or wrap up — the episode continues after this
-- End naturally mid-discussion — NOT with any closing remarks
+
+## HOW TO END THIS PART (SETTLE THE POINT, THEN STOP)
+- Land the point currently on the table BEFORE stopping: the active argument reaches a natural resting place — a concession, a sharp rebuttal that stands, or a clearly held disagreement.
+- Do NOT end with a dangling question, a trailing setup, or a half-made point.
+- Do NOT open a new topic in your last ~100 words if you cannot finish it here.
+- No closing remarks — just a settled beat the next part can build on.
 
 ## WORD COUNT — HARD LIMIT
 Target: {words_per_chunk} words. Maximum: {max_words} words.
@@ -925,12 +1006,26 @@ Here is the full script from the previous part — match its tone, energy, and f
 {previous_summary}
 
 Continue naturally from where this left off. CRITICAL RULES:
-- Do NOT re-introduce the topic or reset the conversation
+- Your OPENING line must directly engage the final point above — agree with it, push back on it, or build on it. The listener should not be able to tell where one part ends and the next begins.
+- Do NOT re-introduce the topic or reset the conversation with scene-setting ("So here we are...", "Let's zoom in on...")
 - Do NOT revisit ANY specific examples, anecdotes, character actions, or plot points from above
+- Do NOT re-argue a thesis that was already argued above, even in different words — an argument made once is made
 - Move FORWARD to new material from the source chapters — there is plenty of content you haven't covered yet
 - The listener has already heard everything above, so repeating it will bore them""")
 
         return "\n\n".join(sections) + "\n" if sections else ""
+
+    # Canned goodbyes made episodes interchangeable (audit 2026-07: "Goodbye,
+    # everyone!" / "take care of yourselves" / "keep questioning" closed most
+    # episodes with zero reference to their own content).
+    SIGNOFF_NOTE = (
+        "SIGN-OFF RULE: The final goodbye must call back something SPECIFIC from "
+        "THIS episode — a scene, an image, a quoted line, or the exact sticking "
+        "point the speakers never resolved. Canned goodbyes are BANNED: "
+        "\"Goodbye, everyone\", \"take care of yourselves\", \"keep questioning\", "
+        "\"stay curious\", \"keep feeling\", or \"until next time\" as the entire "
+        "farewell. One or two sentences, anchored in what was actually discussed."
+    )
 
     def _build_conclusion_requirement(self, episode_theme: str, episode_type: str) -> str:
         """Build theme-specific conclusion requirement for MANDATORY STRUCTURE."""
@@ -938,37 +1033,41 @@ Continue naturally from where this left off. CRITICAL RULES:
 
         if episode_theme == "DEBATE":
             if is_multi:
-                return (
+                req = (
                     "DEBATE RESOLUTION: The debate MUST reach a resolution. Do NOT end while speakers "
                     "are still arguing. After the climax, both speakers MUST deliver closing statements "
                     "with final reflections on the topic."
                 )
-            return (
-                "DEBATE RESOLUTION: After wrestling with both sides, you MUST arrive at a clear "
-                "conclusion. Do NOT end mid-deliberation. State your final position and why."
-            )
+            else:
+                req = (
+                    "DEBATE RESOLUTION: After wrestling with both sides, you MUST arrive at a clear "
+                    "conclusion. Do NOT end mid-deliberation. State your final position and why."
+                )
         elif episode_theme == "DISCUSSION":
             if is_multi:
-                return (
+                req = (
                     "DISCUSSION WRAP-UP: Both speakers MUST share final reflections and key takeaways. "
                     "Do NOT end while still exploring a point. Wrap up naturally — 'So if there's one thing "
                     "to take away from this...' — and give the listener a clear closing thought."
                 )
-            return (
-                "DISCUSSION WRAP-UP: End with a synthesis of what you explored and your main takeaway. "
-                "Do NOT trail off mid-thought. Give the listener a clear, memorable closing."
-            )
+            else:
+                req = (
+                    "DISCUSSION WRAP-UP: End with a synthesis of what you explored and your main takeaway. "
+                    "Do NOT trail off mid-thought. Give the listener a clear, memorable closing."
+                )
         else:  # LECTURE
             if is_multi:
-                return (
+                req = (
                     "LECTURE CLOSE: End with a summary of key insights and actionable takeaways. "
                     "Both speakers should contribute to the wrap-up. Do NOT stop mid-explanation. "
                     "Give listeners a clear 'here's what to remember' moment."
                 )
-            return (
-                "LECTURE CLOSE: Summarize the key insights and end with actionable takeaways. "
-                "Do NOT stop mid-explanation. Give the listener a clear, memorable conclusion."
-            )
+            else:
+                req = (
+                    "LECTURE CLOSE: Summarize the key insights and end with actionable takeaways. "
+                    "Do NOT stop mid-explanation. Give the listener a clear, memorable conclusion."
+                )
+        return f"{req} {self.SIGNOFF_NOTE}"
 
     def build_conversation_flow(
         self,
@@ -985,13 +1084,17 @@ Continue naturally from where this left off. CRITICAL RULES:
         if episode_type == "MONOLOGUE":
             return ""
 
-        # Determine conversation leader pattern
-        # Randomly assign leadership for variety
-        leader_pattern = random.choice([
-            "HOST leads most topics, GUEST adds depth and challenges",
-            "Leadership alternates — HOST leads odd topics, GUEST leads even topics",
-            "GUEST leads the opening and closing topics, HOST leads the middle",
-        ])
+        # Leader pattern comes from the archetype (chosen once per episode) so
+        # repeated build calls render byte-identical text; random fallback only
+        # for callers without an archetype.
+        if cohost_archetype and cohost_archetype.leader_pattern:
+            leader_pattern = cohost_archetype.leader_pattern
+        else:
+            leader_pattern = random.choice([
+                "HOST leads most topics, GUEST adds depth and challenges",
+                "Leadership alternates — HOST leads odd topics, GUEST leads even topics",
+                "GUEST leads the opening and closing topics, HOST leads the middle",
+            ])
 
         # Build interruption style based on chaos
         if chaos_factor <= 3:
@@ -1038,7 +1141,7 @@ The HOST and GUEST should sound like GENUINELY DIFFERENT PEOPLE — not two vers
 
 **Pauses & Thinking In The Moment (KEY TO SOUNDING UNSCRIPTED):**
 Real people do not speak in finished paragraphs. They pause to find the word, trail off, and restart. Use the pause tags to act this out — not only BETWEEN turns, but INSIDE a turn too:
-- At the START of a turn, before committing: "[medium pause] Okay. [short pause] Here's the thing..."
+- At the START of a turn, before committing: "[medium pause] Okay. [short pause] So what bugs me is..."
 - In the MIDDLE, hunting for the word: "It's almost like... [long pause] like the author is daring you to disagree."
 - At the END, leaving a thought hanging for the other to pick up.
 - Reach for [long pause] on the real beats — a point that lands, a hard question, a change of mind. [medium pause] on its own is often too short to read as genuine thought; do not default to it every time.
@@ -1176,6 +1279,13 @@ Example:
 "So I was reading this [short pause] and honestly [sigh] it completely changed how I think about this."
 "[uhm] Let me think about that [medium pause] yeah, I think you're right."
 "[sarcasm] Oh sure, because that always works perfectly."
+
+**TAG DISCIPLINE (tags are seasoning, not character labels):**
+- NEVER invent a tag. Anything not listed above gets read aloud as literal words.
+- [shouting] is for 2-3 PEAK moments per part, not a personality. Do NOT open turn after turn with it. When everything is shouted, nothing lands. A heated speaker mostly argues at normal volume and ERUPTS only at the peak.
+- Use the quiet end for the biggest moments: [whispering] or a [long pause] before a line that matters hits harder than another shout. Dropping quiet after a loud stretch is the strongest move available.
+- Place pause tags INSIDE sentences sometimes (mid-thought hesitation), not only at the start of turns.
+- Do not open every turn with a tag. A tag at the start of every turn reads as mechanical stage direction.
 """
 
         if episode_type == "MONOLOGUE":
@@ -1689,7 +1799,7 @@ The debate should breathe: build tension, release some, build higher, release, c
 
 **Verbal Cues:**
 - Active listening: "Mm-hmm", "Right", "Okay okay"
-- Reactive: "Ooh!", "Hmm...", "See, that's the thing—"
+- Reactive: "Ooh!", "Hmm...", "See, that part gets me—"
 - Show you're processing: "[uhm]", "[short pause]"
 
 **Energy:**
@@ -1768,7 +1878,7 @@ The debate should breathe: build tension, release some, build higher, release, c
             elif chaos <= 6:
                 frequency = "regularly (4-6 times)"
                 style = "engaged interruptions and reactions"
-                examples = '"Wait, wait—I have to push back on that—", "—yes! Exactly—", "No no no, here\'s the thing—", "Mm-hmm, mm-hmm, but consider—"'
+                examples = '"Wait, wait—I have to push back on that—", "—yes! Exactly—", "No no no, hold on—", "Mm-hmm, mm-hmm, but consider—"'
             elif chaos <= 8:
                 frequency = "frequently (7+ times)"
                 style = "passionate interruptions and heated exchanges"
@@ -1987,11 +2097,14 @@ Treat this as the steering wheel for the ENTIRE episode:
                 target_words=target_words,
             )
 
-        # Build conversation flow for DUO episodes
+        # Build conversation flow for DUO episodes.
+        # Reuse the request's archetype when provided (chunks 2+ of an episode)
+        # so the rendered section is byte-identical across chunks — this keeps
+        # the co-host consistent and preserves the prompt-cache prefix.
         cohost_archetype = None
         conversation_flow_section = ""
         if request.episode_type == "DUO":
-            cohost_archetype = self.generate_cohost_archetype(
+            cohost_archetype = request.cohost_archetype or self.generate_cohost_archetype(
                 host_personality=request.podcaster_personality,
                 episode_theme=request.episode_theme,
                 book_genres=request.book_genres,
@@ -2140,6 +2253,12 @@ CRITICAL RULES:
         # Build high-priority editor's direction (the focus/steering lever)
         editor_direction_section = self._build_editor_direction(request.editor_notes)
 
+        # Prompt layout is deliberately split into a STABLE PREFIX (identical for
+        # every chunk of an episode: persona, format, rules, episode title, and
+        # the book content itself) followed by chunk-varying sections. OpenAI
+        # prompt caching is prefix-based, so this ordering lets chunks 2..N read
+        # the entire book content at the cached-input rate. Do not insert
+        # chunk-dependent or random text above the book content.
         prompt = f"""You are {request.podcaster_name}, a podcast host creating an episode about "{request.book_title}"{author_line}.
 
 ## Your Personality
@@ -2153,11 +2272,14 @@ CRITICAL RULES:
 ## Episode Theme
 {theme_instructions}
 
-{pacing_section}
-
 {conversation_flow_section}
-{deep_dive_section}
-{requirements_section}
+
+{self.HUMAN_VOICE_RULES}
+
+## Episode Title
+"{request.episode_title}"
+{title_focus_instruction}
+{editor_direction_section}
 
 ## Book Content to Discuss (THIS IS THE ONLY CONTENT YOU CAN REFERENCE!)
 {request.book_content}
@@ -2180,11 +2302,11 @@ When content is limited, use CREATIVE EXPANSION instead of repeating:
 6. Counterarguments ("But some might argue...")
 7. Historical parallels and modern applications
 8. Thought experiments ("What if everyone followed this?")
+
+{pacing_section}
+{deep_dive_section}
+{requirements_section}
 {chunk_context_section}
-## Episode Title
-"{request.episode_title}"
-{title_focus_instruction}
-{editor_direction_section}
 {structure_section}
 
 Now write {"Part " + str(request.chunk_num) + " of " + str(request.total_chunks) + " of " if is_chunked else ""}the {"complete " if not is_chunked else ""}podcast script:

@@ -377,9 +377,11 @@ class ScriptGenerator:
     ) -> tuple[str, Optional[CoHostArchetype]]:
         """Generate a long script in multiple chunks and combine them.
 
-        GPT-4.1-mini struggles with generating >1500 words in one call.
+        Mini-tier models struggle with generating >1500 words in one call.
         This method splits the generation into chunks, each using the full
-        PromptBuilder prompt with chunk-specific position instructions.
+        PromptBuilder prompt with chunk-specific position instructions. The
+        prompt's stable prefix (persona + book content) is byte-identical
+        across chunks so chunks 2+ hit OpenAI prompt caching.
         """
         target_words_per_chunk = 1300
         num_chunks = max(2, (target_words + target_words_per_chunk - 1) // target_words_per_chunk)
@@ -442,6 +444,9 @@ class ScriptGenerator:
                 previous_summary=previous_summary if chunk_num > 1 else None,
                 topics_covered=topics_covered if chunk_num > 1 else None,
                 segment_brief=segments[chunk_num - 1] if segments else None,
+                # Reuse chunk 1's archetype so later chunks keep the same co-host
+                # AND render an identical prompt prefix (prompt-cache hits).
+                cohost_archetype=cohost_archetype,
             )
 
             logger.info(f"Generating chunk {chunk_num}/{num_chunks}...")
