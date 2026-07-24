@@ -354,7 +354,3 @@ Examples:
 ```bash
 npx tree-node-cli -I "node_modules|.git|dist|.expo|.vscode" --dirs-first
 ```
-
-## License
-
-[Your License Here]
