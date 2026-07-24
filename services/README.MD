@@ -28,7 +28,7 @@ A **NestJS** modular monolith serving the mobile app.
 A **Python** service for the compute-heavy generation pipeline.
 
 **Responsibilities:**
-* **Script generation** - OpenAI GPT-4.1-mini with a template fallback; chunked generation for long episodes with a three-layer anti-repetition system
+* **Script generation** - OpenAI GPT-5.4-mini (1M-context GPT-4.1-mini fallback for oversized books) with a template fallback; chunked generation for long episodes with a three-layer anti-repetition system
 * **TTS synthesis** - Gemini 2.5 Flash TTS (premium, native multi-speaker) or Google Cloud Standard TTS (free-tier fallback)
 * **Audio assembly** - Concatenate multi-speaker/multi-chunk segments (pydub + ffmpeg), add trailing silence
 * **Live transcript timing** - Optional forced alignment (wav2vec2, CPU) producing per-line timestamps; crash-safe and non-vital

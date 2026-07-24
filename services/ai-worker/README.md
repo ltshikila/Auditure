@@ -1,6 +1,6 @@
 # Auditure AI Worker
 
-Python microservice for AI-powered podcast generation. Handles script generation (via OpenAI GPT-4.1-mini with template fallback), text-to-speech conversion (via Google Cloud TTS + Gemini 2.5 Flash TTS), and optional forced alignment for live transcript timing.
+Python microservice for AI-powered podcast generation. Handles script generation (via OpenAI GPT-5.4-mini, with a 1M-context GPT-4.1-mini fallback for oversized books and a template fallback), text-to-speech conversion (via Google Cloud TTS + Gemini 2.5 Flash TTS), and optional forced alignment for live transcript timing.
 
 **SDK:** Uses the official `google-genai` SDK for Gemini TTS integration.
 
@@ -110,7 +110,7 @@ ai-worker/
 
 ## Features
 
-- **Script Generation**: OpenAI GPT-4.1-mini with template fallback
+- **Script Generation**: OpenAI GPT-5.4-mini with template fallback. Prompts over ~265K input tokens (very large full-book episodes) route automatically to 1M-context GPT-4.1-mini; chunked prompts share a byte-identical prefix (persona + book content) so later chunks hit OpenAI prompt caching
 - **Chapter-Aware Scripts**: Episode introductions specify exact chapters being covered
 - **Chunked Generation**: Long scripts (>1800 words) split into multiple chunks, each assigned a distinct beat via outline-first planning
 - **Anti-Repetition**: Three layers — outline-first segment planning, topic-ledger fallback, and a post-assembly repetition gate with a targeted rewrite pass (see "Why Chunked Generation?")
@@ -415,7 +415,8 @@ REDIS_PORT=6379
 
 # LLM - OpenAI
 OPENAI_API_KEY=your_openai_key_here
-OPENAI_MODEL=gpt-4.1-mini
+OPENAI_MODEL=gpt-5.4-mini
+OPENAI_FALLBACK_MODEL=gpt-4.1-mini  # 1M-context fallback for prompts over the 272K input cap
 
 # Google Cloud TTS (Standard voices)
 GOOGLE_CLOUD_PROJECT_ID=your_project_id
@@ -486,7 +487,7 @@ docker run -e RABBITMQ_URL=amqp://host:5672 \
 1. Job received from RabbitMQ (episode_generation queue)
 2. Status: PENDING → SCRIPT_GENERATING (progress: 10%)
 3. Fetch book content + podcaster from database (progress: 20%)
-4. Generate script (OpenAI GPT-4.1-mini or templates) (progress: 40%)
+4. Generate script (OpenAI GPT-5.4-mini or templates) (progress: 40%)
 5. Status: SCRIPT_GENERATED (progress: 60%)
 6. Status: AUDIO_GENERATING (progress: 80%)
 7. Generate audio (Gemini 2.5 Flash TTS or Standard based on tier)

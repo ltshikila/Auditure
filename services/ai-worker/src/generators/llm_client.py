@@ -1,4 +1,9 @@
-"""OpenAI GPT-4.1-mini client for script generation."""
+"""OpenAI client for script generation.
+
+Primary model is gpt-5.4-mini; prompts whose counted input tokens exceed the
+272K short-context/input cap are routed to the 1M-context fallback model
+(gpt-4.1-mini) so oversized full-book episodes keep working.
+"""
 
 import logging
 import traceback
@@ -15,6 +20,31 @@ from src.config import get_settings
 
 logger = logging.getLogger(__name__)
 
+# (input, cached_input, output) USD per 1M tokens — for cost logging only.
+MODEL_PRICING = {
+    "gpt-5.4-mini": (0.75, 0.075, 4.50),
+    "gpt-4.1-mini": (0.40, 0.10, 1.60),
+}
+
+_TOKEN_ENCODER = None
+
+
+def _count_tokens(text: str) -> int:
+    """Count tokens with tiktoken (o200k_base, shared by 4.1/5.x families).
+
+    Falls back to a conservative chars/3 estimate if tiktoken is unavailable —
+    conservative here means over-counting, which can only route a borderline
+    episode to the big-context fallback model, never overflow the primary.
+    """
+    global _TOKEN_ENCODER
+    try:
+        if _TOKEN_ENCODER is None:
+            import tiktoken
+            _TOKEN_ENCODER = tiktoken.get_encoding("o200k_base")
+        return len(_TOKEN_ENCODER.encode(text))
+    except Exception:
+        return len(text) // 3
+
 
 class LLMAPIError(Exception):
     """Custom exception for LLM API errors."""
@@ -25,13 +55,16 @@ class LLMAPIError(Exception):
 
 
 class OpenAIClient:
-    """Client for OpenAI GPT-4.1-mini API."""
+    """Client for the OpenAI Chat Completions API with size-based model routing."""
 
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
         """Initialize OpenAI client."""
         settings = get_settings()
         self.api_key = api_key or settings.openai_api_key
         self.model = model or settings.openai_model
+        self.fallback_model = settings.openai_fallback_model
+        self.reasoning_effort = settings.openai_reasoning_effort
+        self.long_context_threshold = settings.openai_long_context_threshold_tokens
         self.max_tokens = settings.openai_max_tokens
         self.timeout = settings.script_generation_timeout
 
@@ -40,10 +73,38 @@ class OpenAIClient:
         if self.api_key:
             from openai import OpenAI
             self.client = OpenAI(api_key=self.api_key)
-            logger.info(f"OpenAI client initialized (model: {self.model})")
+            logger.info(
+                f"OpenAI client initialized (model: {self.model}, "
+                f"fallback: {self.fallback_model})"
+            )
         else:
             self.client = None
             logger.warning("OpenAI client not configured - no API key found")
+
+    def _select_model(self, input_text: str) -> str:
+        """Pick primary or big-context fallback based on counted input tokens."""
+        tokens = _count_tokens(input_text)
+        if tokens > self.long_context_threshold:
+            logger.info(
+                f"[LLM] Input is {tokens} tokens (> {self.long_context_threshold}) — "
+                f"routing to fallback model {self.fallback_model}"
+            )
+            return self.fallback_model
+        return self.model
+
+    def _completion_params(self, model: str, max_tokens: int) -> dict:
+        """Model-family-specific request params.
+
+        gpt-5.x are reasoning models on Chat Completions: they take
+        max_completion_tokens (which also counts reasoning tokens, hence the
+        headroom) and reasoning_effort. gpt-4.1.x keep the legacy max_tokens.
+        """
+        if model.startswith("gpt-5"):
+            params: dict = {"max_completion_tokens": max_tokens + 2000}
+            if self.reasoning_effort:
+                params["reasoning_effort"] = self.reasoning_effort
+            return params
+        return {"max_tokens": max_tokens}
 
     @property
     def is_available(self) -> bool:
@@ -88,19 +149,44 @@ class OpenAIClient:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
+        model = self._select_model((system_prompt or "") + prompt)
+
         logger.info("[LLM] Calling OpenAI API...")
-        logger.info(f"[LLM] Model: {self.model}")
+        logger.info(f"[LLM] Model: {model}")
         logger.info(f"[LLM] Prompt length: {len(prompt)} chars")
         logger.info(f"[LLM] Max tokens: {max_tokens}, Temperature: {temperature}")
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                timeout=self.timeout,
-            )
+            try:
+                response = self.client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    temperature=temperature,
+                    timeout=self.timeout,
+                    **self._completion_params(model, max_tokens),
+                )
+            except Exception as e:
+                # Safety net: if the primary model rejects the request for
+                # context length (token counting drifted), retry once on the
+                # 1M-context fallback rather than failing the episode.
+                if (
+                    model != self.fallback_model
+                    and "context" in str(e).lower()
+                ):
+                    logger.warning(
+                        f"[LLM] {model} rejected request ({e}); retrying on "
+                        f"fallback model {self.fallback_model}"
+                    )
+                    model = self.fallback_model
+                    response = self.client.chat.completions.create(
+                        model=model,
+                        messages=messages,
+                        temperature=temperature,
+                        timeout=self.timeout,
+                        **self._completion_params(model, max_tokens),
+                    )
+                else:
+                    raise
 
             choice = response.choices[0]
             generated = choice.message.content
@@ -117,16 +203,26 @@ class OpenAIClient:
             logger.info(f"[LLM] Generated {len(generated)} chars ({word_count} words), finish_reason={finish_reason}")
 
             if usage:
+                cached_tokens = 0
+                details = getattr(usage, "prompt_tokens_details", None)
+                if details is not None:
+                    cached_tokens = getattr(details, "cached_tokens", 0) or 0
+
                 logger.info(
-                    f"[LLM] Tokens used - Prompt: {usage.prompt_tokens}, "
+                    f"[LLM] Tokens used - Prompt: {usage.prompt_tokens} "
+                    f"(cached: {cached_tokens}), "
                     f"Completion: {usage.completion_tokens}, Total: {usage.total_tokens}"
                 )
 
-                # GPT-4.1-mini pricing: $0.40/1M input, $1.60/1M output
-                input_cost = (usage.prompt_tokens / 1_000_000) * 0.40
-                output_cost = (usage.completion_tokens / 1_000_000) * 1.60
-                total_cost = input_cost + output_cost
-                logger.info(f"[LLM] Estimated cost: ${total_cost:.6f}")
+                input_rate, cached_rate, output_rate = MODEL_PRICING.get(
+                    model, MODEL_PRICING["gpt-4.1-mini"]
+                )
+                fresh_tokens = usage.prompt_tokens - cached_tokens
+                input_cost = (fresh_tokens / 1_000_000) * input_rate
+                cached_cost = (cached_tokens / 1_000_000) * cached_rate
+                output_cost = (usage.completion_tokens / 1_000_000) * output_rate
+                total_cost = input_cost + cached_cost + output_cost
+                logger.info(f"[LLM] Estimated cost: ${total_cost:.6f} ({model})")
 
             self._last_finish_reason = finish_reason
             return generated
