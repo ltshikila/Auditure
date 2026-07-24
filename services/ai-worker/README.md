@@ -173,9 +173,9 @@ ai-worker/
 
 **Reference:** [Gemini TTS Pricing](https://ai.google.dev/gemini-api/docs/pricing)
 
-**Hybrid Free Tier Model:**
+**Hybrid Free Tier Model** (this section covers how tiers map to TTS engines; tier definitions and limits are canonical in the [Subscriptions README](../core-api/src/subscriptions/README.md)):
 - Free users: 1 Gemini + 2 Standard episodes/month (up to 10 min each)
-- Paid users: 20 (Starter) or 50 (Pro) unified episodes/month using Gemini 2.5 Flash TTS (up to 30 min each)
+- Paid users: Starter or Pro unified episodes/month using Gemini 2.5 Flash TTS (up to 30 min each)
 
 ### Gemini TTS Voice Selection
 

@@ -119,170 +119,21 @@ The message references the episode record; the worker fetches full detail from t
 
 > Notifications use **Redis Streams** rather than RabbitMQ. See the [Notifications README](./core-api/src/notifications/README.md).
 
-## Core API Architecture
+## Service Details
 
-### Module Structure
+This document covers how the two services fit together. Each service's internals, module layout, technology choices, and full environment-variable reference live in its own README:
 
-```text
-core-api/
-├── src/
-│   ├── auth/              # Email/password + OTP + JWT (guards, strategies, dto)
-│   ├── users/            # User profiles & settings
-│   ├── books/            # Upload, extraction dispatch, dedup (workers/, services/)
-│   ├── episodes/         # Orchestration, streaming, playback progress
-│   ├── podcasters/       # Virtual host management + voice assignment
-│   ├── feed/             # Discovery feed
-│   ├── search/           # Unified search (ILIKE + pg_trgm)
-│   ├── social/           # Likes, comments, ratings
-│   ├── subscriptions/    # RevenueCat webhooks (+ legacy Paystack stubs)
-│   ├── notifications/    # In-app + Expo push (Redis Streams)
-│   ├── common/           # Storage, email, guards, filters, interceptors
-│   ├── database/         # Prisma service
-│   ├── redis/            # Redis module (cache, progress, playback, streams)
-│   └── rabbitmq/         # Episode-generation producer
-├── prisma/               # schema.prisma + migrations
-├── test/                 # e2e tests, mocks, fixtures
-└── book-extractor-main.ts  # Cloud Run Job entry point
-```
-
-### Key Technologies
-
-* **Framework:** NestJS (Node.js)
-* **ORM:** Prisma with PostgreSQL
-* **Validation:** class-validator, class-transformer
-* **Auth:** Passport JWT strategy, bcrypt
-* **Email:** Resend
-* **Message queue:** amqplib (RabbitMQ)
-* **Storage:** local filesystem (dev) or Google Cloud Storage (prod), behind a `StorageService` abstraction
-* **Caching / streams:** Redis (job progress, playback position, rate limiting, notification streams)
-
-## AI Worker Architecture
-
-### Processing Pipeline
-
-1. Consume message from RabbitMQ `episode_generation` queue
-2. Status → `SCRIPT_GENERATING` (progress 10%)
-3. Fetch book content + podcaster config via SQLAlchemy (progress 20%)
-4. Generate script with OpenAI GPT-4.1-mini (or template fallback) (progress 40%)
-5. Status → `SCRIPT_GENERATED` (progress 60%)
-6. Status → `AUDIO_GENERATING` (progress 80%)
-7. Synthesize audio with Gemini 2.5 Flash TTS (or Standard by tier)
-8. Concatenate segments (multi-speaker or multi-chunk)
-9. Save audio to storage at `{userId}/{episodeId}/audio.mp3`
-10. Status → `COMPLETED` (progress 100%); quota consumed; user notified
-11. (Optional) Forced alignment → store `transcriptSegments` for live transcript
-
-**Progress tracking:** Redis hash at key `job:{episodeId}`.
-
-### Project Structure
-
-```text
-ai-worker/
-├── src/
-│   ├── config/           # Pydantic settings
-│   ├── consumers/        # RabbitMQ consumers (base + episode)
-│   ├── generators/       # Script generation (LLM + templates/)
-│   ├── tts/              # TTS engine + alignment/
-│   ├── storage/          # Local/GCS file storage
-│   ├── database/         # SQLAlchemy client, models, repository
-│   ├── redis/            # Progress tracking
-│   └── utils/            # Logging
-├── scripts/              # One-off ops (e.g. backfill_segments.py)
-├── tests/
-├── Dockerfile
-├── requirements.txt
-└── pyproject.toml
-```
-
-### Key Technologies
-
-* **Python:** 3.9+
-* **LLM:** OpenAI GPT-4.1-mini with template fallback
-* **TTS:** Gemini 2.5 Flash TTS (via `google-genai`) + Google Cloud Standard TTS
-* **Message queue:** pika (RabbitMQ)
-* **Database:** SQLAlchemy over PostgreSQL
-* **Audio:** pydub, ffmpeg
-* **Alignment (optional):** torch + torchaudio (CPU), baked into the Docker image
-* **Progress:** Redis
+* **Core API** - modules, layered architecture, and env vars: [`core-api/README.md`](./core-api/README.md), with per-module docs under `core-api/src/*/README.md`.
+* **AI Worker** - script generation, chunking, TTS voices, forced alignment, pipeline stages, and env vars: [`ai-worker/README.md`](./ai-worker/README.md).
 
 ## Environment Variables
 
-### Core API
+Each service owns its own reference to avoid drift:
 
-```bash
-# Server
-NODE_ENV=development
-PORT=3000
+* Core API: [`core-api/README.md`](./core-api/README.md#environment-configuration)
+* AI Worker: [`ai-worker/README.md`](./ai-worker/README.md#environment-variables)
 
-# Database
-DATABASE_URL=postgresql://admin:password@localhost:5432/auditure_db
-
-# RabbitMQ
-RABBITMQ_URL=amqp://user:password@localhost:5672
-
-# Redis
-REDIS_URL=redis://localhost:6379          # prod uses an Upstash URL
-
-# JWT
-JWT_SECRET=change-me
-JWT_EXPIRES_IN=15m
-JWT_REFRESH_SECRET=change-me
-JWT_REFRESH_EXPIRES_IN=7d
-
-# Email (Resend)
-RESEND_API_KEY=re_xxx
-EMAIL_FROM="Auditure <noreply@auditure.app>"
-OTP_EXPIRY_MINUTES=10
-
-# Storage
-STORAGE_BACKEND=local                     # or 'gcs' in prod
-LOCAL_STORAGE_PATH=./storage
-GCS_BUCKET_NAME=                          # required when STORAGE_BACKEND=gcs
-
-# Subscriptions (RevenueCat)
-REVENUECAT_WEBHOOK_AUTH_HEADER=           # static Authorization header value RC sends
-
-# Book extraction (Cloud Run Job)
-GCP_PROJECT_ID=auditure-483611
-GCP_REGION=us-central1
-BOOK_EXTRACTOR_JOB=book-extractor
-```
-
-### AI Worker
-
-```bash
-# RabbitMQ
-RABBITMQ_URL=amqp://user:password@localhost:5672
-EPISODE_GENERATION_QUEUE=episode_generation
-EPISODE_GENERATION_DLQ=episode_generation_dlq
-
-# Database
-DATABASE_URL=postgresql://admin:password@localhost:5432/auditure_db
-
-# Redis (progress)
-REDIS_HOST=localhost
-REDIS_PORT=6379
-
-# LLM (OpenAI)
-OPENAI_API_KEY=your-openai-key
-OPENAI_MODEL=gpt-4.1-mini
-
-# TTS
-GOOGLE_CLOUD_PROJECT_ID=your-gcp-project
-GOOGLE_APPLICATION_CREDENTIALS=/app/google-credentials.json
-GEMINI_API_KEY=your-gemini-key
-TTS_VOICE_TIER=standard                   # standard | gemini
-
-# Forced alignment (optional)
-ALIGNMENT_ENABLED=true
-ALIGNMENT_TIMEOUT_S=600
-
-# Processing
-LOG_LEVEL=INFO
-MAX_BOOK_CONTENT_CHARS=100000
-```
-
-**Note:** If `OPENAI_API_KEY` is unset, the worker falls back to template-based scripts. Gemini TTS requires `GEMINI_API_KEY`; Standard TTS requires Google Cloud credentials.
+Locally, the AI Worker's variables are wired through [`infra/docker-compose.yml`](../infra/README.md#ai-worker-configuration).
 
 ## Episode Generation Workflow
 
@@ -294,21 +145,19 @@ MAX_BOOK_CONTENT_CHARS=100000
 6. On success the worker sets status `COMPLETED`, consumes quota, and delivers a push notification (directly, since core-api may be scaled to zero).
 7. Client polls `/episodes/:id` and streams the audio.
 
-### API Surface (selected)
+### API Reference
 
-**Auth:** `POST /auth/register`, `/auth/login`, `/auth/verify`, `/auth/refresh`, `/auth/resend-otp`, `GET /auth/me`
+Endpoints are documented per module (they are the source of truth):
 
-**Books:** `POST /books/upload`, `GET /books`, `GET /books/:id`, `GET /books/:id/chapters`, `POST /books/:id/retry-extraction`, `DELETE /books/:id`
-
-**Podcasters:** `POST /podcasters`, `GET /podcasters/my`, `GET /podcasters/public`, `PATCH /podcasters/:id`, `POST /podcasters/:id/rate`
-
-**Episodes:** `POST /episodes`, `POST /episodes/with-file`, `GET /episodes/my`, `GET /episodes/:id`, `GET /episodes/:id/stream`, `GET|POST /episodes/:id/progress`
-
-**Feed & Search:** `GET /feed?tab=`, `GET /feed/section/:id`, `GET /search`, `GET /search/suggestions`
-
-**Notifications:** `GET /notifications`, `PATCH /notifications/:id/read`, `POST /notifications/push-token`
-
-**Subscriptions:** `GET /subscriptions/status`, `POST /subscriptions/rc-webhook`
+| Domain | Documentation |
+|--------|---------------|
+| Auth | [`auth/README.md`](./core-api/src/auth/README.md) |
+| Books | [`books/README.md`](./core-api/src/books/README.md) |
+| Feed | [`feed/README.md`](./core-api/src/feed/README.md) |
+| Search | [`search/README.md`](./core-api/src/search/README.md) |
+| Notifications | [`notifications/README.md`](./core-api/src/notifications/README.md) |
+| Subscriptions | [`subscriptions/README.md`](./core-api/src/subscriptions/README.md) |
+| Podcasters / Episodes | See `core-api/README.md` and `core-api/src/*/*_SERVICE.md` |
 
 ## Deployment
 

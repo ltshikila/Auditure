@@ -184,90 +184,20 @@ PORT="3000"
 
 ## API Documentation
 
-### Authentication Endpoints
+Endpoints are documented per module. Each module README below is the source of truth for its routes, request/response shapes, and error codes.
 
-See [Auth Service Documentation](src/auth/README.md) for detailed API documentation.
+| Domain | Base URL | Documentation |
+|--------|----------|---------------|
+| Authentication | `/auth` | [Auth](src/auth/README.md) |
+| Books | `/books` (+ `/books/api/*` for services) | [Books](src/books/README.md) |
+| Podcasters | `/podcasters` | [Podcasters](src/podcasters/PODCASTERS_SERVICE.md) |
+| Episodes | `/episodes` | [Episodes](src/episodes/EPISODES_SERVICE.md) |
+| Feed | `/feed` | [Feed](src/feed/README.md) |
+| Search | `/search` | [Search](src/search/README.md) |
+| Notifications | `/notifications` | [Notifications](src/notifications/README.md) |
+| Subscriptions | `/subscriptions` | [Subscriptions](src/subscriptions/README.md) |
 
-**Base URL:** `/auth`
-
-- `POST /register` - Register new user
-- `POST /login` - User login
-- `POST /verify` - Verify email with OTP
-- `POST /refresh` - Refresh access token
-- `POST /resend-otp` - Resend verification code
-- `GET /me` - Get current user profile (protected)
-
-### Books Endpoints
-
-See [Books Service Documentation](src/books/README.md) for detailed API documentation.
-
-**Base URL:** `/books`
-
-- `POST /upload` - Upload book file
-- `GET /` - Get all user's books
-- `GET /:id` - Get single book
-- `GET /:id/text` - Get extracted text
-- `GET /:id/chapters` - Get book chapters
-- `DELETE /:id` - Delete book
-- `POST /:id/retry-extraction` - Retry failed extraction
-
-**Public APIs for Microservices:**
-- `GET /api/book/:id` - Get book for episode generation
-- `GET /api/search` - Search books
-- `GET /api/popular` - Get popular books
-
-### Podcasters Endpoints
-
-See [Podcasters Service Documentation](src/podcasters/PODCASTERS_SERVICE.md) for detailed API documentation.
-
-**Base URL:** `/podcasters`
-
-- `POST /` - Create podcaster (17 configurable traits)
-- `GET /my` - Get user's podcasters
-- `GET /public` - Browse public podcasters (paginated, filtered)
-- `GET /trending` - Get trending podcasters
-- `GET /:id` - Get single podcaster
-- `PATCH /:id` - Update podcaster
-- `DELETE /:id` - Delete podcaster
-- `POST /:id/like` - Like podcaster
-- `POST /:id/rate` - Rate podcaster (1-5 stars)
-
-### Episodes Endpoints
-
-See [Episodes Service Documentation](src/episodes/EPISODES_SERVICE.md) for detailed API documentation.
-
-**Base URL:** `/episodes`
-
-- `POST /` - Create episode from book + podcaster
-- `POST /with-file` - Upload book and create episode in one request
-- `GET /my` - Get user's episodes
-- `GET /public` - Browse public episodes
-- `GET /:id` - Get episode with book/podcaster details
-- `GET /:id/stream` - Stream audio (range request support)
-- `GET /:id/progress` - Get playback position
-- `POST /:id/progress` - Save playback position
-- `POST /:id/like` - Like episode
-- `POST /:id/comments` - Add comment
-
-### Subscriptions Endpoints
-
-Billing runs through **RevenueCat + Google Play Billing**. Purchases happen in-app via the RevenueCat SDK; the backend reacts to webhooks. See [Subscriptions Documentation](src/subscriptions/README.md) for the full lifecycle.
-
-**Base URL:** `/subscriptions`
-
-- `GET /status` - Get subscription status and usage (JWT)
-- `POST /rc-webhook` - RevenueCat webhook handler (static-header auth)
-
-**Legacy Paystack routes (retiring):** `/checkout`, `/manage`, `/cancel`, `/reactivate`, `/cleanup-duplicates` now return a "please update the app" notice. `/webhook`, `/callback`, `/success`, `/cancel-redirect` remain for old clients only.
-
-### Storage Endpoints
-
-**Base URL:** `/api/storage`
-
-- `GET /*` - Serve files from storage (cover images, etc.)
-  - Example: `/api/storage/{userId}/{bookId}/cover.jpg`
-  - Returns: File content with appropriate Content-Type
-  - Supports: jpg, jpeg, png, gif, webp, pdf, txt, mp3, wav, ogg
+**Storage:** `GET /api/storage/*` serves stored files (e.g. `/api/storage/{userId}/{bookId}/cover.jpg`) with the appropriate `Content-Type`.
 
 ## Testing
 
@@ -592,8 +522,7 @@ logger.warn('Warning message');
 | **OTP expiration (10 min)** | Time-limited codes reduce the attack window if an email is compromised. Balance between security and user convenience. |
 | **Input validation (class-validator)** | Validates data shape and constraints at the API boundary. Rejects malformed requests before they reach business logic. |
 | **SQL injection protection (Prisma)** | Prisma uses parameterized queries by default. Never concatenate user input into SQL strings - Prisma handles escaping. |
-| **File type validation** | MIME type + extension checking prevents upload of executable files disguised as PDFs. Defense in depth with storage scanning. |
-| **File size limits (50MB)** | Prevents denial-of-service via large uploads that exhaust disk/memory. Balance between usability and protection. |
+| **Upload hardening** | MIME allowlist, magic-byte verification, 32MB size limit, and PDF JavaScript/XFA disabled at parse time. See [Books upload security](src/books/README.md#upload-security) for the full breakdown. |
 
 ### Security Anti-Patterns to Avoid
 
@@ -660,7 +589,7 @@ npx prisma generate
 **File Upload Issues:**
 - Check STORAGE_BACKEND environment variable
 - Verify LOCAL_STORAGE_PATH directory exists and is writable
-- Ensure file size is under 50MB limit
+- Ensure file size is under the 32MB limit
 
 **RabbitMQ Connection:**
 ```bash

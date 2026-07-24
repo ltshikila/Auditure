@@ -152,25 +152,9 @@ npm run start:mobile   # from repo root
 
 ## Subscription Plans
 
-Billing runs through **RevenueCat + Google Play Billing**. Purchases and management happen in-app via the RevenueCat SDK; RevenueCat webhooks notify the Core API, which maps products to tiers and updates episode limits.
+Three tiers (Free, Starter at $9.99/mo, Pro at $24.99/mo) billed through **RevenueCat + Google Play Billing**. Purchases happen in-app via the RevenueCat SDK; webhooks keep the Core API in sync. The legacy Paystack integration is being retired.
 
-> The earlier Paystack integration is being retired. Its mutation endpoints remain only as stubs that ask old clients to update the app. No real Paystack subscribers ever existed.
-
-| Tier | Price | Episodes / Month | Max Duration | Notes |
-|------|-------|------------------|--------------|-------|
-| Free | $0 | 3 (1 Gemini + 2 Standard) | 10 min | Hybrid free tier |
-| Starter | $9.99/mo | 20 (unified, Gemini) | 30 min | Mono & duo episodes |
-| Pro | $24.99/mo | 50 (unified, Gemini) | 30 min | Priority processing |
-
-**Product mapping (RevenueCat):**
-* `auditure_premium:starter` → STARTER
-* `auditure_premium:pro` → PRO
-
-**Webhook endpoint:** `POST /subscriptions/rc-webhook` (authenticated by a static header, `REVENUECAT_WEBHOOK_AUTH_HEADER`)
-
-Complimentary (comp) access can be granted manually for outreach/press; effective tier resolves as paid > comp > free.
-
-See [Subscriptions Documentation](./services/core-api/src/subscriptions/README.md) for the full lifecycle and webhook event handling.
+Tier limits, product mapping, webhook auth, and the comp-access model are documented in the [Subscriptions README](./services/core-api/src/subscriptions/README.md).
 
 ## Documentation
 
@@ -189,6 +173,8 @@ See [Subscriptions Documentation](./services/core-api/src/subscriptions/README.m
 * Upload defenses: MIME allowlist, magic-byte verification, PDF JavaScript/XFA disabled at parse time, VPC egress restricted on the extractor Job
 * Secrets via environment variables and GCP Secret Manager (never committed)
 * TLS in transit; encryption at rest on managed data stores
+
+Details: [auth security](./services/core-api/src/auth/README.md#security-considerations) and [book upload security](./services/core-api/src/books/README.md#upload-security).
 
 ## Branching Strategy (GitFlow)
 

@@ -175,6 +175,7 @@ With PlaybackContext:
 - Free, Starter, and Pro tiers via Google Play Billing (RevenueCat SDK)
 - Purchases and management handled in-app by `react-native-purchases`
 - Usage/quota surfaced from the Core API `/subscriptions/status`
+- Tier definitions and limits: see the [Subscriptions README](../../services/core-api/src/subscriptions/README.md)
 
 ### Audio Playback
 
