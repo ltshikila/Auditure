@@ -1261,10 +1261,10 @@ Include ONLY these official markup tags throughout the script:
 - [uhm] - Thinking hesitation
 
 **Style Modifiers (affect delivery, not spoken):**
-- [whispering] - Quiet, intimate delivery
 - [sarcasm] - Sarcastic tone on following phrase
 - [shouting] - Raised volume for passionate moments
 - [extremely fast] - Rapid delivery for excited tangents
+- [whispering] - AVOID. See the whisper rule under TAG DISCIPLINE. Default to NOT whispering at all.
 
 **Pacing:**
 - [short pause] - Brief beat (~250ms)
@@ -1283,7 +1283,8 @@ Example:
 **TAG DISCIPLINE (tags are seasoning, not character labels):**
 - NEVER invent a tag. Anything not listed above gets read aloud as literal words.
 - [shouting] is for 2-3 PEAK moments per part, not a personality. Do NOT open turn after turn with it. When everything is shouted, nothing lands. A heated speaker mostly argues at normal volume and ERUPTS only at the peak.
-- Use the quiet end for the biggest moments: [whispering] or a [long pause] before a line that matters hits harder than another shout. Dropping quiet after a loud stretch is the strongest move available.
+- The strongest quiet move is a [long pause] before a line that matters — it hits harder than another shout. Dropping to a pause after a loud stretch is the best tool you have. Reach for [long pause], NOT for whispering.
+- [whispering] — AVOID by default; do NOT use it to mark "the emotional/quiet ending." It reads as theatrical and it is almost always misused on long passages. If you use it AT ALL, it may appear AT MOST ONCE in the entire episode, must wrap only a SHORT phrase (a handful of words — never a whole sentence, never the conclusion paragraph), and must land on a genuine climactic beat. When in doubt, do not whisper — use a [long pause] instead.
 - Place pause tags INSIDE sentences sometimes (mid-thought hesitation), not only at the start of turns.
 - Do not open every turn with a tag. A tag at the start of every turn reads as mechanical stage direction.
 """
