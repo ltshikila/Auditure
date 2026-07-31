@@ -3,5 +3,9 @@
     "allow": [
       "Bash(npx expo start:*)"
     ]
+  },
+  "attribution": {
+    "commit": "",
+    "pr": ""
   }
 }
