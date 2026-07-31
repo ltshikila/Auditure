@@ -29,12 +29,24 @@ export class RevenueCatService {
         switch (event.type) {
             case 'INITIAL_PURCHASE':
             case 'RENEWAL':
+                // A payment cleared, so this starts a fresh usage period.
+                await this.applyActiveSubscription(event, undefined, { resetUsage: true });
+                return;
+
             case 'UNCANCELLATION':
-                await this.applyActiveSubscription(event);
+                // No payment involved — the user un-cancelled mid-cycle and keeps
+                // the usage they have already consumed in the current period.
+                await this.applyActiveSubscription(event, undefined, { resetUsage: false });
                 return;
 
             case 'PRODUCT_CHANGE':
-                await this.applyActiveSubscription(event, event.new_product_id ?? event.product_id);
+                // Upgrade/downgrade takes effect on the next renewal, which arrives
+                // as its own RENEWAL event. Don't hand out a second allowance here.
+                await this.applyActiveSubscription(
+                    event,
+                    event.new_product_id ?? event.product_id,
+                    { resetUsage: false },
+                );
                 return;
 
             case 'CANCELLATION':
@@ -69,7 +81,11 @@ export class RevenueCatService {
         return PRODUCT_TO_TIER[productId] ?? null;
     }
 
-    private async applyActiveSubscription(event: RevenueCatEvent, productIdOverride?: string) {
+    private async applyActiveSubscription(
+        event: RevenueCatEvent,
+        productIdOverride?: string,
+        options: { resetUsage: boolean } = { resetUsage: false },
+    ) {
         const productId = productIdOverride ?? event.product_id;
         const tier = this.resolveTier(productId);
         if (!tier) {
@@ -94,6 +110,17 @@ export class RevenueCatService {
             : new Date();
         const premiumExpiresAt = event.expiration_at_ms ? new Date(event.expiration_at_ms) : null;
 
+        // For paid tiers the usage period must stay anchored to the billing date,
+        // so quota resets with the subscription instead of on a calendar-month
+        // schedule that drifts out of phase with it.
+        const advancesPeriod =
+            premiumStartedAt.getTime() > new Date(subscription.usagePeriodStart).getTime();
+
+        // RevenueCat retries webhooks, so a RENEWAL can arrive more than once.
+        // Only a payment newer than the current period's anchor grants a fresh
+        // allowance — a redelivery leaves the counters alone.
+        const startsNewPeriod = options.resetUsage && advancesPeriod;
+
         await this.databaseService.subscription.update({
             where: { userId },
             data: {
@@ -103,11 +130,16 @@ export class RevenueCatService {
                 premiumExpiresAt,
                 geminiEpisodeLimit: limits.gemini,
                 standardEpisodeLimit: limits.standard,
+                ...(advancesPeriod ? { usagePeriodStart: premiumStartedAt } : {}),
+                ...(startsNewPeriod ? { geminiEpisodesUsed: 0, standardEpisodesUsed: 0 } : {}),
             },
         });
 
         this.logger.log(
-            `User ${userId} → ${tier} via ${event.type}; expires ${premiumExpiresAt?.toISOString() ?? 'unknown'}`,
+            `User ${userId} → ${tier} via ${event.type}; expires ${premiumExpiresAt?.toISOString() ?? 'unknown'}` +
+                (startsNewPeriod
+                    ? `; usage reset, period starts ${premiumStartedAt.toISOString()}`
+                    : `; usage kept (${subscription.geminiEpisodesUsed + subscription.standardEpisodesUsed} used)`),
         );
     }
 

@@ -431,26 +431,49 @@ Last updated: February 2026`,
             });
         }
 
-        // Check if usage period needs reset (monthly)
+        // Check if the usage period needs reset.
         const now = new Date();
         const periodStart = new Date(subscription.usagePeriodStart);
+        const isPaidTier = subscription.tier === 'STARTER' || subscription.tier === 'PRO';
+
+        // Paid tiers reset on the billing anniversary, driven by the RevenueCat
+        // RENEWAL webhook. Calendar-month resets are wrong here: they drift out of
+        // phase with the billing date and can leave a user who just renewed holding
+        // an already-spent quota. This is the safety net for a renewal that landed
+        // without resetting usage — the billing period has moved past the usage
+        // period, so roll the usage period forward to match.
+        const billingPeriodAhead =
+            isPaidTier &&
+            subscription.premiumStartedAt !== null &&
+            new Date(subscription.premiumStartedAt).getTime() > periodStart.getTime();
+
+        // Free tier has no billing cycle, so it keeps calendar-month semantics.
         const monthsSinceStart =
             (now.getFullYear() - periodStart.getFullYear()) * 12 +
             (now.getMonth() - periodStart.getMonth());
+        const calendarMonthElapsed = !isPaidTier && monthsSinceStart >= 1;
 
-        if (monthsSinceStart >= 1) {
-            this.logger.log(`Resetting usage counters for user ${userId}`);
+        if (billingPeriodAhead || calendarMonthElapsed) {
+            const newPeriodStart = billingPeriodAhead
+                ? new Date(subscription.premiumStartedAt as Date)
+                : now;
+            this.logger.log(
+                `Resetting usage counters for user ${userId} (${
+                    billingPeriodAhead ? 'billing period rolled over' : 'calendar month elapsed'
+                }), period start ${newPeriodStart.toISOString()}`,
+            );
             subscription = await this.databaseService.subscription.update({
                 where: { userId },
                 data: {
                     geminiEpisodesUsed: 0,
                     standardEpisodesUsed: 0,
-                    usagePeriodStart: now,
+                    usagePeriodStart: newPeriodStart,
                 },
             });
         }
 
-        const isPaid = subscription.tier === 'STARTER' || subscription.tier === 'PRO';
+        // The reset above never changes the tier.
+        const isPaid = isPaidTier;
 
         return {
             tier: subscription.tier,
@@ -514,8 +537,7 @@ Last updated: February 2026`,
             }
         } else {
             // Free tier: check individual limits (1 Gemini, 2 Standard)
-            const used =
-                voiceTier === 'GEMINI' ? sub.geminiEpisodesUsed : sub.standardEpisodesUsed;
+            const used = voiceTier === 'GEMINI' ? sub.geminiEpisodesUsed : sub.standardEpisodesUsed;
             const limit =
                 voiceTier === 'GEMINI' ? sub.geminiEpisodeLimit : sub.standardEpisodeLimit;
 
