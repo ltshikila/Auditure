@@ -979,7 +979,47 @@ SCRIPT:
 
         script = re.sub(r'\[([^\]]+)\]', _replace_tag, script)
 
+        # Whisper guard. [whispering] is meant for a short, well-timed phrase, but
+        # the model tends to whisper whole sentences or the entire conclusion,
+        # which reads as theatrical. Enforce what the prompt asks for but can't
+        # guarantee: keep a whisper ONLY if it wraps a short span (<= MAX words up
+        # to the next sentence end), and keep AT MOST ONE per script. Stripping a
+        # tag only removes the whisper delivery — the words are still spoken.
+        script = self._enforce_whisper_limits(script)
+
         # Clean up double spaces left behind
         script = re.sub(r'  +', ' ', script)
 
         return script.strip()
+
+    # Max words a [whispering] tag may cover before we strip it as a "long whisper".
+    _WHISPER_MAX_SPAN_WORDS = 8
+
+    def _enforce_whisper_limits(self, script: str) -> str:
+        """Strip long whispers; keep at most one short whisper per script.
+
+        A [whispering] tag styles the text after it up to the next sentence
+        terminator (. ! ?), newline, or next bracket tag. If that span is longer
+        than _WHISPER_MAX_SPAN_WORDS, the whisper is dropped (words kept). Of the
+        whispers that remain short enough, only the first is kept.
+        """
+        kept = 0
+        out = []
+        pos = 0
+        for match in re.finditer(r'\[whispering\]', script, flags=re.IGNORECASE):
+            out.append(script[pos:match.start()])
+            after = script[match.end():]
+            # Span the whisper covers: until sentence end, newline, or next tag.
+            span = re.split(r'[.!?\n]|\[', after, maxsplit=1)[0]
+            span_words = len(span.split())
+            if kept == 0 and span_words <= self._WHISPER_MAX_SPAN_WORDS:
+                out.append(match.group(0))  # keep this one short whisper
+                kept += 1
+            # else: drop the tag (fall through), leaving the spoken words intact
+            pos = match.end()
+        out.append(script[pos:])
+        cleaned = ''.join(out)
+        dropped = script.lower().count('[whispering]') - kept
+        if dropped > 0:
+            logger.info(f"[CLEAN] Whisper guard: kept {kept}, stripped {dropped} whisper tag(s)")
+        return cleaned
