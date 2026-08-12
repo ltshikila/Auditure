@@ -60,8 +60,11 @@ gcp-key.json
 *-sa-key.json
 *-service-account.json
 
-# Claude Code local settings
-.claude/settings.local.json
+# Local agent/editor tooling config
+.claude/
+
+# Stray temp files
+tmpclaude-*
 
 # MCP server config (contains API keys)
 .mcp.json
