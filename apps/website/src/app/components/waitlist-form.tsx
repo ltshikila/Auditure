@@ -51,10 +51,10 @@ export function WaitlistForm({
   if (status === 'success') {
     return (
       <div
-        className={`w-full max-w-md mx-auto flex items-start gap-3 p-4 rounded-[15px] ${
+        className={`w-full max-w-md flex items-start gap-3 p-4 rounded-[2px] ${
           isDark
             ? 'bg-white/10 border border-white/20'
-            : 'bg-white border border-[#2f2f2f]/15 shadow-sm'
+            : 'bg-[#120E0C] border border-[#EDE4D6]/20'
         }`}
       >
         <div
@@ -74,15 +74,15 @@ export function WaitlistForm({
         </div>
         <div className="text-left flex-1">
           <p
-            className={`font-['DM_Serif_Display',serif] text-lg leading-tight ${
-              isDark ? 'text-white' : 'text-[#2f2f2f]'
+            className={`font-['EB_Garamond',serif] text-lg leading-tight ${
+              isDark ? 'text-white' : 'text-[#EDE4D6]'
             }`}
           >
             Bookmarked.
           </p>
           <p
-            className={`font-['Plus_Jakarta_Sans',sans-serif] text-sm mt-1 ${
-              isDark ? 'text-white/70' : 'text-[#5a5a5a]'
+            className={`font-['EB_Garamond',serif] text-sm mt-1 ${
+              isDark ? 'text-white/70' : 'text-[#A2907C]'
             }`}
           >
             We'll email you the moment iOS ships. No spam, no teaser drips, just the launch.
@@ -93,12 +93,12 @@ export function WaitlistForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="w-full max-w-md mx-auto">
+    <form onSubmit={handleSubmit} className="w-full max-w-md">
       <label
-        className={`flex flex-col sm:flex-row gap-2 p-1.5 rounded-[15px] cursor-text ${
+        className={`flex flex-col sm:flex-row gap-2 p-1.5 rounded-[2px] cursor-text ${
           isDark
             ? 'bg-white/10 border border-white/20'
-            : 'bg-white border border-[#2f2f2f]/15 shadow-sm'
+            : 'bg-[#120E0C] border border-[#EDE4D6]/20'
         }`}
       >
         <input
@@ -111,21 +111,21 @@ export function WaitlistForm({
           className={`flex-1 min-w-0 px-4 py-3 bg-transparent outline-none font-['Plus_Jakarta_Sans',sans-serif] ${
             isDark
               ? 'text-white placeholder:text-white/50'
-              : 'text-[#2f2f2f] placeholder:text-[#5a5a5a]'
+              : 'text-[#EDE4D6] placeholder:text-[#A2907C]'
           }`}
         />
         <button
           type="submit"
           disabled={status === 'loading'}
-          className="bg-[#920002] hover:bg-[#920002]/90 disabled:opacity-60 text-white px-6 py-3 rounded-[12px] font-['Plus_Jakarta_Sans',sans-serif] transition-colors whitespace-nowrap cursor-pointer"
+          className="gilt bg-[#C2A14D] hover:bg-[#D9B863] disabled:opacity-60 text-[#1A1512] px-6 py-3 rounded-[2px] btn-label transition-colors whitespace-nowrap cursor-pointer"
         >
           {status === 'loading' ? 'Joining...' : label}
         </button>
       </label>
       {status === 'error' && (
         <p
-          className={`mt-2 text-sm font-['Plus_Jakarta_Sans',sans-serif] text-center ${
-            isDark ? 'text-red-300' : 'text-[#920002]'
+          className={`mt-2 text-sm font-['EB_Garamond',serif] text-center ${
+            isDark ? 'text-red-300' : 'text-[#C2A14D]'
           }`}
         >
           {errorMsg}

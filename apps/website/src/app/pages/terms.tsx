@@ -3,23 +3,23 @@ import appLogo from 'figma:asset/9d4b5c5fc52fec774c788c231ec86fca8166a560.png';
 
 export function TermsOfService() {
   return (
-    <div className="min-h-screen bg-[#FBF8F2]">
+    <div className="min-h-screen bg-[#1A1512]">
       {/* Header */}
-      <header className="bg-[#FBF8F2] border-b border-[#2f2f2f]/10 sticky top-0 z-50">
+      <header className="bg-[#1A1512] border-b border-[#EDE4D6]/10 sticky top-0 z-50">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-4 flex items-center gap-3">
           <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <img src={appLogo} alt="Auditure" className="w-8 h-8" />
-            <span className="font-['DM_Serif_Display',serif] text-[#2f2f2f] text-xl">Auditure</span>
+            <span className="font-['EB_Garamond',serif] text-[#EDE4D6] text-xl">Auditure</span>
           </Link>
         </div>
       </header>
 
       {/* Content */}
       <main className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-12">
-        <h1 className="font-['Plus_Jakarta_Sans',sans-serif] font-bold text-[#2f2f2f] text-4xl md:text-5xl mb-2">
+        <h1 className="font-['EB_Garamond',serif] font-bold text-[#EDE4D6] text-4xl md:text-5xl mb-2">
           Terms of Service
         </h1>
-        <p className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a] text-sm mb-10">
+        <p className="font-['EB_Garamond',serif] text-[#A2907C] text-sm mb-10">
           Last updated: February 2026
         </p>
 
@@ -50,7 +50,7 @@ export function TermsOfService() {
         </Section>
 
         <Section title="6. Copyright Infringement & DMCA">
-          <p className="mb-3">Auditure respects the intellectual property rights of others. If you believe that content on Auditure infringes your copyright, you may submit a takedown notice to <a href="mailto:support@auditure.com" className="text-[#920002] hover:underline">support@auditure.com</a> containing:</p>
+          <p className="mb-3">Auditure respects the intellectual property rights of others. If you believe that content on Auditure infringes your copyright, you may submit a takedown notice to <a href="mailto:support@auditure.com" className="text-[#C2A14D] hover:underline">support@auditure.com</a> containing:</p>
           <ul className="list-disc pl-5 space-y-1 mb-3">
             <li>A description of the copyrighted work you believe has been infringed</li>
             <li>A description of the material you believe is infringing and its location on the platform</li>
@@ -122,21 +122,21 @@ export function TermsOfService() {
         </Section>
 
         <Section title="16. Contact">
-          <p>If you have questions about these Terms of Service, please contact us at <a href="mailto:support@auditure.com" className="text-[#920002] hover:underline">support@auditure.com</a>.</p>
+          <p>If you have questions about these Terms of Service, please contact us at <a href="mailto:support@auditure.com" className="text-[#C2A14D] hover:underline">support@auditure.com</a>.</p>
         </Section>
       </main>
 
       {/* Footer */}
-      <footer className="bg-[#191815] py-8">
+      <footer className="bg-[#0E0B09] py-8">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="font-['Plus_Jakarta_Sans',sans-serif] text-white/40 text-sm">
+          <p className="font-['EB_Garamond',serif] text-white/40 text-sm">
             &copy; 2026 Auditure. All rights reserved.
           </p>
           <div className="flex gap-6">
-            <Link to="/privacy" className="font-['Plus_Jakarta_Sans',sans-serif] text-white/60 hover:text-white text-sm transition-colors">
+            <Link to="/privacy" className="font-['EB_Garamond',serif] text-white/60 hover:text-white text-sm transition-colors">
               Privacy Policy
             </Link>
-            <Link to="/" className="font-['Plus_Jakarta_Sans',sans-serif] text-white/60 hover:text-white text-sm transition-colors">
+            <Link to="/" className="font-['EB_Garamond',serif] text-white/60 hover:text-white text-sm transition-colors">
               Home
             </Link>
           </div>
@@ -149,8 +149,8 @@ export function TermsOfService() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mb-10">
-      <h2 className="font-['Plus_Jakarta_Sans',sans-serif] font-semibold text-[#2f2f2f] text-2xl mb-4">{title}</h2>
-      <div className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a] leading-relaxed">
+      <h2 className="font-['EB_Garamond',serif] font-semibold text-[#EDE4D6] text-2xl mb-4">{title}</h2>
+      <div className="font-['EB_Garamond',serif] text-[#A2907C] leading-relaxed">
         {children}
       </div>
     </div>

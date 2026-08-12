@@ -1,3 +1,5 @@
+import { RANDOM_EPISODE_EVENT } from "./episode-events";
+import { SectionOpener } from "./section-opener";
 import { useEffect, useRef, useState } from "react";
 import agotCover from "@/assets/mock covers/agot.png";
 import atomicCover from "@/assets/mock covers/atomic_habits.png";
@@ -119,6 +121,20 @@ export function EpisodeSnippets() {
     setPlayingIdx(idx);
   };
 
+  // "Open at Random" from the hero: scroll here, then play one at random.
+  useEffect(() => {
+    const openAtRandom = () => {
+      const idx = Math.floor(Math.random() * EPISODES.length);
+      document.querySelector('#listen')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Let the scroll settle before the audio starts, so the card you hear is
+      // the card you are looking at.
+      window.setTimeout(() => handlePlay(idx), 650);
+    };
+
+    window.addEventListener(RANDOM_EPISODE_EVENT, openAtRandom);
+    return () => window.removeEventListener(RANDOM_EPISODE_EVENT, openAtRandom);
+  });
+
   const handleTimeUpdate = (idx: number) => {
     const audio = audioRefs.current[idx];
     if (!audio) return;
@@ -135,23 +151,21 @@ export function EpisodeSnippets() {
   };
 
   return (
-    <section id="listen" className="py-20 md:py-28 bg-[#F5F0E8]">
+    <section id="listen" className="py-20 md:py-28 bg-[#221A16]">
       <style>{`
         @keyframes pulse-glow {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(146, 0, 2, 0.45), 0 20px 30px -10px rgba(146, 0, 2, 0.25); }
-          50% { box-shadow: 0 0 0 12px rgba(146, 0, 2, 0), 0 25px 35px -8px rgba(146, 0, 2, 0.35); }
+          0%, 100% { box-shadow: 0 0 0 0 rgba(194, 161, 77, 0.45), 0 20px 30px -10px rgba(194, 161, 77, 0.25); }
+          50% { box-shadow: 0 0 0 12px rgba(194, 161, 77, 0), 0 25px 35px -8px rgba(194, 161, 77, 0.35); }
         }
         .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
       `}</style>
       <div className="mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
-          <h2 className="font-['DM_Serif_Display',serif] text-[#2f2f2f] text-4xl md:text-5xl mb-4">
-            Listen to an Episode
-          </h2>
-          <p className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a] text-lg md:text-xl max-w-2xl mx-auto">
-            Real episodes, generated from real books by real users. Hit play on any card to hear a 45 second sample.
-          </p>
-        </div>
+        <SectionOpener
+          numeral="V"
+          runningHead="Listen"
+          title="Listen to an Episode"
+          standfirst="Real episodes, from real books. Press play for a 45 second sample."
+        />
 
         <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {EPISODES.map((ep, idx) => {
@@ -164,10 +178,10 @@ export function EpisodeSnippets() {
             return (
               <div
                 key={ep.audio}
-                className={`group rounded-[20px] overflow-hidden bg-[#FBF8F2] border transition-all duration-300 hover:-translate-y-1 ${
+                className={`group rounded-[2px] overflow-hidden bg-[#1A1512] border transition-all duration-300 hover:-translate-y-1 ${
                   isPlaying
-                    ? "border-[#920002] animate-pulse-glow"
-                    : "border-[#d0d0d0]/40 shadow-md hover:shadow-xl"
+                    ? "border-[#C2A14D] animate-pulse-glow"
+                    : "border-[#EDE4D6]/12"
                 }`}
               >
                 <div
@@ -183,11 +197,11 @@ export function EpisodeSnippets() {
                 </div>
 
                 <div className="p-5">
-                  <h3 className="font-['DM_Serif_Display',serif] text-[#2f2f2f] text-lg leading-snug mb-2 line-clamp-2 min-h-[3.25rem]">
+                  <h3 className="font-['EB_Garamond',serif] text-[#EDE4D6] text-lg leading-snug mb-2 line-clamp-2 min-h-[3.25rem]">
                     {ep.episodeTitle}
                   </h3>
-                  <p className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a] text-sm mb-5 line-clamp-1">
-                    {ep.bookTitle} <span className="text-[#5a5a5a]/60">· {ep.author}</span>
+                  <p className="font-['EB_Garamond',serif] text-[#A2907C] text-sm mb-5 line-clamp-1">
+                    {ep.bookTitle} <span className="text-[#A2907C]/60">· {ep.author}</span>
                   </p>
 
                   <div className="flex items-center gap-3">
@@ -195,22 +209,22 @@ export function EpisodeSnippets() {
                       onClick={() => handlePlay(idx)}
                       className={`shrink-0 w-[3.25rem] h-[3.25rem] rounded-full flex items-center justify-center transition-all duration-200 ${
                         isPlaying
-                          ? "bg-[#920002] text-white scale-105"
-                          : "bg-[#2f2f2f] text-white hover:bg-[#920002] group-hover:scale-105"
-                      } shadow-lg`}
+                          ? "bg-[#C2A14D] text-[#1A1512] scale-105"
+                          : "bg-[#120E0C] text-white hover:bg-[#C2A14D] hover:text-[#1A1512] group-hover:scale-105"
+                      }`}
                       aria-label={isPlaying ? "Pause" : "Play"}
                     >
                       {isPlaying ? <PauseIcon /> : <PlayIcon />}
                     </button>
 
                     <div className="flex-1">
-                      <div className="h-1.5 bg-[#d0d0d0] rounded-full overflow-hidden">
+                      <div className="h-1.5 bg-[#EDE4D6]/20 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-[#920002] transition-[width] duration-100"
+                          className="h-full bg-[#C2A14D] transition-[width] duration-100"
                           style={{ width: `${pct}%` }}
                         />
                       </div>
-                      <div className="flex justify-between mt-1.5 font-['Plus_Jakarta_Sans',sans-serif] text-xs text-[#5a5a5a]">
+                      <div className="flex justify-between mt-1.5 font-['EB_Garamond',serif] text-xs text-[#A2907C]">
                         <span>{time}</span>
                         <span>{dur}</span>
                       </div>
@@ -232,7 +246,7 @@ export function EpisodeSnippets() {
           })}
         </div>
 
-        <p className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a] text-sm text-center mt-10 max-w-2xl mx-auto">
+        <p className="font-['EB_Garamond',serif] text-[#A2907C] text-sm text-center mt-10 max-w-2xl mx-auto">
           Episode titles, voices, and content are all generated by Auditure users on the app. Each book host is a custom Virtual Podcaster designed by a real listener.
         </p>
       </div>
