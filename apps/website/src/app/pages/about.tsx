@@ -4,7 +4,7 @@ import { Footer } from "../components/footer";
 
 export function AboutPage() {
   return (
-    <div className="min-h-screen bg-[#FBF8F2]">
+    <div className="min-h-screen bg-[#1A1512]">
       <Navigation />
       <main className="pt-20">
         <About />

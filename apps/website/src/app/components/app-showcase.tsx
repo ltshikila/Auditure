@@ -1,68 +1,44 @@
+import { SectionOpener } from './section-opener';
+
 export function AppShowcase() {
+  const items = [
+    {
+      title: "Discover & Explore",
+      description: "A feed of episodes from Virtual Podcasters across every genre and interest."
+    },
+    {
+      title: "Like, Comment & Rate",
+      description: "Engage with other creators. Your feedback pushes the best episodes to the top."
+    },
+    {
+      title: "Build Your Audience",
+      description: "Share your Virtual Podcaster's episodes and grow a following around them."
+    }
+  ];
+
   return (
-    <section id="community" className="py-20 md:py-28 bg-gradient-to-br from-[#920002] to-[#760002] relative overflow-hidden">
-      {/* Background pattern */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute top-0 left-0 w-full h-full" style={{
-          backgroundImage: `radial-gradient(circle at 2px 2px, white 1px, transparent 0)`,
-          backgroundSize: '40px 40px'
-        }}></div>
-      </div>
+    <section id="community" className="py-20 md:py-28 bg-[#920002]">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <SectionOpener
+          numeral="IV"
+          runningHead="Community"
+          title="Other People’s Hosts"
+          standfirst="Everything anyone makes lands in the same feed."
+          tone="light"
+        />
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
-        {/* Header */}
-        <div className="text-center mb-16">
-          <h2 className="font-['DM_Serif_Display',serif] text-white text-4xl md:text-5xl mb-6">
-            A Growing Community of Creators
-          </h2>
-          <p className="font-['Plus_Jakarta_Sans',sans-serif] text-white/90 text-lg leading-relaxed max-w-2xl mx-auto">
-            Auditure isn't just a tool - it's a platform. Discover Virtual Podcasters built by people around the world, explore episodes on topics you care about, and share your own creations.
-          </p>
-        </div>
+        <p className="font-['EB_Garamond',serif] text-white/80 text-lg leading-relaxed measure prose-justified mb-14 md:mb-20 -mt-6 md:-mt-10">
+          Find Virtual Podcasters built by people around the world, explore episodes on subjects you actually care about, and put your own out there.
+        </p>
 
-        {/* Feature cards */}
-        <div className="grid gap-8 md:grid-cols-3">
-          {[
-            {
-              title: "Discover & Explore",
-              description: "Browse a feed of episodes from Virtual Podcasters across every genre and interest.",
-              icon: (
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                  <circle cx="11" cy="11" r="7" stroke="white" strokeWidth="2"/>
-                  <path d="M20 20L17 17" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-                </svg>
-              )
-            },
-            {
-              title: "Like, Comment & Rate",
-              description: "Engage with content from other creators. Your feedback helps the best episodes rise to the top.",
-              icon: (
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="white"/>
-                </svg>
-              )
-            },
-            {
-              title: "Build Your Audience",
-              description: "Share your Virtual Podcaster's episodes and grow a following around your unique content.",
-              icon: (
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="8" r="3" fill="white"/>
-                  <circle cx="5" cy="10" r="2.5" fill="white" opacity="0.6"/>
-                  <circle cx="19" cy="10" r="2.5" fill="white" opacity="0.6"/>
-                  <path d="M8 18C8 15.79 9.79 14 12 14C14.21 14 16 15.79 16 18" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-                </svg>
-              )
-            }
-          ].map((item, index) => (
-            <div key={index} className="bg-white/10 backdrop-blur-sm rounded-[20px] p-8 border border-white/10">
-              <div className="w-14 h-14 bg-white/20 rounded-[14px] flex items-center justify-center mb-6">
-                {item.icon}
-              </div>
-              <h3 className="font-['DM_Serif_Display',serif] text-white text-2xl mb-3">
+        {/* Community */}
+        <div className="grid gap-10 md:gap-12 md:grid-cols-3">
+          {items.map((item, index) => (
+            <div key={index} className="border-t border-white/25 pt-6">
+              <h3 className="font-['EB_Garamond',serif] text-white text-2xl mb-3">
                 {item.title}
               </h3>
-              <p className="font-['Plus_Jakarta_Sans',sans-serif] text-white/80 leading-relaxed">
+              <p className="font-['EB_Garamond',serif] text-white/80 leading-relaxed">
                 {item.description}
               </p>
             </div>

@@ -1,3 +1,4 @@
+import { SectionOpener } from "./section-opener";
 import { useState } from "react";
 
 type FAQItem = {
@@ -59,7 +60,7 @@ function ChevronIcon({ open }: { open: boolean }) {
     >
       <path
         d="M6 9l6 6 6-6"
-        stroke="#920002"
+        stroke="#C2A14D"
         strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -72,38 +73,40 @@ export function FAQ() {
   const [openIdx, setOpenIdx] = useState<number | null>(0);
 
   return (
-    <section id="faq" className="py-20 md:py-28 bg-[#FBF8F2]">
+    <section id="faq" className="py-20 md:py-28 bg-[#1A1512]">
       <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <h2 className="font-['DM_Serif_Display',serif] text-[#2f2f2f] text-4xl md:text-5xl mb-4">
-            Frequently Asked Questions
-          </h2>
-          <p className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a] text-lg max-w-xl mx-auto">
-            Everything you might be wondering before you create your first podcaster.
-          </p>
+        <div className="mb-12">
+          <SectionOpener
+            numeral="VII"
+            runningHead="Questions"
+            title="Frequently Asked Questions"
+            standfirst="The things people ask before making their first podcaster."
+          />
         </div>
 
-        <div className="space-y-3">
+        <div className="border-b border-[#EDE4D6]/15">
           {FAQ_ITEMS.map((item, idx) => {
             const open = openIdx === idx;
             return (
-              <div
-                key={item.question}
-                className="bg-[#F5F0E8] rounded-[16px] border border-[#d0d0d0]/40 overflow-hidden"
-              >
+              <div key={item.question} className="border-t border-[#EDE4D6]/15">
                 <button
                   onClick={() => setOpenIdx(open ? null : idx)}
-                  className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left hover:bg-[#EFE9DF] transition-colors"
+                  className="w-full flex items-baseline justify-between gap-6 py-6 text-left group"
                   aria-expanded={open}
                 >
-                  <span className="font-['Plus_Jakarta_Sans',sans-serif] font-medium text-[#2f2f2f] text-base md:text-lg">
-                    {item.question}
+                  <span className="flex items-baseline gap-5">
+                    <span className="label-caps text-[#EDE4D6]/35 shrink-0">
+                      {String(idx + 1).padStart(2, "0")}
+                    </span>
+                    <span className="font-['EB_Garamond',serif] text-[#EDE4D6] text-xl md:text-2xl group-hover:text-[#C2A14D] transition-colors">
+                      {item.question}
+                    </span>
                   </span>
                   <ChevronIcon open={open} />
                 </button>
                 {open && (
-                  <div className="px-6 pb-5">
-                    <p className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a] text-base leading-relaxed">
+                  <div className="pb-8 pl-0 md:pl-[3.75rem]">
+                    <p className="font-['EB_Garamond',serif] text-[#A2907C] text-lg leading-relaxed measure prose-justified">
                       {item.answer}
                     </p>
                   </div>
@@ -113,9 +116,9 @@ export function FAQ() {
           })}
         </div>
 
-        <p className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a] text-sm text-center mt-10">
+        <p className="font-['EB_Garamond',serif] text-[#A2907C] text-sm text-center mt-10">
           Still curious? Email us at{" "}
-          <a href="mailto:support@auditure.app" className="text-[#920002] hover:underline">
+          <a href="mailto:support@auditure.app" className="text-[#C2A14D] hover:underline">
             support@auditure.app
           </a>
         </p>

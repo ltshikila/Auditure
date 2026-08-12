@@ -1,5 +1,9 @@
 import { Navigation } from "./components/navigation";
 import { Hero } from "./components/hero";
+import { Contents } from "./components/contents";
+import { Epigraph } from "./components/epigraph";
+import { Foreword } from "./components/foreword";
+import { ReadingMarker } from "./components/reading-marker";
 import { Features } from "./components/features";
 import { WhyAuditure } from "./components/why-auditure";
 import { AppShowcase } from "./components/app-showcase";
@@ -12,10 +16,20 @@ import { Footer } from "./components/footer";
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-[#FBF8F2]">
+    // Full bleed. An earlier version inset the page on a darker ground so it read
+    // as a bounded leaf, which worked when the page was cream on warm parchment.
+    // Once the theme went dark that became near-black around near-black and just
+    // looked like letterboxing, so the ground is gone.
+    <div className="min-h-screen bg-[#1A1512]">
       <Navigation />
       <main>
+        {/* Frontmatter: title page, epigraph, contents, foreword */}
         <Hero />
+        <Epigraph />
+        <Contents />
+        <Foreword />
+
+        {/* Chapters */}
         <WhyAuditure />
         <Features />
         <Screenshots />
@@ -26,6 +40,7 @@ export default function App() {
         <CTA />
       </main>
       <Footer />
+      <ReadingMarker />
 
       {/* Custom animations */}
       <style>{`

@@ -1,0 +1,175 @@
+/*
+ * Print primitives.
+ *
+ * Structure borrowed from book typography, not decoration. Deliberately no
+ * paper texture, no ornaments, no sepia, no flourish dividers. Those read as
+ * costume. What carries the feel is the type, the grid, the measure, the
+ * hairlines and the restraint.
+ *
+ * One serif family sets the whole page, the way a book is set in one face.
+ * Plus Jakarta Sans is held back for interface chrome only: labels, buttons,
+ * inputs, navigation.
+ */
+
+body {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 18px;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Old-style figures and ligatures. Numerals that sit on the baseline with
+   ascenders and descenders are one of the strongest book signals there is. */
+body,
+p,
+h1,
+h2,
+h3,
+h4,
+li {
+  font-variant-numeric: oldstyle-nums proportional-nums;
+  font-feature-settings: 'onum' 1, 'liga' 1, 'kern' 1;
+}
+
+/* Interface chrome keeps lining figures so prices and times stay legible. */
+.label-caps,
+button,
+input,
+nav {
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: 'lnum' 1, 'tnum' 1;
+}
+
+/* Section metadata: folio numerals and running heads. One role only. */
+.label-caps {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+/* Buttons carry the same letterspaced sans voice as the folio labels, one step
+   larger. Without this they read as imported from a different site. */
+.btn-label {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* Body copy holds a readable measure instead of running the container width. */
+.measure {
+  max-width: 34em;
+}
+
+.measure-wide {
+  max-width: 40em;
+}
+
+/* Display type sets tighter than the browser default, the way print does. */
+.display-tight {
+  letter-spacing: -0.01em;
+  line-height: 1.06;
+}
+
+/* Standfirst under a section title. Italic serif, not a grey sans subhead. */
+.standfirst {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+/* Drop cap. Used exactly once on the page, at the one section that carries
+   real running prose. Used more than once it stops being typography and starts
+   being decoration. */
+.dropcap::first-letter {
+  font-family: 'EB Garamond', Georgia, serif;
+  float: left;
+  font-size: 4.2em;
+  line-height: 0.82;
+  padding-right: 0.07em;
+  margin-top: 0.02em;
+  color: #C2A14D;
+}
+
+/* Longer prose runs justified and hyphenated, as a set page does. */
+.prose-justified {
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+/*
+ * Gilt. Gold leaf on a spine catches the light as the book turns, so the brass
+ * buttons get a single sheen sweep on hover. The sweep is instant on the way
+ * out (transition 0s) so it resets off-screen rather than sliding backwards.
+ */
+.gilt {
+  position: relative;
+  overflow: hidden;
+}
+
+.gilt::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 38%,
+    rgba(255, 252, 240, 0.42) 50%,
+    transparent 62%
+  );
+  transform: translateX(-130%);
+  transition: transform 0s;
+}
+
+.gilt:hover::after,
+.gilt:focus-visible::after {
+  transform: translateX(130%);
+  transition: transform 0.75s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/*
+ * Reveal on scroll. Short distance, short duration, no bounce. A decelerating
+ * curve so it arrives rather than stops.
+ */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 650ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    transform 650ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+.reveal.is-in {
+  opacity: 1;
+  transform: none;
+  will-change: auto;
+}
+
+/* Nobody gets motion sickness from a website of mine. */
+@media (prefers-reduced-motion: reduce) {
+  /* Content must never be left invisible because motion was switched off. */
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .gilt::after {
+    display: none;
+  }
+}

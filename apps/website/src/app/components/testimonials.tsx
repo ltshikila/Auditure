@@ -21,13 +21,13 @@ export function Testimonials() {
   ];
 
   return (
-    <section className="py-20 md:py-28 bg-[#FBF8F2]">
+    <section className="py-20 md:py-28 bg-[#1A1512]">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="font-['DM_Serif_Display',serif] text-[#2f2f2f] text-4xl md:text-5xl mb-4">
+          <h2 className="font-['EB_Garamond',serif] text-[#EDE4D6] text-4xl md:text-5xl mb-4">
             Loved by Listeners
           </h2>
-          <p className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a] text-lg md:text-xl">
+          <p className="font-['EB_Garamond',serif] text-[#A2907C] text-lg md:text-xl">
             Join thousands of happy readers
           </p>
         </div>
@@ -36,7 +36,7 @@ export function Testimonials() {
           {testimonials.map((testimonial, index) => (
             <div 
               key={index}
-              className="bg-white p-8 rounded-[20px] shadow-lg hover:shadow-xl transition-shadow"
+              className="bg-white p-8 rounded-[2px] transition-shadow"
             >
               {/* Star Rating */}
               <div className="flex gap-1 mb-4">
@@ -47,21 +47,21 @@ export function Testimonials() {
                 ))}
               </div>
 
-              <p className="font-['Plus_Jakarta_Sans',sans-serif] text-[#2f2f2f] text-base mb-6 leading-relaxed">
+              <p className="font-['EB_Garamond',serif] text-[#EDE4D6] text-base mb-6 leading-relaxed">
                 "{testimonial.quote}"
               </p>
 
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-[#920002] rounded-full flex items-center justify-center">
-                  <span className="font-['DM_Serif_Display',serif] text-white text-lg">
+                  <span className="font-['EB_Garamond',serif] text-white text-lg">
                     {testimonial.name.charAt(0)}
                   </span>
                 </div>
                 <div>
-                  <p className="font-['Plus_Jakarta_Sans',sans-serif] text-[#2f2f2f]">
+                  <p className="font-['EB_Garamond',serif] text-[#EDE4D6]">
                     {testimonial.name}
                   </p>
-                  <p className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a] text-sm">
+                  <p className="font-['EB_Garamond',serif] text-[#A2907C] text-sm">
                     {testimonial.role}
                   </p>
                 </div>
@@ -79,10 +79,10 @@ export function Testimonials() {
             { number: "50M+", label: "Hours Listened" }
           ].map((stat, index) => (
             <div key={index}>
-              <p className="font-['DM_Serif_Display',serif] text-[#920002] text-4xl md:text-5xl mb-2">
+              <p className="font-['EB_Garamond',serif] text-[#C2A14D] text-4xl md:text-5xl mb-2">
                 {stat.number}
               </p>
-              <p className="font-['Plus_Jakarta_Sans',sans-serif] text-[#5a5a5a] text-lg">
+              <p className="font-['EB_Garamond',serif] text-[#A2907C] text-lg">
                 {stat.label}
               </p>
             </div>
