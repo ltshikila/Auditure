@@ -50,7 +50,7 @@ export class AuthService {
                 (() => {
                     throw new Error('JWT_REFRESH_SECRET environment variable is required');
                 })(),
-            expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN || '7d') as any,
+            expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN || '30d') as any,
         });
 
         return { accessToken, refreshToken };
